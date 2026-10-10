@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14100c">
+<title>Grimoire</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Grenze:ital,wght@0,400;0,600;1,400&family=Grenze+Gotisch:wght@500;700&family=UnifrakturCook:wght@700&display=swap" rel="stylesheet">
+<style>/*CSS*/</style>
+</head>
+<body>
+<main id="app" aria-live="polite"></main>
+<div id="card" hidden></div>
+<script>/*JS*/</script>
+<script>
+// Installable and offline when served over https (not from a file).
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol) && location.hostname !== 'localhost') {
+	navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>

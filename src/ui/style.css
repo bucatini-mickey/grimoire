@@ -1,0 +1,412 @@
+/*
+ * The look: a page of a late-medieval book. Vellum and iron-gall ink by day,
+ * the same page by candlelight at night. Rubrics in vermilion, good in lapis,
+ * highlights in gold. One monospace grid, so the ASCII art lines up.
+ */
+:root {
+	--bg: #eee1c0;
+	--bg-edge: #d9c69a;
+	--ink: #2b1d12;
+	--dim: #7a6646;
+	--rubric: #9b2a1c;
+	--gold: #8a6a1f;
+	--good: #24467a;
+	--evil: #9b2a1c;
+	--poison: #3d7a3a;
+	--drunk: #7a3a78;
+	--press: #2b1d12;
+	--press-ink: #eee1c0;
+	color-scheme: light;
+}
+:root[data-phase="night"] {
+	--bg: #16110c;
+	--bg-edge: #050403;
+	--ink: #e8d8b2;
+	--dim: #8f7c5c;
+	--rubric: #e0654b;
+	--gold: #dcaa4a;
+	--good: #86a9de;
+	--evil: #e0654b;
+	--poison: #7fc06a;
+	--drunk: #c98ad0;
+	--press: #e8d8b2;
+	--press-ink: #16110c;
+	color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+	background: radial-gradient(ellipse at center, var(--bg) 55%, var(--bg-edge) 130%) fixed, var(--bg);
+	color: var(--ink);
+	min-height: 100vh;
+	transition: background-color .6s, color .6s;
+}
+
+/*
+ * The grid. --fs is the size the grid is measured in and --cw one column
+ * (a fixed-width character at that size). Both are absolute, so a box is
+ * the same width whatever font or size the words inside it use.
+ */
+#app { --fs: clamp(12px, calc((100vw - 32px) / 26.4), 18px); }
+/* The player's pages: 26 columns, so bigger type on the same phone. */
+#card { --fs: clamp(14px, calc((100vw - 32px) / 15.6), 24px); }
+#app, #card {
+	--cw: calc(var(--fs) * 0.6);
+	/* Grenze: a book face with a blackletter accent. Grenze Gotisch for headings. */
+	--book: 'Grenze', 'Iowan Old Style', Georgia, serif;
+	--book-sc: 'Grenze', 'Iowan Old Style', Georgia, serif;
+	--gothic: 'Grenze Gotisch', 'UnifrakturCook', 'Old English Text MT', serif;
+	--mono: 'Courier Prime', 'Courier New', ui-monospace, monospace;
+	font-family: var(--book);
+	font-size: var(--fs);
+	width: calc(var(--cw) * 44);
+	margin: 0 auto;
+	padding: 12px 0 48px;
+}
+
+/* Every run of text is a box exactly its columns wide (see textBoxes in ascii.ts). */
+.s { display: inline-block; white-space: pre; vertical-align: baseline; overflow: visible; font-size: 1.12em; }
+.s.art { font-family: var(--mono); font-size: 1em; }
+.s.heading { text-align: center; font-family: var(--gothic); font-weight: 700; font-size: 1.2em; letter-spacing: .02em; }
+/* Free-flowing rows (titles, sentences, the player's big lines) are not on the grid. */
+.row.title .s, .row.prose .s, .row.card-big .s, .row.card-label .s { display: inline; font-size: inherit; white-space: normal; }
+
+/*
+ * One row height everywhere, buttons included, so the grid holds down the
+ * page as well as across it. --row is that height.
+ */
+#app, #card { --row: calc(var(--fs) * 2.1); }
+.row { white-space: pre; line-height: var(--row); height: var(--row); }
+.row.has-btn { line-height: var(--row); height: var(--row); }
+
+.t-rubric { color: var(--rubric); }
+.t-gold { color: var(--gold); }
+.t-good { color: var(--good); }
+.t-evil { color: var(--evil); }
+.t-dim { color: var(--dim); }
+.t-poison { color: var(--poison); font-weight: 700; }
+.t-drunk { color: var(--drunk); font-weight: 700; }
+
+.row.title {
+	font-family: 'UnifrakturCook', 'Old English Text MT', serif;
+	font-size: 2.7em;
+	line-height: 1.1;
+	text-align: center;
+	white-space: normal;
+	color: var(--rubric);
+	padding: 4px 0 2px;
+}
+.row.title .t-title { color: inherit; }
+
+/* Buttons sit on the grid: exactly as wide as their columns, tall enough for a thumb. */
+.b {
+	font: inherit;
+	font-family: var(--book-sc);
+	font-size: 1.1em;
+	color: var(--ink);
+	background: none;
+	border: 0;
+	padding: 0;
+	margin: 0;
+	height: calc(var(--row) - 4px);
+	vertical-align: middle;
+	white-space: pre;
+	overflow: hidden;
+	cursor: pointer;
+	touch-action: manipulation;
+	-webkit-tap-highlight-color: transparent;
+	border-radius: 2px;
+}
+.b .br { color: var(--rubric); }
+.b:active, .b-on { background: var(--press); color: var(--press-ink); }
+.b:active .br, .b-on .br { color: var(--press-ink); }
+.b-primary { color: var(--gold); font-weight: 700; }
+.b-danger { color: var(--rubric); font-weight: 700; }
+.b-quiet { color: var(--dim); }
+.b:disabled { opacity: .35; cursor: default; }
+.b:focus-visible { outline: 1px dashed var(--gold); outline-offset: -1px; }
+
+textarea {
+	display: block;
+	width: 100%;
+	font: inherit;
+	color: var(--ink);
+	background: transparent;
+	border: 1px dashed var(--dim);
+	padding: .4em .6em;
+	margin: .4em 0 .6em;
+	resize: vertical;
+}
+.row:has(textarea) { white-space: normal; }
+
+/* The card the Storyteller turns round to show a player. */
+#card {
+	position: fixed;
+	inset: 0;
+	width: auto;
+	background: var(--bg);
+	display: flex;
+	flex-direction: column;
+	/* Centred when it fits; scrolls from the top when it does not. */
+	justify-content: safe center;
+	align-items: center;
+	overflow-y: auto;
+	padding: 24px 16px 40px;
+	z-index: 10;
+}
+#card[hidden] { display: none; }
+/* The player holds this one: bigger type, bigger targets. */
+
+#card .row.card-grid { font-size: .72em; }
+.card-label { font-family: var(--book); font-style: italic; font-size: 1.4em; margin-top: .8em; }
+.card-big { font-family: var(--gothic); font-weight: 700; font-size: 2.6em; line-height: 1.2; font-variant-numeric: lining-nums; }
+
+/* Sentences: the book face, wrapped by the browser rather than the grid. */
+.row.prose {
+	white-space: normal;
+	font-family: var(--book);
+	font-size: 1.22em;
+	line-height: 1.35;
+	margin: .15em 0;
+}
+#card .row.prose { font-size: 1.3em; }
+
+/* Where a character's picture will go, once drawn. */
+.portrait-space { height: 9em; }
+
+/* One column per glyph, whatever font it came from (see esc() in ascii.ts). */
+.g { display: inline-block; width: var(--cw); font-family: var(--mono); text-align: center; overflow: visible; line-height: 1; }
+
+/* Clocks: big, centred, readable across a room. */
+/* A clock is a grid row; its time sits in a wide box, set large. */
+.row.clock-row { line-height: var(--row); }
+.clock-row [data-timer] { font-size: 2.2em; line-height: 1; text-align: right; vertical-align: middle; }
+[data-timer].paused { opacity: .55; }
+[data-timer].expired { color: var(--rubric); animation: toll 1s steps(2) infinite; }
+@keyframes toll { 50% { opacity: .35; } }
+
+/* Card extras: the portrait keeps the grid; the Spy's grimoire is a small table. */
+#card .row.card-art { white-space: pre; line-height: 1.2; min-height: 1.2em; font-size: 1.1em; }
+#card .row.card-grid { white-space: pre; text-align: left; width: 36ch; max-width: 100%; }
+
+
+/* Rows that hold pictures or forms are as tall as they need, in whole rows. */
+.row.title, .title-art, .card-pic, .easel-row, .ring-row { height: auto; }
+.title-art { display: flex; justify-content: center; padding: 6px 0 2px; }
+.title-tower { width: calc(var(--cw) * 10); height: auto; }
+.pixel { display: block; }
+.card-pic { display: flex; justify-content: center; padding: 4px 0; }
+.card-sprite { width: calc(var(--cw) * 8); height: auto; }
+
+/* ---- the easel ----------------------------------------------------------------------- */
+.easel {
+	display: grid;
+	grid-template-columns: repeat(var(--w), 1fr);
+	width: min(calc(var(--cw) * 40), calc(var(--cw) * 40 * var(--w) / var(--h)));
+	margin: 4px auto;
+	border: 1px solid var(--dim);
+	touch-action: none;
+	user-select: none;
+	background-image: repeating-conic-gradient(color-mix(in srgb, var(--dim) 18%, transparent) 0 25%, transparent 0 50%);
+	background-size: calc(200% / var(--w)) calc(200% / var(--h));
+}
+.cell { aspect-ratio: 1 / 1; outline: 1px solid color-mix(in srgb, var(--dim) 20%, transparent); }
+.cell.empty { background: transparent; }
+.swatches { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; padding: 4px 0; }
+.swatch { width: calc(var(--cw) * 3.2); aspect-ratio: 1 / 1; border: 1px solid var(--dim); padding: 0; font: inherit; color: var(--dim); cursor: pointer; }
+.swatch.erase { background: transparent; }
+.swatch.chosen { outline: 3px solid var(--gold); outline-offset: 1px; }
+.easel-preview { display: flex; align-items: end; justify-content: center; gap: 24px; padding: 6px 0; }
+.preview-big { width: calc(var(--cw) * 12); height: auto; }
+.preview-small { width: calc(var(--cw) * 4); height: auto; }
+.easel-row textarea { font-family: var(--mono); font-size: .8em; }
+.row:has(textarea) { height: auto; }
+
+/* ---- frames: a manuscript double rule ------------------------------------------------
+ * Two hairlines 3px apart, down the middle of the outer columns and along
+ * the middle of the top and bottom rows (see frameTop / paneled in ascii.ts).
+ * Drawn rather than typed, so they run unbroken however tall a row is.
+ */
+.frame-top, .frame-mid, .frame-bot {
+	--ln: color-mix(in srgb, var(--dim) 85%, transparent);
+	--L: linear-gradient(var(--ln), var(--ln));
+	--e: calc(var(--cw) * .5);
+	width: calc(var(--cw) * var(--cols, 44));
+	background-repeat: no-repeat;
+}
+#card .frame-top, #card .frame-mid, #card .frame-bot { --cols: 26; }
+.frame-top, .frame-bot {
+	--a: calc(var(--t0, 0) * var(--cw));
+	--b: calc(var(--t1, 0) * var(--cw));
+	background-image: var(--L), var(--L), var(--L), var(--L), var(--L), var(--L), var(--L), var(--L);
+	background-size:
+		calc(var(--a) - var(--e) + 2px) 1px, calc(100% - var(--b) - var(--e) + 2px) 1px,
+		calc(var(--a) - var(--e) - 2px) 1px, calc(100% - var(--b) - var(--e) - 2px) 1px,
+		1px calc(50% + 2px), 1px calc(50% - 2px), 1px calc(50% + 2px), 1px calc(50% - 2px);
+}
+.frame-top {
+	background-position:
+		calc(var(--e) - 2px) calc(50% - 2px), var(--b) calc(50% - 2px),
+		calc(var(--e) + 2px) calc(50% + 2px), var(--b) calc(50% + 2px),
+		calc(var(--e) - 2px) 100%, calc(var(--e) + 2px) 100%,
+		calc(100% - var(--e) + 2px) 100%, calc(100% - var(--e) - 2px) 100%;
+	margin-top: 4px;
+}
+.frame-mid {
+	background-image: var(--L), var(--L), var(--L), var(--L);
+	background-size: 1px 100%, 1px 100%, 1px 100%, 1px 100%;
+	background-position: calc(var(--e) - 2px) 0, calc(var(--e) + 2px) 0, calc(100% - var(--e) + 2px) 0, calc(100% - var(--e) - 2px) 0;
+}
+.frame-bot {
+	background-position:
+		calc(var(--e) - 2px) calc(50% + 2px), var(--b) calc(50% + 2px),
+		calc(var(--e) + 2px) calc(50% - 2px), var(--b) calc(50% - 2px),
+		calc(var(--e) - 2px) 0, calc(var(--e) + 2px) 0,
+		calc(100% - var(--e) + 2px) 0, calc(100% - var(--e) - 2px) 0;
+	margin-bottom: 4px;
+}
+
+
+/* ---- the grimoire's reminders under each seat ------------------------------------------ */
+.tok-rem {
+	font-family: var(--book);
+	font-style: italic;
+	font-size: .95em;
+	line-height: 1.05;
+	color: var(--gold);
+	white-space: nowrap;
+}
+.ring-row.frame-mid { height: auto; }
+
+/* ---- buttons: the book face, a touch heavier -------------------------------------------- */
+.b { font-weight: 600; letter-spacing: .01em; }
+
+/* ---- the ring of seats ----------------------------------------------------------------- */
+.ring-row.frame-mid { height: auto; }
+.ring {
+	position: relative;
+	width: calc(var(--cw) * 44);
+	aspect-ratio: 1 / 1.04;
+	container-type: inline-size;
+}
+/* The table: a fine double rule, like the panels. */
+.ring::before {
+	content: '';
+	position: absolute;
+	left: 14%; top: 14%; width: 72%; height: 72%;
+	border-radius: 50%;
+	border: 3px double color-mix(in srgb, var(--dim) 55%, transparent);
+}
+.ring-centre {
+	position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+	text-align: center; pointer-events: none;
+}
+.ring-caption { font-family: var(--book); color: var(--dim); font-size: 3.6cqw; line-height: 1.35; white-space: nowrap; }
+.ring-caption:first-child { font-family: var(--gothic); font-weight: 700; color: var(--rubric); font-size: 6.5cqw; line-height: 1.2; }
+
+.tok {
+	position: absolute;
+	width: calc(var(--d) * 1cqw);
+	transform: translate(-50%, calc(var(--d) * -.5cqw));
+	padding: 0; margin: 0; border: 0; background: none;
+	font: inherit; color: var(--ink);
+	display: flex; flex-direction: column; align-items: center;
+	cursor: pointer;
+	touch-action: manipulation;
+	-webkit-tap-highlight-color: transparent;
+	--edge: var(--dim);
+}
+.tok.tone-good { --edge: var(--good); }
+.tok.tone-evil { --edge: var(--evil); }
+.tok.tone-drunk { --edge: var(--drunk); }
+/* The token: a parchment disc with a thin double edge in the team's colour. */
+.tok-face {
+	position: relative;
+	width: 100%;
+	aspect-ratio: 1 / 1;
+	border-radius: 50%;
+	display: flex; flex-direction: column; align-items: center; justify-content: center;
+	background: var(--bg);
+	border: 1px solid var(--edge);
+	box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--edge);
+	transition: box-shadow .2s, transform .12s;
+}
+.tok:active .tok-face { transform: scale(.95); }
+.tok-role {
+	font-family: var(--book);
+	font-size: calc(var(--d) * var(--rs) * 1cqw);
+	line-height: 1.02;
+	text-align: center;
+	padding: 0 7%;
+	color: var(--edge);
+}
+.tok-flags { position: absolute; top: -6%; right: -10%; display: flex; gap: 1px; }
+.tok-flags b {
+	font-family: var(--book); font-weight: 600;
+	font-size: clamp(9px, 2.5cqw, 12px);
+	width: 1.6em; height: 1.6em; line-height: 1.6em; text-align: center;
+	border-radius: 50%;
+	background: var(--bg);
+	border: 1px solid currentColor;
+}
+.tok-name {
+	margin-top: calc(1cqw + 3px);
+	font-family: var(--book); font-weight: 600;
+	font-size: clamp(11px, 3.4cqw, 16px);
+	line-height: 1.05;
+	white-space: nowrap;
+	color: var(--ink);
+}
+.tok-rem {
+	margin-top: 4%;
+	font-family: var(--book); font-style: italic;
+	font-size: calc(var(--d) * .13cqw);
+	line-height: 1;
+	text-align: center;
+	color: var(--gold);
+	white-space: nowrap;
+}
+.tok.dead .tok-face { background: color-mix(in srgb, var(--ink) 18%, var(--bg)); }
+.tok.dead .tok-role, .tok.dead .tok-name { opacity: .5; }
+.tok.picked .tok-face { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--gold); }
+.tok.picked .tok-name { color: var(--gold); }
+.tok.lit .tok-face { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--gold), 0 0 10px color-mix(in srgb, var(--gold) 60%, transparent); }
+.tok.lit .tok-name { color: var(--gold); }
+
+/* ---- the centre's live clock ------------------------------------------------------------- */
+.ring-clock { font-family: var(--gothic); font-weight: 700; color: var(--gold); font-size: 8cqw; line-height: 1.1; }
+
+/* ---- announcements to the room ------------------------------------------------------------ */
+#card.announce .row .s.heading { font-size: 1.45em; }
+
+/* ---- the big vote buttons ------------------------------------------------------------------ */
+.giants-row { width: calc(var(--cw) * 26); }
+.giants { display: flex; gap: 10px; padding: 8px 0 0; }
+.giant {
+	flex: 1;
+	min-height: 28vh;
+	font-family: var(--gothic); font-weight: 700;
+	font-size: 2.1em; line-height: 1.1;
+	color: var(--ink);
+	background: color-mix(in srgb, var(--bg) 85%, var(--ink));
+	border: 4px double var(--dim);
+	border-radius: 6px;
+	cursor: pointer;
+	touch-action: manipulation;
+	-webkit-tap-highlight-color: transparent;
+}
+.giant.up { color: var(--good); border-color: var(--good); }
+.giant.down { color: var(--evil); border-color: var(--evil); }
+.giant:active { transform: scale(.97); filter: brightness(1.15); }
+
+/* ---- linking phones ------------------------------------------------------------------------ */
+.qr-row { height: auto; display: flex; justify-content: center; padding: 6px 0; }
+.qr { width: calc(var(--cw) * 22); background: #fff; padding: 6px; border: 3px double var(--dim); }
+.qr svg { display: block; width: 100%; height: auto; }
+.code-input {
+	display: block; margin: 8px auto; width: calc(var(--cw) * 14);
+	font-family: var(--gothic); font-size: 2.4em; text-align: center; letter-spacing: .3em; text-transform: uppercase;
+	color: var(--ink); background: transparent; border: 3px double var(--dim); padding: 4px 0;
+}
+.row:has(.code-input) { height: auto; }
