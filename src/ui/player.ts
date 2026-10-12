@@ -23,6 +23,8 @@ import type { Extra } from '../town/village.ts';
 
 const CLIENT_KEY = 'grimoire.client';
 const ROOM_KEY = 'grimoire.room';
+const NAME_KEY = 'grimoire.name';
+const savedName = () => { try { return localStorage.getItem(NAME_KEY) ?? ''; } catch { return ''; } };
 
 function clientId(): string {
 	try {
@@ -57,7 +59,11 @@ const P = {
 	cardOpen: false,
 	/** A nomination under way, and whether my hand is up for it. */
 	vote: null as VoteView | null,
-	handUp: false
+	handUp: false,
+	/** The name I gave, and everyone in the room so far (in seating order). */
+	name: savedName(),
+	lobby: [] as string[],
+	lobbyYou: null as number | null
 };
 
 /**
@@ -108,7 +114,7 @@ function connect(code: string) {
 		status: (s, detail) => {
 			P.status = s;
 			P.detail = detail ?? '';
-			if (s === 'open') P.link?.send({ t: 'hello', clientId: clientId() });
+			if (s === 'open') P.link?.send({ t: 'hello', clientId: clientId(), name: P.name || undefined });
 			render();
 		}
 	});
@@ -155,6 +161,10 @@ function receive(msg: HostMsg) {
 			P.announce = msg.items;
 			buzz([200]);
 			break;
+		case 'lobby':
+			P.lobby = msg.names;
+			P.lobbyYou = msg.you;
+			break;
 		case 'denied':
 			P.message = msg.reason;
 			break;
@@ -186,7 +196,7 @@ function header(): Row[] {
 	const status = P.status === 'open' ? 'linked' : P.status === 'connecting' ? 'linking...' : P.status === 'error' ? 'trouble linking' : 'not linked';
 	return [
 		{ segs: [txt('Grimoire', 'title')], cls: 'title' },
-		row(txt(center(P.code ? `Game ${P.code} · ${status}` : 'A player’s phone'), 'rubric', 'heading')),
+		P.code ? { segs: [], cls: 'room-line-row', html: `<div class="room-line">Game <span class="room-code-sm">${P.code}</span> · ${status}</div>` } : row(txt(center('A player’s phone'), 'rubric', 'heading')),
 		blank()
 	];
 }
@@ -195,14 +205,31 @@ function joinScreen(): Row[] {
 	const saved = (() => { try { return localStorage.getItem(ROOM_KEY) ?? ''; } catch { return ''; } })();
 	return [
 		rubric('Join a game'),
-		...wrap('Type the four-letter code from the Storyteller’s phone.', INNER).map((l) => row(txt(l, 'dim'))),
+		...wrap('Type the four-letter code from the Storyteller’s phone, and your name.', INNER).map((l) => row(txt(l, 'dim'))),
 		endPanel(),
-		{ segs: [], html: `<input id="code" class="code-input" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" value="${saved}" aria-label="Game code">` },
+		{ segs: [], html: `<input id="code" class="code-input" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" value="${P.code || saved}" aria-label="Game code" placeholder="CODE">` },
+		{ segs: [], html: `<input id="pname" class="name-input" maxlength="14" autocomplete="nickname" spellcheck="false" value="${P.name.replace(/"/g, '&quot;')}" aria-label="Your name" placeholder="Your name">` },
 		...buttonRows([btn('Join', () => {
 			const v = (document.getElementById('code') as HTMLInputElement | null)?.value ?? '';
-			if (v.trim().length === 4) connect(v);
-			else { P.message = 'The code is four letters.'; render(); }
+			const n = ((document.getElementById('pname') as HTMLInputElement | null)?.value ?? '').trim();
+			if (v.trim().length !== 4) { P.message = 'The code is four letters.'; render(); return; }
+			if (!n) { P.message = 'Your name, so the others know who you are.'; render(); return; }
+			P.name = n.slice(0, 14);
+			try { localStorage.setItem(NAME_KEY, P.name); } catch { /* fine */ }
+			P.message = '';
+			connect(v);
 		}, { style: 'primary' })], COLS)
+	];
+}
+
+/** Waiting in the room: everyone so far, you marked. */
+function lobbyScreen(): Row[] {
+	return [
+		rubric('In the room'),
+		...wrap('Waiting for the Storyteller to deal the characters. Everyone here so far:', INNER).map((l) => row(txt(l, 'dim'))),
+		...P.lobby.map((n, i) => row(txt(`  ${i + 1}. ${n}`, i === P.lobbyYou ? 'gold' : undefined), txt(i === P.lobbyYou ? '  (you)' : '', 'dim'))),
+		endPanel(),
+		...buttonRows([btn('Change my name', () => { P.link?.close(); P.status = 'closed'; render(); }, { style: 'quiet' })])
 	];
 }
 
@@ -286,7 +313,7 @@ function screen(): Row[] {
 		return [...rows, rubric('Linking'), ...wrap(P.status === 'error' ? P.detail || 'Could not reach the Storyteller’s phone. Still trying.' : 'Finding the Storyteller’s phone...', INNER).map((l) => row(txt(l, 'dim'))),
 			...buttonRows([btn('Different code', () => { P.link?.close(); P.code = ''; P.status = 'closed'; render(); }, { style: 'quiet' })]), endPanel()];
 	}
-	if (P.seat === null) return [...rows, ...seatScreen()];
+	if (P.seat === null) return [...rows, ...(P.seats.length ? seatScreen() : lobbyScreen())];
 	return [...rows, ...mainScreen()];
 }
 
@@ -359,6 +386,6 @@ export function startPlayer(appRoot: HTMLElement, overlayRoot: HTMLElement, code
 	root = appRoot;
 	cardRoot = overlayRoot;
 	setInterval(tick, 250);
-	if (code) connect(code);
-	else render();
+	if (code && P.name) connect(code);
+	else { P.code = code; render(); }
 }

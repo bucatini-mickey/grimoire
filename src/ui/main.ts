@@ -88,7 +88,7 @@ interface Saved {
 	flow: Flow;
 	settings: Settings;
 	/** Hosting players' phones: the room code and each phone's seat, kept so a reload re-opens the room. */
-	net?: { room: string; claims: Record<string, SeatId>; village?: boolean };
+	net?: { room: string; claims: Record<string, SeatId>; village?: boolean; lobby?: { client: string; name: string }[] };
 }
 
 function freshFlow(settings: Settings): Flow {
@@ -154,6 +154,8 @@ const ui = {
 	/** A wake sent to a player's phone and not yet finished. */
 	remote: null as null | { wakeId: string; seat: SeatId; answered: boolean },
 	names: 'Ada\nBram\nCael\nDorn\nEsme\nFenn\nGwen\nHal',
+	/** In a village game: players without a phone, seated after those in the room. */
+	extraNames: '',
 	/** The start screen's choice: run a game, join one, or walk the village. */
 	mode: 'storyteller' as 'storyteller' | 'player' | 'village',
 	confirmNew: false,
@@ -306,7 +308,7 @@ function undo() {
 }
 
 function newGame() {
-	saved = { events: [], marks: [], settings: saved.settings, flow: freshFlow(saved.settings), net: saved.net ? { room: saved.net.room, claims: {}, village: saved.net.village } : undefined };
+	saved = { events: [], marks: [], settings: saved.settings, flow: freshFlow(saved.settings), net: saved.net ? { room: saved.net.room, claims: {}, village: saved.net.village, lobby: saved.net.lobby } : undefined };
 	state = G.replay([]);
 	save();
 	ui.confirmNew = false;
@@ -603,7 +605,7 @@ function namesScreen(): Row[] {
 	// Inside a village game (the drawer) it is already a village game: no choosing a mode.
 	if (villageGame()) {
 		ui.mode = 'village';
-		return [rubric('A New Game in the Village'), ...prose('The same room: the players stay linked and choose their seats again.', 'dim'), endPanel(), ...scriptAndNames()];
+		return [...lobbyRows(), ...scriptAndNames()];
 	}
 	const rows: Row[] = [...art(), blank()];
 	rows.push(tagsRow('modes', MODES.map((m) => ({
@@ -619,10 +621,49 @@ function namesScreen(): Row[] {
 	if (ui.mode === 'village') {
 		rows.push(rubric('A Game in the Village'));
 		rows.push(...prose('The whole game, played in a fifteenth-century hamlet in the fog. Each player walks the town on their own phone and talks to whoever is near; at dusk the bell gathers everyone to the market cross for nominations and votes; at night they go home, and the Storyteller visits each house with their night pages. You run it all from here.', 'dim'));
-		rows.push(...prose('Set up as usual below. The players then choose Player, Join a game, and type the code you will be shown.', 'dim'));
-		rows.push(...buttonRows([btn('Just walk the town (no game)', () => { location.hash = '#village'; location.reload(); }, { style: 'quiet' })]), endPanel());
+		rows.push(...prose('Open the room: the players then choose Player, type the code and their name, and appear in the lobby. Then choose the script and deal.', 'dim'));
+		rows.push(...buttonRows([
+			btn('Open the room', openVillageRoom, { style: 'primary' }),
+			btn('Just walk the town (no game)', () => { location.hash = '#village'; location.reload(); }, { style: 'quiet' })
+		]), endPanel());
+		return rows;
 	}
 	return [...rows, ...scriptAndNames()];
+}
+
+/** Open the room for a village game: the town, and the lobby in the drawer. */
+function openVillageRoom() {
+	const room = saved.net?.room ?? newRoomCode();
+	saved.net = { room, claims: {}, village: true, lobby: saved.net?.room === room ? saved.net.lobby ?? [] : [] };
+	save();
+	ui.drawer = 'actions';
+	if (link && link.room === room) { if (!village) villageOn(); render(); }
+	else startHosting(room);
+}
+
+/** The room's code, big and plain to read aloud. */
+function roomCodeRow(room: string): Row {
+	return { segs: [], cls: 'room-code-row', html: `<div class="room-code" aria-label="Room code">${escapeHtml(room)}</div>` };
+}
+
+/** The lobby: the code to join with, and everyone in the room so far, in seating order. */
+function lobbyRows(): Row[] {
+	const rows: Row[] = [rubric('The Room')];
+	if (link) rows.push(roomCodeRow(link.room), ...prose('Players: open this app, choose Player, type the code and your name.', 'dim'));
+	const list = lobby();
+	const online = new Set([...phones.entries()].filter(([peer]) => link?.peers.get(peer)?.open).map(([, c]) => c));
+	rows.push(rubric(`The Lobby (${list.length})`));
+	if (!list.length) rows.push(...prose('Nobody yet. Names appear here as players join.', 'dim'));
+	list.forEach((e, i) => {
+		rows.push({ segs: [
+			txt(pad(`${i + 1}. ${e.name}`, 18), online.has(e.client) ? undefined : 'dim'),
+			txt(pad(online.has(e.client) ? '' : 'away', 6), 'evil'),
+			...(i ? [btn('Up', () => lobbyUp(e.client), { style: 'quiet' })] : []),
+			btn('Remove', () => dropFromLobby(e.client), { style: 'quiet' })
+		] });
+	});
+	rows.push(endPanel(), blank());
+	return rows;
 }
 
 /** The script and the players' names, then on to the characters. */
@@ -634,12 +675,33 @@ function scriptAndNames(): Row[] {
 		{ label: 'Custom', on: ui.scriptId === 'custom', act: () => { ui.scriptId = 'custom'; render(); } }
 	]));
 	rows.push(...customPicker(), blank());
-	rows.push(rubric('The Players'));
-	rows.push(...prose('One name per line, in seating order, clockwise. 5 to 15 players.', 'dim'));
-	rows.push({ segs: [], html: `<textarea id="names" rows="8" spellcheck="false" aria-label="Player names">${escapeHtml(ui.names)}</textarea>` });
+	const inRoom = villageGame();
+	if (inRoom) {
+		// The lobby is the players, in its order; anyone without a phone is added after.
+		rows.push(rubric('Without a Phone'));
+		rows.push(...prose('Anyone playing without a phone: one name per line. They sit after the lobby.', 'dim'));
+		rows.push({ segs: [], html: `<textarea id="extra-names" rows="3" spellcheck="false" aria-label="Players without a phone">${escapeHtml(ui.extraNames)}</textarea>` });
+	} else {
+		rows.push(rubric('The Players'));
+		rows.push(...prose('One name per line, in seating order, clockwise. 5 to 15 players.', 'dim'));
+		rows.push({ segs: [], html: `<textarea id="names" rows="8" spellcheck="false" aria-label="Player names">${escapeHtml(ui.names)}</textarea>` });
+	}
+	const count = lobby().length + ui.extraNames.split('\n').filter((x) => x.trim()).length;
+	if (inRoom) rows.push(...prose(`${count} player${count === 1 ? '' : 's'}: 5 to 15 to play.`, count >= 5 && count <= 15 ? 'good' : 'gold'));
 	rows.push(...buttonRows([btn('Choose the characters', () => {
-		const names = ui.names.split('\n').map((s) => s.trim()).filter(Boolean);
+		const names = inRoom
+			? [...lobby().map((e) => e.name), ...ui.extraNames.split('\n').map((x) => x.trim()).filter(Boolean)]
+			: ui.names.split('\n').map((x) => x.trim()).filter(Boolean);
 		const made = act({ type: 'create', names, scriptId: ui.scriptId === 'custom' ? G.customScriptId(ui.customIds) : ui.scriptId });
+		// Everyone in the lobby takes the seat with their name.
+		if (made && inRoom && saved.net) {
+			saved.net.claims = {};
+			lobby().forEach((e, i) => { saved.net!.claims[e.client] = state.order[i]; });
+			save();
+			for (const peer of phones.keys()) welcome(peer);
+			render();
+			return;
+		}
 		// A village game: open the room for the phones straight away, with the village on.
 		if (made && ui.mode === 'village') {
 			const room = saved.net?.room ?? newRoomCode();
@@ -761,12 +823,12 @@ function shuffleDraft() {
 function joiningRows(): Row[] {
 	if (!link || !village) return [];
 	const linked = new Set(Object.values(claims()));
-	const waiting = state.order.filter((id) => !linked.has(id)).map(name);
+	const phoneless = state.order.filter((id) => !linked.has(id)).map(name);
 	return [
-		rubric('Players Join'),
-		row(txt(center(link.room), 'gold', 'heading')),
-		...prose(`On each phone: Player, Join a game, type ${link.room}, tap your name.`, 'dim'),
-		...prose(waiting.length ? `Waiting for: ${waiting.join(', ')}` : 'Everyone has joined.', waiting.length ? 'gold' : 'good'),
+		rubric('The Room'),
+		roomCodeRow(link.room),
+		...prose(`Joining late? Player, type ${link.room} and the same name as their seat.`, 'dim'),
+		...prose(phoneless.length ? `Without a phone (you run their turns): ${phoneless.join(', ')}` : 'Everyone is on their phone.', phoneless.length ? 'gold' : 'good'),
 		...buttonRows([btn('Code, QR and seats', () => { if (villageGame()) ui.drawer = 'phones'; else ui.tab = 'phones'; render(); }, { style: 'quiet' })]),
 		endPanel(), blank()
 	];
@@ -2038,8 +2100,51 @@ function toPlayers(msg: HostMsg) {
 	for (const [peer, client] of phones) if (seatOfClient(client) !== null) sendTo(peer, msg);
 }
 
+const lobby = () => saved.net?.lobby ?? [];
+
+/** Someone in the room gave their name: they join the lobby (or are renamed), in the order they came. */
+function joinLobby(client: string, raw: string) {
+	const name = raw.trim().slice(0, 14);
+	if (!saved.net || !name) return;
+	const list = (saved.net.lobby ??= []);
+	const mine = list.find((e) => e.client === client);
+	if (mine) mine.name = name;
+	else if (!list.some((e) => e.name.toLowerCase() === name.toLowerCase())) list.push({ client, name });
+	// The game is already set: the seat with their name, if it is free, is theirs.
+	if (state.seats.length && claims()[client] === undefined) {
+		const seat = state.order.find((id) => state.seats[id].name.toLowerCase() === name.toLowerCase());
+		if (seat !== undefined && !Object.values(claims()).includes(seat)) saved.net.claims[client] = seat;
+	}
+	save();
+	for (const p of phones.keys()) if (p !== [...phones.entries()].find(([, c]) => c === client)?.[0]) welcome(p);
+	render();
+}
+
+/** Take someone out of the lobby (they left, or joined by mistake). */
+function dropFromLobby(client: string) {
+	if (!saved.net?.lobby) return;
+	saved.net.lobby = saved.net.lobby.filter((e) => e.client !== client);
+	save();
+	for (const p of phones.keys()) welcome(p);
+	render();
+}
+
+/** Move someone one place earlier round the circle. */
+function lobbyUp(client: string) {
+	const list = saved.net?.lobby;
+	const i = list?.findIndex((e) => e.client === client) ?? -1;
+	if (!list || i <= 0) return;
+	[list[i - 1], list[i]] = [list[i], list[i - 1]];
+	save();
+	for (const p of phones.keys()) welcome(p);
+	render();
+}
+
 function welcome(peer: string) {
 	const client = phones.get(peer)!;
+	const order = state.seats.length ? state.order.map((id) => state.seats[id].name) : lobby().map((e) => e.name);
+	const mine = state.seats.length ? (seatOfClient(client) === null ? null : state.order.indexOf(seatOfClient(client)!)) : lobby().findIndex((e) => e.client === client);
+	sendTo(peer, { t: 'lobby', names: order, you: mine === -1 ? null : mine });
 	const taken = new Set(Object.entries(claims()).filter(([c]) => c !== client).map(([, seat]) => seat));
 	sendTo(peer, { t: 'welcome', room: link!.room, seats: state.order.map((id) => ({ id, name: state.seats[id].name, taken: taken.has(id) })), you: seatOfClient(client) });
 	lastSent.delete(peer);
@@ -2080,6 +2185,7 @@ function fromPhone(peer: string, msg: PlayerMsg) {
 	switch (msg.t) {
 		case 'hello': {
 			phones.set(peer, msg.clientId);
+			if (msg.name) joinLobby(msg.clientId, msg.name);
 			welcome(peer);
 			// Back mid-wake (the phone reloaded or lost signal): their pages again.
 			const step = state.phase.kind === 'night' ? G.nextStep(state) : null;
@@ -2226,7 +2332,9 @@ function syncVillage() {
 	const key = `${p.kind}:${p.kind === 'night' || p.kind === 'day' ? p.n : 0}:${state.day?.stage ?? ''}`;
 	if (key !== villageKey) {
 		villageKey = key;
-		village.phase(p.kind === 'night' ? 'night' : p.kind === 'over' || (p.kind === 'day' && state.day?.stage === 'nominations') ? 'dusk' : 'day');
+		// The game begins at night. Before it, while the Storyteller deals, the town sits gathered
+		// round the market cross at dusk; nominations, votes and the end are there too.
+		village.phase(p.kind === 'night' ? 'night' : p.kind === 'setup' || p.kind === 'over' || (p.kind === 'day' && state.day?.stage === 'nominations') ? 'dusk' : 'day');
 	}
 	// At night the Storyteller goes to whoever wakes next.
 	const step = p.kind === 'night' ? G.nextStep(state) : null;
@@ -2281,7 +2389,7 @@ function phonesScreen(): Row[] {
 	}
 	const room = link.room;
 	const status = linkStatus === 'open' ? 'Open' : linkStatus === 'connecting' ? 'Opening...' : `Trouble: ${linkDetail || linkStatus}`;
-	rows.push(row(txt(center(room), 'gold', 'heading')), row(txt(center(status), linkStatus === 'open' ? 'good' : 'evil')));
+	rows.push(roomCodeRow(room), row(txt(center(status), linkStatus === 'open' ? 'good' : 'evil')));
 	rows.push(...prose('Players open this app, choose Join a game, and type the code. Or scan:', 'dim'), endPanel());
 	const qr = qrcode(0, 'M');
 	qr.addData(joinUrl(room));
@@ -2483,6 +2591,7 @@ wireEasel(root, () => render());
 root.addEventListener('input', (ev) => {
 	const t = ev.target as HTMLTextAreaElement;
 	if (t.id === 'names') ui.names = t.value;
+	if (t.id === 'extra-names') ui.extraNames = t.value;
 });
 
 // A player's phone (#join=CODE, or "Join a game") runs the player app instead.

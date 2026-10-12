@@ -54,11 +54,13 @@ export type HostMsg =
 	/** A word for the player (their nomination was sent, or why it could not be). */
 	| { t: 'note'; text: string }
 	/** Mode 2 inside the game: the village (see src/town/village.ts). */
-	| { t: 'village'; m: VillageDown };
+	| { t: 'village'; m: VillageDown }
+	/** Who is in the room so far, in seating order; `you` is this phone's place in it. */
+	| { t: 'lobby'; names: string[]; you: number | null };
 
 export type PlayerMsg =
 	/** First words, with an id kept on the phone so a reconnect finds its seat again. */
-	| { t: 'hello'; clientId: string }
+	| { t: 'hello'; clientId: string; name?: string }
 	| { t: 'claim'; seat: SeatId }
 	| { t: 'leave-seat' }
 	/** The players chosen on a wake's pick page. */

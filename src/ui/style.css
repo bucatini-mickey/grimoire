@@ -463,6 +463,19 @@ body.village-map #card {
 	color: var(--ink); background: transparent; border: 3px double var(--dim); padding: 4px 0;
 }
 .row:has(.code-input) { height: auto; }
+/* Room codes in a plain, heavy face: easy to read out and type. */
+.code-input { font-family: 'Courier Prime', 'Courier New', ui-monospace, monospace; font-weight: 700; }
+.name-input {
+	display: block; margin: 8px auto; width: calc(var(--cw) * 22);
+	font: 600 1.6em var(--book); text-align: center;
+	color: var(--ink); background: transparent; border: 0; border-bottom: 2px solid var(--dim); padding: 4px 0;
+}
+.row:has(.name-input) { height: auto; }
+.room-code-row { height: auto; display: flex; justify-content: center; padding: 4px 0; }
+.room-code { font: 700 2.6em 'Courier Prime', 'Courier New', ui-monospace, monospace; letter-spacing: .32em; padding-left: .32em; color: var(--gold); }
+.room-line-row { height: auto; }
+.room-line { text-align: center; font: 600 1.15em var(--book); color: var(--rubric); }
+.room-code-sm { font: 700 1.1em 'Courier Prime', 'Courier New', monospace; letter-spacing: .18em; color: var(--gold); }
 
 /* ---- mode 2: the village (src/town/village.ts) ------------------------------------------- */
 body.in-village #app { width: auto; max-width: 760px; padding: 0; }
