@@ -126,7 +126,7 @@ const flow = () => saved.flow;
 
 type Tab = 'grimoire' | 'log' | 'ties' | 'art' | 'options' | 'phones';
 /** In a village game the grimoire is a drawer over the town; these are its tabs. */
-type DrawerTab = Tab | 'circle' | 'actions';
+type DrawerTab = Tab | 'actions';
 type DayMode = 'none' | 'nominate' | 'slay';
 
 const ui = {
@@ -2393,13 +2393,13 @@ function drawerScreen(): Row[] {
 	if (tab === 'phones') return [...rows, ...phonesScreen()];
 	if (tab === 'art') return [...rows, ...easelRows(script().characters.map((c) => ({ id: c.id, name: c.name })), render)];
 	if (p.kind === 'setup') return [...rows, ...(state.seats.length ? draftScreen() : [...namesScreen(), ...messageRows()])];
-	if (tab === 'circle') return [...rows, ...circleRows(), ...messageRows(), ...inspectRows()];
 	if (tab === 'actions') return [...rows, ...messageRows(), ...actionRows()];
-	return [...rows, ...circleRows(), ...messageRows(), ...inspectRows(), ...actionRows()];
+	// The grimoire: the circle of seats and tokens, and whoever is tapped.
+	return [...rows, ...circleRows(), ...messageRows(), ...inspectRows()];
 }
 
 /** The tabs on the drawer's edge: each pulls it out on that page; the open one puts it away. */
-const DRAWER_TABS: [DrawerTab, string][] = [['actions', 'Actions'], ['circle', 'Circle'], ['grimoire', 'Grimoire'], ['log', 'Log'], ['phones', 'Phones'], ['options', 'Clock'], ['ties', 'Ties'], ['art', 'Art']];
+const DRAWER_TABS: [DrawerTab, string, string][] = [['actions', '\u2726', 'Actions'], ['grimoire', '\u25CE', 'Grimoire'], ['log', '\u2261', 'Log'], ['phones', '\u260F\uFE0E', 'Phones'], ['options', '\u29D7', 'Clock'], ['ties', '\u2696\uFE0E', 'Ties'], ['art', '\u270E\uFE0E', 'Art']];
 const drawerTabs = document.createElement('nav');
 drawerTabs.id = 'drawer-tabs';
 drawerTabs.setAttribute('aria-label', 'The grimoire');
@@ -2416,7 +2416,8 @@ drawerTabs.addEventListener('click', (ev) => {
 function paintDrawerTabs() {
 	drawerTabs.hidden = !villageGame();
 	if (drawerTabs.hidden) return;
-	const html = DRAWER_TABS.map(([t, label]) => `<button data-tab="${t}" class="${ui.drawer === t ? 'on' : ''}" aria-pressed="${ui.drawer === t}">${label}${t === 'actions' && G.nextStep(state) && state.phase.kind === 'night' ? ' •' : ''}</button>`).join('');
+	const waiting = state.phase.kind === 'night' && !!G.nextStep(state);
+	const html = DRAWER_TABS.map(([t, ico, label]) => `<button data-tab="${t}" class="${ui.drawer === t ? 'on' : ''}" aria-pressed="${ui.drawer === t}"><span class="tab-ico" aria-hidden="true">${ico}</span><span>${label}${t === 'actions' && waiting ? '<span class="tab-dot"> •</span>' : ''}</span></button>`).join('');
 	if (drawerTabs.innerHTML !== html) drawerTabs.innerHTML = html;
 }
 
