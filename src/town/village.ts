@@ -1091,9 +1091,11 @@ function drawChrome() {
 	if (!tools) return;
 	const v = S.voice;
 	const voiceBtns = v
-		? `<button data-act="mute" class="${v.muted ? 'on' : 'primary'}">${v.muted ? 'Unmute' : v.mode === 'listen' ? 'Listening' : 'Mute'}</button>`
+		? v.mode === 'listen'
+			? `<button data-act="voice-talk" class="primary">Talk</button><button data-act="voice-stop" class="on">Listening</button>`
+			: `<button data-act="mute" class="${v.muted ? 'on' : 'primary'}">${v.muted ? 'Unmute' : 'Mute'}</button>`
 		: S.voiceBusy ? '<span class="v-dim">Starting voice…</span>'
-		: `<button data-act="voice-mic" class="primary">Talk</button><button data-act="voice-tone">Test note</button>`;
+		: `<button data-act="voice-mic" class="primary">Talk</button><button data-act="voice-listen">Listen</button>`;
 	const door = doorBeside();
 	const doorBtn = door !== null ? `<button data-act="door" class="v-door">${S.town!.locked.has(door) ? 'Unlock door' : 'Lock door'}</button>` : '';
 	const seat = S.phase === 'dusk' && !S.game && p && !p.st && S.town?.seats.length ? `<button data-act="seat" class="primary">My seat</button>` : '';
@@ -1227,9 +1229,19 @@ async function voiceOn(mode: VoiceMode) {
 		if (p) p.voice = true;
 		up({ t: 'voice', on: true });
 	} catch (e) {
-		alert(mode === 'mic' ? 'The microphone could not start. Allow it for this site, or try Test note.' : `Voice could not start: ${e}`);
+		alert(mode === 'mic' ? 'The microphone could not start. Allow it for this site, or choose Listen to hear the others.' : `Voice could not start: ${e}`);
 	}
 	S.voiceBusy = false;
+	drawChrome();
+}
+
+/** Hang up: no more hearing or being heard. */
+function voiceOff() {
+	S.voice?.stop();
+	S.voice = null;
+	const p = me();
+	if (p) p.voice = false;
+	up({ t: 'voice', on: false });
 	drawChrome();
 }
 
@@ -1346,7 +1358,10 @@ function onAct(act: string, el: HTMLElement) {
 			break;
 		}
 		case 'voice-mic': void voiceOn('mic'); break;
-		case 'voice-tone': void voiceOn('tone'); break;
+		case 'voice-listen': void voiceOn('listen'); break;
+		case 'voice-stop': voiceOff(); break;
+		// From listening to talking: start again with the microphone.
+		case 'voice-talk': voiceOff(); void voiceOn('mic'); break;
 		case 'mute': S.voice?.setMuted(!S.voice.muted); drawChrome(); break;
 		case 'seat': {
 			const p = me(), t = S.town;
