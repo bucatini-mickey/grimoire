@@ -69,8 +69,8 @@ export type VillageDown = Down;
 export type VillageUp = Up;
 
 /** How the host's messages travel: the village's own room, or a game's. */
-export interface HostWire { peer: Peer; send(peer: string, m: Down): void; peers(): string[]; }
-export interface PlayerWire { peer: Peer; send(m: Up): void; }
+export interface HostWire { peer: Peer; send(peer: string, m: Down): boolean; peers(): string[]; }
+export interface PlayerWire { peer: Peer; send(m: Up): boolean; }
 
 type Down =
 	| { t: 'welcome'; you: string; town: string; phase: Phase; people: Person[]; locked: number[]; caption: string[]; vote: VoteDraw | null; ring: RingSeat[] }
@@ -274,7 +274,7 @@ function workDoor(d: number) {
 		p.x = inn.x; p.y = inn.y;
 		sendPos(p);
 	}
-	up({ t: 'door', cell: d, x: p.x, y: p.y });
+	if (!up({ t: 'door', cell: d, x: p.x, y: p.y })) toast('Reconnecting to the Storyteller… try again in a moment.');
 	S.dirty = true;
 }
 
@@ -430,9 +430,9 @@ function moveBots() {
 }
 
 /** Ask the host: over the link, or straight to it on the host's own phone. */
-function up(msg: Up) {
-	if (S.host) onUp(S.me, msg);
-	else S.playerWire?.send(msg);
+function up(msg: Up): boolean {
+	if (S.host) { onUp(S.me, msg); return true; }
+	return !!S.playerWire?.send(msg);
 }
 
 // ---- a player -------------------------------------------------------------------------------

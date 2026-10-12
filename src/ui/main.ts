@@ -1898,8 +1898,8 @@ function peerOfSeat(seat: SeatId): string | null {
 	for (const [peer, client] of phones) if (seatOfClient(client) === seat && link?.peers.get(peer)?.open) return peer;
 	return null;
 }
-function sendTo(peer: string, msg: HostMsg) {
-	link?.send(peer, msg);
+function sendTo(peer: string, msg: HostMsg): boolean {
+	return link?.send(peer, msg) ?? false;
 }
 function toPlayers(msg: HostMsg) {
 	for (const [peer, client] of phones) if (seatOfClient(client) !== null) sendTo(peer, msg);
