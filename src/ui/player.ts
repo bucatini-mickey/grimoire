@@ -183,6 +183,15 @@ function receive(msg: HostMsg) {
 			if (!village && P.link) {
 				const link = P.link;
 				village = villageOnPhone({ peer: link.peer, send: (m) => link.send({ t: 'village', m }) }, villageButtons);
+				const LABEL: Record<string, string> = { day: 'Talk', nom: 'Nominate', speech: 'Speak' };
+				village.clock({
+					get: () => {
+						const c = P.clock;
+						if (!c) return null;
+						const left = c.running ? Math.max(0, c.remainingMs - (Date.now() - c.at)) : c.remainingMs;
+						return { left, total: c.totalMs ?? Math.max(c.remainingMs, 60_000), running: c.running, label: LABEL[c.label] ?? '' };
+					}
+				});
 			}
 			village?.receive(msg.m);
 			return;

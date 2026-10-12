@@ -56,7 +56,7 @@ for (let y = sq.y - 8; y <= sq.y + 8; y++) for (let x = sq.x - 10; x <= sq.x + 1
 	const d = Math.hypot((x - sq.x) / 10.5, (y - sq.y) / 8.5);
 	if (d <= 1) put(x, y, d > 0.92 && rnd() < 0.5 ? '.' : '_');
 }
-put(sq.x, sq.y, 'M');
+put(sq.x, sq.y, 'C'); // the market cross, with the town clock on it
 put(sq.x + 7, sq.y + 4, 'o');
 for (let k = 0; k < 15; k++) {
 	const a = (k / 15) * Math.PI * 2;
@@ -71,7 +71,7 @@ const ch = { x0: 34, y0: 4, x1: 50, y1: 15 };
 house(ch.x0, ch.y0, ch.x1, ch.y1, '#', '_');
 house(39, 1, 45, 5, '#', '_'); // the tower, behind the altar
 put(42, 5, 'D'); // the tower's arch
-put(42, 3, 'M'); // the bell (a weight hung in the tower)
+put(42, 3, 'L'); // the bell, hung in the tower
 put(41, ch.y1, 'D'); put(42, ch.y1, 'D'); // the great double doors
 put(42, 7, 'a'); put(41, 7, 'a'); put(40, 7, 'i'); put(43, 7, 'i');
 for (const y of [10, 12]) { fill(36, y, 39, y, 'p'); fill(44, y, 48, y, 'p'); }
@@ -261,6 +261,8 @@ key i floor stone block | candle
 key g floor soil
 key m floor soil | statue
 key M floor stone block | statue
+key C floor stone block | clock
+key L floor stone block | bell
 key x floor soil | coffin
 key W wall wood
 key w wall glass

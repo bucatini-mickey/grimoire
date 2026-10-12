@@ -19,6 +19,8 @@ export interface ClockView {
 	running: boolean;
 	/** Host's wall clock when this was sent; phones count from when they receive it. */
 	sentAt: number;
+	/** How long the clock was set for. */
+	totalMs?: number;
 }
 
 /** A nomination under way, as the players' phones need it: whose hands are up, where the count is. */

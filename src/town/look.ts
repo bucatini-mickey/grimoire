@@ -48,7 +48,7 @@ const KINDS: Record<string, Kind> = {
 	candle: { ch: 'i', fg: [250, 240, 200], light: [170, 130, 70], flicker: true },
 	altar: { ch: '╤', fg: STONE }, pew: { ch: '═', fg: BROWN }, coffin: { ch: '▬', fg: [90, 60, 40] }, statue: { ch: '†', fg: STONE },
 	well: { ch: 'O', fg: STONE }, anvil: { ch: '¬', fg: [120, 120, 130] }, 'hay bale': { ch: '"', fg: [220, 200, 100] },
-	sign: { ch: '¶', fg: BROWN }, flowers: { ch: '*', fg: [220, 120, 160] }, waterfall: { ch: '¦', fg: [200, 228, 240] }, rug: { ch: '░', fg: [150, 50, 50] }, 'plank bridge': { ch: '=', fg: [150, 110, 70] }
+	sign: { ch: '¶', fg: BROWN }, bell: { ch: ' ', fg: [214, 172, 92] }, clock: { ch: ' ', fg: [214, 172, 92] }, flowers: { ch: '*', fg: [220, 120, 160] }, waterfall: { ch: '¦', fg: [200, 228, 240] }, rug: { ch: '░', fg: [150, 50, 50] }, 'plank bridge': { ch: '=', fg: [150, 110, 70] }
 };
 const DOUBLE = ['■', '║', '═', '╚', '║', '║', '╔', '╠', '═', '╝', '═', '╩', '╗', '╣', '╦', '╬'];
 const SINGLE = ['o', '│', '─', '└', '│', '│', '┌', '├', '─', '┘', '─', '┴', '┐', '┤', '┬', '┼'];
@@ -217,7 +217,7 @@ export function remembered(fg: Rgb, bg: Rgb): [Rgb, Rgb] {
  * neighbours it joins (1 up, 2 right, 4 down, 8 left) and whether the line is
  * double (stone) or single (timber). A shut door carries its wall's line too.
  */
-export interface Look { ch: string; fg: Rgb; bg: Rgb; emissive: boolean; wall?: { mask: number; style: 'double' | 'single' }; glass?: boolean; }
+export interface Look { ch: string; fg: Rgb; bg: Rgb; emissive: boolean; wall?: { mask: number; style: 'double' | 'single' }; glass?: boolean; icon?: 'bell' | 'clock'; }
 
 /** Wildflowers: one colour per patch, from the hedgerow. */
 const FLOWERS: Rgb[] = [[214, 74, 82], [232, 196, 72], [168, 120, 214], [236, 230, 214], [96, 150, 226], [230, 140, 70]];
@@ -258,6 +258,7 @@ export function lookAt(t: Town, x: number, y: number, ms = 0): Look {
 				? { ch: '◘', fg: [235, 170, 90], bg: lerp(m.bg, [120, 50, 30], 0.6), emissive: false, wall: { mask: maskHere() & ((joins(1, 0) || joins(-1, 0)) ? 10 : 5), style } }
 				: { ch: "'", fg: k.fg, bg: m.bg, emissive: false };
 		}
+		if (name === 'bell' || name === 'clock') return { ch: ' ', fg: k.fg, bg: m.bg, emissive: false, icon: name };
 		if (name === 'flowers') return { ch: hash(x, y, 3) % 3 ? '*' : '\u2740', fg: FLOWERS[hash(x, y, 5) % FLOWERS.length], bg: m.bg, emissive: false };
 		if (name === 'waterfall') {
 			const f = Math.floor(ms / 140) - y;

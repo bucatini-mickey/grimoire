@@ -54,7 +54,7 @@ export interface Town {
 }
 
 const GRASS: BpCell = { tile: 'floor', mat: 'grass', things: [] };
-const BLOCKING = new Set(['well', 'brazier', 'altar', 'statue', 'anvil', 'barrel', 'bookshelf', 'coffin', 'table', 'waterfall']);
+const BLOCKING = new Set(['well', 'brazier', 'altar', 'statue', 'anvil', 'barrel', 'bookshelf', 'coffin', 'table', 'waterfall', 'bell', 'clock']);
 /** Deep water: you cannot walk it, but you see and hear across it. A plank bridge crosses. */
 const isWater = (c: BpCell) => c.mat === 'water' && !c.things.includes('plank bridge');
 const LIGHTS = new Set(['torch', 'brazier', 'candle']);

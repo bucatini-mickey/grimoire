@@ -57,6 +57,16 @@ export interface Person {
 
 /** A button a game puts in the village. */
 export interface Extra { label: string; act: () => void; primary?: boolean; }
+
+/** A clock the village shows: time left of how long, whether it runs; the Storyteller may start or pause it. */
+export interface ClockSource {
+	get(): { left: number; total: number; running: boolean; label: string } | null;
+	toggle?: () => void;
+}
+
+/** Little pictures for the bars: a bell (dusk) and a clock face (the timer). */
+const BELL_SVG = '<svg class="v-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="3.4" r="1.6" fill="currentColor"/><path d="M12 4.6c-3.6 0-6 2.7-6 6.4v3.6L4 18.2h16l-2-3.6V11c0-3.7-2.4-6.4-6-6.4z" fill="currentColor"/><circle cx="12" cy="20.3" r="1.9" fill="currentColor"/></svg>';
+const CLOCK_SVG = '<svg class="v-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M12 6.5V12l3.6 2.4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
 /** The Storyteller's next steps in the game, as a bar in the village. */
 export interface StActions { text: string; buttons: Extra[]; }
 /** A vote in the circle, by seat number round the circle: who is up, where the count is, whose hands are up. */
@@ -120,6 +130,8 @@ const S = {
 	/** A list to choose from (whom to nominate). */
 	choice: null as null | { title: string; options: { id: string; label: string }[]; pick: (id: string) => void },
 	onBack: null as null | (() => void),
+	/** The game's clock, if any is running the day (a speech, the discussion, nominations). */
+	clock: null as ClockSource | null,
 	status: 'connecting' as LinkStatus,
 	statusDetail: '',
 	town: null as Town | null,
@@ -414,7 +426,7 @@ function gatherAtCross(t: Town) {
 	if (st && t.meeting) {
 		const m = t.meeting.at;
 		st.x = Math.round(m.x);
-		st.y = Math.round(m.y) + 1;
+		st.y = Math.round(m.y);
 		if (st.id === S.me) { S.route = []; cam.ready = false; }
 	}
 	S.dirty = true;
@@ -776,7 +788,9 @@ function draw() {
 			}
 			if (look.wall) drawWall(c, look.wall, px, py, s, fg);
 			c.fillStyle = css(fg);
-			if (look.ch !== ' ') c.fillText(look.ch, px + s * 0.5, py + s * 0.54);
+			if (look.icon === 'bell') drawBell(c, px + s * 0.5, py + s * 0.5, s * 0.42, css(fg));
+			else if (look.icon === 'clock') { if (!(S.game && S.phase === 'dusk')) drawClockIcon(c, px + s * 0.5, py + s * 0.5, s * 0.4, css(fg)); }
+			else if (look.ch !== ' ') c.fillText(look.ch, px + s * 0.5, py + s * 0.54);
 		}
 	}
 
@@ -804,23 +818,7 @@ function draw() {
 	const atCross = S.game && S.phase === 'dusk' && !!t.meeting;
 	const ringAt = (seat: number): P | null => [...S.people.values()].find((q) => !q.st && q.seat === seat) ?? seatCell(t, seat);
 	const scr = (q: P) => ({ x: ox + (q.x + 0.5) * s, y: oy + (q.y + 0.5) * s });
-	if (atCross && S.vote && S.vote.at !== null) {
-		const to = ringAt(S.vote.at);
-		if (to) {
-			const a = scr(t.meeting!.at), b = scr(to);
-			c.save();
-			c.strokeStyle = 'rgba(255,210,122,.9)';
-			c.lineWidth = Math.max(2, s * 0.14);
-			c.lineCap = 'round';
-			c.shadowColor = '#ffd27a';
-			c.shadowBlur = 12;
-			c.beginPath();
-			c.moveTo(a.x, a.y);
-			c.lineTo(a.x + (b.x - a.x) * 0.8, a.y + (b.y - a.y) * 0.8);
-			c.stroke();
-			c.restore();
-		}
-	}
+	const face = atCross ? drawVoteClock(c, t, scr, ringAt, s, now) : null;
 
 	// People: anyone in sight and in enough light to make out (or right beside you).
 	// At night the Storyteller is seen only by whoever they visit.
@@ -873,15 +871,15 @@ function draw() {
 				c.restore();
 			}
 		}
-		// The day so far, written at the foot of the cross.
-		if (S.caption.length) {
-			const a = scr(t.meeting!.at);
-			const fs = Math.max(11, Math.round(s * 0.46));
+		// The day so far, written on the lower half of the clock's face.
+		if (S.caption.length && face) {
+			const a = face;
+			const fs = Math.max(10, Math.round(s * 0.42));
 			c.save();
 			c.font = `600 ${fs}px ${BOOK}`;
 			const lines = S.caption.slice(0, 5);
-			const w = Math.min(cw - 24, Math.max(...lines.map((l) => c.measureText(l).width)) + 16);
-			const top = a.y + s * 1.7;
+			const w = Math.min(face.r * 1.7, Math.max(...lines.map((l) => c.measureText(l).width)) + 16);
+			const top = a.y + face.r * 0.3;
 			c.fillStyle = 'rgba(10,8,6,.72)';
 			c.fillRect(a.x - w / 2, top, w, lines.length * fs * 1.25 + 8);
 			c.textAlign = 'center';
@@ -919,6 +917,166 @@ function draw() {
 		c.strokeRect(ox + g.x * s + 1.5, oy + g.y * s + 1.5, s - 3, s - 3);
 		c.setLineDash([]);
 	}
+}
+
+/** Where the vote hand points now, and when it was last drawn (it sweeps, it does not jump). */
+let hand = { a: -Math.PI / 2, at: 0, nominee: -1 };
+
+/** A cog: teeth round a wheel, turned to `spin`. */
+function cog(c: CanvasRenderingContext2D, x: number, y: number, r: number, teeth: number, spin: number) {
+	c.beginPath();
+	for (let k = 0; k < teeth * 4; k++) {
+		const a = spin + (k / (teeth * 4)) * Math.PI * 2;
+		const rr = k % 4 < 2 ? r : r * 0.8;
+		const px = x + Math.cos(a) * rr, py = y + Math.sin(a) * rr;
+		if (k) c.lineTo(px, py); else c.moveTo(px, py);
+	}
+	c.closePath();
+	c.moveTo(x + r * 0.32, y);
+	c.arc(x, y, r * 0.32, 0, Math.PI * 2, true);
+	c.fillStyle = 'rgba(150, 112, 58, .82)';
+	c.fill('evenodd');
+	c.strokeStyle = 'rgba(40, 28, 14, .9)';
+	c.lineWidth = Math.max(1, r * 0.05);
+	c.stroke();
+}
+
+/** A clock hand from the hub at angle `a`, `len` long. */
+function clockHand(c: CanvasRenderingContext2D, x: number, y: number, a: number, len: number, width: number, colour: string) {
+	const dx = Math.cos(a), dy = Math.sin(a), nx = -dy, ny = dx;
+	c.beginPath();
+	c.moveTo(x - dx * len * 0.16 + nx * width * 0.6, y - dy * len * 0.16 + ny * width * 0.6);
+	c.lineTo(x + dx * len * 0.82 + nx * width * 0.4, y + dy * len * 0.82 + ny * width * 0.4);
+	c.lineTo(x + dx * len, y + dy * len);
+	c.lineTo(x + dx * len * 0.82 - nx * width * 0.4, y + dy * len * 0.82 - ny * width * 0.4);
+	c.lineTo(x - dx * len * 0.16 - nx * width * 0.6, y - dy * len * 0.16 - ny * width * 0.6);
+	c.closePath();
+	c.fillStyle = colour;
+	c.fill();
+}
+
+/**
+ * Dusk in a game: the market cross becomes the town clock. A face inside the
+ * ring of seats with a mark at every seat, cogs turning behind it, a thin hand
+ * running down the time, and the vote hand: it starts on the nominee and
+ * sweeps clockwise to whoever is being counted. Returns the face, for the
+ * words written on it.
+ */
+function drawVoteClock(c: CanvasRenderingContext2D, t: Town, scr: (q: P) => { x: number; y: number }, ringAt: (seat: number) => P | null, s: number, now: number) {
+	const m = t.meeting!.at;
+	const hub = scr(m);
+	const seats = S.ring.length ? S.ring.map((r) => r.seat) : [...S.people.values()].filter((q) => !q.st).map((q) => q.seat);
+	const spots = seats.map((seat) => ({ seat, at: ringAt(seat) })).filter((e): e is { seat: number; at: P } => !!e.at);
+	const ringR = spots.length ? spots.reduce((sum, e) => sum + Math.hypot(e.at.x - m.x, e.at.y - m.y), 0) / spots.length * s : s * 5;
+	const r = Math.max(s * 2.2, ringR * 0.66);
+	const angleOf = (seat: number) => { const q = ringAt(seat); return q ? Math.atan2(q.y - m.y, q.x - m.x) : -Math.PI / 2; };
+
+	// The vote hand: on the nominee when a nomination begins, then clockwise to each voter in turn.
+	const v = S.vote;
+	if (v && v.nominee !== hand.nominee) hand = { a: angleOf(v.nominee), at: now, nominee: v.nominee };
+	if (!v) hand.nominee = -1;
+	const target = v ? angleOf(v.at ?? v.nominee) : -Math.PI / 2;
+	const dt = Math.min(0.1, (now - (hand.at || now)) / 1000);
+	hand.at = now;
+	let d = (target - hand.a) % (Math.PI * 2);
+	if (d < 0) d += Math.PI * 2;
+	if (d > Math.PI * 2 - 0.01) d = 0;
+	hand.a += Math.min(d, dt * 3.2);
+	const spin = hand.a * 2 + now / 4000;
+
+	c.save();
+	// Cogs behind the face, turning with the hand.
+	cog(c, hub.x - r * 0.98, hub.y - r * 0.62, r * 0.42, 12, spin);
+	cog(c, hub.x + r * 0.96, hub.y + r * 0.6, r * 0.32, 9, -spin * 1.33 + 0.2);
+	cog(c, hub.x + r * 0.78, hub.y - r * 0.9, r * 0.2, 7, spin * 2.1);
+	// The face.
+	const g = c.createRadialGradient(hub.x, hub.y, r * 0.1, hub.x, hub.y, r);
+	g.addColorStop(0, 'rgba(46, 38, 24, .9)');
+	g.addColorStop(1, 'rgba(20, 16, 10, .9)');
+	c.beginPath();
+	c.arc(hub.x, hub.y, r, 0, Math.PI * 2);
+	c.fillStyle = g;
+	c.fill();
+	c.strokeStyle = 'rgba(214, 172, 92, .95)';
+	c.lineWidth = Math.max(2, s * 0.12);
+	c.stroke();
+	c.beginPath();
+	c.arc(hub.x, hub.y, r * 0.9, 0, Math.PI * 2);
+	c.lineWidth = Math.max(1, s * 0.04);
+	c.stroke();
+	// A mark at every seat (the nominee's in red).
+	for (const e of spots) {
+		const a = angleOf(e.seat), big = v && v.nominee === e.seat;
+		c.beginPath();
+		c.moveTo(hub.x + Math.cos(a) * r * 0.78, hub.y + Math.sin(a) * r * 0.78);
+		c.lineTo(hub.x + Math.cos(a) * r * 0.92, hub.y + Math.sin(a) * r * 0.92);
+		c.strokeStyle = big ? '#f0705a' : 'rgba(232, 200, 130, .9)';
+		c.lineWidth = Math.max(2, s * (big ? 0.16 : 0.1));
+		c.stroke();
+	}
+	// The time: a thin hand running down what is left, and the minutes written above the hub.
+	const ck = S.clock?.get() ?? null;
+	if (ck && ck.total > 0) {
+		clockHand(c, hub.x, hub.y, -Math.PI / 2 + Math.PI * 2 * (1 - Math.max(0, ck.left) / ck.total), r * 0.86, Math.max(2, s * 0.08), 'rgba(232, 216, 178, .85)');
+		const sec = Math.ceil(Math.max(0, ck.left) / 1000);
+		c.font = `700 ${Math.max(11, Math.round(s * 0.5))}px ${MONO}`;
+		c.textAlign = 'center';
+		c.textBaseline = 'middle';
+		c.fillStyle = ck.left <= 0 ? '#f0705a' : ck.running ? '#ffd27a' : 'rgba(232, 216, 178, .6)';
+		c.fillText(`${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`, hub.x, hub.y - r * 0.5);
+	}
+	// The vote hand, gold, glowing while a vote is counted.
+	if (v) { c.shadowColor = '#ffd27a'; c.shadowBlur = v.at !== null ? 14 : 6; }
+	clockHand(c, hub.x, hub.y, hand.a, r * (v ? 1.18 : 0.62), Math.max(4, s * 0.26), v ? '#e9b949' : 'rgba(214, 172, 92, .9)');
+	c.shadowBlur = 0;
+	c.beginPath();
+	c.arc(hub.x, hub.y, Math.max(3, s * 0.2), 0, Math.PI * 2);
+	c.fillStyle = '#c9a14a';
+	c.fill();
+	c.restore();
+	return { x: hub.x, y: hub.y, r };
+}
+
+/** A bell, for the church tower. */
+function drawBell(c: CanvasRenderingContext2D, x: number, y: number, r: number, fill: string) {
+	c.save();
+	c.fillStyle = fill;
+	c.beginPath();
+	c.arc(x, y - r * 0.82, r * 0.13, 0, Math.PI * 2);
+	c.fill();
+	c.beginPath();
+	c.moveTo(x - r * 0.78, y + r * 0.5);
+	c.quadraticCurveTo(x - r * 0.62, y - r * 0.72, x, y - r * 0.72);
+	c.quadraticCurveTo(x + r * 0.62, y - r * 0.72, x + r * 0.78, y + r * 0.5);
+	c.lineTo(x + r * 0.92, y + r * 0.64);
+	c.lineTo(x - r * 0.92, y + r * 0.64);
+	c.closePath();
+	c.fill();
+	c.beginPath();
+	c.arc(x, y + r * 0.8, r * 0.15, 0, Math.PI * 2);
+	c.fill();
+	c.restore();
+}
+
+/** A small clock face, for the market cross by day. */
+function drawClockIcon(c: CanvasRenderingContext2D, x: number, y: number, r: number, ink: string) {
+	c.save();
+	c.beginPath();
+	c.arc(x, y, r, 0, Math.PI * 2);
+	c.fillStyle = 'rgba(30, 24, 14, .9)';
+	c.fill();
+	c.strokeStyle = ink;
+	c.lineWidth = Math.max(1.5, r * 0.18);
+	c.stroke();
+	c.lineCap = 'round';
+	c.beginPath();
+	c.moveTo(x, y);
+	c.lineTo(x + r * 0.5, y - r * 0.3);
+	c.moveTo(x, y);
+	c.lineTo(x - r * 0.15, y - r * 0.72);
+	c.lineWidth = Math.max(1.2, r * 0.14);
+	c.stroke();
+	c.restore();
 }
 
 /**
@@ -1084,7 +1242,8 @@ function drawChrome() {
 	const near = doorBeside();
 	chromeKey = `${near}|${near !== null && S.town!.locked.has(near)}|${S.town?.locked.size}|${p?.with}|${S.phase}`;
 	const linkText = S.status === 'open' ? '' : S.status === 'error' ? S.statusDetail : 'connecting…';
-	bar.innerHTML = `<b>${PHASE_NAME[S.phase]}</b><span class="v-code">${esc(S.room)}</span><span class="v-dim v-status">${esc(linkText)}</span>`
+	bar.innerHTML = `<b>${S.phase === 'dusk' ? BELL_SVG : ''}${PHASE_NAME[S.phase]}</b><span class="v-code">${esc(S.room)}</span><span class="v-dim v-status">${esc(linkText)}</span>`
+		+ `<button data-act="clock" class="v-clock" hidden title="The clock">${CLOCK_SVG}<span data-vclock></span></button>`
 		+ `<button data-act="sound" class="v-sound${soundOn() ? ' on' : ''}" aria-pressed="${soundOn()}" title="The bell at dusk">${soundOn() ? 'Bell on' : 'Bell off'}</button>`
 		+ (S.host ? `<button data-act="st-toggle" class="${S.stOpen ? 'on' : ''}">Storyteller</button>` : '');
 	const tools = root.querySelector('.v-tools');
@@ -1187,7 +1346,9 @@ const BANNERS: Record<Phase, { title: string; line: string }> = {
 function showBanner(title: string, line: string, ms = 5000) {
 	const b = root?.querySelector('.v-banner') as HTMLElement | null;
 	if (!b) return;
-	b.innerHTML = `<b>${esc(title)}</b><span>${esc(line)}</span>`;
+	// Dusk is the bell's: it hangs over the title.
+	const bell = S.phase === 'dusk' && title === BANNERS.dusk.title ? `<i class="v-banner-bell">${BELL_SVG}</i>` : '';
+	b.innerHTML = `${bell}<b>${esc(title)}</b><span>${esc(line)}</span>`;
 	b.hidden = false;
 	clearTimeout(bannerTimer);
 	bannerTimer = setTimeout(() => { b.hidden = true; }, ms);
@@ -1203,6 +1364,21 @@ function toast(text: string) {
 	toastTimer = setTimeout(() => { el.hidden = true; }, 3500);
 }
 let toastTimer: ReturnType<typeof setTimeout>;
+
+/** The top bar's clock, a few times a second. */
+function tickClock() {
+	const el = root?.querySelector<HTMLButtonElement>('.v-clock');
+	if (!el) return;
+	const c = S.clock?.get() ?? null;
+	el.hidden = !c;
+	if (!c) return;
+	const sec = Math.ceil(c.left / 1000);
+	el.querySelector('[data-vclock]')!.textContent = `${c.label} ${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+	el.classList.toggle('paused', !c.running && c.left > 0);
+	el.classList.toggle('expired', c.left <= 0);
+	el.classList.toggle('static', !S.clock?.toggle);
+}
+setInterval(tickClock, 250);
 
 function announcePhase() {
 	document.documentElement.dataset.phase = S.phase === 'night' ? 'night' : 'day';
@@ -1350,6 +1526,7 @@ function onAct(act: string, el: HTMLElement) {
 			break;
 		}
 		case 'back': location.hash = ''; location.reload(); break;
+		case 'clock': S.clock?.toggle?.(); tickClock(); break;
 		case 'sound': {
 			const on = !soundOn();
 			store.set('grimoire.sound', on ? 'on' : 'off');
@@ -1508,6 +1685,8 @@ export interface VillageHost {
 	vote(v: VoteDraw | null): void;
 	/** Every seat in the game, in order round the circle. */
 	ring(seats: RingSeat[]): void;
+	/** The game's clock (shown in the top bar and on the clock at the cross). */
+	clock(src: ClockSource | null): void;
 	toast(text: string): void;
 }
 
@@ -1543,6 +1722,7 @@ export function villageForGame(wire: HostWire, onBack: () => void): VillageHost 
 		},
 		vote: (v) => { if (JSON.stringify(v) !== JSON.stringify(S.vote)) { S.vote = v; S.dirty = true; } },
 		ring: (seats) => { if (JSON.stringify(seats) !== JSON.stringify(S.ring)) { S.ring = seats; S.dirty = true; } },
+		clock: (src) => { S.clock = src; },
 		toast,
 		stop: () => {
 			for (const id of S.welcomed) wire.send(id, { t: 'off' });
@@ -1613,6 +1793,8 @@ export function villageOnPhone(wire: PlayerWire, extra: () => Extra[]) {
 		receive: onPlayerDown,
 		/** The game's buttons may have changed. */
 		refresh: () => drawChrome(),
+		/** The game's clock, as this phone last heard it. */
+		clock: (src: ClockSource | null) => { S.clock = src; },
 		toast,
 		/** Ask the player to pick from a list. */
 		choose: (title: string, options: { id: string; label: string }[], pick: (id: string) => void) => { S.choice = { title, options, pick }; S.sheet = null; drawChrome(); }

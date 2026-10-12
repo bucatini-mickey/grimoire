@@ -505,6 +505,15 @@ body.village-map { overflow: hidden; overscroll-behavior: none; }
 .v-tools button.primary { background: #e8d8b2; color: #16110c; border-color: #e8d8b2; }
 .v-tools button.v-door { color: #f0c870; border-color: #f0c870; font-weight: 600; min-width: 7.5em; }
 .v-top button.on, .v-tools button.on { color: #f0907a; border-color: #f0907a; box-shadow: none; }
+.v-ico { width: 1em; height: 1em; vertical-align: -.12em; margin-right: .25em; }
+.v-top > b .v-ico { color: #e9b949; }
+.v-clock { display: inline-flex; align-items: center; gap: 2px; font-family: 'Courier Prime', 'Courier New', monospace !important; font-weight: 700 !important; color: #ffd27a !important; border-color: rgba(233, 185, 73, .6) !important; white-space: nowrap; }
+.v-clock.paused { color: rgba(232, 216, 178, .6) !important; }
+.v-clock.expired { color: #f0705a !important; border-color: #f0705a !important; }
+.v-clock.static { cursor: default; }
+.v-clock[hidden] { display: none !important; }
+.v-banner-bell { display: block; font-size: 2.1em; color: #c9a14a; line-height: 1; margin-bottom: 2px; }
+.v-banner-bell .v-ico { margin: 0; }
 .v-code { font-family: var(--mono); letter-spacing: .12em; color: var(--gold); font-weight: 700; }
 .v-stage { position: absolute; inset: 0; }
 .v-stage canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: pointer; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }

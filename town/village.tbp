@@ -22,6 +22,8 @@ key i floor stone block | candle
 key g floor soil
 key m floor soil | statue
 key M floor stone block | statue
+key C floor stone block | clock
+key L floor stone block | bell
 key x floor soil | coffin
 key W wall wood
 key w wall glass
@@ -66,7 +68,7 @@ TTTTTTTTf,,,,T,,,,,f,,,,,,,,,,,,,,,,,f,f,fff,T,,,,,,g,,,,,,,,,f,,,,,,~B,,,f,TT,T
 TTTTTTTT,,,TT,,,,,,,,,,,,T,,T,,T,TT,,T,fTffTfT,,,,T,g,,TTT,,TT,T,,,TTTB~~~f,fTTTTTTT
 TTTTTTT,,T,,TT,,,,,T,,T,,,,,,,,TT,Tf,f,#######T,,f,,g,T,T,,TTTTT,T,T,Tg~~~~T,TTTTTTT
 TTTTTTT,,,,,fTT,,,T,,,T,,,,,TT,,,,,Tf,T#_____#,,T,,,gT,,,T,,,,T,,,T,,,g,,,~~,TTTTTTT
-TTTTTTTTT,,T,,,f,,,T,,,T,T,,,T,,,Tf,,T,#__M__#TT,T,,gf,T,TTTT,,TT,,f,,gTT,,~~TTTT~TT
+TTTTTTTTT,,T,,,f,,,T,,,T,T,,,T,,,Tf,,T,#__L__#TT,T,,gf,T,TTTT,,TT,,f,,gTT,,~~TTTT~TT
 TTTTTTTT,T,f,,T,,,,T,T,,,fT,,,,,,,######_____######,gT,f,,,TT,Tf,,,,,,gT,,T,~~~~~~~T
 TTTTTTT,,,,f,,,,,,TWWWWWWWWWWWWW,,#i___###D###___i#,g,,,,T,T,T,T,T,,,,g,,,,,f~~~~T~T
 TTTTTTTT,,,,,,,,,,fWggggggggggggW,#_______________#,g,,,,,,,T,,T,,,,,,g,,,,,,TTTTTTT
@@ -93,7 +95,7 @@ TTTTTTT,T,Wb+++eWg,,,,,,,,,,,,,,,______h_h__h_______,,d++c+++c++WWWdWWWdWWW,TTTT
 TTTTTTTT,,W+++++dg,,,,,,,,,,,,,,,k___h________h____k,,d+++++++++W+++eWe+++WTTTTTTTTT
 TTTTTTTT,,W+++tcWg,,,T,,,,,,T,,,_______________h_____!W+ctc+ctc+W++++W++++W,TTTTTTTT
 TTTTTTTTT,WWWWWWWg,,,,,,,,,,,,,,.___h________________,W++c+++c++W++++W++++WTTTTTTTTT
-TTTTTTTTT,,,,,f,,g,,,,,,,,,,,,gg._________M_____h____fw++++++++KWb+++W+++bWTTTTTTTTT
+TTTTTTTTT,,,,,f,,g,,,,,,,,,,,,gg._________C_____h____fw++++++++KWb+++W+++bWTTTTTTTTT
 TTTTTTTTT,,,f,!,,g,,,,,ff,,,gggg____h_______________.,WWWWWWWWWWWWWWWWWWWWWTTTTTTTTT
 TTTTTTTTf,,,,,,,,g,,,,!,ggggggg,.______________h____.ggggggggggg,,,,,,,,,,TTTTTTTTTT
 TTTTTTggggggggggggggggggggggg,,,,____h________h_____gggg!gggggggg,,,,,,,,TTTTTTTTTTT

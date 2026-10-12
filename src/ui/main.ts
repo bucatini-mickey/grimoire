@@ -2152,6 +2152,28 @@ function welcome(peer: string) {
 }
 
 /** The clock the room is watching, if any, for the phones' own countdown. */
+/** Which of the day's clocks the room is watching. */
+function roomClockKey(): 'day' | 'nom' | 'speech' | null {
+	if (state.phase.kind !== 'day') return null;
+	return openNomination() && flow().speech ? 'speech' : state.day!.stage === 'discussion' ? 'day' : 'nom';
+}
+const CLOCK_LABEL = { day: 'Talk', nom: 'Nominate', speech: 'Speak' };
+
+/** The village's clock: the room's, started or paused by a tap (the Storyteller's). */
+const villageClock = {
+	get() {
+		const key = roomClockKey();
+		const t = key ? timerOf(key) : null;
+		if (!key || !t) return null;
+		return { left: T.remaining(t, Date.now()), total: t.durationMs, running: T.running(t), label: CLOCK_LABEL[key] };
+	},
+	toggle() {
+		const key = roomClockKey();
+		const t = key ? timerOf(key) : null;
+		if (key && t) setTimer(key, T.toggle(t, Date.now()));
+	}
+};
+
 function roomClock(): ClockView | null {
 	if (state.phase.kind !== 'day') return null;
 	const f = flow();
@@ -2159,7 +2181,7 @@ function roomClock(): ClockView | null {
 	const t = timerOf(key);
 	if (!t) return null;
 	const now = Date.now();
-	return { label: key, remainingMs: T.remaining(t, now), running: T.running(t), sentAt: now };
+	return { label: key, remainingMs: T.remaining(t, now), running: T.running(t), sentAt: now, totalMs: t.durationMs };
 }
 
 /** Send every phone the circle, the clock and its own card, when they change. */
@@ -2301,6 +2323,7 @@ function villageOn() {
 	const l = link;
 	village = villageForGame({ peer: l.peer, send: (p, m) => sendTo(p, { t: 'village', m }), peers: () => [] }, () => openDrawer('actions'));
 	villageShown = false;
+	village.clock(villageClock);
 	villageKey = '';
 	syncVillage();
 	render();
