@@ -152,6 +152,8 @@ const store = {
 	get: (k: string) => { try { return localStorage.getItem(k); } catch { return null; } },
 	set: (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* private mode */ } }
 };
+/** The bell (and its buzz) at dusk: off unless this phone has turned it on. */
+const soundOn = () => store.get('grimoire.sound') === 'on';
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 const me = () => S.people.get(S.me);
 const nameOf = (id: string | null | undefined) => (id && S.people.get(id)?.name) || 'someone';
@@ -1083,6 +1085,7 @@ function drawChrome() {
 	chromeKey = `${near}|${near !== null && S.town!.locked.has(near)}|${S.town?.locked.size}|${p?.with}|${S.phase}`;
 	const linkText = S.status === 'open' ? '' : S.status === 'error' ? S.statusDetail : 'connecting…';
 	bar.innerHTML = `<b>${PHASE_NAME[S.phase]}</b><span class="v-code">${esc(S.room)}</span><span class="v-dim v-status">${esc(linkText)}</span>`
+		+ `<button data-act="sound" class="v-sound${soundOn() ? ' on' : ''}" aria-pressed="${soundOn()}" title="The bell at dusk">${soundOn() ? 'Bell on' : 'Bell off'}</button>`
 		+ (S.host ? `<button data-act="st-toggle" class="${S.stOpen ? 'on' : ''}">Storyteller</button>` : '');
 	const tools = root.querySelector('.v-tools');
 	if (!tools) return;
@@ -1204,7 +1207,7 @@ function announcePhase() {
 	const b = BANNERS[S.phase];
 	// The Storyteller is not sent home: they go where they like.
 	showBanner(b.title, me()?.st && S.phase === 'night' ? 'The town sleeps behind locked doors. Walk through walls; People, then Visit, takes you to anyone.' : b.line);
-	if (S.phase === 'dusk') {
+	if (S.phase === 'dusk' && soundOn()) {
 		try { bell(); } catch { /* no audio yet */ }
 		try { navigator.vibrate?.([300, 200, 300, 200, 300]); } catch { /* not supported */ }
 	}
@@ -1335,6 +1338,13 @@ function onAct(act: string, el: HTMLElement) {
 			break;
 		}
 		case 'back': location.hash = ''; location.reload(); break;
+		case 'sound': {
+			const on = !soundOn();
+			store.set('grimoire.sound', on ? 'on' : 'off');
+			if (on) { try { audio(); bell(1); } catch { /* no audio */ } }
+			drawChrome();
+			break;
+		}
 		case 'voice-mic': void voiceOn('mic'); break;
 		case 'voice-tone': void voiceOn('tone'); break;
 		case 'mute': S.voice?.setMuted(!S.voice.muted); drawChrome(); break;
