@@ -151,6 +151,8 @@ const ui = {
 	banner: null as Banner[] | null,
 	/** Counting hands in the small, inline view rather than full screen. */
 	voteSmall: false,
+	/** In a village game the count runs in the bar; the full count only when asked for. */
+	voteBig: false,
 	/** A wake sent to a player's phone and not yet finished. */
 	remote: null as null | { wakeId: string; seat: SeatId; answered: boolean },
 	names: 'Ada\nBram\nCael\nDorn\nEsme\nFenn\nGwen\nHal',
@@ -1749,7 +1751,7 @@ function voteStage(): Row[] {
 	}
 	rows.push(blank(), ...cardButtons([
 		btn('Back', () => { v.index = Math.max(0, v.index - 1); while (v.index > 0 && !G.canVote(state, v.order[v.index])) v.index--; save(); render(); }, { style: 'quiet', disabled: v.index === 0 }),
-		btn('Small view', () => { ui.voteSmall = true; render(); }, { style: 'quiet' })
+		btn('Small view', () => { ui.voteSmall = true; ui.voteBig = false; render(); }, { style: 'quiet' })
 	]));
 	if (link && v.index < v.order.length) rows.push(...cardButtons([btn(autoCount ? 'Stop counting' : 'Count by phones', countByPhones, { style: autoCount ? 'danger' : 'primary' })]));
 	return rows;
@@ -2064,7 +2066,7 @@ function villageActions(): StActions | null {
 		const v = f.vote;
 		const needed = Math.ceil(G.living(state).length / 2);
 		const tally = `${v.hands.length} for ${name(nom.nominee)}; ${needed} needed${day.highest ? `, more than ${day.highest}` : ''}.`;
-		if (v.index >= v.order.length) return { text: `The count: ${tally}`, buttons: [{ label: 'Record the vote', primary: true, act: recordVote }, { label: 'Full count', act: () => { ui.voteSmall = false; render(); } }] };
+		if (v.index >= v.order.length) return { text: `The count: ${tally}`, buttons: [{ label: 'Record the vote', primary: true, act: recordVote }, { label: 'Full count', act: () => { ui.voteSmall = false; ui.voteBig = true; render(); } }] };
 		const id = v.order[v.index];
 		const hand = phoneHand(id);
 		const now = hand === null ? '' : hand ? ' (hand UP on their phone)' : ' (hand down on their phone)';
@@ -2072,7 +2074,7 @@ function villageActions(): StActions | null {
 			{ label: 'Hand up', primary: hand === true, act: () => answerVote(true) },
 			{ label: 'No hand', primary: hand === false, act: () => answerVote(false) },
 			...(link ? [{ label: autoCount ? 'Stop counting' : 'Count by phones', act: countByPhones }] : []),
-			{ label: 'Full count', act: () => { ui.voteSmall = false; render(); } }] };
+			{ label: 'Full count', act: () => { ui.voteSmall = false; ui.voteBig = true; render(); } }] };
 	}
 	if (day.stage === 'discussion') return { text: 'Discussion.', buttons: [{ label: 'Open nominations', primary: true, act: openNominations }, grim] };
 	const ask = validAsks()[0];
@@ -2357,7 +2359,7 @@ function syncVillage() {
 		villageKey = key;
 		// The game begins at night. Before it, while the Storyteller deals, the town sits gathered
 		// round the market cross at dusk; nominations, votes and the end are there too.
-		village.phase(p.kind === 'night' ? 'night' : p.kind === 'setup' || p.kind === 'over' || (p.kind === 'day' && state.day?.stage === 'nominations') ? 'dusk' : 'day');
+		village.phase(p.kind === 'night' ? 'night' : p.kind === 'over' || (p.kind === 'day' && state.day?.stage === 'nominations') ? 'circle' : p.kind === 'setup' ? 'dusk' : 'day');
 	}
 	// At night the Storyteller goes to whoever wakes next.
 	const step = p.kind === 'night' ? G.nextStep(state) : null;
@@ -2574,7 +2576,7 @@ function render() {
 	if (!vg) villageShown = false;
 	paint(root, paneled(vg ? drawerScreen() : screen()));
 	paintDrawerTabs();
-	const voting = state.phase.kind === 'day' && !!flow().vote && !!openNomination() && !ui.voteSmall;
+	const voting = state.phase.kind === 'day' && !!flow().vote && !!openNomination() && (villageGame() ? ui.voteBig : !ui.voteSmall);
 	const pages = ui.banner ? bannerRows() : voting ? voteStage() : ui.show ? showRows() : [];
 	cardRoot.hidden = !pages.length;
 	if (pages.length) paint(cardRoot, paneled(pages, CARD_COLS));

@@ -814,11 +814,9 @@ function draw() {
 	}
 	c.restore();
 
-	// At the cross (a game's dusk): the clock hand from the cross to whoever is being counted.
+	// At the cross (a game's dusk, while the Storyteller deals): everyone in their seat.
 	const atCross = S.game && S.phase === 'dusk' && !!t.meeting;
-	const ringAt = (seat: number): P | null => [...S.people.values()].find((q) => !q.st && q.seat === seat) ?? seatCell(t, seat);
 	const scr = (q: P) => ({ x: ox + (q.x + 0.5) * s, y: oy + (q.y + 0.5) * s });
-	const face = atCross ? drawVoteClock(c, t, scr, ringAt, s, now) : null;
 
 	// People: anyone in sight and in enough light to make out (or right beside you).
 	// At night the Storyteller is seen only by whoever they visit.
@@ -842,53 +840,6 @@ function draw() {
 			if (!cell) continue;
 			const at = scr(cell);
 			drawPerson(c, { id: `seat-${r.seat}`, name: r.name, ink: r.seat % INKS.length, x: cell.x, y: cell.y, voice: false, seat: r.seat, dead: r.dead, with: null }, at.x, at.y, s * 0.95, true);
-		}
-		// The vote: the nominee ringed in red; a hand up over whoever raised it (filled once counted).
-		const v = S.vote;
-		if (v) {
-			const nom = ringAt(v.nominee);
-			if (nom) {
-				const at = scr(nom);
-				c.save();
-				c.strokeStyle = '#f0705a';
-				c.lineWidth = Math.max(2, s * 0.1);
-				c.beginPath();
-				c.arc(at.x, at.y, s * 0.68, 0, Math.PI * 2);
-				c.stroke();
-				c.restore();
-			}
-			for (const seat of new Set([...v.raised, ...v.counted])) {
-				const q = ringAt(seat);
-				if (!q) continue;
-				const at = scr(q), counted = v.counted.includes(seat);
-				c.save();
-				c.fillStyle = '#ffd27a';
-				c.globalAlpha = counted ? 1 : 0.75;
-				c.font = `700 ${Math.round(s * 0.62)}px ${MONO}`;
-				c.textAlign = 'center';
-				c.textBaseline = 'bottom';
-				c.fillText(counted ? '▲' : '△', at.x + s * 0.55, at.y - s * 0.2);
-				c.restore();
-			}
-		}
-		// The day so far, written on the lower half of the clock's face.
-		if (S.caption.length && face) {
-			const a = face;
-			const fs = Math.max(10, Math.round(s * 0.42));
-			c.save();
-			c.font = `600 ${fs}px ${BOOK}`;
-			const lines = S.caption.slice(0, 5);
-			const w = Math.min(face.r * 1.7, Math.max(...lines.map((l) => c.measureText(l).width)) + 16);
-			const top = a.y + face.r * 0.3;
-			c.fillStyle = 'rgba(10,8,6,.72)';
-			c.fillRect(a.x - w / 2, top, w, lines.length * fs * 1.25 + 8);
-			c.textAlign = 'center';
-			c.textBaseline = 'top';
-			lines.forEach((l, i) => {
-				c.fillStyle = i ? 'rgba(232,216,178,.9)' : '#ffd27a';
-				c.fillText(l, a.x, top + 4 + i * fs * 1.25, w - 8);
-			});
-			c.restore();
 		}
 	}
 	// Wisps: soft banks of mist rolling slowly across the view (not indoors).
@@ -953,88 +904,6 @@ function clockHand(c: CanvasRenderingContext2D, x: number, y: number, a: number,
 	c.closePath();
 	c.fillStyle = colour;
 	c.fill();
-}
-
-/**
- * Dusk in a game: the market cross becomes the town clock. A face inside the
- * ring of seats with a mark at every seat, cogs turning behind it, a thin hand
- * running down the time, and the vote hand: it starts on the nominee and
- * sweeps clockwise to whoever is being counted. Returns the face, for the
- * words written on it.
- */
-function drawVoteClock(c: CanvasRenderingContext2D, t: Town, scr: (q: P) => { x: number; y: number }, ringAt: (seat: number) => P | null, s: number, now: number) {
-	const m = t.meeting!.at;
-	const hub = scr(m);
-	const seats = S.ring.length ? S.ring.map((r) => r.seat) : [...S.people.values()].filter((q) => !q.st).map((q) => q.seat);
-	const spots = seats.map((seat) => ({ seat, at: ringAt(seat) })).filter((e): e is { seat: number; at: P } => !!e.at);
-	const ringR = spots.length ? spots.reduce((sum, e) => sum + Math.hypot(e.at.x - m.x, e.at.y - m.y), 0) / spots.length * s : s * 5;
-	const r = Math.max(s * 2.2, ringR * 0.66);
-	const angleOf = (seat: number) => { const q = ringAt(seat); return q ? Math.atan2(q.y - m.y, q.x - m.x) : -Math.PI / 2; };
-
-	// The vote hand: on the nominee when a nomination begins, then clockwise to each voter in turn.
-	const v = S.vote;
-	if (v && v.nominee !== hand.nominee) hand = { a: angleOf(v.nominee), at: now, nominee: v.nominee };
-	if (!v) hand.nominee = -1;
-	const target = v ? angleOf(v.at ?? v.nominee) : -Math.PI / 2;
-	const dt = Math.min(0.1, (now - (hand.at || now)) / 1000);
-	hand.at = now;
-	let d = (target - hand.a) % (Math.PI * 2);
-	if (d < 0) d += Math.PI * 2;
-	if (d > Math.PI * 2 - 0.01) d = 0;
-	hand.a += Math.min(d, dt * 3.2);
-	const spin = hand.a * 2 + now / 4000;
-
-	c.save();
-	// Cogs behind the face, turning with the hand.
-	cog(c, hub.x - r * 0.98, hub.y - r * 0.62, r * 0.42, 12, spin);
-	cog(c, hub.x + r * 0.96, hub.y + r * 0.6, r * 0.32, 9, -spin * 1.33 + 0.2);
-	cog(c, hub.x + r * 0.78, hub.y - r * 0.9, r * 0.2, 7, spin * 2.1);
-	// The face.
-	const g = c.createRadialGradient(hub.x, hub.y, r * 0.1, hub.x, hub.y, r);
-	g.addColorStop(0, 'rgba(46, 38, 24, .9)');
-	g.addColorStop(1, 'rgba(20, 16, 10, .9)');
-	c.beginPath();
-	c.arc(hub.x, hub.y, r, 0, Math.PI * 2);
-	c.fillStyle = g;
-	c.fill();
-	c.strokeStyle = 'rgba(214, 172, 92, .95)';
-	c.lineWidth = Math.max(2, s * 0.12);
-	c.stroke();
-	c.beginPath();
-	c.arc(hub.x, hub.y, r * 0.9, 0, Math.PI * 2);
-	c.lineWidth = Math.max(1, s * 0.04);
-	c.stroke();
-	// A mark at every seat (the nominee's in red).
-	for (const e of spots) {
-		const a = angleOf(e.seat), big = v && v.nominee === e.seat;
-		c.beginPath();
-		c.moveTo(hub.x + Math.cos(a) * r * 0.78, hub.y + Math.sin(a) * r * 0.78);
-		c.lineTo(hub.x + Math.cos(a) * r * 0.92, hub.y + Math.sin(a) * r * 0.92);
-		c.strokeStyle = big ? '#f0705a' : 'rgba(232, 200, 130, .9)';
-		c.lineWidth = Math.max(2, s * (big ? 0.16 : 0.1));
-		c.stroke();
-	}
-	// The time: a thin hand running down what is left, and the minutes written above the hub.
-	const ck = S.clock?.get() ?? null;
-	if (ck && ck.total > 0) {
-		clockHand(c, hub.x, hub.y, -Math.PI / 2 + Math.PI * 2 * (1 - Math.max(0, ck.left) / ck.total), r * 0.86, Math.max(2, s * 0.08), 'rgba(232, 216, 178, .85)');
-		const sec = Math.ceil(Math.max(0, ck.left) / 1000);
-		c.font = `700 ${Math.max(11, Math.round(s * 0.5))}px ${MONO}`;
-		c.textAlign = 'center';
-		c.textBaseline = 'middle';
-		c.fillStyle = ck.left <= 0 ? '#f0705a' : ck.running ? '#ffd27a' : 'rgba(232, 216, 178, .6)';
-		c.fillText(`${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`, hub.x, hub.y - r * 0.5);
-	}
-	// The vote hand, gold, glowing while a vote is counted.
-	if (v) { c.shadowColor = '#ffd27a'; c.shadowBlur = v.at !== null ? 14 : 6; }
-	clockHand(c, hub.x, hub.y, hand.a, r * (v ? 1.18 : 0.62), Math.max(4, s * 0.26), v ? '#e9b949' : 'rgba(214, 172, 92, .9)');
-	c.shadowBlur = 0;
-	c.beginPath();
-	c.arc(hub.x, hub.y, Math.max(3, s * 0.2), 0, Math.PI * 2);
-	c.fillStyle = '#c9a14a';
-	c.fill();
-	c.restore();
-	return { x: hub.x, y: hub.y, r };
 }
 
 /** A bell, for the church tower. */
@@ -1124,30 +993,22 @@ function drawWall(c: CanvasRenderingContext2D, w: { mask: number; style: 'double
 	c.stroke();
 }
 
-/** The circle: the town falls away; everyone on one ring, seen and heard by all. */
+/**
+ * The circle: the town falls away into deep fog, and the players stand round
+ * the rim of a giant clock face. During a nomination a shadowy hand rises and
+ * points at the nominee; when the vote begins it sweeps clockwise to each
+ * voter in turn. A pale hand runs down the time. The circle is sized to the
+ * players: their marks keep the same spacing however many there are.
+ */
 function drawCircle(c: CanvasRenderingContext2D, cw: number, chh: number, now: number) {
-	const g = c.createRadialGradient(cw / 2, chh / 2, 10, cw / 2, chh / 2, Math.max(cw, chh) * 0.7);
-	g.addColorStop(0, '#1c1830');
-	g.addColorStop(1, '#05040a');
-	c.fillStyle = g;
-	c.fillRect(0, 0, cw, chh);
-	// A few still stars.
-	for (let i = 0; i < 90; i++) {
-		const h = Math.imul(i + 1, 2654435761) >>> 0;
-		c.fillStyle = `rgba(220,210,255,${0.12 + ((h >>> 8) % 50) / 200})`;
-		c.fillRect((h % 1000) / 1000 * cw, ((h >>> 10) % 1000) / 1000 * chh, 1.5, 1.5);
-	}
-	const cx = cw / 2, cy = chh / 2 + 10;
-	const r = Math.min(cw, chh) * 0.36;
-	c.save();
-	c.strokeStyle = 'rgba(200,185,255,.35)';
-	c.lineWidth = 2;
-	c.shadowColor = 'rgba(180,160,255,.8)';
-	c.shadowBlur = 18 + Math.sin(now / 900) * 6;
-	c.beginPath();
-	c.arc(cx, cy, r, 0, Math.PI * 2);
-	c.stroke();
-	c.restore();
+	// The space left between the top bar and whatever covers the bottom (the buttons, the Storyteller's bar).
+	const cover = (sel: string) => { const el = root.querySelector<HTMLElement>(sel); return el && !el.hidden ? el.offsetHeight : 0; };
+	// Below the top bar, its line of status, and the day's tally.
+	const capTop = 78;
+	const top = capTop + Math.min(4, S.caption.length) * 17 + 6, bottom = Math.max(cover('.v-tools'), 60) + cover('.v-stbar');
+	const cx = cw / 2, cy = top + (chh - top - bottom) / 2;
+	const room = Math.max(80, Math.min(cw, chh - top - bottom) / 2);
+
 	// In a game, every seat is on the circle, phone or not; otherwise whoever is here.
 	const walkers = [...S.people.values()].filter((q) => !q.st);
 	const ring: Person[] = S.ring.length
@@ -1156,62 +1017,160 @@ function drawCircle(c: CanvasRenderingContext2D, cw: number, chh: number, now: n
 			return q ? { ...q, dead: r.dead } : { id: `seat-${r.seat}`, name: r.name, ink: r.seat % INKS.length, x: 0, y: 0, voice: false, seat: r.seat, dead: r.dead };
 		})
 		: walkers.sort((a, b) => a.seat - b.seat);
-	const size = Math.max(22, Math.min(40, r * 0.22));
-	const spot = (n: number) => {
-		const a = -Math.PI / 2 + (n / Math.max(1, ring.length)) * Math.PI * 2;
-		return { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r };
-	};
-	// A vote: the clock hand points at whoever is being counted.
-	const v = S.vote;
-	const atN = v && v.at !== null ? ring.findIndex((q) => q.seat === v.at) : -1;
-	if (atN >= 0) {
-		const to = spot(atN);
-		c.save();
-		c.strokeStyle = 'rgba(255,210,122,.85)';
-		c.lineWidth = 3;
-		c.lineCap = 'round';
-		c.shadowColor = '#ffd27a';
-		c.shadowBlur = 12;
-		c.beginPath();
-		c.moveTo(cx, cy);
-		c.lineTo(cx + (to.x - cx) * 0.78, cy + (to.y - cy) * 0.78);
-		c.stroke();
-		c.restore();
+	const n = Math.max(1, ring.length);
+	// One circle, as big as the room allows, whoever is playing: the marks shrink to fit as more join.
+	const size = Math.max(18, Math.min(38, ((2 * Math.PI * room * 0.72) / n) * 0.5));
+	const r = room - size * 1.45;
+	const face = r - size * 0.9;
+	const angle = (k: number) => -Math.PI / 2 + (k / n) * Math.PI * 2;
+	const spot = (k: number) => ({ x: cx + Math.cos(angle(k)) * r, y: cy + Math.sin(angle(k)) * r });
+
+	// Night sky and fog: deep at the edges, drifting.
+	const g = c.createRadialGradient(cx, cy, face * 0.2, cx, cy, Math.max(cw, chh) * 0.75);
+	g.addColorStop(0, '#1d1a2c');
+	g.addColorStop(1, '#040308');
+	c.fillStyle = g;
+	c.fillRect(0, 0, cw, chh);
+	for (let k = 0; k < 7; k++) {
+		const a = (k / 7) * Math.PI * 2 + now * 0.00004 * (k % 2 ? 1 : -1);
+		const d = r * (1.15 + 0.35 * noise(k, now * 0.00005, 3));
+		const fx = cx + Math.cos(a) * d, fy = cy + Math.sin(a) * d;
+		const fr = r * (0.7 + 0.4 * noise(k * 2.3, now * 0.00004, 5));
+		const mist = c.createRadialGradient(fx, fy, 0, fx, fy, fr);
+		mist.addColorStop(0, 'rgba(150, 140, 175, .16)');
+		mist.addColorStop(1, 'rgba(150, 140, 175, 0)');
+		c.fillStyle = mist;
+		c.fillRect(0, 0, cw, chh);
 	}
-	ring.forEach((q, n) => {
-		const { x, y } = spot(n);
+
+	// The vote: a shadowy hand, on the nominee, then clockwise round the voters.
+	const v = S.vote;
+	const idx = (seat: number) => Math.max(0, ring.findIndex((q) => q.seat === seat));
+	if (v && v.nominee !== hand.nominee) hand = { a: angle(idx(v.nominee)), at: now, nominee: v.nominee };
+	if (!v) hand.nominee = -1;
+	const target = v ? angle(idx(v.at ?? v.nominee)) : -Math.PI / 2;
+	const dt = Math.min(0.1, (now - (hand.at || now)) / 1000);
+	hand.at = now;
+	let turn = (target - hand.a) % (Math.PI * 2);
+	if (turn < 0) turn += Math.PI * 2;
+	if (turn > Math.PI * 2 - 0.01) turn = 0;
+	hand.a += Math.min(turn, dt * 3.2);
+
+	c.save();
+	// Cogs, ghostly, half lost in the fog behind the face.
+	const spin = hand.a * 2 + now / 5000;
+	c.globalAlpha = 0.28;
+	cog(c, cx - face * 0.72, cy - face * 0.62, face * 0.5, 14, spin);
+	cog(c, cx + face * 0.78, cy + face * 0.55, face * 0.4, 11, -spin * 1.27);
+	cog(c, cx + face * 0.6, cy - face * 0.78, face * 0.24, 8, spin * 2.1);
+	c.globalAlpha = 1;
+	// The face: pale and glowing, a ring of numerals' marks, one at every seat.
+	const fg = c.createRadialGradient(cx, cy, face * 0.1, cx, cy, face);
+	fg.addColorStop(0, 'rgba(60, 54, 84, .55)');
+	fg.addColorStop(1, 'rgba(28, 24, 44, .75)');
+	c.beginPath();
+	c.arc(cx, cy, face, 0, Math.PI * 2);
+	c.fillStyle = fg;
+	c.fill();
+	c.shadowColor = 'rgba(190, 175, 255, .8)';
+	c.shadowBlur = 18 + Math.sin(now / 900) * 6;
+	c.strokeStyle = 'rgba(205, 192, 255, .55)';
+	c.lineWidth = 2;
+	c.stroke();
+	c.shadowBlur = 0;
+	c.beginPath();
+	c.arc(cx, cy, face * 0.9, 0, Math.PI * 2);
+	c.strokeStyle = 'rgba(205, 192, 255, .22)';
+	c.lineWidth = 1;
+	c.stroke();
+	ring.forEach((q, k) => {
+		const a = angle(k), nom = v && v.nominee === q.seat;
+		c.beginPath();
+		c.moveTo(cx + Math.cos(a) * face * 0.8, cy + Math.sin(a) * face * 0.8);
+		c.lineTo(cx + Math.cos(a) * face * 0.95, cy + Math.sin(a) * face * 0.95);
+		c.strokeStyle = nom ? 'rgba(240, 112, 90, .95)' : 'rgba(215, 205, 255, .6)';
+		c.lineWidth = nom ? 4 : 2;
+		c.stroke();
+	});
+	// The time: a pale thin hand running down, the minutes above the hub.
+	const ck = S.clock?.get() ?? null;
+	if (ck && ck.total > 0) {
+		c.globalAlpha = 0.7;
+		clockHand(c, cx, cy, -Math.PI / 2 + Math.PI * 2 * (1 - Math.max(0, ck.left) / ck.total), face * 0.86, 3, 'rgba(225, 218, 255, .85)');
+		c.globalAlpha = 1;
+		const sec = Math.ceil(Math.max(0, ck.left) / 1000);
+		c.font = `700 ${Math.max(12, Math.round(size * 0.5))}px ${MONO}`;
+		c.textAlign = 'center';
+		c.textBaseline = 'middle';
+		c.fillStyle = ck.left <= 0 ? '#f0705a' : ck.running ? 'rgba(255, 220, 140, .95)' : 'rgba(225, 218, 255, .5)';
+		c.fillText(`${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`, cx, cy + face * 0.42);
+	}
+	// The shadowy hand: only while someone is nominated; darker and sharper once the vote is counted.
+	if (v) {
+		const counting = v.at !== null;
+		c.shadowColor = 'rgba(0, 0, 0, .95)';
+		c.shadowBlur = counting ? 28 : 18;
+		clockHand(c, cx, cy, hand.a, r - size * 0.75, Math.max(9, size * 0.5), counting ? 'rgba(8, 6, 14, .88)' : 'rgba(8, 6, 14, .55)');
+		c.shadowBlur = 0;
+		c.globalAlpha = counting ? 0.9 : 0.5;
+		c.lineWidth = 1.5;
+		c.strokeStyle = 'rgba(240, 200, 120, .8)';
+		c.stroke();
+		c.globalAlpha = 1;
+	}
+	c.beginPath();
+	c.arc(cx, cy, Math.max(4, size * 0.22), 0, Math.PI * 2);
+	c.fillStyle = 'rgba(215, 205, 255, .7)';
+	c.fill();
+	c.restore();
+
+	// The players round the rim, their names outward, a hand up over whoever raised it.
+	ring.forEach((q, k) => {
+		const { x, y } = spot(k);
+		const a = angle(k);
+		if (v && v.nominee === q.seat) {
+			c.save();
+			c.strokeStyle = '#f0705a';
+			c.lineWidth = 2.5;
+			c.beginPath();
+			c.arc(x, y, size * 0.72, 0, Math.PI * 2);
+			c.stroke();
+			c.restore();
+		}
 		drawPerson(c, q, x, y, size, false);
 		if (v) {
-			// A hand up: a gold mark over them (filled once the count has passed and taken it).
 			const counted = v.counted.includes(q.seat), raised = v.raised.includes(q.seat);
 			if (counted || raised) {
 				c.save();
 				c.fillStyle = '#ffd27a';
-				c.font = `700 ${Math.round(size * 0.6)}px ${MONO}`;
+				c.font = `700 ${Math.round(size * 0.55)}px ${MONO}`;
 				c.textAlign = 'center';
-				c.textBaseline = 'bottom';
+				c.textBaseline = 'middle';
 				c.globalAlpha = counted ? 1 : 0.7;
-				c.fillText(counted ? '▲' : '△', x, y - size * 0.5);
+				c.fillText(counted ? '▲' : '△', x + Math.cos(a + Math.PI / 2) * size * 0.75, y + Math.sin(a + Math.PI / 2) * size * 0.75);
 				c.restore();
 			}
 		}
+		// The name, outward from the clock, so the ring stays clear however full.
 		c.save();
-		c.font = `600 ${Math.max(12, Math.round(size * 0.5))}px Grenze, Georgia, serif`;
-		c.textAlign = 'center';
-		c.textBaseline = 'top';
-		c.fillStyle = v && v.nominee === q.seat ? '#f0705a' : q.id === S.me ? ST_INK : 'rgba(232,216,178,.85)';
-		c.fillText(`${q.dead ? '† ' : ''}${q.name}${q.id === S.me ? ' (you)' : ''}`, x, y + size * 0.6);
+		c.font = `600 ${Math.max(11, Math.round(size * 0.42))}px Grenze, Georgia, serif`;
+		c.textAlign = Math.abs(Math.cos(a)) < 0.3 ? 'center' : Math.cos(a) > 0 ? 'left' : 'right';
+		c.textBaseline = Math.sin(a) < -0.3 ? 'bottom' : Math.sin(a) > 0.3 ? 'top' : 'middle';
+		c.fillStyle = v && v.nominee === q.seat ? '#f0705a' : q.id === S.me ? ST_INK : 'rgba(232, 216, 178, .9)';
+		c.fillText(`${q.dead ? '† ' : ''}${q.name}${q.id === S.me ? ' (you)' : ''}`, x + Math.cos(a) * size * 0.7, y + Math.sin(a) * size * 0.7);
 		c.restore();
 	});
+	// The Storyteller at the hub.
 	const st = [...S.people.values()].find((q) => q.st);
-	if (st) drawPerson(c, st, cx, cy - (S.caption.length ? size * 0.6 : 0), size * 1.1, false);
+	if (st) drawPerson(c, st, cx, cy, size * 0.9, false);
+	// The day so far, under the top bar, clear of the circle.
 	c.save();
 	c.textAlign = 'center';
 	c.textBaseline = 'top';
-	S.caption.slice(0, 6).forEach((line, i) => {
-		c.font = `${i ? 500 : 700} ${Math.max(12, Math.round(size * (i ? 0.45 : 0.5)))}px Grenze, Georgia, serif`;
-		c.fillStyle = i ? 'rgba(232,216,178,.8)' : '#ffd27a';
-		c.fillText(line, cx, cy + size * 0.2 + i * size * 0.58, r * 1.6);
+	S.caption.slice(0, 4).forEach((line, k) => {
+		c.font = `${k ? 500 : 700} ${k ? 13 : 15}px Grenze, Georgia, serif`;
+		c.fillStyle = k ? 'rgba(232, 216, 178, .82)' : '#ffd27a';
+		c.fillText(line, cx, capTop + k * 17, cw - 24);
 	});
 	c.restore();
 }
@@ -1244,7 +1203,7 @@ function drawChrome() {
 	const linkText = S.status === 'open' ? '' : S.status === 'error' ? S.statusDetail : 'connecting…';
 	bar.innerHTML = `<b>${S.phase === 'dusk' ? BELL_SVG : ''}${PHASE_NAME[S.phase]}</b><span class="v-code">${esc(S.room)}</span><span class="v-dim v-status">${esc(linkText)}</span>`
 		+ `<button data-act="clock" class="v-clock" hidden title="The clock">${CLOCK_SVG}<span data-vclock></span></button>`
-		+ `<button data-act="sound" class="v-sound${soundOn() ? ' on' : ''}" aria-pressed="${soundOn()}" title="The bell at dusk">${soundOn() ? 'Bell on' : 'Bell off'}</button>`
+		+ `<button data-act="sound" class="v-sound${soundOn() ? ' on' : ''}" aria-pressed="${soundOn()}" aria-label="${soundOn() ? 'Bell on' : 'Bell off'}" title="${soundOn() ? 'The bell rings at dusk' : 'The bell is silent'}">${BELL_SVG}${soundOn() ? '' : '<i class="v-slash"></i>'}</button>`
 		+ (S.host ? `<button data-act="st-toggle" class="${S.stOpen ? 'on' : ''}">Storyteller</button>` : '');
 	const tools = root.querySelector('.v-tools');
 	if (!tools) return;
@@ -1373,7 +1332,8 @@ function tickClock() {
 	el.hidden = !c;
 	if (!c) return;
 	const sec = Math.ceil(c.left / 1000);
-	el.querySelector('[data-vclock]')!.textContent = `${c.label} ${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+	el.querySelector('[data-vclock]')!.textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+	el.title = `${c.label}: ${c.running ? 'running' : 'paused'}${S.clock?.toggle ? ' (tap to start or pause)' : ''}`;
 	el.classList.toggle('paused', !c.running && c.left > 0);
 	el.classList.toggle('expired', c.left <= 0);
 	el.classList.toggle('static', !S.clock?.toggle);

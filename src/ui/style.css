@@ -498,7 +498,15 @@ body.village-map { overflow: hidden; overscroll-behavior: none; }
 	padding: calc(4px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right)) 4px calc(10px + env(safe-area-inset-left));
 	background: linear-gradient(rgba(0, 0, 0, .7), rgba(0, 0, 0, 0)); color: #e8d8b2;
 }
-.v-top > b { font-family: var(--gothic); font-size: 1.45em; color: var(--rubric); }
+.v-top > b { font-family: var(--gothic); font-size: 1.45em; color: var(--rubric); white-space: nowrap; flex: none; }
+.v-top { flex-wrap: nowrap; gap: 6px; }
+.v-top .v-status { min-width: 0; }
+.v-top button { flex: none; }
+.v-sound { position: relative; width: 40px; padding: 0 !important; font-size: 18px !important; color: rgba(232, 216, 178, .55) !important; }
+.v-sound.on { color: #e9b949 !important; border-color: rgba(233, 185, 73, .6) !important; }
+.v-sound .v-ico { margin: 0; }
+.v-slash { position: absolute; left: 9px; right: 9px; top: 50%; height: 2px; background: currentColor; transform: rotate(-35deg); }
+@media (max-width: 420px) { .v-top .v-code { display: none; } .v-top > b { font-size: 1.25em; } }
 .v-top .v-status { flex: 1; font-size: .85em; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .v-top button, .v-tools button { background: rgba(20, 16, 12, .72); color: #e8d8b2; border-color: rgba(232, 216, 178, .45); }
 .v-top button { min-height: 38px; padding: 4px 10px; font-size: 15px; }
