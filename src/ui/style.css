@@ -560,6 +560,45 @@ body.village-map { overflow: hidden; overscroll-behavior: none; }
 .v-or { text-align: center; color: var(--dim); font-style: italic; }
 .v-lobby a { color: var(--dim); }
 
+/*
+ * A village game: the town fills the window and the grimoire is a drawer that
+ * slides out over it from the right, opened by tabs on its edge. On a wide
+ * screen the town makes room beside it; on a phone it covers the town but the
+ * tabs still show at its edge.
+ */
+body.village-game { --drawer-w: min(540px, calc(100vw - 46px)); overflow: hidden; }
+body.village-game #app {
+	position: fixed; top: 0; right: 0; bottom: 0; z-index: 8; margin: 0;
+	width: var(--drawer-w); max-width: none; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
+	padding: 14px 10px 60px; background: var(--bg); box-shadow: -12px 0 32px rgba(0, 0, 0, .55);
+	--fs: clamp(11px, calc((var(--drawer-w) - 24px) / 26.4), 17px);
+	transform: translateX(100%); visibility: hidden; transition: transform .22s ease, visibility 0s linear .22s;
+}
+body.village-game.drawer-open #app { transform: none; visibility: visible; transition: transform .22s ease; }
+#drawer-tabs {
+	position: fixed; right: 0; top: 50%; transform: translateY(-50%); z-index: 9;
+	display: flex; flex-direction: column; gap: 4px; transition: right .22s ease;
+}
+#drawer-tabs[hidden] { display: none; }
+body.drawer-open #drawer-tabs { right: var(--drawer-w); }
+#drawer-tabs button {
+	writing-mode: vertical-rl; transform: rotate(180deg);
+	font: 600 14px 'Grenze', Georgia, serif; letter-spacing: .04em;
+	padding: 10px 7px; min-width: 36px; cursor: pointer;
+	color: #e8d8b2; background: rgba(20, 16, 12, .86);
+	border: 1px solid rgba(232, 216, 178, .45); border-right: 0; border-radius: 0 6px 6px 0;
+	touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+#drawer-tabs button.on { background: var(--bg); color: var(--rubric); border-color: var(--rubric); }
+@media (max-height: 560px) { #drawer-tabs button { padding: 6px 5px; font-size: 12px; } }
+/* The town's bars and sheets keep clear of the tabs on the right edge. */
+body.village-game .v-tools, body.village-game .v-panel { right: 40px; }
+body.village-game .v-top { padding-right: 46px; }
+@media (min-width: 900px) {
+	/* Room for the town beside the drawer. */
+	body.village-game.drawer-open #village-root, body.village-game.drawer-open #village-root .v-map { right: var(--drawer-w); }
+}
+
 /* In a game the village is a layer of its own, under the grimoire's pages (#card, z-index 10). */
 #village-root { position: fixed; inset: 0; z-index: 5; }
 #village-root[hidden] { display: none; }

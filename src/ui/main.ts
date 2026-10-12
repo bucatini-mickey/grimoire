@@ -125,10 +125,14 @@ const flow = () => saved.flow;
 // ---- passing screen state ------------------------------------------------------
 
 type Tab = 'grimoire' | 'log' | 'ties' | 'art' | 'options' | 'phones';
+/** In a village game the grimoire is a drawer over the town; these are its tabs. */
+type DrawerTab = Tab | 'circle' | 'actions';
 type DayMode = 'none' | 'nominate' | 'slay';
 
 const ui = {
 	tab: 'grimoire' as Tab,
+	/** The drawer pulled out over the village (a village game), or null when it is put away. */
+	drawer: (state.phase.kind === 'setup' ? 'actions' : null) as DrawerTab | null,
 	picks: [] as SeatId[],
 	inspect: null as SeatId | null,
 	/** A player being moved: the next seat tapped changes places with them. */
@@ -596,6 +600,11 @@ function tagsRow(cls: string, items: { label: string; on: boolean; act: () => vo
 }
 
 function namesScreen(): Row[] {
+	// Inside a village game (the drawer) it is already a village game: no choosing a mode.
+	if (villageGame()) {
+		ui.mode = 'village';
+		return [rubric('A New Game in the Village'), ...prose('The same room: the players stay linked and choose their seats again.', 'dim'), endPanel(), ...scriptAndNames()];
+	}
 	const rows: Row[] = [...art(), blank()];
 	rows.push(tagsRow('modes', MODES.map((m) => ({
 		label: m.name, on: ui.mode === m.id, act: () => { ui.mode = m.id; render(); },
@@ -613,6 +622,12 @@ function namesScreen(): Row[] {
 		rows.push(...prose('Set up as usual below. The players then choose Player, Join a game, and type the code you will be shown.', 'dim'));
 		rows.push(...buttonRows([btn('Just walk the town (no game)', () => { location.hash = '#village'; location.reload(); }, { style: 'quiet' })]), endPanel());
 	}
+	return [...rows, ...scriptAndNames()];
+}
+
+/** The script and the players' names, then on to the characters. */
+function scriptAndNames(): Row[] {
+	const rows: Row[] = [];
 	rows.push(rubric('The Script'));
 	rows.push(tagsRow('tags', [
 		...Object.values(G.SCRIPTS).map((sc) => ({ label: sc.name, on: ui.scriptId === sc.id, act: () => { ui.scriptId = sc.id; render(); } })),
@@ -630,6 +645,7 @@ function namesScreen(): Row[] {
 			const room = saved.net?.room ?? newRoomCode();
 			saved.net = { room, claims: saved.net?.room === room ? saved.net.claims : {}, village: true };
 			save();
+			ui.drawer = 'actions';
 			if (link && link.room === room) { if (!village) villageOn(); for (const peer of phones.keys()) welcome(peer); render(); }
 			else startHosting(room);
 		}
@@ -751,7 +767,7 @@ function joiningRows(): Row[] {
 		row(txt(center(link.room), 'gold', 'heading')),
 		...prose(`On each phone: Player, Join a game, type ${link.room}, tap your name.`, 'dim'),
 		...prose(waiting.length ? `Waiting for: ${waiting.join(', ')}` : 'Everyone has joined.', waiting.length ? 'gold' : 'good'),
-		...buttonRows([btn('Code, QR and seats', () => { ui.tab = 'phones'; render(); }, { style: 'quiet' })]),
+		...buttonRows([btn('Code, QR and seats', () => { if (villageGame()) ui.drawer = 'phones'; else ui.tab = 'phones'; render(); }, { style: 'quiet' })]),
 		endPanel(), blank()
 	];
 }
@@ -1906,7 +1922,7 @@ function countByPhones() {
 
 /** What the Storyteller does next, as a bar in the village. */
 function villageActions(): StActions | null {
-	const grim: Extra = { label: 'Open the grimoire', act: () => village?.close() };
+	const grim: Extra = { label: 'Grimoire', act: () => openDrawer('actions') };
 	const p = state.phase;
 	if (ui.decision) return { text: 'The grimoire needs a ruling.', buttons: [grim] };
 	if (p.kind === 'night') {
@@ -1976,7 +1992,7 @@ function villageActions(): StActions | null {
 		}
 		return { text: `Next: ${role}. This one is run in the grimoire.`, buttons: [{ label: 'Open the grimoire', primary: true, act: grim.act }, skip] };
 	}
-	if (p.kind === 'over') return { text: `${p.winner === 'good' ? 'Good' : 'Evil'} wins. ${p.reason}`, buttons: [{ label: 'New game', primary: true, act: () => { village?.close(); newGame(); } }, grim] };
+	if (p.kind === 'over') return { text: `${p.winner === 'good' ? 'Good' : 'Evil'} wins. ${p.reason}`, buttons: [{ label: 'New game', primary: true, act: () => { newGame(); openDrawer('actions'); } }, grim] };
 	if (p.kind !== 'day') return null;
 	const f = flow(), day = state.day!, nom = openNomination();
 	if (nom && f.speech?.stage === 'accusation') return { text: `${name(nom.nominator)} accuses ${name(nom.nominee)}.`, buttons: [{ label: 'On to the defence', primary: true, act: toDefence }, { label: 'Withdraw', act: undo }] };
@@ -2177,7 +2193,8 @@ function villageOn() {
 	saved.net.village = true;
 	save();
 	const l = link;
-	village = villageForGame({ peer: l.peer, send: (p, m) => sendTo(p, { t: 'village', m }), peers: () => [] }, () => render());
+	village = villageForGame({ peer: l.peer, send: (p, m) => sendTo(p, { t: 'village', m }), peers: () => [] }, () => openDrawer('actions'));
+	villageShown = false;
 	villageKey = '';
 	syncVillage();
 	render();
@@ -2186,6 +2203,8 @@ function villageOn() {
 function villageOff() {
 	village?.stop();
 	village = null;
+	villageShown = false;
+	ui.tab = 'grimoire';
 	if (saved.net) { saved.net.village = false; save(); }
 	render();
 }
@@ -2303,7 +2322,14 @@ function screen(): Row[] {
 	if (ui.tab === 'art') return [...rows, ...easelRows(script().characters.map((c) => ({ id: c.id, name: c.name })), render)];
 	const p = state.phase;
 	if (p.kind === 'setup') return [...rows, ...(state.seats.length ? draftScreen() : [...namesScreen(), ...messageRows()])];
+	rows.push(...circleRows(), ...messageRows(), ...inspectRows(), ...actionRows());
+	return rows;
+}
 
+/** The circle of seats, the moving of a seat, the key. */
+function circleRows(): Row[] {
+	const rows: Row[] = [];
+	const p = state.phase;
 	const step = p.kind === 'night' ? G.nextStep(state) : null;
 	const alive = G.living(state).length;
 	const caption: string[] = [];
@@ -2327,7 +2353,14 @@ function screen(): Row[] {
 		rows.push(rubric('Moving'), ...prose(`Tap the seat ${name(ui.moving)} moves to. The two players change places.`, 'gold'),
 			...buttonRows([btn('Cancel', () => { ui.moving = null; render(); }, { style: 'quiet' })]), endPanel());
 	}
-	rows.push(blank(), ...legend(), blank(), ...messageRows(), ...inspectRows());
+	rows.push(blank(), ...legend(), blank());
+	return rows;
+}
+
+/** What the Storyteller does next: the night's wakings, the day's business, the end. */
+function actionRows(): Row[] {
+	const rows: Row[] = [];
+	const p = state.phase;
 	if (p.kind === 'over') {
 		rows.push(rubric(p.winner === 'good' ? 'Good Prevails' : 'Evil Prevails'), ...prose(p.reason, 'gold'));
 		rows.push(...buttonRows([btn('New game', newGame, { style: 'primary' })]));
@@ -2337,12 +2370,78 @@ function screen(): Row[] {
 	return rows;
 }
 
+const villageGame = () => !!village;
+let villageShown = false;
+let lastKind = state.phase.kind;
+
+function drawerScreen(): Row[] {
+	const p = state.phase;
+	const phase = p.kind === 'setup' ? 'Setting the Table' : p.kind === 'night' ? `Night ${p.n}` : p.kind === 'day' ? `Day ${p.n}` : 'Game over';
+	const rows: Row[] = [
+		row(txt(center(phase), 'rubric', 'heading')),
+		...buttonRows([
+			btn('Undo', undo, { disabled: !saved.marks.length, style: 'quiet' }),
+			btn(ui.confirmNew ? 'Sure?' : 'New game', () => { if (ui.confirmNew) newGame(); else { ui.confirmNew = true; render(); } }, { style: ui.confirmNew ? 'danger' : 'quiet' }),
+			btn('Put away', () => { ui.drawer = null; render(); }, { style: 'quiet' })
+		], COLS, 0),
+		blank()
+	];
+	const tab = ui.drawer ?? 'actions';
+	if (tab === 'log') return [...rows, ...logScreen()];
+	if (tab === 'ties') return [...rows, ...tiesScreen()];
+	if (tab === 'options') return [...rows, ...optionsScreen()];
+	if (tab === 'phones') return [...rows, ...phonesScreen()];
+	if (tab === 'art') return [...rows, ...easelRows(script().characters.map((c) => ({ id: c.id, name: c.name })), render)];
+	if (p.kind === 'setup') return [...rows, ...(state.seats.length ? draftScreen() : [...namesScreen(), ...messageRows()])];
+	if (tab === 'circle') return [...rows, ...circleRows(), ...messageRows(), ...inspectRows()];
+	if (tab === 'actions') return [...rows, ...messageRows(), ...actionRows()];
+	return [...rows, ...circleRows(), ...messageRows(), ...inspectRows(), ...actionRows()];
+}
+
+/** The tabs on the drawer's edge: each pulls it out on that page; the open one puts it away. */
+const DRAWER_TABS: [DrawerTab, string][] = [['actions', 'Actions'], ['circle', 'Circle'], ['grimoire', 'Grimoire'], ['log', 'Log'], ['phones', 'Phones'], ['options', 'Clock'], ['ties', 'Ties'], ['art', 'Art']];
+const drawerTabs = document.createElement('nav');
+drawerTabs.id = 'drawer-tabs';
+drawerTabs.setAttribute('aria-label', 'The grimoire');
+document.body.appendChild(drawerTabs);
+drawerTabs.addEventListener('click', (ev) => {
+	const b = (ev.target as HTMLElement).closest<HTMLButtonElement>('button[data-tab]');
+	if (!b) return;
+	const t = b.dataset.tab as DrawerTab;
+	ui.drawer = ui.drawer === t ? null : t;
+	ui.confirmNew = false;
+	render();
+	if (ui.drawer) root.scrollTop = 0;
+});
+function paintDrawerTabs() {
+	drawerTabs.hidden = !villageGame();
+	if (drawerTabs.hidden) return;
+	const html = DRAWER_TABS.map(([t, label]) => `<button data-tab="${t}" class="${ui.drawer === t ? 'on' : ''}" aria-pressed="${ui.drawer === t}">${label}${t === 'actions' && G.nextStep(state) && state.phase.kind === 'night' ? ' •' : ''}</button>`).join('');
+	if (drawerTabs.innerHTML !== html) drawerTabs.innerHTML = html;
+}
+
+/** Pull the drawer out on a page (from the village's bar: "Grimoire"). */
+function openDrawer(t: DrawerTab = 'actions') {
+	ui.drawer = t;
+	render();
+}
+
 const root = document.getElementById('app')!;
 const cardRoot = document.getElementById('card')!;
 
 function render() {
 	document.documentElement.dataset.phase = state.phase.kind === 'night' ? 'night' : 'day';
-	paint(root, paneled(screen()));
+	// A village game: the town is always there; the grimoire is a drawer over it.
+	const vg = villageGame();
+	// The game begins: put the drawer away and be in the town (the bar runs the night).
+	if (vg && lastKind === 'setup' && state.phase.kind !== 'setup') ui.drawer = null;
+	lastKind = state.phase.kind;
+	document.body.classList.toggle('village-game', vg);
+	document.body.classList.toggle('drawer-open', vg && !!ui.drawer);
+	if (vg && !villageShown) { villageShown = true; village!.open(); }
+	if (!vg) villageShown = false;
+	paint(root, paneled(vg ? drawerScreen() : screen()));
+	paintDrawerTabs();
 	const voting = state.phase.kind === 'day' && !!flow().vote && !!openNomination() && !ui.voteSmall;
 	const pages = ui.banner ? bannerRows() : voting ? voteStage() : ui.show ? showRows() : [];
 	cardRoot.hidden = !pages.length;

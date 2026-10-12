@@ -1139,7 +1139,7 @@ function drawChrome() {
 		st.innerHTML = (S.game ? '' : `<div class="v-st-row">${ph('day', 'Day')}${ph('dusk', 'Ring the bell')}</div>
 			<div class="v-st-row">${ph('circle', 'The circle')}${ph('night', 'Night')}</div>`)
 			+ `<div class="v-st-row"><button data-act="bot">+ Test villager</button><button data-act="st-toggle">Close</button></div>
-			${S.game ? '<button data-act="back-game" class="primary">Back to the grimoire</button>' : `<div class="v-share">Players scan this, or open <b>${esc(link)}</b></div>
+			${S.game ? '<button data-act="back-game" class="primary">Open the grimoire</button>' : `<div class="v-share">Players scan this, or open <b>${esc(link)}</b></div>
 			<div class="v-qr">${qr(link)}</div>`}
 			<label class="v-file">Load my own town (.tbp)<input type="file" accept=".tbp,.txt" data-act="town-file"></label>
 			${store.get('grimoire.town') ? '<button data-act="town-reset">Use the demo village</button>' : ''}`;
@@ -1365,7 +1365,7 @@ function onAct(act: string, el: HTMLElement) {
 		case 'st-act': S.stActions?.buttons[Number(el.dataset.i)]?.act(); break;
 		case 'choice': { const c = S.choice; S.choice = null; c?.pick(id); drawChrome(); break; }
 		case 'choice-close': S.choice = null; drawChrome(); break;
-		case 'back-game': S.stOpen = false; hideVillage(); S.onBack?.(); break;
+		case 'back-game': S.stOpen = false; if (S.onBack) { drawChrome(); S.onBack(); } else hideVillage(); break;
 		case 'zoom-in': S.cell = Math.min(36, S.cell + 3); break;
 		case 'zoom-out': S.cell = Math.max(11, S.cell - 3); break;
 		case 'phase-day': setPhase('day'); break;
@@ -1411,7 +1411,8 @@ function wire(el: HTMLElement) {
 		});
 	});
 	window.addEventListener('keydown', (ev) => {
-		if ((ev.target as HTMLElement).tagName === 'INPUT' || root.hidden || !document.body.classList.contains('village-map')) return;
+		const tgt = ev.target as HTMLElement;
+		if (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.closest?.('#app') || root.hidden || !document.body.classList.contains('village-map')) return;
 		const d: Record<string, [number, number]> = {
 			ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0],
 			w: [0, -1], s: [0, 1], a: [-1, 0], d: [1, 0]
