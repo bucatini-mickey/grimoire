@@ -570,5 +570,8 @@ body.village-map { overflow: hidden; overscroll-behavior: none; }
 }
 
 /* The Storyteller's next step in the game, over the village, above the buttons. */
-.v-stbar { bottom: calc(70px + env(safe-area-inset-bottom)); z-index: 2; border-top-color: var(--gold); max-height: 40%; }
+.v-stbar { bottom: calc(70px + env(safe-area-inset-bottom)); z-index: 2; border-top-color: var(--gold); max-height: 40%; overflow-x: hidden; }
+/* Its choices wrap into compact rows (players to tap, answers to give), never off the side. */
+.v-stbar .v-st-row { flex-wrap: wrap; gap: 6px; }
+.v-stbar .v-st-row button { flex: 1 1 auto; min-width: 4.6em; min-height: 40px; padding: 4px 10px; font-size: 15px; }
 .v-choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }

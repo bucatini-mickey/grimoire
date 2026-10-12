@@ -1913,30 +1913,68 @@ function villageActions(): StActions | null {
 		const step = G.nextStep(state);
 		if (!step) return { text: `Dawn. ${state.night!.deaths.length ? `Died in the night: ${state.night!.deaths.map(name).join(', ')}.` : 'Nobody died in the night.'}`, buttons: [{ label: 'Start the day', primary: true, act: () => void act({ type: 'end-night' }) }, grim] };
 		const who = step.seat === null ? null : state.seats[step.seat];
-		const role = who ? `${who.name}, the ${charName(stepRole(step.kind, who.id))}` : groupLabel(step.kind).split(':')[0];
+		const role = who ? `${who.name}, the ${charName(stepRole(step.kind, who.id))}${WAKE_NOTE[step.kind] ?? ''}` : groupLabel(step.kind).split(':')[0];
 		const phone = step.seat !== null ? peerOfSeat(step.seat) : null;
 		if (ui.remote && phone && ui.remote.seat === step.seat) {
 			return { text: `${role}: their pages are on their phone.`, buttons: [{ label: 'Take it back', act: () => { sendTo(phone, { t: 'sleep' }); ui.remote = null; render(); } }, grim] };
 		}
 		const action = G.stepAction(step.kind);
 		const need = playerPicks(step.kind, state, step.seat);
-		if (phone && who && action === 'tell' && (!need || ui.picks.length >= need)) {
+		const skip: Extra = { label: 'Skip', act: () => void act({ type: 'skip', reason: 'Storyteller skipped' }) };
+		// Their phone wakes them; without one (or while it is away) the Storyteller runs the step
+		// from here and tells them by voice.
+		if (phone && canSendFirst(step)) return { text: `${role}.`, buttons: [{ label: `Wake ${who!.name}`, primary: true, act: () => wakePhone(step, phone, false) }, skip, grim] };
+		const away = who !== null && Object.values(claims()).includes(who.id);
+		const by = phone ? '' : away ? ' Their phone is away: tell them yourself.' : ' No phone: tell them yourself.';
+		// The players they point at, tapped here (in turn, up to how many they choose).
+		const pickFrom = (count: number): Extra[] => state.order.filter((id) => V.pickAllowed(state, step.kind, step.seat, id)).map((id) => ({
+			label: `${ui.picks.includes(id) ? '✓ ' : ''}${name(id)}`,
+			primary: ui.picks.includes(id),
+			act: () => {
+				ui.picks = ui.picks.includes(id) ? ui.picks.filter((x) => x !== id) : [...ui.picks, id].slice(-count);
+				render();
+			}
+		}));
+		if (who && action === 'tell') {
+			if (need && ui.picks.length < need) {
+				return { text: `${role}: whom do they point at? (${ui.picks.length} of ${need})${by}`, buttons: [...pickFrom(need), skip, grim] };
+			}
 			const seat = who.id;
 			const chose = need ? ` chose ${ui.picks.map(name).join(' and ')}` : '';
 			const droisoned = G.isDroisoned(state, seat);
 			const info = ui.draftInfo;
 			if (info && (G.judgeInfo(state, seat, step.kind, info).truthful || droisoned || ui.draftOverride)) {
-				return { text: `${role}${chose}. Tell them: ${infoText(info, step.kind)}`, buttons: [
-					{ label: `Tell ${who.name}`, primary: true, act: () => wakePhone(step, phone, true) },
-					{ label: 'Change', act: () => { ui.draftInfo = null; render(); } }, grim] };
+				const told = phone
+					? { label: `Tell ${who.name}`, primary: true, act: () => wakePhone(step, phone, true) }
+					: { label: 'Done: I told them', primary: true, act: () => void act({ type: 'tell', info, override: ui.draftOverride }) };
+				return { text: `${role}${chose}. Tell them: ${infoText(info, step.kind)}.${phone ? '' : by}`, buttons: [told, { label: 'Change', act: () => { ui.draftInfo = null; render(); } }, grim] };
 			}
 			const options = G.infoCandidates(state, step.kind, seat, ui.picks).filter((c) => c.truthful || droisoned);
 			return { text: `${role}${chose}. ${droisoned ? 'Drunk or poisoned: tell them anything.' : 'What do they learn?'}`, buttons: [
 				...options.map((c) => ({ label: `${infoText(c.info, step.kind)}${c.truthful ? '' : ' (false)'}`, act: () => { ui.draftInfo = c.info; ui.draftOverride = false; ui.compose = false; render(); } })),
+				...(need ? [{ label: 'Change who', act: () => { ui.picks = []; ui.draftInfo = null; render(); } }] : []),
 				{ label: 'Something else', act: grim.act }] };
 		}
-		if (phone && canSendFirst(step)) return { text: `${role}.`, buttons: [{ label: `Wake ${who!.name}`, primary: true, act: () => wakePhone(step, phone, false) }, { label: 'Skip', act: () => void act({ type: 'skip', reason: 'Storyteller skipped' }) }, grim] };
-		return { text: `Next: ${role}${phone ? '' : ' (no phone)'}. Run it in the grimoire.`, buttons: [{ label: 'Open the grimoire', primary: true, act: grim.act }] };
+		if (action === 'choose') {
+			const spec = G.pickSpec(state, step.kind, step.seat);
+			if (spec.count && !spec.character) {
+				const ready = ui.picks.length === spec.count;
+				const ask = step.kind === 'gossip' ? 'who dies?' : 'whom do they choose?';
+				return { text: `${role}: ${ask} ${ready ? ui.picks.map(name).join(', ') : `(${ui.picks.length} of ${spec.count})`}${step.kind === 'gossip' ? '' : by}`, buttons: [
+					...(ready ? [{ label: `Confirm: ${ui.picks.map(name).join(', ')}`, primary: true, act: () => void act({ type: 'choose', targets: [...ui.picks] }) }] : []),
+					...pickFrom(spec.count),
+					...(spec.noneAllowed ? [{ label: 'No one', act: () => void act({ type: 'choose', none: true }) }] : []),
+					skip, grim] };
+			}
+		}
+		if (who && action === 'acknowledge') {
+			// What an evil player learns, to say to them.
+			const { demon, minions } = evilTeam();
+			const learns = step.kind === G.MINION_INFO ? ` Their Demon: ${demon.map((d) => d.name).join(', ')}.`
+				: step.kind === G.DEMON_INFO ? ` Their Minions: ${minions.map((m) => m.name).join(', ')}. Not in play: ${state.bluffs.map(charName).join(', ')}.` : '';
+			return { text: `${role}.${learns}${by}`, buttons: [{ label: 'Done', primary: true, act: () => void act({ type: 'acknowledge' }) }, skip, grim] };
+		}
+		return { text: `Next: ${role}. This one is run in the grimoire.`, buttons: [{ label: 'Open the grimoire', primary: true, act: grim.act }, skip] };
 	}
 	if (p.kind === 'over') return { text: `${p.winner === 'good' ? 'Good' : 'Evil'} wins. ${p.reason}`, buttons: [{ label: 'New game', primary: true, act: () => { village?.close(); newGame(); } }, grim] };
 	if (p.kind !== 'day') return null;
