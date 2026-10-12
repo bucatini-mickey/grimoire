@@ -219,3 +219,23 @@ test('windows (on some buildings): glass walls you see out of but cannot climb t
 	const glass = town.cells.filter((c) => c.mat === 'glass').length;
 	assert.ok(glass >= 10 && glass <= 16, `${glass} windows`);
 });
+
+test('doors: worked from inside within two steps, or from the doorway (stepping in first); never from the street', async () => {
+	const { canWorkDoor, doorStepIn } = await import('../src/town/map.ts');
+	const d = DOOR.x + DOOR.y * town.w;
+	assert.ok(canWorkDoor(town, BY_DOOR, d), 'beside it, inside');
+	assert.ok(canWorkDoor(town, { x: 14, y: 35 }, d), 'two steps in');
+	assert.ok(!canWorkDoor(town, INSIDE, d), 'four steps in is too far');
+	assert.ok(canWorkDoor(town, DOOR, d), 'standing in the doorway');
+	assert.deepEqual(doorStepIn(town, DOOR, d, STREET), BY_DOOR, 'from the doorway, the step is inward');
+	assert.ok(!canWorkDoor(town, { x: 17, y: 35 }, d), 'not from the street');
+	assert.ok(!canWorkDoor(town, STREET, d));
+});
+
+test('the cave is out of the sky: daylight fades going in', async () => {
+	const { sky } = await import('../src/town/look.ts');
+	const sk = sky(town);
+	assert.ok(sk[10 + 5 * town.w] < sk[20 + 5 * town.w], 'the deep chamber is darker than the mouth');
+	assert.ok(sk[10 + 5 * town.w] <= 4, 'the deep chamber is dark');
+	assert.equal(sk[STREET.x + STREET.y * town.w], 15, 'the street has the open sky');
+});

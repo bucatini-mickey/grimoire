@@ -120,15 +120,17 @@ export function sky(t: Town): Uint8Array {
 	if (s) return s;
 	s = new Uint8Array(t.w * t.h);
 	const q: number[] = [];
-	for (let i = 0; i < s.length; i++) if (t.room[i] === t.outdoors) { s[i] = SKY_MAX; q.push(i); }
+	// Under rock (a cave's floor) is out of the sky, and daylight fades twice as fast going in.
+	const underRock = (i: number) => t.cells[i].tile !== 'wall' && t.cells[i].mat === 'granite';
+	for (let i = 0; i < s.length; i++) if (t.room[i] === t.outdoors && !underRock(i)) { s[i] = SKY_MAX; q.push(i); }
 	for (let qi = 0; qi < q.length; qi++) {
-		const i = q[qi], x = i % t.w, y = (i - x) / t.w, ns = s[i] - 1;
-		if (ns <= 0) continue;
+		const i = q[qi], x = i % t.w, y = (i - x) / t.w;
 		for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
 			const nx = x + dx, ny = y + dy;
 			if (blocksLight(t, nx, ny)) continue;
 			const k = nx + ny * t.w;
-			if (s[k] < ns) { s[k] = ns; q.push(k); }
+			const ns = s[i] - (underRock(k) ? 2 : 1);
+			if (ns > 0 && s[k] < ns) { s[k] = ns; q.push(k); }
 		}
 	}
 	skyCache.set(t, s);

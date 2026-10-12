@@ -27,7 +27,7 @@ import { hostRoom, joinRoom, newRoomCode } from '../net/link.ts';
 import type { LinkStatus } from '../net/link.ts';
 import type { Peer } from 'peerjs';
 import { parseBlueprint } from './blueprint.ts';
-import { at, doorLeaves, doorsOf, inMeeting, loudness, makeTown, path, roomsAt, sameRoom, visibleCells, walkable } from './map.ts';
+import { at, canWorkDoor, DOOR_REACH, doorLeaves, doorStepIn, doorsOf, inMeeting, loudness, makeTown, path, roomsAt, sameRoom, visibleCells, walkable } from './map.ts';
 import type { P, Phase, Town } from './map.ts';
 import { css, FOG, fogAt, LANTERN, sunlight, lerp, level, lightMap, lookAt, luma, mul, noise, remembered, sky, sources } from './look.ts';
 import type { Rgb } from './look.ts';
@@ -90,7 +90,7 @@ type Up =
 	| { t: 'ask'; to: string }
 	| { t: 'reply'; to: string; yes: boolean }
 	| { t: 'end' }
-	| { t: 'door'; cell: number };
+	| { t: 'door'; cell: number; x?: number; y?: number };
 
 /** Walkers' inks: bright, to read on a lit map; each person gets their own. */
 const INKS = ['#f0705a', '#86a9de', '#8fd06a', '#d09ad8', '#e8b84a', '#6ccfd2', '#f0905a', '#b0b0ff', '#d8d86a', '#f07aa0', '#7ad08a', '#e0b080', '#8ac0f0', '#e07ae0', '#7ae0c0'];
@@ -230,9 +230,8 @@ function onUp(from: string, msg: Up) {
 	} else if (msg.t === 'end') endPrivate(p);
 	else if (msg.t === 'door') {
 		const c = msg.cell;
-		const x = c % t.w, y = Math.floor(c / t.w);
-		if (!at(t, x, y)?.things.includes('door') || Math.max(Math.abs(p.x - x), Math.abs(p.y - y)) !== 1) return;
-		if (!canWorkDoor(t, p, c)) return;
+		if (msg.x !== undefined && msg.y !== undefined && walkable(t, msg.x, msg.y, p.st)) { p.x = msg.x; p.y = msg.y; }
+		if (!mayWorkDoor(t, p, c)) return sendTo(from, { t: 'notice', text: S.phase === 'day' || S.phase === 'dusk' ? 'Get nearer the door, on the inside.' : 'The doors stay as they are now.' });
 		// Double doors go together.
 		const leaves = doorLeaves(t, c);
 		if ([...S.people.values()].some((q) => leaves.includes(q.x + q.y * t.w))) return sendTo(from, { t: 'notice', text: 'Someone is standing in the doorway.' });
@@ -256,10 +255,27 @@ function endPrivate(p: Person) {
 }
 
 /** You may lock or unlock a door from inside (never from the street), and not at night. The Storyteller never does: they walk through. */
-function canWorkDoor(t: Town, p: Person, cell: number): boolean {
-	if (p.st || S.phase === 'night' || S.phase === 'circle') return false;
-	const mine = roomsAt(t, p);
-	return mine.length > 0 && !mine.includes(t.outdoors) && (t.doorRooms.get(cell) ?? []).some((r) => mine.includes(r));
+function mayWorkDoor(t: Town, p: Person, cell: number): boolean {
+	return !p.st && S.phase !== 'night' && S.phase !== 'circle' && canWorkDoor(t, p, cell);
+}
+
+/** Where you stood before your last step (to know which way is "in" from a doorway). */
+let lastAt: P | null = null;
+
+/** Lock or unlock a door near you. From the doorway itself, step inside first. */
+function workDoor(d: number) {
+	const p = me(), t = S.town;
+	if (!p || !t) return;
+	if (doorLeaves(t, d).includes(p.x + p.y * t.w)) {
+		const inn = doorStepIn(t, p, d, lastAt);
+		if (!inn) return toast('Step inside first.');
+		S.route = [];
+		lastAt = { x: p.x, y: p.y };
+		p.x = inn.x; p.y = inn.y;
+		sendPos(p);
+	}
+	up({ t: 'door', cell: d, x: p.x, y: p.y });
+	S.dirty = true;
 }
 
 function openVillage() {
@@ -508,6 +524,7 @@ function step(dx: number, dy: number) {
 	const nx = p.x + dx, ny = p.y + dy;
 	if (!walkable(t, nx, ny, p.st)) return;
 	if (dx && dy && (!walkable(t, p.x + dx, p.y, p.st) || !walkable(t, p.x, p.y + dy, p.st))) return;
+	lastAt = { x: p.x, y: p.y };
 	p.x = nx; p.y = ny;
 	sendPos(p);
 	S.dirty = true;
@@ -536,22 +553,23 @@ setInterval(() => {
 	const next = S.route.shift()!;
 	// A door shut in your face: stop.
 	if (!walkable(t, next.x, next.y, p.st)) { S.route = []; return; }
+	lastAt = { x: p.x, y: p.y };
 	p.x = next.x; p.y = next.y;
 	sendPos(p);
 	S.dirty = true;
 	drawChromeIfChanged();
 }, 140);
 
-/** The door beside you, if there is one you could work. */
+/** The nearest door you could work from here (standing in it, or within two steps inside), if any. */
 function doorBeside(): number | null {
 	const t = S.town, p = me();
 	if (!t || !p) return null;
-	for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
-		if (!dx && !dy) continue;
-		const x = p.x + dx, y = p.y + dy;
-		if (at(t, x, y)?.things.includes('door') && canWorkDoor(t, p, x + y * t.w)) return x + y * t.w;
+	let best: number | null = null, bestD = Infinity;
+	for (let dy = -DOOR_REACH; dy <= DOOR_REACH; dy++) for (let dx = -DOOR_REACH; dx <= DOOR_REACH; dx++) {
+		const x = p.x + dx, y = p.y + dy, d = Math.hypot(dx, dy);
+		if (d < bestD && at(t, x, y)?.things.includes('door') && mayWorkDoor(t, p, x + y * t.w)) { best = x + y * t.w; bestD = d; }
 	}
-	return null;
+	return best;
 }
 
 // ---- drawing: Tachyon's look (look.ts) --------------------------------------------------------------
@@ -564,6 +582,7 @@ let lightAt = 0, lightTick = 0, drawnAt = 0;
 const cam = { x: 0, y: 0, ready: false };
 const GOLD: Rgb = [220, 160, 60];
 const MONO = '"Courier Prime", "Courier New", monospace';
+const CAVE_DARK: Rgb = [8, 8, 10];
 const BOOK = '"Grenze", "Iowan Old Style", Georgia, serif';
 /** People's letters: blackletter. */
 const GOTHIC = '"Grenze Gotisch", "UnifrakturCook", "Old English Text MT", serif';
@@ -635,8 +654,11 @@ function draw() {
 	// but for what a doorway or a window shows. Outdoors, beyond what you can see: the fog.
 	const mine = p.st ? [] : roomsAt(t, p);
 	const inside = mine.length > 0 && !mine.includes(t.outdoors);
+	// In the cave: the daylight outside is a bright mouth, the rest falls into dark and mist.
+	const here = at(t, p.x, p.y);
+	const inCave = !p.st && !inside && here?.tile !== 'wall' && here?.mat === 'granite';
 	const fogBase = FOG[S.phase];
-	c.fillStyle = inside ? '#060608' : css(fogBase);
+	c.fillStyle = inside ? '#060608' : inCave ? css(lerp(fogBase, CAVE_DARK, 0.65)) : css(fogBase);
 	c.fillRect(0, 0, cw, chh);
 	const s = S.cell;
 	// You in the middle; beyond the town's edge is dark.
@@ -666,6 +688,8 @@ function draw() {
 			const indoors = r >= 0 ? r !== t.outdoors : inside && touchesRoom(t, x, y, mine);
 			// Indoors, what you are not seeing now is out of mind: only your own room is remembered.
 			if (inside && !shown && !t.locked.has(i) && !(r >= 0 ? mine.includes(r) : touchesRoom(t, x, y, mine))) continue;
+			const rock = t.cells[i].mat === 'granite';
+			if (inCave && !shown && !rock) continue;
 			const look = lookAt(t, x, y, now);
 			let fg: Rgb, bg: Rgb;
 			if (shown) {
@@ -680,12 +704,15 @@ function draw() {
 				if (t.locked.has(i)) [fg, bg] = [look.fg, mul(look.bg, [0.6, 0.6, 0.6])];
 			}
 			// The fog: thicker with distance and at the forest's edge, glowing where firelight falls in it.
-			const f = indoors ? (shown ? 0 : 0.2) : fogAt(t, x, y, cam, S.phase, now) * (p.st ? 0.6 : 1) * (shown ? 1 : 0.6) + (shown ? 0 : 0.35);
+			const f = indoors ? (shown ? 0 : 0.2)
+				: inCave && rock ? fogAt(t, x, y, cam, S.phase, now) * 0.25 * (shown ? 1 : 0.6) + (shown ? 0 : 0.35)
+				: fogAt(t, x, y, cam, S.phase, now) * (p.st ? 0.6 : 1) * (shown ? 1 : 0.6) + (shown ? 0 : 0.35) + (inCave ? 0.25 : 0);
 			if (f > 0.01) {
 				const glow = dyn ? ([0, 1, 2].map((k) => fogBase[k] + dyn![i * 3 + k] * 0.18) as Rgb) : fogBase;
 				fg = lerp(fg, glow, Math.min(1, f * 1.05));
 				bg = lerp(bg, glow, Math.min(1, f));
 			}
+			if (inCave && !rock) { fg = lerp(fg, CAVE_DARK, 0.4); bg = lerp(bg, CAVE_DARK, 0.45); }
 			if (S.phase === 'dusk' && seatSet.has(i)) bg = lerp(bg, GOLD, mySeat && mySeat.x === x && mySeat.y === y ? 0.6 : 0.3);
 			const px = ox + x * s, py = oy + y * s;
 			c.fillStyle = css(bg);
@@ -711,7 +738,7 @@ function draw() {
 	for (const l of t.labels) {
 		const i = l.x + l.y * t.w;
 		if (!S.seen![i] && !p.st) continue;
-		if (inside && !vis.has(i)) continue;
+		if ((inside || inCave) && !vis.has(i)) continue;
 		const lx = ox + l.x * s + s * 0.15, ly = oy + l.y * s - s * 0.55;
 		if (lx > cw || ly > chh || lx + s * 12 < 0 || ly + s < 0) continue;
 		const f = fogAt(t, l.x, l.y, cam, S.phase, now) * (p.st ? 0.6 : 1);
@@ -738,7 +765,7 @@ function draw() {
 		drawPerson(c, q, ox + q.x * s + s / 2, oy + q.y * s + s / 2, s * 0.95, q.id !== S.me);
 	}
 	// Wisps: soft banks of mist rolling slowly across the view (not indoors).
-	for (let k = 0; k < (inside ? 0 : 6); k++) {
+	for (let k = 0; k < (inside ? 0 : inCave ? 2 : 6); k++) {
 		const wx = ((noise(k * 3.1, now * 0.00003, 9) * 1.6 - 0.3) * cw + now * 0.006 * (k % 2 ? 1 : -0.6)) % (cw * 1.4) - cw * 0.2;
 		const wy = noise(k * 5.7, now * 0.00002, 11) * chh;
 		const r = Math.max(cw, chh) * (0.18 + 0.12 * noise(k, now * 0.00004, 13));
@@ -916,7 +943,8 @@ let chromeKey = '';
 /** Redraw the buttons only when what they offer changes (a door beside you, a private word). */
 function drawChromeIfChanged() {
 	const p = me();
-	const key = `${doorBeside()}|${S.town?.locked.size}|${p?.with}|${S.phase}`;
+	const d = doorBeside();
+	const key = `${d}|${d !== null && S.town!.locked.has(d)}|${S.town?.locked.size}|${p?.with}|${S.phase}`;
 	if (key !== chromeKey) drawChrome();
 }
 
@@ -924,7 +952,8 @@ function drawChrome() {
 	const bar = root?.querySelector('.v-top');
 	if (!bar) return;
 	const p = me();
-	chromeKey = `${doorBeside()}|${S.town?.locked.size}|${p?.with}|${S.phase}`;
+	const near = doorBeside();
+	chromeKey = `${near}|${near !== null && S.town!.locked.has(near)}|${S.town?.locked.size}|${p?.with}|${S.phase}`;
 	const linkText = S.status === 'open' ? '' : S.status === 'error' ? S.statusDetail : 'connecting…';
 	bar.innerHTML = `<b>${PHASE_NAME[S.phase]}</b><span class="v-code">${esc(S.room)}</span><span class="v-dim v-status">${esc(linkText)}</span>`
 		+ (S.host ? `<button data-act="st-toggle" class="${S.stOpen ? 'on' : ''}">Storyteller</button>` : '');
@@ -936,7 +965,7 @@ function drawChrome() {
 		: S.voiceBusy ? '<span class="v-dim">Starting voice…</span>'
 		: `<button data-act="voice-mic" class="primary">Talk</button><button data-act="voice-tone">Test note</button>`;
 	const door = doorBeside();
-	const doorBtn = door !== null ? `<button data-act="door">${S.town!.locked.has(door) ? 'Unlock door' : 'Lock door'}</button>` : '';
+	const doorBtn = door !== null ? `<button data-act="door" class="v-door">${S.town!.locked.has(door) ? 'Unlock door' : 'Lock door'}</button>` : '';
 	const seat = S.phase === 'dusk' && p && !p.st && S.town?.seats.length ? `<button data-act="seat" class="primary">My seat</button>` : '';
 	const priv = p?.with ? `<span class="v-private">Private: <b>${esc(nameOf(p.with))}</b></span><button data-act="end">End</button>` : '';
 	const extra = S.extra().map((e, i) => `<button data-act="extra" data-i="${i}" class="${e.primary ? 'primary' : ''}">${esc(e.label)}</button>`).join('');
@@ -1116,6 +1145,8 @@ function enterMap() {
 		canvas.setPointerCapture(ev.pointerId);
 		const g = cellAt(ev);
 		last = `${g.x},${g.y}`;
+		const t = S.town, p = me(), cell = g.x + g.y * (t?.w ?? 0);
+		if (t && p && t.locked.has(cell) && mayWorkDoor(t, p, cell)) { workDoor(cell); return; }
 		walkTo(g);
 		S.dirty = true;
 	});
@@ -1198,7 +1229,7 @@ function onAct(act: string, el: HTMLElement) {
 		case 'end': up({ t: 'end' }); break;
 		case 'door': {
 			const d = doorBeside();
-			if (d !== null) up({ t: 'door', cell: d });
+			if (d !== null) workDoor(d);
 			break;
 		}
 		case 'extra': S.extra()[Number(el.dataset.i)]?.act(); break;

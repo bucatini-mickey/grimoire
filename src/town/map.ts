@@ -93,6 +93,37 @@ export function blocksSight(t: Town, x: number, y: number): boolean {
 	return !c || (c.tile === 'wall' && !SEE_THROUGH.has(c.mat)) || t.locked.has(x + y * t.w);
 }
 
+/** How near you must be to lock or unlock a door: two steps, or standing in it. */
+export const DOOR_REACH = 2;
+
+/**
+ * Could this person lock or unlock this door from where they stand? From inside a
+ * room it opens onto (never from the street), within two steps and in sight of it;
+ * or from the doorway itself (they step in first: see doorStepIn).
+ */
+export function canWorkDoor(t: Town, p: P, cell: number): boolean {
+	const x = cell % t.w, y = Math.floor(cell / t.w);
+	if (!at(t, x, y)?.things.includes('door')) return false;
+	const rooms = (t.doorRooms.get(cell) ?? []).filter((r) => r !== t.outdoors);
+	if (!rooms.length) return false;
+	if (doorLeaves(t, cell).includes(p.x + p.y * t.w)) return true;
+	if (Math.max(Math.abs(p.x - x), Math.abs(p.y - y)) > DOOR_REACH) return false;
+	return roomsAt(t, p).some((r) => rooms.includes(r)) && canSee(t, p, { x, y });
+}
+
+/**
+ * Standing in a doorway to lock it: the cell to step into first. Inside, not the
+ * street; between two rooms, onward (away from `from`, where you came from).
+ */
+export function doorStepIn(t: Town, p: P, cell: number, from?: P | null): P | null {
+	const rooms = (t.doorRooms.get(cell) ?? []).filter((r) => r !== t.outdoors);
+	const back = from ? t.room[from.x + from.y * t.w] : -1;
+	const options = [[0, 1], [0, -1], [1, 0], [-1, 0]]
+		.map(([dx, dy]) => ({ x: p.x + dx, y: p.y + dy }))
+		.filter((q) => walkable(t, q.x, q.y) && rooms.includes(t.room[q.x + q.y * t.w]));
+	return options.find((q) => t.room[q.x + q.y * t.w] !== back) ?? options[0] ?? null;
+}
+
 /** The doors of a room. */
 export function doorsOf(t: Town, room: number): number[] {
 	return [...t.doorRooms].filter(([, rooms]) => rooms.includes(room)).map(([i]) => i);
