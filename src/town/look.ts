@@ -205,34 +205,39 @@ export function remembered(fg: Rgb, bg: Rgb): [Rgb, Rgb] {
 	return [[fl, fl, fl * 1.15], [bl, bl, bl * 1.2]];
 }
 
-/** One cell before lighting: two characters, a colour, a background. */
-export interface Look { ch: string; ch2: string; fg: Rgb; bg: Rgb; emissive: boolean; }
+/**
+ * One cell before lighting: a symbol (centred in the square cell), a colour, a
+ * background. A wall is drawn as lines rather than a glyph: `wall` says which
+ * neighbours it joins (1 up, 2 right, 4 down, 8 left) and whether the line is
+ * double (stone) or single (timber). A shut door carries its wall's line too.
+ */
+export interface Look { ch: string; fg: Rgb; bg: Rgb; emissive: boolean; wall?: { mask: number; style: 'double' | 'single' }; }
 
 export function lookAt(t: Town, x: number, y: number): Look {
 	const c = at(t, x, y)!;
 	const m = MATS[c.mat] ?? FALLBACK;
+	const joins = (dx: number, dy: number) => (isWallAt(t, x + dx, y + dy) && !!(MATS[at(t, x + dx, y + dy)!.mat] ?? FALLBACK).style) || isDoorAt(t, x + dx, y + dy);
+	const maskHere = () => (joins(0, -1) ? 1 : 0) | (joins(1, 0) ? 2 : 0) | (joins(0, 1) ? 4 : 0) | (joins(-1, 0) ? 8 : 0);
 	if (c.tile === 'wall') {
-		if (!m.style) return { ch: m.wall, ch2: m.wall, fg: m.fg, bg: m.bg, emissive: false };
-		const joins = (dx: number, dy: number) => (isWallAt(t, x + dx, y + dy) && !!(MATS[at(t, x + dx, y + dy)!.mat] ?? FALLBACK).style) || isDoorAt(t, x + dx, y + dy);
-		const mask = (joins(0, -1) ? 1 : 0) | (joins(1, 0) ? 2 : 0) | (joins(0, 1) ? 4 : 0) | (joins(-1, 0) ? 8 : 0);
-		const set = m.style === 'double' ? DOUBLE : SINGLE;
-		return { ch: mask ? set[mask] : m.wall, ch2: mask & 2 ? (m.style === 'double' ? '═' : '─') : ' ', fg: m.fg, bg: m.bg, emissive: false };
+		if (!m.style) return { ch: m.wall, fg: m.fg, bg: m.bg, emissive: false };
+		return { ch: ' ', fg: m.fg, bg: m.bg, emissive: false, wall: { mask: maskHere(), style: m.style } };
 	}
 	const thing = c.things.map((n) => [n, KINDS[n]] as const).filter(([, k]) => k).pop();
 	if (thing) {
 		const [name, k] = thing;
-		// A door stands open (') or is shut and locked, plain for everyone to see.
+		// A door stands open (') or is shut and locked, plain for everyone to see; shut, it carries the wall's line.
 		if (name === 'door') {
 			const shut = t.locked.has(x + y * t.w);
-			const wall = isWallAt(t, x + 1, y) ? ((MATS[at(t, x + 1, y)!.mat] ?? FALLBACK).style === 'double' ? '═' : '─') : ' ';
-			return shut ? { ch: '◘', ch2: wall, fg: [235, 170, 90], bg: lerp(m.bg, [120, 50, 30], 0.6), emissive: false } : { ch: "'", ch2: ' ', fg: k.fg, bg: m.bg, emissive: false };
+			const side = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => at(t, x + dx, y + dy)).find((n) => n?.tile === 'wall');
+			const style = (MATS[side?.mat ?? ''] ?? FALLBACK).style ?? 'single';
+			return shut
+				? { ch: '◘', fg: [235, 170, 90], bg: lerp(m.bg, [120, 50, 30], 0.6), emissive: false, wall: { mask: maskHere() & ((joins(1, 0) || joins(-1, 0)) ? 10 : 5), style } }
+				: { ch: "'", fg: k.fg, bg: m.bg, emissive: false };
 		}
-		// A doorway in a wall carries the wall's line through it.
-		const ch2 = name === 'door' && isWallAt(t, x + 1, y) ? ((MATS[at(t, x + 1, y)!.mat] ?? FALLBACK).style === 'double' ? '═' : '─') : ' ';
-		return { ch: k.ch, ch2, fg: k.fg, bg: m.bg, emissive: !!k.light };
+		return { ch: k.ch, fg: k.fg, bg: m.bg, emissive: !!k.light };
 	}
-	if (c.tile === 'stair-up') return { ch: '<', ch2: ' ', fg: lerp(m.fg, [255, 255, 255], 0.4), bg: m.bg, emissive: false };
+	if (c.tile === 'stair-up') return { ch: '<', fg: lerp(m.fg, [255, 255, 255], 0.4), bg: m.bg, emissive: false };
 	// Laid floors (paving, boards) are a faint texture, so what stands on them reads first.
 	const laid = !!m.style;
-	return { ch: m.floors[hash(x, y, 7) % m.floors.length], ch2: ' ', fg: laid ? lerp(m.fg, m.bg, 0.72) : m.fg, bg: m.bg, emissive: false };
+	return { ch: m.floors[hash(x, y, 7) % m.floors.length], fg: laid ? lerp(m.fg, m.bg, 0.72) : m.fg, bg: m.bg, emissive: false };
 }

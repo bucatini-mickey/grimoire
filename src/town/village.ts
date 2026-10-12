@@ -682,9 +682,9 @@ function draw() {
 			c.fillStyle = css(bg);
 			ground.set(i, c.fillStyle);
 			c.fillRect(px, py, s + 0.5, s + 0.5);
+			if (look.wall) drawWall(c, look.wall, px, py, s, fg);
 			c.fillStyle = css(fg);
-			if (look.ch !== ' ') c.fillText(look.ch, px + s * 0.27, py + s * 0.54);
-			if (look.ch2 !== ' ') c.fillText(look.ch2, px + s * 0.75, py + s * 0.54);
+			if (look.ch !== ' ') c.fillText(look.ch, px + s * 0.5, py + s * 0.54);
 		}
 	}
 
@@ -728,6 +728,42 @@ function draw() {
 		c.strokeRect(ox + g.x * s + 1.5, oy + g.y * s + 1.5, s - 3, s - 3);
 		c.setLineDash([]);
 	}
+}
+
+/**
+ * A wall as lines from the middle of its cell to each side it joins: double
+ * for stone, single for timber; a lone post where it joins nothing. Lines run
+ * edge to edge, so neighbouring walls meet without gaps.
+ */
+const bitOf = (dx: number, dy: number) => (dy < 0 ? 1 : dx > 0 ? 2 : dy > 0 ? 4 : dx < 0 ? 8 : 0);
+
+function drawWall(c: CanvasRenderingContext2D, w: { mask: number; style: 'double' | 'single' }, px: number, py: number, s: number, fg: Rgb) {
+	const cx = px + s / 2, cy = py + s / 2;
+	c.strokeStyle = css(fg);
+	c.lineCap = 'butt';
+	const arms: [number, number, number][] = [[1, 0, -1], [2, 1, 0], [4, 0, 1], [8, -1, 0]];
+	const lines = w.style === 'double' ? [-s * 0.14, s * 0.14] : [0];
+	c.lineWidth = Math.max(1, s * (w.style === 'double' ? 0.07 : 0.1));
+	if (!w.mask) {
+		c.fillStyle = css(fg);
+		c.fillRect(cx - s * 0.16, cy - s * 0.16, s * 0.32, s * 0.32);
+		return;
+	}
+	c.beginPath();
+	for (const [bit, dx, dy] of arms) {
+		if (!(w.mask & bit)) continue;
+		for (const off of lines) {
+			// Along the arm to the cell's edge. A double line starts at the inner corner if it turns
+			// towards its side, carries straight on if the wall continues, else closes the outer corner.
+			const ox = -dy * off, oy = dx * off;
+			const sx = Math.sign(ox), sy = Math.sign(oy);
+			const o = Math.abs(off);
+			const back = !off ? 0 : w.mask & bitOf(sx, sy) ? -o : w.mask & bitOf(-dx, -dy) ? 0 : o;
+			c.moveTo(cx + ox - dx * back, cy + oy - dy * back);
+			c.lineTo(cx + ox + dx * (s / 2 + 0.5), cy + oy + dy * (s / 2 + 0.5));
+		}
+	}
+	c.stroke();
 }
 
 /** The circle: the town falls away; everyone on one ring, seen and heard by all. */
