@@ -27,7 +27,7 @@ const MATS: Record<string, Mat> = {
 	gravel: { fg: [150, 146, 140], bg: [60, 58, 56], wall: '▒', floors: [':', '·', '.', ':'] },
 	mud: { fg: [110, 84, 56], bg: [48, 34, 22], wall: '▒', floors: ['~', ',', '.', ','] },
 	clay: { fg: [170, 100, 70], bg: [78, 44, 30], wall: '▒', floors: ['.', ',', '·'] },
-	wood: { fg: [168, 118, 66], bg: [62, 40, 22], wall: 'O', floors: ['+'], style: 'single' },
+	wood: { fg: [116, 104, 92], bg: [44, 38, 32], wall: 'O', floors: ['+'], style: 'single' },
 	leaves: { fg: [60, 134, 48], bg: [18, 44, 16], wall: '♣', floors: ['♣'] },
 	'stone block': { fg: [178, 176, 168], bg: [62, 60, 58], wall: '#', floors: ['+'], style: 'double' },
 	slate: { fg: [96, 104, 124], bg: [36, 40, 50], wall: '▓', floors: ['≡'] },

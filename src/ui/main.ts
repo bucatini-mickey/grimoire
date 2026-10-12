@@ -302,14 +302,16 @@ function undo() {
 }
 
 function newGame() {
-	saved = { events: [], marks: [], settings: saved.settings, flow: freshFlow(saved.settings), net: saved.net ? { room: saved.net.room, claims: {} } : undefined };
+	saved = { events: [], marks: [], settings: saved.settings, flow: freshFlow(saved.settings), net: saved.net ? { room: saved.net.room, claims: {}, village: saved.net.village } : undefined };
 	state = G.replay([]);
 	save();
 	ui.confirmNew = false;
 	ui.message = '';
 	ui.tab = 'grimoire';
+	if (saved.net?.village) ui.mode = 'village';
 	clearPicks();
 	render();
+	for (const peer of phones.keys()) welcome(peer);
 }
 
 /** Keep the clocks in step with the game: a new day, a nomination opening or closing. */
@@ -579,7 +581,7 @@ function emptyDraft(): Draft {
 const MODES = [
 	{ id: 'storyteller', icon: '\u2720', name: 'Storyteller', sub: 'Run the grimoire' },
 	{ id: 'player', icon: '\u2726', name: 'Player', sub: 'Join from your phone' },
-	{ id: 'village', icon: '\u2302', name: 'Village', sub: 'Walk the town' }
+	{ id: 'village', icon: '\u2302', name: 'Village', sub: 'Play in the town' }
 ] as const;
 
 /** Option tags: a row of choices, the chosen one lit. */
@@ -606,10 +608,10 @@ function namesScreen(): Row[] {
 		return [...rows, endPanel()];
 	}
 	if (ui.mode === 'village') {
-		rows.push(rubric('The Village'));
-		rows.push(...prose('A fifteenth-century hamlet in a clearing, ringed by dark forest and fog: the church and its graveyard, the tavern, the smithy, the stables, the market cross where the town gathers at dusk. Walk it on your own phones and talk to whoever is near.', 'dim'));
-		rows.push(...buttonRows([btn('Visit the village', () => { location.hash = '#village'; location.reload(); }, { style: 'primary' })]));
-		return [...rows, endPanel()];
+		rows.push(rubric('A Game in the Village'));
+		rows.push(...prose('The whole game, played in a fifteenth-century hamlet in the fog. Each player walks the town on their own phone and talks to whoever is near; at dusk the bell gathers everyone to the market cross for nominations and votes; at night they go home, and the Storyteller visits each house with their night pages. You run it all from here.', 'dim'));
+		rows.push(...prose('Set up as usual below. The players then choose Player, Join a game, and type the code you will be shown.', 'dim'));
+		rows.push(...buttonRows([btn('Just walk the town (no game)', () => { location.hash = '#village'; location.reload(); }, { style: 'quiet' })]), endPanel());
 	}
 	rows.push(rubric('The Script'));
 	rows.push(tagsRow('tags', [
@@ -622,7 +624,15 @@ function namesScreen(): Row[] {
 	rows.push({ segs: [], html: `<textarea id="names" rows="8" spellcheck="false" aria-label="Player names">${escapeHtml(ui.names)}</textarea>` });
 	rows.push(...buttonRows([btn('Choose the characters', () => {
 		const names = ui.names.split('\n').map((s) => s.trim()).filter(Boolean);
-		act({ type: 'create', names, scriptId: ui.scriptId === 'custom' ? G.customScriptId(ui.customIds) : ui.scriptId });
+		const made = act({ type: 'create', names, scriptId: ui.scriptId === 'custom' ? G.customScriptId(ui.customIds) : ui.scriptId });
+		// A village game: open the room for the phones straight away, with the village on.
+		if (made && ui.mode === 'village') {
+			const room = saved.net?.room ?? newRoomCode();
+			saved.net = { room, claims: saved.net?.room === room ? saved.net.claims : {}, village: true };
+			save();
+			if (link && link.room === room) { if (!village) villageOn(); for (const peer of phones.keys()) welcome(peer); render(); }
+			else startHosting(room);
+		}
 	}, { style: 'primary' })]));
 	return rows;
 }
@@ -731,12 +741,27 @@ function shuffleDraft() {
 	render();
 }
 
+/** While setting up a village game: the code to join with, and who has. */
+function joiningRows(): Row[] {
+	if (!link || !village) return [];
+	const linked = new Set(Object.values(claims()));
+	const waiting = state.order.filter((id) => !linked.has(id)).map(name);
+	return [
+		rubric('Players Join'),
+		row(txt(center(link.room), 'gold', 'heading')),
+		...prose(`On each phone: Player, Join a game, type ${link.room}, tap your name.`, 'dim'),
+		...prose(waiting.length ? `Waiting for: ${waiting.join(', ')}` : 'Everyone has joined.', waiting.length ? 'gold' : 'good'),
+		...buttonRows([btn('Code, QR and seats', () => { ui.tab = 'phones'; render(); }, { style: 'quiet' })]),
+		endPanel(), blank()
+	];
+}
+
 function draftScreen(): Row[] {
 	const d = flow().draft!;
 	const sc = script();
 	const n = state.seats.length;
 	const { want, have } = draftCounts(d);
-	const rows: Row[] = [rubric('Characters in Play')];
+	const rows: Row[] = [...joiningRows(), rubric('Characters in Play')];
 	const count = (label: string, k: keyof typeof want) =>
 		[txt(`${label} `), txt(`${have[k]}/${want[k]}`, have[k] === want[k] ? 'good' : 'evil'), txt('  ')];
 	rows.push(row(...count('Town', 'townsfolk'), ...count('Out', 'outsider'), ...count('Min', 'minion'), ...count('Dem', 'demon')));
@@ -934,15 +959,8 @@ rows.push(...prose(who ? `${who.name}, the ${charName(stepRole(kind, who.id))}${
 		rows.push(...buttonRows([btn('Take it back', () => { if (phone) sendTo(phone, { t: 'sleep' }); ui.remote = null; render(); }, { style: 'quiet' })]));
 		return rows;
 	}
-	const sendWake = (withAnswer: boolean) => btn(`Send to ${who?.name}'s phone`, () => {
-		const w = V.wakeFor(state, step, withAnswer ? ui.draftInfo : null);
-		ui.remote = { wakeId: w.id, seat: step.seat!, answered: withAnswer && !!need };
-		sendTo(phone!, { t: 'wake', wake: w });
-		// In the village, the Storyteller goes to them.
-		village?.visit(phone!);
-		render();
-	}, { style: 'primary' });
-	if (phone && kind !== 'gossip' && !(action === 'tell' && (!need || ui.picks.length >= need))) rows.push(...buttonRows([sendWake(false)]));
+	const sendWake = (withAnswer: boolean) => btn(`Send to ${who?.name}'s phone`, () => wakePhone(step, phone!, withAnswer), { style: 'primary' });
+	if (phone && canSendFirst(step)) rows.push(...buttonRows([sendWake(false)]));
 
 	if (action === 'choose') {
 		rows.push(...chooseRows(kind, step.seat, hand('who')));
@@ -969,6 +987,21 @@ rows.push(...prose(who ? `${who.name}, the ${charName(stepRole(kind, who.id))}${
 	const later = steps.filter((s) => !s.done && s.id !== step.id).map((s) => (s.seat === null ? groupLabel(s.kind).split(':')[0] : `${name(s.seat)} (${charName(stepRole(s.kind, s.seat))})`));
 	if (later.length) rows.push(blank(), ...prose(`Then: ${later.join(', ')}.`, 'dim'));
 	return rows;
+}
+
+/** Send a night step to the player's own phone; in the village, the Storyteller goes to them. */
+function wakePhone(step: G.NightStep, phone: string, withAnswer: boolean) {
+	const w = V.wakeFor(state, step, withAnswer ? ui.draftInfo : null);
+	ui.remote = { wakeId: w.id, seat: step.seat!, answered: withAnswer && !!playerPicks(step.kind, state, step.seat) };
+	sendTo(phone, { t: 'wake', wake: w });
+	village?.visit(phone);
+	render();
+}
+
+/** Can this step go to the phone before the Storyteller has decided anything? (Not an answer still to be chosen.) */
+function canSendFirst(step: G.NightStep): boolean {
+	const need = playerPicks(step.kind, state, step.seat);
+	return step.kind !== 'gossip' && !(G.stepAction(step.kind) === 'tell' && (!need || ui.picks.length >= need));
 }
 
 /**
@@ -1874,7 +1907,20 @@ function villageActions(): StActions | null {
 	const grim: Extra = { label: 'Open the grimoire', act: () => village?.close() };
 	const p = state.phase;
 	if (ui.decision) return { text: 'The grimoire needs a ruling.', buttons: [grim] };
-	if (p.kind === 'night') return { text: 'Night: wake each player from the grimoire; sending their pages takes you to them.', buttons: [grim] };
+	if (p.kind === 'night') {
+		const step = G.nextStep(state);
+		if (!step) return { text: `Dawn. ${state.night!.deaths.length ? `Died in the night: ${state.night!.deaths.map(name).join(', ')}.` : 'Nobody died in the night.'}`, buttons: [{ label: 'Start the day', primary: true, act: () => void act({ type: 'end-night' }) }, grim] };
+		const who = step.seat === null ? null : state.seats[step.seat];
+		const role = who ? `${who.name}, the ${charName(stepRole(step.kind, who.id))}` : groupLabel(step.kind).split(':')[0];
+		const phone = step.seat !== null ? peerOfSeat(step.seat) : null;
+		if (ui.remote && phone && ui.remote.seat === step.seat) {
+			return { text: `${role}: their pages are on their phone.`, buttons: [{ label: 'Take it back', act: () => { sendTo(phone, { t: 'sleep' }); ui.remote = null; render(); } }, grim] };
+		}
+		if (ui.message && who && ui.picks.length) return { text: ui.message, buttons: [{ label: 'Answer in the grimoire', primary: true, act: grim.act }] };
+		if (phone && canSendFirst(step)) return { text: `Next: ${role}.`, buttons: [{ label: `Send to ${who!.name}'s phone`, primary: true, act: () => wakePhone(step, phone, false) }, grim] };
+		return { text: `Next: ${role}${phone ? '' : ' (no phone)'}. Run it in the grimoire.`, buttons: [{ label: 'Open the grimoire', primary: true, act: grim.act }] };
+	}
+	if (p.kind === 'over') return { text: `${p.winner === 'good' ? 'Good' : 'Evil'} wins. ${p.reason}`, buttons: [{ label: 'New game', primary: true, act: () => { village?.close(); newGame(); } }, grim] };
 	if (p.kind !== 'day') return null;
 	const f = flow(), day = state.day!, nom = openNomination();
 	if (nom && f.speech?.stage === 'accusation') return { text: `${name(nom.nominator)} accuses ${name(nom.nominee)}.`, buttons: [{ label: 'On to the defence', primary: true, act: toDefence }, { label: 'Withdraw', act: undo }] };
@@ -1883,7 +1929,8 @@ function villageActions(): StActions | null {
 	if (day.stage === 'discussion') return { text: 'Discussion.', buttons: [{ label: 'Open nominations', primary: true, act: openNominations }, grim] };
 	const ask = validAsks()[0];
 	if (ask) return { text: `${name(ask.by)} nominates ${name(ask.nominee)}.`, buttons: [{ label: 'Accept', primary: true, act: () => acceptNomination(ask) }, { label: 'Not now', act: () => declineNomination(ask) }] };
-	return { text: day.executed !== null ? `${name(day.executed)} was executed.` : 'Nominations are open.', buttons: [{ label: 'End the day', act: () => void act({ type: 'end-day' }) }, grim] };
+	const block = day.executed !== null ? `${name(day.executed)} was executed.` : day.block !== null ? `On the block: ${name(day.block)} (${day.highest}).` : 'Nobody is on the block.';
+	return { text: `${block} Nominations are open.`, buttons: [{ label: 'End the day', act: () => void act({ type: 'end-day' }) }, grim] };
 }
 let linkStatus: LinkStatus = 'closed';
 let linkDetail = '';

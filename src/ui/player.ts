@@ -121,6 +121,8 @@ function receive(msg: HostMsg) {
 		case 'welcome':
 			P.seats = msg.seats;
 			P.seat = msg.you;
+			// Not seated (a new game, a freed seat): nothing of the last game stays on screen.
+			if (msg.you === null) { P.card = null; P.wake = null; P.announce = null; P.cardOpen = false; P.vote = null; P.handUp = false; }
 			break;
 		case 'public':
 			P.view = msg.view;
@@ -140,6 +142,9 @@ function receive(msg: HostMsg) {
 				P.page = 'who';
 				P.picks = [];
 			}
+			// Your turn in the night comes before any announcement still showing from the day.
+			P.announce = null;
+			P.cardOpen = false;
 			buzz([120, 80, 120]);
 			break;
 		}

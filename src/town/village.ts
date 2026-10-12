@@ -594,16 +594,29 @@ function drawPerson(c: CanvasRenderingContext2D, q: Person, x: number, y: number
 	const ink = inkOf(q);
 	const talk = talking(q);
 	c.save();
-	if (q.dead) c.globalAlpha = 0.45;
-	c.fillStyle = ink;
-	c.font = `${talk > 0.06 ? 700 : 500} ${Math.round(size * 1.08)}px ${q.st ? MONO : GOTHIC}`;
+	// A token: a disc of their colour with their initial in dark ink, so nobody is
+	// mistaken for a wall, a fire or a flower. The Storyteller and the dead are hollow.
+	const r = size * 0.47;
 	if (talk > 0.06) {
 		c.shadowColor = ink;
 		c.shadowBlur = 6 + Math.min(14, talk * 30);
 	}
+	c.beginPath();
+	c.arc(x, y, r, 0, Math.PI * 2);
+	const hollow = !!q.st || !!q.dead;
+	c.fillStyle = hollow ? 'rgba(12, 10, 8, .88)' : ink;
+	c.fill();
+	c.shadowBlur = 0;
+	c.lineWidth = Math.max(1.5, size * (hollow ? 0.09 : 0.07));
+	c.strokeStyle = hollow ? ink : 'rgba(10, 8, 6, .8)';
+	if (q.dead) c.setLineDash([size * 0.12, size * 0.08]);
+	c.stroke();
+	c.setLineDash([]);
+	c.fillStyle = hollow ? ink : '#140e08';
+	c.font = `700 ${Math.round(size * (q.st ? 0.6 : 0.66))}px ${q.st ? MONO : BOOK}`;
 	c.textAlign = 'center';
 	c.textBaseline = 'middle';
-	c.fillText(glyphOf(q), x, y + size * 0.05);
+	c.fillText(glyphOf(q), x, y + size * 0.03);
 	c.restore();
 	if (!label) return;
 	c.save();
@@ -1118,9 +1131,8 @@ function cellAt(ev: PointerEvent): P {
 }
 
 function enterMap() {
-	// The blackletter for people's letters, before the first frame needs it.
-	void document.fonts?.load('500 20px "Grenze Gotisch"').then(() => { S.dirty = true; });
-	void document.fonts?.load('700 20px "Grenze Gotisch"');
+	// The face for people's initials and names, before the first frame needs it.
+	void document.fonts?.load('700 20px "Grenze"').then(() => { S.dirty = true; });
 	document.body.classList.add('village-map');
 	root.innerHTML = `<div class="village v-map">
 		<div class="v-stage"><canvas aria-label="The village. Tap a place to walk there, or hold and drag to steer."></canvas></div>
@@ -1433,7 +1445,7 @@ function syncSeats(list: GameSeat[]) {
 		q.seat = e.seat;
 		q.dead = e.dead;
 	}
-	for (const id of [...S.welcomed]) if (!peers.has(id)) S.welcomed.delete(id);
+	for (const id of [...S.welcomed]) if (!peers.has(id)) { S.welcomed.delete(id); S.hostWire?.send(id, { t: 'off' }); }
 	for (const e of list) if (!S.welcomed.has(e.peer)) { S.welcomed.add(e.peer); welcome(e.peer); }
 	S.dirty = true;
 }
