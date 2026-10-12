@@ -12,11 +12,11 @@ const find = (t: Town, thing: string): P[] => {
 	return out;
 };
 
-// Landmarks in the demo village (town/make-village.mjs): the first cottage on the west track,
+// Landmarks in the demo village (town/make-village.mjs; the town lies 16 rows below the valley's cliff): the first cottage on the west track,
 // its door and the grass outside; the tavern's hall and private back room; the church's double doors.
-const INSIDE = { x: 12, y: 19 }, BY_DOOR = { x: 15, y: 19 }, DOOR = { x: 16, y: 19 }, STREET = { x: 18, y: 19 };
-const HALL = { x: 60, y: 27 }, BACK = { x: 70, y: 24 };
-const CHURCH_DOORS = [41 + 15 * town.w, 42 + 15 * town.w];
+const INSIDE = { x: 12, y: 35 }, BY_DOOR = { x: 15, y: 35 }, DOOR = { x: 16, y: 35 }, STREET = { x: 18, y: 35 };
+const HALL = { x: 60, y: 43 }, BACK = { x: 70, y: 40 };
+const CHURCH_DOORS = [41 + 31 * town.w, 42 + 31 * town.w];
 
 test('the blueprint format: keys, things, and errors that say what is wrong', () => {
 	const bp = parseBlueprint('tachyon-blueprint 1\nname hut\nsize 3 2 1\nkey # wall wood\nkey d floor wood | door, rug\nlevel 0\n#d#\n# #\nend\n');
@@ -66,12 +66,12 @@ test('rooms: a house is its own room; its doorway joins it to the street', () =>
 });
 
 test('voices do not go through walls, carry from a doorway, and fade with distance', () => {
-	assert.equal(loudness(town, BY_DOOR, { x: 17, y: 22 }, 'day'), 0);
+	assert.equal(loudness(town, BY_DOOR, { x: 17, y: 38 }, 'day'), 0);
 	assert.ok(loudness(town, DOOR, STREET, 'day') > 0.5);
-	assert.equal(loudness(town, { x: 25, y: 26 }, { x: 26, y: 26 }, 'day'), 1);
-	assert.ok(loudness(town, { x: 19, y: 26 }, { x: 26, y: 26 }, 'day') < 0.5);
-	assert.equal(loudness(town, { x: 19, y: 26 }, { x: 32, y: 26 }, 'day'), 0);
-	assert.equal(loudness(town, { x: 25, y: 26 }, { x: 26, y: 26 }, 'night'), 0);
+	assert.equal(loudness(town, { x: 25, y: 42 }, { x: 26, y: 42 }, 'day'), 1);
+	assert.ok(loudness(town, { x: 19, y: 42 }, { x: 26, y: 42 }, 'day') < 0.5);
+	assert.equal(loudness(town, { x: 19, y: 42 }, { x: 32, y: 42 }, 'day'), 0);
+	assert.equal(loudness(town, { x: 25, y: 42 }, { x: 26, y: 42 }, 'night'), 0);
 });
 
 test('the tavern back room is private from the hall', () => {
@@ -89,15 +89,15 @@ test('in the circle everyone hears everyone, however far across; outside it, dis
 	}
 	assert.equal(loudness(town, a, b, 'night'), 0);
 	// Well outside the ring, the far side is out of earshot again.
-	const out = { x: 27, y: 24 };
+	const out = { x: 27, y: 40 };
 	assert.ok(!inMeeting(town, out, 'day'));
 	assert.equal(loudness(town, out, town.seats[0], 'day'), 0);
 });
 
 test('sight: walls hide what is behind them; night shows only your lantern and lit places', () => {
-	assert.ok(!canSee(town, { x: 18, y: 23 }, INSIDE));
-	const day = visibleCells(town, { x: 26, y: 17 }, 'day');
-	const night = visibleCells(town, { x: 26, y: 17 }, 'night');
+	assert.ok(!canSee(town, { x: 18, y: 39 }, INSIDE));
+	const day = visibleCells(town, { x: 26, y: 33 }, 'day');
+	const night = visibleCells(town, { x: 26, y: 33 }, 'night');
 	assert.ok(night.size < day.size / 2);
 	assert.ok(!day.has(INSIDE.x + INSIDE.y * town.w));
 });
@@ -114,7 +114,7 @@ test('light: rooms are dimmer than the street by day; at night only torches and 
 	// Beside an outdoor torch, and in the open far from every light.
 	const torches = lightMap(town, sources(town, 0));
 	const torch = find(town, 'torch').find((q) => town.room[q.x + q.y * town.w] === town.outdoors && walkable(town, q.x + 1, q.y))!;
-	const far = { x: 22, y: 8 }; // the graveyard
+	const far = { x: 22, y: 24 }; // the graveyard
 	assert.ok(town.lights.every((q) => Math.hypot(q.x - far.x, q.y - far.y) > 12));
 	const byTorch = bright(level(town, sk, torches, night, torch.x + 1, torch.y));
 	const dark = bright(level(town, sk, torches, night, far.x, far.y));
@@ -150,9 +150,9 @@ test('a private word: the two hear each other anywhere, and nobody else hears th
 test('the circle: everyone hears everyone; night: only the Storyteller, in the room they visit', () => {
 	const a = { id: 'a', ...INSIDE }, b = { id: 'b', ...BACK };
 	assert.equal(loudness(town, a, b, 'circle'), 1);
-	assert.equal(loudness(town, a, { id: 'n', x: 13, y: 19 }, 'night'), 0);
-	assert.equal(loudness(town, a, { id: 'st', x: 13, y: 20, st: true }, 'night'), 1);
-	assert.equal(loudness(town, b, { id: 'st', x: 13, y: 20, st: true }, 'night'), 0);
+	assert.equal(loudness(town, a, { id: 'n', x: 13, y: 35 }, 'night'), 0);
+	assert.equal(loudness(town, a, { id: 'st', x: 13, y: 36, st: true }, 'night'), 1);
+	assert.equal(loudness(town, b, { id: 'st', x: 13, y: 36, st: true }, 'night'), 0);
 });
 
 test('double doors are one door; the Storyteller walks through walls like a ghost', async () => {
@@ -162,8 +162,46 @@ test('double doors are one door; the Storyteller walks through walls like a ghos
 	assert.deepEqual(doorLeaves(town, left).sort((p, q) => p - q), [left, right]);
 	assert.deepEqual(doorLeaves(town, DOOR.x + DOOR.y * town.w), [DOOR.x + DOOR.y * town.w]);
 	// Straight through the church wall, and through a cottage wall.
-	assert.ok(!walkable(town, 34, 8));
-	assert.ok(walkable(town, 34, 8, true));
+	assert.ok(!walkable(town, 34, 24));
+	assert.ok(walkable(town, 34, 24, true));
 	const p = path(town, STREET, INSIDE, true);
 	assert.equal(p.length, STREET.x - INSIDE.x);
+});
+
+test('the valley: a cave in the cliff to walk into, water to look across but not wade, a bridge over the stream', () => {
+	const square = town.seats[0];
+	// The cave's two chambers are reachable on foot, and the deeper one is dark even at noon.
+	const chamber = { x: 20, y: 5 }, deep = { x: 10, y: 5 };
+	assert.equal(town.cells[chamber.x + chamber.y * town.w].mat, 'granite');
+	assert.ok(path(town, square, chamber).length > 0, 'into the cave');
+	assert.ok(path(town, chamber, deep).length > 0, 'on to the deeper chamber');
+	// Water: you cannot walk on it, but you see across it; the plank bridge crosses the stream.
+	const water = find(town, 'waterfall')[0];
+	assert.ok(water && !walkable(town, water.x, water.y), 'the waterfall');
+	const pool = town.cells.findIndex((c, i) => c.mat === 'water' && !c.things.length && i % town.w > 50);
+	assert.ok(pool >= 0 && !walkable(town, pool % town.w, Math.floor(pool / town.w)), 'the pool');
+	const bridge = find(town, 'plank bridge');
+	assert.ok(bridge.length > 0 && bridge.every((b) => walkable(town, b.x, b.y)), 'the bridge');
+	assert.ok(path(town, square, bridge[0]).length > 0, 'the bridge is on a way');
+	const px = pool % town.w, py = Math.floor(pool / town.w);
+	// From shore to shore across the widest row of the pool.
+	const row = py + 2;
+	let w0 = px, w1 = px;
+	while (town.cells[w0 - 1 + row * town.w].mat === 'water') w0--;
+	while (town.cells[w1 + 1 + row * town.w].mat === 'water') w1++;
+	assert.ok(w1 - w0 >= 4 && canSee(town, { x: w0 - 1, y: row }, { x: w1 + 1, y: row }), 'you see across the water');
+	assert.ok(find(town, 'flowers').length > 100, 'flowers');
+});
+
+test('names of places sit at the top left of their buildings', () => {
+	const at = (text: string) => town.labels.find((l) => l.text.includes(text))!;
+	const church = at('Church');
+	assert.deepEqual([church.x, church.y], [34, 20]);
+	assert.equal(town.cells[church.x + church.y * town.w].tile, 'wall');
+	assert.ok(at('Crow & Candle') && at('Smithy') && at('Old Cave') && at('Falls'));
+	assert.ok(town.labels.length >= 20);
+	// The format: a label line, and one without a name is an error.
+	const bp = parseBlueprint('tachyon-blueprint 1\nsize 1 1 1\nkey # wall wood\nlevel 0\n#\nlabel 0 0 The Hut\nend\n');
+	assert.deepEqual(bp.labels, [{ x: 0, y: 0, text: 'The Hut' }]);
+	assert.throws(() => parseBlueprint('tachyon-blueprint 1\nsize 1 1 1\nlevel 0\n \nlabel 0 0\nend\n'), /label needs/);
 });

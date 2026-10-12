@@ -3,6 +3,9 @@
  * the same page by candlelight at night. Rubrics in vermilion, good in lapis,
  * highlights in gold. One monospace grid, so the ASCII art lines up.
  */
+/* No blue flash where a finger lands (the village canvas, every button). */
+html { -webkit-tap-highlight-color: transparent; }
+
 :root {
 	--bg: #eee1c0;
 	--bg-edge: #d9c69a;
@@ -480,7 +483,7 @@ body.village-map { overflow: hidden; overscroll-behavior: none; }
 .v-top button.on, .v-tools button.on { color: #f0907a; border-color: #f0907a; box-shadow: none; }
 .v-code { font-family: var(--mono); letter-spacing: .12em; color: var(--gold); font-weight: 700; }
 .v-stage { position: absolute; inset: 0; }
-.v-stage canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: pointer; }
+.v-stage canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: pointer; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .v-near {
 	position: absolute; left: calc(6px + env(safe-area-inset-left)); top: calc(48px + env(safe-area-inset-top)); max-width: 62%; pointer-events: none;
 	background: rgba(0, 0, 0, .55); color: #e8d8b2; border-radius: 3px; padding: 4px 8px; font-size: 14px;

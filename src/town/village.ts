@@ -564,6 +564,7 @@ let lightAt = 0, lightTick = 0, drawnAt = 0;
 const cam = { x: 0, y: 0, ready: false };
 const GOLD: Rgb = [220, 160, 60];
 const MONO = '"Courier Prime", "Courier New", monospace';
+const BOOK = '"Grenze", "Iowan Old Style", Georgia, serif';
 /** People's letters: blackletter. */
 const GOTHIC = '"Grenze Gotisch", "UnifrakturCook", "Old English Text MT", serif';
 
@@ -657,7 +658,7 @@ function draw() {
 			const i = x + y * t.w;
 			const shown = vis.has(i);
 			if (!shown && !S.seen![i]) continue;
-			const look = lookAt(t, x, y);
+			const look = lookAt(t, x, y, now);
 			let fg: Rgb, bg: Rgb;
 			if (shown) {
 				const l = level(t, sk, dyn!, day, x, y);
@@ -687,6 +688,25 @@ function draw() {
 			if (look.ch !== ' ') c.fillText(look.ch, px + s * 0.5, py + s * 0.54);
 		}
 	}
+
+	// Names of places, small, at the top left of buildings: shown once you have seen them.
+	c.save();
+	c.font = `italic ${Math.max(9, Math.round(s * 0.5))}px ${BOOK}`;
+	c.textAlign = 'left';
+	c.textBaseline = 'top';
+	for (const l of t.labels) {
+		const i = l.x + l.y * t.w;
+		if (!S.seen![i] && !p.st) continue;
+		const lx = ox + l.x * s + s * 0.15, ly = oy + l.y * s - s * 0.55;
+		if (lx > cw || ly > chh || lx + s * 12 < 0 || ly + s < 0) continue;
+		const f = fogAt(t, l.x, l.y, cam, S.phase, now) * (p.st ? 0.6 : 1);
+		const a = Math.max(0.15, 1 - f * 1.1);
+		c.fillStyle = `rgba(0,0,0,${0.55 * a})`;
+		c.fillText(l.text, lx + 1, ly + 1);
+		c.fillStyle = css([236, 222, 190], 0.9 * a);
+		c.fillText(l.text, lx, ly);
+	}
+	c.restore();
 
 	// People: anyone in sight and in enough light to make out (or right beside you).
 	// At night the Storyteller is seen only by whoever they visit.

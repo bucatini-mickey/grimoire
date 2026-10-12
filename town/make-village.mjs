@@ -1,6 +1,7 @@
 /**
  * make-village.mjs - draws town/village.tbp, the demo village: a 15th-century
- * hamlet in a clearing, ringed by dark forest. One level, no stairs.
+ * hamlet in a wooded valley: the town in the south, meadows, a cliff with a
+ * cave, a waterfall and a stream in the north. One level, no stairs.
  *
  *   node town/make-village.mjs
  *
@@ -164,6 +165,79 @@ for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
 	}
 }
 
+// ================= the valley above the town =================
+// The town above sits in the south of a valley. To the north the meadows rise to a
+// cliff with a cave in it, and a waterfall drops into a pool whose stream runs east.
+const TOP = 16, H2 = H + TOP;
+const v = Array.from({ length: H2 }, (_, y) => (y >= TOP ? g[y - TOP] : Array(W).fill(',')));
+const vput = (x, y, c) => { if (x >= 0 && y >= 0 && x < W && y < H2) v[y][x] = c; };
+const vget = (x, y) => (x >= 0 && y >= 0 && x < W && y < H2 ? v[y][x] : 'T');
+// The old northern forest thins into meadow at the valley floor; the ends stay wooded.
+for (let y = TOP; y < TOP + 8; y++) for (let x = 7; x < W - 7; x++) if (vget(x, y) === 'T' && rnd() < 0.72) vput(x, y, ',');
+// The cliff: a ragged face across the top; woods above it and at both ends.
+const foot = [];
+for (let x = 0; x < W; x++) {
+	foot[x] = Math.max(6, Math.min(11, 8 + Math.round(1.8 * Math.sin(x * 0.21) + 1.2 * Math.cos(x * 0.13) + rnd())));
+	for (let y = 0; y < TOP; y++) {
+		if (y < 2 || x < 5 || x > W - 6) vput(x, y, 'T');
+		else if (y <= foot[x]) vput(x, y, 'R');
+		else if ((x < 8 || x > W - 9) && rnd() < 0.6) vput(x, y, 'T');
+		else if (rnd() < 0.03) vput(x, y, 'T');
+	}
+}
+// The cave: a mouth at the foot of the cliff, a first chamber, a narrow way to a deeper one.
+const cave = { x: 20, y: foot[20] };
+const carve = (cx, cy, rx, ry) => { for (let y = cy - ry; y <= cy + ry; y++) for (let x = cx - rx; x <= cx + rx; x++) if (Math.hypot((x - cx) / (rx + 0.4), (y - cy) / (ry + 0.4)) <= 1 && y > 2) vput(x, y, 'G'); };
+for (let y = 4; y <= cave.y; y++) { vput(cave.x, y, 'G'); vput(cave.x + 1, y, 'G'); }
+carve(cave.x, 5, 4, 2);
+for (let x = 12; x <= cave.x - 3; x++) vput(x, 4, 'G');
+carve(11, 5, 2, 1);
+vput(11, 5, 'q'); vput(10, 4, 'u'); vput(12, 6, 'z'); vput(17, 4, 'j'); vput(23, 6, 'u');
+// The waterfall pours off the cliff into the pool; the stream runs east into the woods.
+const fall = 60;
+for (let y = 2; y <= foot[fall] + 1; y++) for (const x of [fall, fall + 1]) vput(x, y, 'F');
+const pool = { x: fall + 0.5, y: foot[fall] + 3.5 };
+for (let y = Math.floor(pool.y - 3); y <= pool.y + 3; y++) for (let x = Math.floor(pool.x - 6); x <= pool.x + 6; x++) {
+	const d = Math.hypot((x - pool.x) / 5.5, (y - pool.y) / 2.6);
+	if (d <= 1 && vget(x, y) !== 'R' && vget(x, y) !== 'F') vput(x, y, '~');
+}
+let sx = fall + 5, sy = Math.round(pool.y);
+while (sx < W - 1) {
+	vput(sx, sy, '~'); vput(sx, sy + 1, '~');
+	sx++;
+	if (rnd() < 0.35 && sy < TOP + 4) sy++;
+	else if (rnd() < 0.12 && sy > foot[sx] + 2) sy--;
+}
+// A footpath up from the square, past the church to the meadow, west to the cave, east to the pool.
+for (let y = TOP + 13; y >= foot[52] + 3; y--) vput(52, y, vget(52, y) === '~' ? 'B' : 'g');
+const meadowY = (x) => Math.min(TOP - 1, Math.max(foot[x] + 2, 13));
+for (let x = cave.x; x <= 52; x++) { vput(x, meadowY(x), 'g'); }
+for (let y = foot[cave.x] + 1; y <= meadowY(cave.x); y++) { vput(cave.x, y, 'g'); vput(cave.x + 1, y, 'g'); }
+for (let x = 52; x <= fall - 6; x++) vput(x, meadowY(x), 'g');
+// Over the stream by a plank bridge, on to the north-east cottages.
+const bx = 70;
+for (let y = 0; y < H2; y++) if (vget(bx, y) === '~') vput(bx, y, 'B');
+for (let y = meadowY(bx) - 1; y <= TOP + 8; y++) if (vget(bx, y) === ',' || vget(bx, y) === 'T') vput(bx, y, 'g');
+for (let x = fall + 7; x <= bx; x++) if (vget(x, meadowY(x) - 1) !== '~' && vget(x, meadowY(x) - 1) !== 'B') vput(x, meadowY(x) - 1, 'g');
+// Flowers: the meadows are full of them; a few anywhere on the grass; beds by the cottages.
+for (let y = 0; y < H2; y++) for (let x = 0; x < W; x++) {
+	if (vget(x, y) !== ',') continue;
+	const meadow = y > 6 && y < TOP + 8;
+	if (rnd() < (meadow ? 0.14 : 0.035)) vput(x, y, 'f');
+}
+for (const c of cottages) for (let x = c.x0; x <= c.x1; x++) if (vget(x, c.y1 + TOP + 1) === ',' && rnd() < 0.6) vput(x, c.y1 + TOP + 1, 'f');
+// Torches by the pool and at the cave mouth.
+for (const [x, y] of [[fall - 6, Math.round(pool.y)], [cave.x + 3, foot[cave.x] + 1]]) if (vget(x, y) === ',' || vget(x, y) === 'f') vput(x, y, '!');
+
+// ---- names: small, at the top left of each building and landmark ----
+const labels = [
+	[34, 4 + TOP, 'St. Aldric’s Church'], [19, 5 + TOP, 'Graveyard'], [54, 21 + TOP, 'The Crow & Candle'],
+	[24, 36 + TOP, 'Smithy'], [62, 44 + TOP, 'Stables'], [cave.x - 6, 3, 'The Old Cave'], [fall - 4, foot[fall] + 1, 'The Falls'],
+	[33, 22 + TOP, 'Market Cross'],
+	...cottages.map((c, k) => [c.x0, c.y0 + TOP, ['Cooper', 'Fletcher', 'Miller', 'Thatcher', 'Weaver', 'Tanner', 'Carter', 'Baker', 'Mason', 'Shepherd', 'Potter', 'Chandler'][k] + '’s'])
+];
+for (const c of cottages) { c.door = [c.door[0], c.door[1] + TOP]; c.inside = [c.inside[0], c.inside[1] + TOP]; }
+
 const keys = `key , floor grass
 key T wall leaves
 key . floor gravel
@@ -191,17 +265,30 @@ key r floor wood | barrel
 key K floor wood | brazier
 key n floor soil | anvil
 key y floor soil | hay bale
-key ! floor grass | torch`;
+key ! floor grass | torch
+key R wall granite
+key G floor granite
+key j floor granite | candle
+key q floor granite | statue
+key u floor granite | coffin
+key z floor granite | chest
+key ~ floor water
+key F floor water | waterfall
+key B floor wood | plank bridge
+key f floor grass | flowers`;
 const out = `tachyon-blueprint 1
-# The demo village for Grimoire's mode 2: a 15th-century hamlet in a forest
-# clearing (church and graveyard, tavern, smithy, stables, cottages, the market
-# cross where the town gathers at dusk). One level. Made by town/make-village.mjs;
+# The demo village for Grimoire's mode 2: a 15th-century hamlet in a wooded
+# valley (church and graveyard, tavern, smithy, stables, cottages, the market
+# cross where the town gathers at dusk; north, meadows, a cliff with a cave, a
+# waterfall and its pool and stream). One level. 'label x y text' names places
+# (a Grimoire addition to Tachyon's format). Made by town/make-village.mjs;
 # edit that and run it again, or edit this by hand, or build one in Tachyon.
 name village
-size ${W} ${H} 1
+size ${W} ${H2} 1
 ${keys}
 level 0
-${g.map((r) => r.join('')).join('\n')}
+${v.map((r) => r.join('')).join('\n')}
+${labels.map(([x, y, t]) => `label ${x} ${y} ${t}`).join('\n')}
 end
 `;
 writeFileSync(new URL('./village.tbp', import.meta.url), out);

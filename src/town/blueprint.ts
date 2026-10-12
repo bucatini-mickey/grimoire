@@ -12,6 +12,9 @@
  *   end
  *
  * One character per one-metre cell; a space means "keep" (here: open grass).
+ *
+ * Grimoire adds one line Tachyon does not have: `label x y Some Name` names a
+ * place (drawn small at that cell: the top-left corner of a building).
  */
 
 export type Tile = 'open' | 'floor' | 'wall' | 'ramp' | 'stair-up' | 'stair-down' | 'stair-updown';
@@ -32,12 +35,14 @@ export interface Blueprint {
 	d: number;
 	/** x + y*w + z*w*h; null = keep. */
 	cells: (BpCell | null)[];
+	/** Names of places, drawn small at their cell. */
+	labels: { x: number; y: number; text: string }[];
 }
 
 export function parseBlueprint(text: string): Blueprint {
 	const lines = text.split('\n').map((l) => l.replace(/\r$/, ''));
 	if (!lines[0]?.startsWith('tachyon-blueprint')) throw new Error("not a blueprint (no 'tachyon-blueprint' header)");
-	const bp: Blueprint = { name: '', w: 0, h: 0, d: 0, cells: [] };
+	const bp: Blueprint = { name: '', w: 0, h: 0, d: 0, cells: [], labels: [] };
 	const keys = new Map<string, BpCell>();
 	const num = (s: string) => {
 		const n = Number(s.trim());
@@ -80,6 +85,10 @@ export function parseBlueprint(text: string): Blueprint {
 					bp.cells[x + y * bp.w + z * bp.w * bp.h] = c;
 				});
 			}
+		} else if (word === 'label') {
+			const m = rest.match(/^\s*(-?\d+)\s+(-?\d+)\s+(.+)$/);
+			if (!m) throw new Error('label needs x, y and a name');
+			bp.labels.push({ x: num(m[1]), y: num(m[2]), text: m[3].trim() });
 		} else if (word === 'end') break;
 		else throw new Error(`unknown line '${word}'`);
 	}

@@ -49,10 +49,14 @@ export interface Town {
 	homes: number[];
 	/** Doors that are locked now (cell indices). Changes during play. */
 	locked: Set<number>;
+	/** Names of places (buildings, the cave, the falls), drawn small at their cell. */
+	labels: { x: number; y: number; text: string }[];
 }
 
 const GRASS: BpCell = { tile: 'floor', mat: 'grass', things: [] };
-const BLOCKING = new Set(['well', 'brazier', 'altar', 'statue', 'anvil', 'barrel', 'bookshelf', 'coffin', 'table']);
+const BLOCKING = new Set(['well', 'brazier', 'altar', 'statue', 'anvil', 'barrel', 'bookshelf', 'coffin', 'table', 'waterfall']);
+/** Deep water: you cannot walk it, but you see and hear across it. A plank bridge crosses. */
+const isWater = (c: BpCell) => c.mat === 'water' && !c.things.includes('plank bridge');
 const LIGHTS = new Set(['torch', 'brazier', 'candle']);
 
 export const at = (t: Town, x: number, y: number): BpCell | null => (x < 0 || y < 0 || x >= t.w || y >= t.h ? null : t.cells[x + y * t.w]);
@@ -63,7 +67,7 @@ export function walkable(t: Town, x: number, y: number, ghost = false): boolean 
 	const c = at(t, x, y);
 	if (!c) return false;
 	if (ghost) return true;
-	if (c.tile === 'wall' || c.things.some((k) => BLOCKING.has(k))) return false;
+	if (c.tile === 'wall' || isWater(c) || c.things.some((k) => BLOCKING.has(k))) return false;
 	return !t.locked.has(x + y * t.w);
 }
 
@@ -94,7 +98,7 @@ export function doorsOf(t: Town, room: number): number[] {
 export function makeTown(bp: Blueprint): Town {
 	const { w, h } = bp;
 	const cells = Array.from({ length: w * h }, (_, i) => bp.cells[i] ?? GRASS);
-	const t: Town = { name: bp.name, w, h, cells, room: new Int32Array(w * h).fill(-1), doorRooms: new Map(), outdoors: 0, seats: [], meeting: null, lights: [], homes: [], locked: new Set() };
+	const t: Town = { name: bp.name, w, h, cells, room: new Int32Array(w * h).fill(-1), doorRooms: new Map(), outdoors: 0, seats: [], meeting: null, lights: [], homes: [], locked: new Set(), labels: [...(bp.labels ?? [])] };
 	// Rooms: flood fill everything that is not wall or doorway.
 	let next = 0;
 	const sizes: number[] = [];
