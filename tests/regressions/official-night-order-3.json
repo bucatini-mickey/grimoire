@@ -1,0 +1,64 @@
+{
+ "rule": "official-night-order",
+ "detail": "imp woke on night 1, which it never does",
+ "seed": 3,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior",
+    "Maud"
+   ],
+   "scriptId": "trouble-brewing"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "ravenkeeper",
+    "baron",
+    "chef",
+    "empath",
+    "mayor",
+    "spy",
+    "virgin",
+    "imp",
+    "drunk",
+    "slayer",
+    "saint",
+    "monk",
+    "poisoner"
+   ],
+   "drunkBelieves": "librarian",
+   "redHerring": null,
+   "bluffs": [
+    "soldier",
+    "recluse",
+    "investigator"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ],
+   "mayorRedirect": null
+  }
+ ]
+}

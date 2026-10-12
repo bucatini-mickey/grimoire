@@ -1,0 +1,156 @@
+{
+ "rule": "klutz",
+ "detail": "the Klutz chose an evil player and evil did not win",
+ "seed": 53,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior"
+   ],
+   "scriptId": "sects-and-violets"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "cerenovus",
+    "dreamer",
+    "snake-charmer",
+    "flowergirl",
+    "clockmaker",
+    "vigormortis",
+    "klutz",
+    "mathematician",
+    "witch",
+    "town-crier",
+    "oracle",
+    "seamstress"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "artist",
+    "philosopher",
+    "barber"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ],
+   "character": "mathematician"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 2
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "dream",
+    "player": 3,
+    "characters": [
+     "flowergirl",
+     "evil-twin"
+    ]
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "same",
+    "players": [
+     0,
+     2
+    ],
+    "yes": true
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 2,
+   "nominee": 6
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    2,
+    3,
+    4,
+    6,
+    8,
+    9,
+    10
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "klutz",
+   "by": 6,
+   "target": 0
+  }
+ ]
+}

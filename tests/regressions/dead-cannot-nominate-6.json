@@ -1,0 +1,105 @@
+{
+ "rule": "dead-cannot-nominate",
+ "detail": "Bram(baron) nominated while dead",
+ "seed": 6,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme"
+   ],
+   "scriptId": "trouble-brewing"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "saint",
+    "baron",
+    "empath",
+    "imp",
+    "recluse"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "washerwoman",
+    "librarian",
+    "investigator"
+   ],
+   "fabled": [
+    {
+     "id": "toymaker"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 2
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 0,
+   "nominee": 1
+  },
+  {
+   "type": "vote",
+   "voters": [
+    2,
+    3,
+    4
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 1
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 1,
+   "nominee": 3
+  }
+ ]
+}

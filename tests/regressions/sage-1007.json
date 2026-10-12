@@ -1,0 +1,187 @@
+{
+ "rule": "sage",
+ "detail": "Gwen(pit-hag), a Sage killed by the Demon, never woke",
+ "seed": 1007,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior"
+   ],
+   "scriptId": "sects-and-violets"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "pit-hag",
+    "clockmaker",
+    "barber",
+    "cerenovus",
+    "snake-charmer",
+    "town-crier",
+    "sage",
+    "vigormortis",
+    "seamstress",
+    "flowergirl",
+    "oracle",
+    "mathematician"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "mutant",
+    "dreamer",
+    "savant"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ],
+   "character": "artist"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 4
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "same",
+    "players": [
+     0,
+     9
+    ],
+    "yes": false
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 2
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 0,
+   "nominee": 4
+  },
+  {
+   "type": "vote",
+   "voters": [
+    3,
+    4,
+    6,
+    8,
+    9,
+    11
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    11
+   ],
+   "character": "artist"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    11
+   ],
+   "character": "vortox"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ]
+  },
+  {
+   "type": "storyteller-kill",
+   "seat": 9
+  },
+  {
+   "type": "storyteller-kill",
+   "seat": 2
+  },
+  {
+   "type": "storyteller-kill",
+   "seat": 5
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6,
+    0
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 3
+   }
+  },
+  {
+   "type": "end-night"
+  }
+ ]
+}

@@ -1,0 +1,175 @@
+{
+ "rule": "po",
+ "detail": "the Po chose 1 after choosing no one",
+ "seed": 1,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit"
+   ],
+   "scriptId": "bad-moon-rising"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "grandmother",
+    "tea-lady",
+    "exorcist",
+    "courtier",
+    "minstrel",
+    "devils-advocate",
+    "godfather",
+    "gossip",
+    "pacifist",
+    "professor",
+    "po"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "innkeeper",
+    "lunatic",
+    "moonchild"
+   ],
+   "fabled": [
+    {
+     "id": "storm-catcher",
+     "character": "tea-lady"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "characters",
+    "characters": []
+   }
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "reveal",
+    "player": 1,
+    "character": "tea-lady"
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "character": "lunatic"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    9
+   ]
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ]
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    10
+   ]
+  }
+ ]
+}

@@ -1,0 +1,165 @@
+{
+ "rule": "official-night-order",
+ "detail": "harlot woke out of the sheet's order on night 3",
+ "seed": 102332,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen"
+   ],
+   "scriptId": "sects-and-violets"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "cerenovus",
+    "no-dashii",
+    "savant",
+    "seamstress",
+    "town-crier",
+    "flowergirl",
+    "snake-charmer"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "barber",
+    "philosopher",
+    "oracle"
+   ],
+   "fabled": [
+    {
+     "id": "toymaker"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ],
+   "character": "snake-charmer"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "same",
+    "players": [
+     4,
+     2
+    ],
+    "yes": true
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "swap-seats",
+   "a": 3,
+   "b": 6
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T7",
+   "character": "deviant",
+   "alignment": "good",
+   "after": 1
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T8",
+   "character": "bone-collector",
+   "alignment": "good",
+   "after": 6
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T9",
+   "character": "harlot",
+   "alignment": "good",
+   "after": 0
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5
+   ],
+   "harlot": "both-die"
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ],
+   "character": "snake-charmer"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "yesno",
+    "yes": true
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    9
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ],
+   "harlot": "shown"
+  }
+ ]
+}

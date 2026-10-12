@@ -1,0 +1,138 @@
+{
+ "rule": "monk-protects",
+ "detail": "Cael(butler) died though the Monk protected them",
+ "seed": 15,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior",
+    "Maud",
+    "Ned"
+   ],
+   "scriptId": "trouble-brewing"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "saint",
+    "monk",
+    "butler",
+    "baron",
+    "ravenkeeper",
+    "undertaker",
+    "scarlet-woman",
+    "spy",
+    "fortune-teller",
+    "empath",
+    "imp",
+    "recluse",
+    "librarian",
+    "slayer"
+   ],
+   "redHerring": 8,
+   "bluffs": [
+    "mayor",
+    "soldier",
+    "washerwoman"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "pair",
+    "players": [
+     7,
+     13
+    ],
+    "character": "butler"
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 1
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     5,
+     12
+    ],
+    "yes": false
+   }
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ]
+  }
+ ]
+}

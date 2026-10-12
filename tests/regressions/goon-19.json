@@ -1,0 +1,53 @@
+{
+ "rule": "goon",
+ "detail": "Hal chose the Goon first tonight and was not made drunk",
+ "seed": 19,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal"
+   ],
+   "scriptId": "bad-moon-rising"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "goon",
+    "minstrel",
+    "professor",
+    "chambermaid",
+    "pacifist",
+    "courtier",
+    "pukka",
+    "devils-advocate"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "tea-lady",
+    "tinker",
+    "gambler"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "choose",
+   "character": "minstrel"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ]
+  }
+ ]
+}

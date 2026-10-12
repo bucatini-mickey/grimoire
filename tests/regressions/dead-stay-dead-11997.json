@@ -1,0 +1,265 @@
+{
+ "rule": "dead-stay-dead",
+ "detail": "Ada(snake-charmer) became the Demon while dead",
+ "seed": 11997,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior",
+    "Maud"
+   ],
+   "scriptId": "sects-and-violets"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "witch",
+    "clockmaker",
+    "seamstress",
+    "dreamer",
+    "cerenovus",
+    "mathematician",
+    "sage",
+    "town-crier",
+    "pit-hag",
+    "vigormortis",
+    "artist",
+    "oracle",
+    "savant"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "flowergirl",
+    "sweetheart",
+    "barber"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ],
+   "character": "clockmaker"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 1
+   }
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "same",
+    "players": [
+     11,
+     4
+    ],
+    "yes": false
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 8,
+   "nominee": 0
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    3,
+    4,
+    5,
+    7,
+    8,
+    9,
+    12
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ],
+   "character": "dreamer"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    12
+   ],
+   "character": "klutz"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "dream",
+    "player": 10,
+    "characters": [
+     "artist",
+     "evil-twin"
+    ]
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "yesno",
+    "yes": true
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 1
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ],
+   "character": "dreamer"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ],
+   "character": "snake-charmer"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    12
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "dream",
+    "player": 4,
+    "characters": [
+     "cerenovus",
+     "clockmaker"
+    ]
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "yesno",
+    "yes": false
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 1
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    9
+   ]
+  }
+ ]
+}

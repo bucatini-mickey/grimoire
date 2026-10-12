@@ -1,0 +1,102 @@
+{
+ "rule": "fang-gu",
+ "detail": "the Fang Gu chose Esme, an Outsider, and did not jump",
+ "seed": 14,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal"
+   ],
+   "scriptId": "sects-and-violets"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "pit-hag",
+    "seamstress",
+    "fang-gu",
+    "town-crier",
+    "sweetheart",
+    "mathematician",
+    "klutz",
+    "philosopher"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "artist",
+    "sage",
+    "dreamer"
+   ],
+   "fabled": [
+    {
+     "id": "ferryman"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "choose",
+   "character": "savant"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "same",
+    "players": [
+     3,
+     6
+    ],
+    "yes": true
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  }
+ ]
+}

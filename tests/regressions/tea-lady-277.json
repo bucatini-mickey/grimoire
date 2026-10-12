@@ -1,0 +1,177 @@
+{
+ "rule": "tea-lady",
+ "detail": "Dorn(goon) died though the Tea Lady protects them",
+ "seed": 277,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde"
+   ],
+   "scriptId": "bad-moon-rising"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "professor",
+    "lunatic",
+    "innkeeper",
+    "goon",
+    "zombuul",
+    "gossip",
+    "mastermind",
+    "grandmother",
+    "tea-lady"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "courtier",
+    "moonchild",
+    "exorcist"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "reveal",
+    "player": 0,
+    "character": "professor"
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5,
+    1
+   ],
+   "drunk": 5
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ]
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ]
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ]
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "swap-seats",
+   "a": 0,
+   "b": 6
+  },
+  {
+   "type": "nominate",
+   "nominator": 3,
+   "nominee": 3
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    1,
+    5,
+    7
+   ]
+  },
+  {
+   "type": "end-day"
+  }
+ ]
+}

@@ -1,0 +1,61 @@
+{
+ "rule": "character-change",
+ "detail": "T10(apprentice) became the devils-advocate by apprentice",
+ "seed": 25,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory"
+   ],
+   "scriptId": "bad-moon-rising"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "fool",
+    "tea-lady",
+    "pacifist",
+    "mastermind",
+    "devils-advocate",
+    "innkeeper",
+    "zombuul",
+    "gossip",
+    "courtier",
+    "professor"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "sailor",
+    "grandmother",
+    "gambler"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T10",
+   "character": "apprentice",
+   "alignment": "evil",
+   "after": 6
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "character": "devils-advocate"
+  }
+ ]
+}

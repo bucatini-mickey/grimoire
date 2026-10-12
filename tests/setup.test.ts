@@ -55,11 +55,16 @@ test('bluffs are three good characters not in play, and only from 7 players', ()
 	ok(created(5), { type: 'assign', characters: ['imp', 'poisoner', 'chef', 'empath', 'monk'], bluffs: [] });
 });
 
-test('random deals are always legal, for every player count', () => {
-	for (let n = MIN_PLAYERS; n <= MAX_PLAYERS; n++) {
-		for (let seed = 1; seed <= 60; seed++) {
-			const r = performAll(created(n), [randomDeal(TB, n, seed * 7919 + n), { type: 'begin' }]);
-			assert.ok(r.ok, `n=${n} seed=${seed}: ${!r.ok && r.error}`);
+test('random deals are always legal, for every script and player count', () => {
+	// Bad Moon Rising: the Godfather's one fewer Outsider is impossible with none to remove.
+	for (const id of ['trouble-brewing', 'bad-moon-rising']) {
+		const sc = getScript(id);
+		for (let n = MIN_PLAYERS; n <= MAX_PLAYERS; n++) {
+			for (let seed = 1; seed <= 60; seed++) {
+				const start = ok(emptyState(), { type: 'create', names: NAMES.slice(0, n), scriptId: id });
+				const r = performAll(start, [randomDeal(sc, n, seed * 7919 + n), { type: 'begin' }]);
+				assert.ok(r.ok, `${id} n=${n} seed=${seed}: ${!r.ok && r.error}`);
+			}
 		}
 	}
 });

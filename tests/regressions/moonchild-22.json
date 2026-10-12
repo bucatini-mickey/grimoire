@@ -1,0 +1,494 @@
+{
+ "rule": "moonchild",
+ "detail": "Maud(moonchild) chose a second time as the Moonchild",
+ "seed": 22,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior",
+    "Maud",
+    "Ned",
+    "Orla"
+   ],
+   "scriptId": "bad-moon-rising"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "devils-advocate",
+    "assassin",
+    "exorcist",
+    "minstrel",
+    "chambermaid",
+    "gambler",
+    "professor",
+    "innkeeper",
+    "goon",
+    "fool",
+    "courtier",
+    "pukka",
+    "moonchild",
+    "gossip",
+    "mastermind"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "lunatic",
+    "tea-lady",
+    "grandmother"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "character": "sailor"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    12
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ]
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    14,
+    9
+   ],
+   "drunk": 9
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ],
+   "character": "grandmother"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    13
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    9
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ]
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     14,
+     10
+    ],
+    "value": 0
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    12,
+    7
+   ],
+   "drunk": 12
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    14
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    9
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     13,
+     8
+    ],
+    "value": 0
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    9,
+    0
+   ],
+   "drunk": 0
+  },
+  {
+   "type": "choose",
+   "targets": [
+    14
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    9
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     0,
+     9
+    ],
+    "value": 1
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7,
+    3
+   ],
+   "drunk": 7
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     2,
+     13
+    ],
+    "value": 1
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 13,
+   "nominee": 7
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    2,
+    4,
+    7,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "type": "gossip",
+   "by": 13,
+   "true": true
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    11
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    14
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    14
+   ]
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 11,
+   "nominee": 0
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    2,
+    8,
+    9,
+    13
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    11
+   ]
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 8,
+   "nominee": 2
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    2,
+    8,
+    12,
+    13,
+    14
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ]
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 12,
+   "nominee": 12
+  },
+  {
+   "type": "vote",
+   "voters": [
+    9,
+    12,
+    13
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T15",
+   "character": "apprentice",
+   "alignment": "good",
+   "after": 9
+  },
+  {
+   "type": "moonchild",
+   "by": 12,
+   "target": 11
+  },
+  {
+   "type": "choose",
+   "character": "professor"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    15
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "moonchild",
+   "by": 12,
+   "target": 3
+  }
+ ]
+}

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { perform, chefNumbers, empathNumbers, fortuneAnswers, judgeInfo, librarianNoneIsTrue, livingNeighbours } from '../src/core/index.ts';
+import { perform, chefNumbers, empathNumbers, fortuneAnswers, judgeInfo, librarianNoneIsTrue, livingNeighbours, isPoisoned } from '../src/core/index.ts';
 import { game, ok, refused, next } from './helpers.ts';
 
 // Seats: 0 Ada imp, 1 Bram washerwoman, 2 Cael poisoner, 3 Dorn empath, 4 Esme monk, 5 Fenn soldier, 6 Gwen chef
@@ -21,7 +21,7 @@ test('true information is accepted, false is refused for a healthy player', () =
 test('a poisoned player may be told anything well-formed, and it is logged as false', () => {
 	const s = toWasherwoman(1);
 	const r = ok(s, { type: 'tell', info: { kind: 'pair', players: [5, 6], character: 'monk' } });
-	assert.equal(r.poison?.target, 1);
+	assert.equal(isPoisoned(r, 1), true);
 	refused(s, { type: 'tell', info: { kind: 'number', value: 2 } }, /two players/);
 });
 
@@ -82,7 +82,7 @@ test('the Drunk is always an Outsider: "no Outsiders" is false with a Drunk in p
 
 test('a poisoned Spy or Recluse registers as what they are', () => {
 	const s = game(['imp', 'recluse', 'empath', 'chef', 'monk', 'soldier', 'poisoner']);
-	s.poison = { by: 6, target: 1 };
+	s.effects.push({ kind: 'poisoned', target: 1, by: 6, role: 'poisoner', until: 'dusk', endsWithSource: true });
 	assert.deepEqual(empathNumbers(s, 2), [0]);
 	assert.deepEqual(fortuneAnswers(s, [1, 4]), [false]);
 });

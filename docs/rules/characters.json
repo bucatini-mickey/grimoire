@@ -1,0 +1,2523 @@
+{
+ "source": "ThePandemoniumInstitute/botc-release resources/data (roles.json, nightsheet.json), facts only: no ability text",
+ "fetched": "2026-10-11",
+ "nightSheet": {
+  "firstNight": [
+   "dusk",
+   "angel",
+   "buddhist",
+   "toymaker",
+   "stormcatcher",
+   "wraith",
+   "lordoftyphon",
+   "kazali",
+   "apprentice",
+   "barista",
+   "bureaucrat",
+   "thief",
+   "boffin",
+   "philosopher",
+   "alchemist",
+   "poppygrower",
+   "yaggababble",
+   "magician",
+   "tor",
+   "minioninfo",
+   "snitch",
+   "lunatic",
+   "summoner",
+   "demoninfo",
+   "king",
+   "sailor",
+   "marionette",
+   "engineer",
+   "preacher",
+   "lilmonsta",
+   "lleech",
+   "xaan",
+   "poisoner",
+   "widow",
+   "courtier",
+   "wizard",
+   "snakecharmer",
+   "godfather",
+   "organgrinder",
+   "devilsadvocate",
+   "eviltwin",
+   "witch",
+   "cerenovus",
+   "fearmonger",
+   "harpy",
+   "mezepheles",
+   "pukka",
+   "pixie",
+   "huntsman",
+   "damsel",
+   "amnesiac",
+   "washerwoman",
+   "librarian",
+   "investigator",
+   "chef",
+   "empath",
+   "fortuneteller",
+   "butler",
+   "grandmother",
+   "clockmaker",
+   "dreamer",
+   "seamstress",
+   "steward",
+   "knight",
+   "noble",
+   "balloonist",
+   "shugenja",
+   "villageidiot",
+   "bountyhunter",
+   "nightwatchman",
+   "cultleader",
+   "spy",
+   "ogre",
+   "highpriestess",
+   "general",
+   "chambermaid",
+   "mathematician",
+   "dawn",
+   "leviathan",
+   "vizier"
+  ],
+  "otherNight": [
+   "dusk",
+   "duchess",
+   "toymaker",
+   "wraith",
+   "cacklejack",
+   "barista",
+   "bureaucrat",
+   "thief",
+   "harlot",
+   "bonecollector",
+   "philosopher",
+   "poppygrower",
+   "sailor",
+   "engineer",
+   "preacher",
+   "xaan",
+   "poisoner",
+   "courtier",
+   "innkeeper",
+   "wizard",
+   "gambler",
+   "acrobat",
+   "snakecharmer",
+   "monk",
+   "organgrinder",
+   "devilsadvocate",
+   "witch",
+   "cerenovus",
+   "pithag",
+   "fearmonger",
+   "harpy",
+   "mezepheles",
+   "scarletwoman",
+   "summoner",
+   "lunatic",
+   "exorcist",
+   "lycanthrope",
+   "princess",
+   "legion",
+   "imp",
+   "zombuul",
+   "pukka",
+   "shabaloth",
+   "po",
+   "fanggu",
+   "nodashii",
+   "vortox",
+   "lordoftyphon",
+   "vigormortis",
+   "ojo",
+   "alhadikhia",
+   "lleech",
+   "lilmonsta",
+   "yaggababble",
+   "kazali",
+   "assassin",
+   "godfather",
+   "gossip",
+   "hatter",
+   "barber",
+   "sweetheart",
+   "plaguedoctor",
+   "sage",
+   "banshee",
+   "professor",
+   "choirboy",
+   "huntsman",
+   "damsel",
+   "amnesiac",
+   "farmer",
+   "tinker",
+   "moonchild",
+   "grandmother",
+   "tor",
+   "ravenkeeper",
+   "empath",
+   "fortuneteller",
+   "undertaker",
+   "dreamer",
+   "flowergirl",
+   "towncrier",
+   "oracle",
+   "seamstress",
+   "juggler",
+   "balloonist",
+   "villageidiot",
+   "king",
+   "bountyhunter",
+   "nightwatchman",
+   "cultleader",
+   "butler",
+   "spy",
+   "highpriestess",
+   "general",
+   "chambermaid",
+   "mathematician",
+   "riot",
+   "dawn",
+   "leviathan"
+  ]
+ },
+ "characters": [
+  {
+   "id": "steward",
+   "name": "Steward",
+   "team": "townsfolk",
+   "edition": "carousel",
+   "firstNight": 63,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "Know"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "knight",
+   "name": "Knight",
+   "team": "townsfolk",
+   "edition": "carousel",
+   "firstNight": 64,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "Know",
+    "Know"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "chef",
+   "name": "Chef",
+   "team": "townsfolk",
+   "edition": "tb",
+   "firstNight": 55,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "noble",
+   "name": "Noble",
+   "team": "townsfolk",
+   "edition": "carousel",
+   "firstNight": 65,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "Know",
+    "Know",
+    "Know"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "investigator",
+   "name": "Investigator",
+   "team": "townsfolk",
+   "edition": "tb",
+   "firstNight": 54,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "Minion",
+    "Wrong"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "washerwoman",
+   "name": "Washerwoman",
+   "team": "townsfolk",
+   "edition": "tb",
+   "firstNight": 52,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "Townsfolk",
+    "Wrong"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "clockmaker",
+   "name": "Clockmaker",
+   "team": "townsfolk",
+   "edition": "snv",
+   "firstNight": 60,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "grandmother",
+   "name": "Grandmother",
+   "team": "townsfolk",
+   "edition": "bmr",
+   "firstNight": 59,
+   "otherNight": 73,
+   "setup": false,
+   "reminders": [
+    "Grandchild",
+    "Dead"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "librarian",
+   "name": "Librarian",
+   "team": "townsfolk",
+   "edition": "tb",
+   "firstNight": 53,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "Outsider",
+    "Wrong"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "shugenja",
+   "name": "Shugenja",
+   "team": "townsfolk",
+   "edition": "carousel",
+   "firstNight": 67,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "pixie",
+   "name": "Pixie",
+   "team": "townsfolk",
+   "edition": "carousel",
+   "firstNight": 48,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "Mad",
+    "Has Ability"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "bountyhunter",
+   "name": "Bounty Hunter",
+   "team": "townsfolk",
+   "edition": "carousel",
+   "firstNight": 69,
+   "otherNight": 88,
+   "setup": true,
+   "reminders": [
+    "Know"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "empath",
+   "name": "Empath",
+   "team": "townsfolk",
+   "edition": "tb",
+   "firstNight": 56,
+   "otherNight": 76,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "highpriestess",
+   "name": "High Priestess",
+   "team": "townsfolk",
+   "edition": "carousel",
+   "firstNight": 74,
+   "otherNight": 93,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "sailor",
+   "name": "Sailor",
+   "team": "townsfolk",
+   "edition": "bmr",
+   "firstNight": 26,
+   "otherNight": 13,
+   "setup": false,
+   "reminders": [
+    "Drunk"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "balloonist",
+   "name": "Balloonist",
+   "team": "townsfolk",
+   "edition": "carousel",
+   "firstNight": 66,
+   "otherNight": 85,
+   "setup": true,
+   "reminders": [
+    "Know"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "general",
+   "name": "General",
+   "team": "townsfolk",
+   "edition": "carousel",
+   "firstNight": 75,
+   "otherNight": 94,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "preacher",
+   "name": "Preacher",
+   "team": "townsfolk",
+   "edition": "carousel",
+   "firstNight": 29,
+   "otherNight": 15,
+   "setup": false,
+   "reminders": [
+    "No Ability",
+    "No Ability",
+    "No Ability"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "chambermaid",
+   "name": "Chambermaid",
+   "team": "townsfolk",
+   "edition": "bmr",
+   "firstNight": 76,
+   "otherNight": 95,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "villageidiot",
+   "name": "Village Idiot",
+   "team": "townsfolk",
+   "edition": "carousel",
+   "firstNight": 68,
+   "otherNight": 86,
+   "setup": true,
+   "reminders": [
+    "Drunk"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "snakecharmer",
+   "name": "Snake Charmer",
+   "team": "townsfolk",
+   "edition": "snv",
+   "firstNight": 37,
+   "otherNight": 23,
+   "setup": false,
+   "reminders": [
+    "Poisoned"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "mathematician",
+   "name": "Mathematician",
+   "team": "townsfolk",
+   "edition": "snv",
+   "firstNight": 77,
+   "otherNight": 96,
+   "setup": false,
+   "reminders": [
+    "Abnormal",
+    "Abnormal",
+    "Abnormal",
+    "Abnormal",
+    "Abnormal"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "king",
+   "name": "King",
+   "team": "townsfolk",
+   "edition": "carousel",
+   "firstNight": 25,
+   "otherNight": 87,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "dreamer",
+   "name": "Dreamer",
+   "team": "townsfolk",
+   "edition": "snv",
+   "firstNight": 61,
+   "otherNight": 79,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "fortuneteller",
+   "name": "Fortune Teller",
+   "team": "townsfolk",
+   "edition": "tb",
+   "firstNight": 57,
+   "otherNight": 77,
+   "setup": false,
+   "reminders": [
+    "Red Herring"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "cultleader",
+   "name": "Cult Leader",
+   "team": "townsfolk",
+   "edition": "carousel",
+   "firstNight": 71,
+   "otherNight": 90,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "flowergirl",
+   "name": "Flowergirl",
+   "team": "townsfolk",
+   "edition": "snv",
+   "firstNight": null,
+   "otherNight": 80,
+   "setup": false,
+   "reminders": [
+    "Demon Voted",
+    "Demon Not Voted"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "towncrier",
+   "name": "Town Crier",
+   "team": "townsfolk",
+   "edition": "snv",
+   "firstNight": null,
+   "otherNight": 81,
+   "setup": false,
+   "reminders": [
+    "Minions Not Nominated",
+    "Minion Nominated"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "oracle",
+   "name": "Oracle",
+   "team": "townsfolk",
+   "edition": "snv",
+   "firstNight": null,
+   "otherNight": 82,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "undertaker",
+   "name": "Undertaker",
+   "team": "townsfolk",
+   "edition": "tb",
+   "firstNight": null,
+   "otherNight": 78,
+   "setup": false,
+   "reminders": [
+    "Died Today"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "innkeeper",
+   "name": "Innkeeper",
+   "team": "townsfolk",
+   "edition": "bmr",
+   "firstNight": null,
+   "otherNight": 19,
+   "setup": false,
+   "reminders": [
+    "Safe",
+    "Safe",
+    "Drunk"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "monk",
+   "name": "Monk",
+   "team": "townsfolk",
+   "edition": "tb",
+   "firstNight": null,
+   "otherNight": 24,
+   "setup": false,
+   "reminders": [
+    "Safe"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "gambler",
+   "name": "Gambler",
+   "team": "townsfolk",
+   "edition": "bmr",
+   "firstNight": null,
+   "otherNight": 21,
+   "setup": false,
+   "reminders": [
+    "Dead"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "acrobat",
+   "name": "Acrobat",
+   "team": "townsfolk",
+   "edition": "carousel",
+   "firstNight": null,
+   "otherNight": 22,
+   "setup": false,
+   "reminders": [
+    "Dead",
+    "Chosen"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "exorcist",
+   "name": "Exorcist",
+   "team": "townsfolk",
+   "edition": "bmr",
+   "firstNight": null,
+   "otherNight": 36,
+   "setup": false,
+   "reminders": [
+    "Chosen"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "lycanthrope",
+   "name": "Lycanthrope",
+   "team": "townsfolk",
+   "edition": "carousel",
+   "firstNight": null,
+   "otherNight": 37,
+   "setup": false,
+   "reminders": [
+    "Faux Paw",
+    "Dead"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "gossip",
+   "name": "Gossip",
+   "team": "townsfolk",
+   "edition": "bmr",
+   "firstNight": null,
+   "otherNight": 58,
+   "setup": false,
+   "reminders": [
+    "Dead"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "savant",
+   "name": "Savant",
+   "team": "townsfolk",
+   "edition": "snv",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "alsaahir",
+   "name": "Alsaahir",
+   "team": "townsfolk",
+   "edition": "carousel",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "engineer",
+   "name": "Engineer",
+   "team": "townsfolk",
+   "edition": "carousel",
+   "firstNight": 28,
+   "otherNight": 14,
+   "setup": false,
+   "reminders": [
+    "No Ability"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "nightwatchman",
+   "name": "Nightwatchman",
+   "team": "townsfolk",
+   "edition": "carousel",
+   "firstNight": 70,
+   "otherNight": 89,
+   "setup": false,
+   "reminders": [
+    "No Ability"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "courtier",
+   "name": "Courtier",
+   "team": "townsfolk",
+   "edition": "bmr",
+   "firstNight": 35,
+   "otherNight": 18,
+   "setup": false,
+   "reminders": [
+    "Drunk 3",
+    "Drunk 2",
+    "Drunk 1",
+    "No Ability"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "seamstress",
+   "name": "Seamstress",
+   "team": "townsfolk",
+   "edition": "snv",
+   "firstNight": 62,
+   "otherNight": 83,
+   "setup": false,
+   "reminders": [
+    "No Ability"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "philosopher",
+   "name": "Philosopher",
+   "team": "townsfolk",
+   "edition": "snv",
+   "firstNight": 14,
+   "otherNight": 11,
+   "setup": false,
+   "reminders": [
+    "Drunk"
+   ],
+   "remindersGlobal": [
+    "Is The Philosopher"
+   ]
+  },
+  {
+   "id": "huntsman",
+   "name": "Huntsman",
+   "team": "townsfolk",
+   "edition": "carousel",
+   "firstNight": 49,
+   "otherNight": 67,
+   "setup": true,
+   "reminders": [
+    "No Ability"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "professor",
+   "name": "Professor",
+   "team": "townsfolk",
+   "edition": "bmr",
+   "firstNight": null,
+   "otherNight": 65,
+   "setup": false,
+   "reminders": [
+    "Alive",
+    "No Ability"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "artist",
+   "name": "Artist",
+   "team": "townsfolk",
+   "edition": "snv",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "No Ability"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "slayer",
+   "name": "Slayer",
+   "team": "townsfolk",
+   "edition": "tb",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "No Ability"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "fisherman",
+   "name": "Fisherman",
+   "team": "townsfolk",
+   "edition": "carousel",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "No Ability"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "princess",
+   "name": "Princess",
+   "team": "townsfolk",
+   "edition": "carousel",
+   "firstNight": null,
+   "otherNight": 38,
+   "setup": false,
+   "reminders": [
+    "Doesn't Kill"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "juggler",
+   "name": "Juggler",
+   "team": "townsfolk",
+   "edition": "snv",
+   "firstNight": null,
+   "otherNight": 84,
+   "setup": false,
+   "reminders": [
+    "Correct",
+    "Correct",
+    "Correct",
+    "Correct",
+    "Correct"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "soldier",
+   "name": "Soldier",
+   "team": "townsfolk",
+   "edition": "tb",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "alchemist",
+   "name": "Alchemist",
+   "team": "townsfolk",
+   "edition": "carousel",
+   "firstNight": 15,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": [
+    "Is The Alchemist"
+   ]
+  },
+  {
+   "id": "cannibal",
+   "name": "Cannibal",
+   "team": "townsfolk",
+   "edition": "carousel",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "Poisoned",
+    "Lunch"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "amnesiac",
+   "name": "Amnesiac",
+   "team": "townsfolk",
+   "edition": "carousel",
+   "firstNight": 51,
+   "otherNight": 69,
+   "setup": false,
+   "reminders": [
+    "?",
+    "?",
+    "?"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "farmer",
+   "name": "Farmer",
+   "team": "townsfolk",
+   "edition": "carousel",
+   "firstNight": null,
+   "otherNight": 70,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "minstrel",
+   "name": "Minstrel",
+   "team": "townsfolk",
+   "edition": "bmr",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "Everyone Is Drunk"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "ravenkeeper",
+   "name": "Ravenkeeper",
+   "team": "townsfolk",
+   "edition": "tb",
+   "firstNight": null,
+   "otherNight": 75,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "sage",
+   "name": "Sage",
+   "team": "townsfolk",
+   "edition": "snv",
+   "firstNight": null,
+   "otherNight": 63,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "choirboy",
+   "name": "Choirboy",
+   "team": "townsfolk",
+   "edition": "carousel",
+   "firstNight": null,
+   "otherNight": 66,
+   "setup": true,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "banshee",
+   "name": "Banshee",
+   "team": "townsfolk",
+   "edition": "carousel",
+   "firstNight": null,
+   "otherNight": 64,
+   "setup": false,
+   "reminders": [
+    "Has Ability"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "tealady",
+   "name": "Tea Lady",
+   "team": "townsfolk",
+   "edition": "bmr",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "Cannot Die",
+    "Cannot Die"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "mayor",
+   "name": "Mayor",
+   "team": "townsfolk",
+   "edition": "tb",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "fool",
+   "name": "Fool",
+   "team": "townsfolk",
+   "edition": "bmr",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "No Ability"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "virgin",
+   "name": "Virgin",
+   "team": "townsfolk",
+   "edition": "tb",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "No Ability"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "magician",
+   "name": "Magician",
+   "team": "townsfolk",
+   "edition": "carousel",
+   "firstNight": 18,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "poppygrower",
+   "name": "Poppy Grower",
+   "team": "townsfolk",
+   "edition": "carousel",
+   "firstNight": 16,
+   "otherNight": 12,
+   "setup": false,
+   "reminders": [
+    "Evil Wakes"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "pacifist",
+   "name": "Pacifist",
+   "team": "townsfolk",
+   "edition": "bmr",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "atheist",
+   "name": "Atheist",
+   "team": "townsfolk",
+   "edition": "carousel",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": true,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "hermit",
+   "name": "Hermit",
+   "team": "outsider",
+   "edition": "carousel",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": true,
+   "reminders": [
+    "1",
+    "2",
+    "3"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "butler",
+   "name": "Butler",
+   "team": "outsider",
+   "edition": "tb",
+   "firstNight": 58,
+   "otherNight": 91,
+   "setup": false,
+   "reminders": [
+    "Master"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "goon",
+   "name": "Goon",
+   "team": "outsider",
+   "edition": "bmr",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "Drunk"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "ogre",
+   "name": "Ogre",
+   "team": "outsider",
+   "edition": "carousel",
+   "firstNight": 73,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "Friend"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "lunatic",
+   "name": "Lunatic",
+   "team": "outsider",
+   "edition": "bmr",
+   "firstNight": 22,
+   "otherNight": 35,
+   "setup": false,
+   "reminders": [
+    "Chosen",
+    "Chosen",
+    "Chosen"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "drunk",
+   "name": "Drunk",
+   "team": "outsider",
+   "edition": "tb",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": true,
+   "reminders": [],
+   "remindersGlobal": [
+    "Is The Drunk"
+   ]
+  },
+  {
+   "id": "tinker",
+   "name": "Tinker",
+   "team": "outsider",
+   "edition": "bmr",
+   "firstNight": null,
+   "otherNight": 71,
+   "setup": false,
+   "reminders": [
+    "Dead"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "recluse",
+   "name": "Recluse",
+   "team": "outsider",
+   "edition": "tb",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "golem",
+   "name": "Golem",
+   "team": "outsider",
+   "edition": "carousel",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "May Not Nominate"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "sweetheart",
+   "name": "Sweetheart",
+   "team": "outsider",
+   "edition": "snv",
+   "firstNight": null,
+   "otherNight": 61,
+   "setup": false,
+   "reminders": [
+    "Drunk"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "plaguedoctor",
+   "name": "Plague Doctor",
+   "team": "outsider",
+   "edition": "carousel",
+   "firstNight": null,
+   "otherNight": 62,
+   "setup": false,
+   "reminders": [
+    "Storyteller Ability"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "klutz",
+   "name": "Klutz",
+   "team": "outsider",
+   "edition": "snv",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "moonchild",
+   "name": "Moonchild",
+   "team": "outsider",
+   "edition": "bmr",
+   "firstNight": null,
+   "otherNight": 72,
+   "setup": false,
+   "reminders": [
+    "Dead"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "saint",
+   "name": "Saint",
+   "team": "outsider",
+   "edition": "tb",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "barber",
+   "name": "Barber",
+   "team": "outsider",
+   "edition": "snv",
+   "firstNight": null,
+   "otherNight": 60,
+   "setup": false,
+   "reminders": [
+    "Haircuts Tonight"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "hatter",
+   "name": "Hatter",
+   "team": "outsider",
+   "edition": "carousel",
+   "firstNight": null,
+   "otherNight": 59,
+   "setup": false,
+   "reminders": [
+    "Tea Party Tonight"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "mutant",
+   "name": "Mutant",
+   "team": "outsider",
+   "edition": "snv",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "politician",
+   "name": "Politician",
+   "team": "outsider",
+   "edition": "carousel",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "zealot",
+   "name": "Zealot",
+   "team": "outsider",
+   "edition": "carousel",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "damsel",
+   "name": "Damsel",
+   "team": "outsider",
+   "edition": "carousel",
+   "firstNight": 50,
+   "otherNight": 68,
+   "setup": false,
+   "reminders": [
+    "Guess Used"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "snitch",
+   "name": "Snitch",
+   "team": "outsider",
+   "edition": "carousel",
+   "firstNight": 21,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "heretic",
+   "name": "Heretic",
+   "team": "outsider",
+   "edition": "carousel",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "puzzlemaster",
+   "name": "Puzzlemaster",
+   "team": "outsider",
+   "edition": "carousel",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "Drunk",
+    "Guess Used"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "mezepheles",
+   "name": "Mezepheles",
+   "team": "minion",
+   "edition": "carousel",
+   "firstNight": 46,
+   "otherNight": 32,
+   "setup": false,
+   "reminders": [
+    "Turns Evil",
+    "No Ability"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "godfather",
+   "name": "Godfather",
+   "team": "minion",
+   "edition": "bmr",
+   "firstNight": 38,
+   "otherNight": 57,
+   "setup": true,
+   "reminders": [
+    "Died Today",
+    "Dead"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "poisoner",
+   "name": "Poisoner",
+   "team": "minion",
+   "edition": "tb",
+   "firstNight": 33,
+   "otherNight": 17,
+   "setup": false,
+   "reminders": [
+    "Poisoned"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "devilsadvocate",
+   "name": "Devil's Advocate",
+   "team": "minion",
+   "edition": "bmr",
+   "firstNight": 40,
+   "otherNight": 26,
+   "setup": false,
+   "reminders": [
+    "Survives Execution"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "spy",
+   "name": "Spy",
+   "team": "minion",
+   "edition": "tb",
+   "firstNight": 72,
+   "otherNight": 92,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "harpy",
+   "name": "Harpy",
+   "team": "minion",
+   "edition": "carousel",
+   "firstNight": 45,
+   "otherNight": 31,
+   "setup": false,
+   "reminders": [
+    "Mad",
+    "2nd"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "witch",
+   "name": "Witch",
+   "team": "minion",
+   "edition": "snv",
+   "firstNight": 42,
+   "otherNight": 27,
+   "setup": false,
+   "reminders": [
+    "Cursed"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "cerenovus",
+   "name": "Cerenovus",
+   "team": "minion",
+   "edition": "snv",
+   "firstNight": 43,
+   "otherNight": 28,
+   "setup": false,
+   "reminders": [
+    "Mad"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "fearmonger",
+   "name": "Fearmonger",
+   "team": "minion",
+   "edition": "carousel",
+   "firstNight": 44,
+   "otherNight": 30,
+   "setup": false,
+   "reminders": [
+    "Fear"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "pithag",
+   "name": "Pit-Hag",
+   "team": "minion",
+   "edition": "snv",
+   "firstNight": null,
+   "otherNight": 29,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "psychopath",
+   "name": "Psychopath",
+   "team": "minion",
+   "edition": "carousel",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "assassin",
+   "name": "Assassin",
+   "team": "minion",
+   "edition": "bmr",
+   "firstNight": null,
+   "otherNight": 56,
+   "setup": false,
+   "reminders": [
+    "Dead",
+    "No Ability"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "wizard",
+   "name": "Wizard",
+   "team": "minion",
+   "edition": "carousel",
+   "firstNight": 36,
+   "otherNight": 20,
+   "setup": false,
+   "reminders": [
+    "?",
+    "?"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "widow",
+   "name": "Widow",
+   "team": "minion",
+   "edition": "carousel",
+   "firstNight": 34,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "Poisoned",
+    "Know"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "xaan",
+   "name": "Xaan",
+   "team": "minion",
+   "edition": "carousel",
+   "firstNight": 32,
+   "otherNight": 16,
+   "setup": true,
+   "reminders": [
+    "Night 1",
+    "Night 2",
+    "Night 3",
+    "X"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "marionette",
+   "name": "Marionette",
+   "team": "minion",
+   "edition": "carousel",
+   "firstNight": 27,
+   "otherNight": null,
+   "setup": true,
+   "reminders": [],
+   "remindersGlobal": [
+    "Is The Marionette"
+   ]
+  },
+  {
+   "id": "wraith",
+   "name": "Wraith",
+   "team": "minion",
+   "edition": "carousel",
+   "firstNight": 6,
+   "otherNight": 4,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "summoner",
+   "name": "Summoner",
+   "team": "minion",
+   "edition": "carousel",
+   "firstNight": 23,
+   "otherNight": 34,
+   "setup": true,
+   "reminders": [
+    "Night 1",
+    "Night 2",
+    "Night 3"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "eviltwin",
+   "name": "Evil Twin",
+   "team": "minion",
+   "edition": "snv",
+   "firstNight": 41,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "Twin"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "goblin",
+   "name": "Goblin",
+   "team": "minion",
+   "edition": "carousel",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "Claimed"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "boomdandy",
+   "name": "Boomdandy",
+   "team": "minion",
+   "edition": "carousel",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "mastermind",
+   "name": "Mastermind",
+   "team": "minion",
+   "edition": "bmr",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "scarletwoman",
+   "name": "Scarlet Woman",
+   "team": "minion",
+   "edition": "tb",
+   "firstNight": null,
+   "otherNight": 33,
+   "setup": false,
+   "reminders": [
+    "Is The Demon"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "vizier",
+   "name": "Vizier",
+   "team": "minion",
+   "edition": "carousel",
+   "firstNight": 80,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "organgrinder",
+   "name": "Organ Grinder",
+   "team": "minion",
+   "edition": "carousel",
+   "firstNight": 39,
+   "otherNight": 25,
+   "setup": false,
+   "reminders": [
+    "About To Die",
+    "Drunk"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "boffin",
+   "name": "Boffin",
+   "team": "minion",
+   "edition": "carousel",
+   "firstNight": 13,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "baron",
+   "name": "Baron",
+   "team": "minion",
+   "edition": "tb",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": true,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "yaggababble",
+   "name": "Yaggababble",
+   "team": "demon",
+   "edition": "carousel",
+   "firstNight": 17,
+   "otherNight": 54,
+   "setup": false,
+   "reminders": [
+    "Dead",
+    "Dead",
+    "Dead"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "pukka",
+   "name": "Pukka",
+   "team": "demon",
+   "edition": "bmr",
+   "firstNight": 47,
+   "otherNight": 42,
+   "setup": false,
+   "reminders": [
+    "Poisoned",
+    "Poisoned",
+    "Dead"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "lilmonsta",
+   "name": "Lil' Monsta",
+   "team": "demon",
+   "edition": "carousel",
+   "firstNight": 30,
+   "otherNight": 53,
+   "setup": true,
+   "reminders": [],
+   "remindersGlobal": [
+    "Is The Demon",
+    "Dead"
+   ]
+  },
+  {
+   "id": "nodashii",
+   "name": "No Dashii",
+   "team": "demon",
+   "edition": "snv",
+   "firstNight": null,
+   "otherNight": 46,
+   "setup": false,
+   "reminders": [
+    "Dead",
+    "Poisoned",
+    "Poisoned"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "imp",
+   "name": "Imp",
+   "team": "demon",
+   "edition": "tb",
+   "firstNight": null,
+   "otherNight": 40,
+   "setup": false,
+   "reminders": [
+    "Dead"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "shabaloth",
+   "name": "Shabaloth",
+   "team": "demon",
+   "edition": "bmr",
+   "firstNight": null,
+   "otherNight": 43,
+   "setup": false,
+   "reminders": [
+    "Dead",
+    "Dead",
+    "Alive"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "ojo",
+   "name": "Ojo",
+   "team": "demon",
+   "edition": "carousel",
+   "firstNight": null,
+   "otherNight": 50,
+   "setup": false,
+   "reminders": [
+    "Dead"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "kazali",
+   "name": "Kazali",
+   "team": "demon",
+   "edition": "carousel",
+   "firstNight": 8,
+   "otherNight": 55,
+   "setup": true,
+   "reminders": [
+    "Dead"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "po",
+   "name": "Po",
+   "team": "demon",
+   "edition": "bmr",
+   "firstNight": null,
+   "otherNight": 44,
+   "setup": false,
+   "reminders": [
+    "Dead",
+    "Dead",
+    "Dead",
+    "3 Attacks"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "zombuul",
+   "name": "Zombuul",
+   "team": "demon",
+   "edition": "bmr",
+   "firstNight": null,
+   "otherNight": 41,
+   "setup": false,
+   "reminders": [
+    "Died Today",
+    "Dead"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "vigormortis",
+   "name": "Vigormortis",
+   "team": "demon",
+   "edition": "snv",
+   "firstNight": null,
+   "otherNight": 49,
+   "setup": true,
+   "reminders": [
+    "Dead",
+    "Has Ability",
+    "Has Ability",
+    "Has Ability",
+    "Poisoned",
+    "Poisoned",
+    "Poisoned"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "vortox",
+   "name": "Vortox",
+   "team": "demon",
+   "edition": "snv",
+   "firstNight": null,
+   "otherNight": 47,
+   "setup": false,
+   "reminders": [
+    "Dead"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "legion",
+   "name": "Legion",
+   "team": "demon",
+   "edition": "carousel",
+   "firstNight": null,
+   "otherNight": 39,
+   "setup": true,
+   "reminders": [
+    "Dead",
+    "About To Die"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "fanggu",
+   "name": "Fang Gu",
+   "team": "demon",
+   "edition": "snv",
+   "firstNight": null,
+   "otherNight": 45,
+   "setup": true,
+   "reminders": [
+    "Dead",
+    "Once"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "lordoftyphon",
+   "name": "Lord of Typhon",
+   "team": "demon",
+   "edition": "carousel",
+   "firstNight": 7,
+   "otherNight": 48,
+   "setup": true,
+   "reminders": [
+    "Dead"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "lleech",
+   "name": "Lleech",
+   "team": "demon",
+   "edition": "carousel",
+   "firstNight": 31,
+   "otherNight": 52,
+   "setup": false,
+   "reminders": [
+    "Dead",
+    "Poisoned"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "alhadikhia",
+   "name": "Al-Hadikhia",
+   "team": "demon",
+   "edition": "carousel",
+   "firstNight": null,
+   "otherNight": 51,
+   "setup": false,
+   "reminders": [
+    "1",
+    "2",
+    "3"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "riot",
+   "name": "Riot",
+   "team": "demon",
+   "edition": "carousel",
+   "firstNight": null,
+   "otherNight": 97,
+   "setup": false,
+   "reminders": [
+    "Day 1",
+    "Day 2",
+    "Day 3"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "leviathan",
+   "name": "Leviathan",
+   "team": "demon",
+   "edition": "carousel",
+   "firstNight": 79,
+   "otherNight": 99,
+   "setup": false,
+   "reminders": [
+    "Day 1",
+    "Day 2",
+    "Day 3",
+    "Day 4",
+    "Day 5",
+    "Good Player Executed"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "thief",
+   "name": "Thief",
+   "team": "traveller",
+   "edition": "tb",
+   "firstNight": 12,
+   "otherNight": 8,
+   "setup": false,
+   "reminders": [
+    "Negative Vote"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "bureaucrat",
+   "name": "Bureaucrat",
+   "team": "traveller",
+   "edition": "tb",
+   "firstNight": 11,
+   "otherNight": 7,
+   "setup": false,
+   "reminders": [
+    "3 Votes"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "barista",
+   "name": "Barista",
+   "team": "traveller",
+   "edition": "snv",
+   "firstNight": 10,
+   "otherNight": 6,
+   "setup": false,
+   "reminders": [
+    "Sober & Healthy",
+    "Acts Twice",
+    "?",
+    "?"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "harlot",
+   "name": "Harlot",
+   "team": "traveller",
+   "edition": "snv",
+   "firstNight": null,
+   "otherNight": 9,
+   "setup": false,
+   "reminders": [
+    "Dead",
+    "Dead"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "butcher",
+   "name": "Butcher",
+   "team": "traveller",
+   "edition": "snv",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "cacklejack",
+   "name": "Cacklejack",
+   "team": "traveller",
+   "edition": "carousel",
+   "firstNight": null,
+   "otherNight": 5,
+   "setup": false,
+   "reminders": [
+    "Not Me"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "gunslinger",
+   "name": "Gunslinger",
+   "team": "traveller",
+   "edition": "tb",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "matron",
+   "name": "Matron",
+   "team": "traveller",
+   "edition": "bmr",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "gangster",
+   "name": "Gangster",
+   "team": "traveller",
+   "edition": "carousel",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "bonecollector",
+   "name": "Bone Collector",
+   "team": "traveller",
+   "edition": "snv",
+   "firstNight": null,
+   "otherNight": 10,
+   "setup": false,
+   "reminders": [
+    "No Ability",
+    "Has Ability"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "judge",
+   "name": "Judge",
+   "team": "traveller",
+   "edition": "bmr",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "No Ability"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "apprentice",
+   "name": "Apprentice",
+   "team": "traveller",
+   "edition": "bmr",
+   "firstNight": 9,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "Is The Apprentice"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "beggar",
+   "name": "Beggar",
+   "team": "traveller",
+   "edition": "tb",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "deviant",
+   "name": "Deviant",
+   "team": "traveller",
+   "edition": "snv",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "scapegoat",
+   "name": "Scapegoat",
+   "team": "traveller",
+   "edition": "tb",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "gnome",
+   "name": "Gnome",
+   "team": "traveller",
+   "edition": "carousel",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "Amigo"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "bishop",
+   "name": "Bishop",
+   "team": "traveller",
+   "edition": "bmr",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "Nominate Good",
+    "Nominate Evil"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "voudon",
+   "name": "Voudon",
+   "team": "traveller",
+   "edition": "bmr",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "angel",
+   "name": "Angel",
+   "team": "fabled",
+   "edition": "fabled",
+   "firstNight": 2,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "Protected",
+    "Protected",
+    "Something Bad"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "buddhist",
+   "name": "Buddhist",
+   "team": "fabled",
+   "edition": "fabled",
+   "firstNight": 3,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "deusexfiasco",
+   "name": "Deus ex Fiasco",
+   "team": "fabled",
+   "edition": "carousel",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": true,
+   "reminders": [
+    "Whoopsie"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "djinn",
+   "name": "Djinn",
+   "team": "fabled",
+   "edition": "fabled",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "doomsayer",
+   "name": "Doomsayer",
+   "team": "fabled",
+   "edition": "fabled",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "duchess",
+   "name": "Duchess",
+   "team": "fabled",
+   "edition": "fabled",
+   "firstNight": null,
+   "otherNight": 2,
+   "setup": false,
+   "reminders": [
+    "Visitor",
+    "Visitor",
+    "False Info"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "ferryman",
+   "name": "Ferryman",
+   "team": "fabled",
+   "edition": "carousel",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "fibbin",
+   "name": "Fibbin",
+   "team": "fabled",
+   "edition": "fabled",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "No Ability"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "fiddler",
+   "name": "Fiddler",
+   "team": "fabled",
+   "edition": "fabled",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "hellslibrarian",
+   "name": "Hell's Librarian",
+   "team": "fabled",
+   "edition": "fabled",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "Something Bad"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "revolutionary",
+   "name": "Revolutionary",
+   "team": "fabled",
+   "edition": "fabled",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "Register Falsely?",
+    "Aligned",
+    "Aligned"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "sentinel",
+   "name": "Sentinel",
+   "team": "fabled",
+   "edition": "fabled",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": true,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "spiritofivory",
+   "name": "Spirit of Ivory",
+   "team": "fabled",
+   "edition": "fabled",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "No More Evil"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "toymaker",
+   "name": "Toymaker",
+   "team": "fabled",
+   "edition": "fabled",
+   "firstNight": 4,
+   "otherNight": 3,
+   "setup": false,
+   "reminders": [
+    "Final Night: No Attack"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "bigwig",
+   "name": "Big Wig",
+   "team": "loric",
+   "edition": "loric",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "bootlegger",
+   "name": "Bootlegger",
+   "team": "loric",
+   "edition": "loric",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": true,
+   "reminders": [
+    "?",
+    "?"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "gardener",
+   "name": "Gardener",
+   "team": "loric",
+   "edition": "loric",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": true,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "godofug",
+   "name": "God of Ug",
+   "team": "loric",
+   "edition": "loric",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "Hat"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "hindu",
+   "name": "Hindu",
+   "team": "loric",
+   "edition": "loric",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "knaves",
+   "name": "Knaves",
+   "team": "loric",
+   "edition": "loric",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "pope",
+   "name": "Pope",
+   "team": "loric",
+   "edition": "loric",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": true,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "stormcatcher",
+   "name": "Storm Catcher",
+   "team": "loric",
+   "edition": "loric",
+   "firstNight": 5,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "Stormcaught"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "tor",
+   "name": "Tor",
+   "team": "loric",
+   "edition": "loric",
+   "firstNight": 19,
+   "otherNight": 74,
+   "setup": true,
+   "reminders": [],
+   "remindersGlobal": []
+  },
+  {
+   "id": "ventriloquist",
+   "name": "Ventriloquist",
+   "team": "loric",
+   "edition": "loric",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "Mad"
+   ],
+   "remindersGlobal": []
+  },
+  {
+   "id": "zenomancer",
+   "name": "Zenomancer",
+   "team": "loric",
+   "edition": "loric",
+   "firstNight": null,
+   "otherNight": null,
+   "setup": false,
+   "reminders": [
+    "Goal",
+    "Goal",
+    "Goal"
+   ],
+   "remindersGlobal": []
+  }
+ ]
+}

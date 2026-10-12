@@ -1,0 +1,46 @@
+{
+ "rule": "droisoned-abilities-fail",
+ "detail": "Esme(snake-charmer) as snake-charmer: effective true, should be false",
+ "seed": 8,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn"
+   ],
+   "scriptId": "sects-and-violets"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "pit-hag",
+    "mathematician",
+    "no-dashii",
+    "savant",
+    "snake-charmer",
+    "barber"
+   ],
+   "redHerring": null,
+   "bluffs": []
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "swap-seats",
+   "a": 0,
+   "b": 3
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  }
+ ]
+}

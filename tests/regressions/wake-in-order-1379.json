@@ -1,0 +1,154 @@
+{
+ "rule": "wake-in-order",
+ "detail": "traveller-info:9 (order 0.5) after a step of order 23",
+ "seed": 1379,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde"
+   ],
+   "scriptId": "sects-and-violets"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "vortox",
+    "town-crier",
+    "juggler",
+    "artist",
+    "dreamer",
+    "barber",
+    "mutant",
+    "pit-hag",
+    "sage"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "oracle",
+    "savant",
+    "philosopher"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 4,
+   "nominee": 1
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    2,
+    4,
+    5,
+    7
+   ]
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T9",
+   "character": "deviant",
+   "alignment": "good",
+   "after": 4
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    9
+   ],
+   "character": "snake-charmer"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ]
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 3,
+   "nominee": 4
+  },
+  {
+   "type": "vote",
+   "voters": [
+    2,
+    5,
+    6,
+    8,
+    9
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ]
+  },
+  {
+   "type": "acknowledge"
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "rule": "zombuul",
+ "detail": "Ada(zombuul) died for real at the Zombuul's first death",
+ "seed": 28,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme"
+   ],
+   "scriptId": "bad-moon-rising"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "zombuul",
+    "sailor",
+    "exorcist",
+    "courtier",
+    "devils-advocate"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "grandmother",
+    "chambermaid",
+    "innkeeper"
+   ],
+   "fabled": [
+    {
+     "id": "toymaker"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ],
+   "drunk": 1
+  },
+  {
+   "type": "choose",
+   "character": "minstrel"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ],
+   "drunk": 1
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ]
+  }
+ ]
+}

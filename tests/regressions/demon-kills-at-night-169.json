@@ -1,0 +1,104 @@
+{
+ "rule": "demon-kills-at-night",
+ "detail": "Esme(moonchild) killed by the Demon by day",
+ "seed": 169,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde"
+   ],
+   "scriptId": "bad-moon-rising"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "shabaloth",
+    "innkeeper",
+    "tinker",
+    "devils-advocate",
+    "moonchild",
+    "professor",
+    "minstrel",
+    "pacifist",
+    "courtier"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "exorcist",
+    "gossip",
+    "fool"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "character": "innkeeper"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7,
+    2
+   ],
+   "drunk": 7
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0,
+    4
+   ],
+   "regurgitate": null
+  }
+ ]
+}

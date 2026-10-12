@@ -1,0 +1,127 @@
+{
+ "rule": "seamstress",
+ "detail": "Fenn(seamstress) used the Seamstress twice",
+ "seed": 2,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde"
+   ],
+   "scriptId": "sects-and-violets"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "oracle",
+    "mutant",
+    "artist",
+    "mathematician",
+    "town-crier",
+    "seamstress",
+    "sage",
+    "evil-twin",
+    "vigormortis"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "sweetheart",
+    "philosopher",
+    "snake-charmer"
+   ],
+   "evilTwin": 5,
+   "fabled": [
+    {
+     "id": "ferryman"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "same",
+    "players": [
+     1,
+     0
+    ],
+    "yes": true
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 3
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "yesno",
+    "yes": false
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "same",
+    "players": [
+     1,
+     8
+    ],
+    "yes": false
+   }
+  }
+ ]
+}

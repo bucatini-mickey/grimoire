@@ -1,0 +1,89 @@
+{
+ "rule": "pit-hag",
+ "detail": "the Pit-Hag made Cael(juggler) the juggler, already in play",
+ "seed": 5,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal"
+   ],
+   "scriptId": "sects-and-violets"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "artist",
+    "flowergirl",
+    "juggler",
+    "town-crier",
+    "dreamer",
+    "pit-hag",
+    "savant",
+    "vigormortis"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "mathematician",
+    "clockmaker",
+    "sage"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "dream",
+    "player": 5,
+    "characters": [
+     "pit-hag",
+     "clockmaker"
+    ]
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ],
+   "character": "juggler"
+  }
+ ]
+}

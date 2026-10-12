@@ -1,0 +1,84 @@
+{
+ "rule": "engine-is-pure",
+ "detail": "choose: TypeError: Cannot read properties of undefined (reading 'character')     at single (file:///E:/Claude/Personal/Game%20Dev/Grimoire/src/core/engine.ts:845:35)     at choose (file:///E:/Claude/Personal/Game%20Dev/Grimoire/src/core/engine.ts:578:11)",
+ "seed": 7,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme"
+   ],
+   "scriptId": "bad-moon-rising"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "mastermind",
+    "pacifist",
+    "grandmother",
+    "shabaloth",
+    "professor"
+   ],
+   "redHerring": null,
+   "bluffs": [],
+   "fabled": [
+    {
+     "id": "doomsayer"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "reveal",
+    "player": 1,
+    "character": "pacifist"
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 4,
+   "nominee": 3
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    2,
+    4
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "none": true
+  }
+ ]
+}

@@ -1,0 +1,251 @@
+{
+ "rule": "vote-outcome",
+ "detail": "3 votes (needed 1, highest 0): not-enough, should be on-the-block",
+ "seed": 70,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior",
+    "Maud"
+   ],
+   "scriptId": "bad-moon-rising"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "assassin",
+    "gambler",
+    "innkeeper",
+    "godfather",
+    "professor",
+    "gossip",
+    "courtier",
+    "goon",
+    "minstrel",
+    "pukka",
+    "sailor",
+    "mastermind",
+    "tea-lady"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "grandmother",
+    "chambermaid",
+    "lunatic"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    11
+   ],
+   "drunk": 11
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "characters",
+    "characters": [
+     "goon"
+    ]
+   }
+  },
+  {
+   "type": "choose",
+   "targets": [
+    10
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ]
+  },
+  {
+   "type": "choose",
+   "character": "innkeeper"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8,
+    5
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ],
+   "character": "courtier"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5
+   ]
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 11,
+   "nominee": 4
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    2,
+    3,
+    4,
+    6,
+    10,
+    11
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8,
+    10
+   ],
+   "drunk": 10
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ],
+   "character": "godfather"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    12
+   ]
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T13",
+   "character": "voudon",
+   "alignment": "good",
+   "after": 2
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8,
+    7
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    10
+   ],
+   "character": "exorcist"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    11
+   ]
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 11,
+   "nominee": 4
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    12,
+    13
+   ]
+  }
+ ]
+}

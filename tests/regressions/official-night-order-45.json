@@ -1,0 +1,64 @@
+{
+ "rule": "official-night-order",
+ "detail": "new-demon woke out of the sheet's order on night 1",
+ "seed": 45,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde"
+   ],
+   "scriptId": "sects-and-violets"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "town-crier",
+    "juggler",
+    "vortox",
+    "sweetheart",
+    "cerenovus",
+    "klutz",
+    "seamstress",
+    "snake-charmer",
+    "dreamer"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "mutant",
+    "oracle",
+    "artist"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ],
+   "character": "sweetheart"
+  },
+  {
+   "type": "acknowledge"
+  }
+ ]
+}

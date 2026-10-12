@@ -132,6 +132,7 @@ const options = {
 	minify: !serve,
 	write: false,
 	outdir: 'dist/.js',
+	loader: { '.tbp': 'text' },
 	plugins: [inline],
 	logLevel: 'warning'
 };

@@ -1,0 +1,164 @@
+{
+ "rule": "soldier-is-safe",
+ "detail": "Ned(soldier), a working Soldier, was killed by the Demon",
+ "seed": 27,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior",
+    "Maud",
+    "Ned",
+    "Orla"
+   ],
+   "scriptId": "trouble-brewing"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "poisoner",
+    "recluse",
+    "saint",
+    "washerwoman",
+    "imp",
+    "ravenkeeper",
+    "undertaker",
+    "baron",
+    "investigator",
+    "scarlet-woman",
+    "virgin",
+    "drunk",
+    "butler",
+    "soldier",
+    "monk"
+   ],
+   "drunkBelieves": "mayor",
+   "redHerring": null,
+   "bluffs": [
+    "librarian",
+    "empath",
+    "slayer"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    10
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "pair",
+    "players": [
+     5,
+     11
+    ],
+    "character": "ravenkeeper"
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "pair",
+    "players": [
+     9,
+     10
+    ],
+    "character": "scarlet-woman"
+   }
+  },
+  {
+   "type": "choose",
+   "targets": [
+    10
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 9,
+   "nominee": 0
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    3,
+    4,
+    6,
+    8,
+    10,
+    13,
+    14
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    9
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    13
+   ]
+  }
+ ]
+}

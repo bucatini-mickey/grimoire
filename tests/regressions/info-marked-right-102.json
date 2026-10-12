@@ -1,0 +1,109 @@
+{
+ "rule": "info-marked-right",
+ "detail": "Ada(drunk) (fortune-teller): {\"kind\":\"fortune\",\"players\":[8,6],\"yes\":true} marked truthful=false, really true",
+ "seed": 102,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior"
+   ],
+   "scriptId": "trouble-brewing"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "drunk",
+    "imp",
+    "baron",
+    "chef",
+    "washerwoman",
+    "undertaker",
+    "soldier",
+    "butler",
+    "investigator",
+    "saint",
+    "recluse",
+    "poisoner"
+   ],
+   "drunkBelieves": "fortune-teller",
+   "redHerring": 8,
+   "bluffs": [
+    "librarian",
+    "mayor",
+    "monk"
+   ],
+   "fabled": [
+    {
+     "id": "toymaker"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "pair",
+    "players": [
+     5,
+     6
+    ],
+    "character": "undertaker"
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "pair",
+    "players": [
+     11,
+     1
+    ],
+    "character": "poisoner"
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 2
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     8,
+     6
+    ],
+    "yes": true
+   }
+  }
+ ]
+}

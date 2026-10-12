@@ -1,0 +1,178 @@
+{
+ "rule": "sage",
+ "detail": "Gwen(sage), a Sage killed by the Demon, never woke",
+ "seed": 104,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal"
+   ],
+   "scriptId": "sects-and-violets"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "town-crier",
+    "dreamer",
+    "mathematician",
+    "barber",
+    "mutant",
+    "cerenovus",
+    "sage",
+    "fang-gu"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "savant",
+    "klutz",
+    "juggler"
+   ],
+   "fabled": [
+    {
+     "id": "toymaker"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ],
+   "character": "mathematician"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "dream",
+    "player": 7,
+    "characters": [
+     "fang-gu",
+     "clockmaker"
+    ]
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "madness",
+   "seat": 5
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "dream",
+    "player": 5,
+    "characters": [
+     "cerenovus",
+     "clockmaker"
+    ]
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "yesno",
+    "yes": false
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 6,
+   "nominee": 1
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    2,
+    3,
+    6
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "yesno",
+    "yes": false
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "end-night"
+  }
+ ]
+}

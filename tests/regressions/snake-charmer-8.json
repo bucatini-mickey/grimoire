@@ -1,0 +1,46 @@
+{
+ "rule": "snake-charmer",
+ "detail": "Esme chose the Demon and did not swap",
+ "seed": 8,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn"
+   ],
+   "scriptId": "sects-and-violets"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "pit-hag",
+    "mathematician",
+    "no-dashii",
+    "savant",
+    "snake-charmer",
+    "barber"
+   ],
+   "redHerring": null,
+   "bluffs": [],
+   "fabled": [
+    {
+     "id": "doomsayer"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ]
+  }
+ ]
+}

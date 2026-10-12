@@ -1,0 +1,394 @@
+{
+ "rule": "override-only-when-needed",
+ "detail": "override recorded for Bram(seamstress) when not needed",
+ "seed": 737,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior",
+    "Maud",
+    "Ned"
+   ],
+   "scriptId": "sects-and-violets"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "witch",
+    "seamstress",
+    "snake-charmer",
+    "sage",
+    "oracle",
+    "savant",
+    "mathematician",
+    "town-crier",
+    "cerenovus",
+    "dreamer",
+    "vortox",
+    "barber",
+    "clockmaker",
+    "pit-hag"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "juggler",
+    "artist",
+    "flowergirl"
+   ],
+   "fabled": [
+    {
+     "id": "toymaker"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    13
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ],
+   "character": "clockmaker"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 12,
+   "nominee": 0
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    3,
+    4,
+    5,
+    6,
+    10,
+    11,
+    12,
+    13
+   ]
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T14",
+   "character": "bone-collector",
+   "alignment": "good",
+   "after": 7
+  },
+  {
+   "type": "traveller-leaves",
+   "seat": 14
+  },
+  {
+   "type": "nominate",
+   "nominator": 9,
+   "nominee": 6
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    4,
+    9,
+    10,
+    11,
+    12,
+    13
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    10
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ],
+   "character": "sage"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ],
+   "character": "artist"
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 3
+   }
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "madness",
+   "seat": 5
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ],
+   "character": "snake-charmer"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ],
+   "character": "sweetheart"
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "yesno",
+    "yes": true
+   },
+   "override": false
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 4
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "same",
+    "players": [
+     9,
+     6
+    ],
+    "yes": true
+   },
+   "override": true
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 9,
+   "nominee": 9
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    2,
+    4,
+    5,
+    7,
+    8,
+    9,
+    11,
+    12,
+    13,
+    14
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 4,
+   "nominee": 1
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    2,
+    3,
+    10,
+    11,
+    12,
+    13
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    13
+   ],
+   "character": "klutz"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ],
+   "character": "artist"
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 2
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 12,
+   "nominee": 6
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    8,
+    12,
+    13
+   ]
+  },
+  {
+   "type": "end-day"
+  }
+ ]
+}

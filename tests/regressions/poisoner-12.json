@@ -1,0 +1,1341 @@
+{
+ "rule": "poisoner",
+ "detail": "Kit's poison landed though they are drunk or poisoned",
+ "seed": 12,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior",
+    "Maud"
+   ],
+   "scriptId": "trouble-brewing"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "drunk",
+    "chef",
+    "empath",
+    "recluse",
+    "ravenkeeper",
+    "imp",
+    "scarlet-woman",
+    "slayer",
+    "fortune-teller",
+    "librarian",
+    "poisoner",
+    "baron",
+    "investigator"
+   ],
+   "drunkBelieves": "monk",
+   "redHerring": 9,
+   "bluffs": [
+    "soldier",
+    "mayor",
+    "undertaker"
+   ],
+   "fabled": [
+    {
+     "id": "ferryman"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "pair",
+    "players": [
+     0,
+     12
+    ],
+    "character": "drunk"
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "pair",
+    "players": [
+     6,
+     5
+    ],
+    "character": "scarlet-woman"
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 2
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     1,
+     2
+    ],
+    "yes": false
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 5,
+   "nominee": 11
+  },
+  {
+   "type": "vote",
+   "voters": [
+    2,
+    3,
+    5,
+    6,
+    10,
+    11,
+    12
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 11,
+   "nominee": 6
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    2,
+    3,
+    4,
+    10,
+    11,
+    12
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    10
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     8,
+     3
+    ],
+    "yes": false
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "swap-seats",
+   "a": 7,
+   "b": 9
+  },
+  {
+   "type": "nominate",
+   "nominator": 0,
+   "nominee": 11
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    10
+   ]
+  },
+  {
+   "type": "swap-seats",
+   "a": 12,
+   "b": 10
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    9
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     7,
+     5
+    ],
+    "yes": true
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     2,
+     7
+    ],
+    "yes": false
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     5,
+     4
+    ],
+    "yes": true
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 0,
+   "nominee": 1
+  },
+  {
+   "type": "vote",
+   "voters": [
+    2,
+    3,
+    6,
+    10
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 6,
+   "nominee": 7
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    2,
+    3,
+    4,
+    5,
+    7,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 5,
+   "nominee": 6
+  },
+  {
+   "type": "vote",
+   "voters": [
+    3,
+    4,
+    7,
+    8,
+    10
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     9,
+     7
+    ],
+    "yes": true
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 10,
+   "nominee": 11
+  },
+  {
+   "type": "vote",
+   "voters": [
+    2,
+    4,
+    6,
+    10,
+    12
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 12,
+   "nominee": 4
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    5,
+    7,
+    8
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    12
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 1
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     1,
+     5
+    ],
+    "yes": true
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 8,
+   "nominee": 4
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    10
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 1,
+   "nominee": 9
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    6,
+    9,
+    10,
+    12
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 5,
+   "nominee": 0
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    3,
+    5,
+    12
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     9,
+     10
+    ],
+    "yes": true
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 3,
+   "nominee": 12
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    2,
+    3,
+    4,
+    9
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 10,
+   "nominee": 3
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    5,
+    8
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     7,
+     8
+    ],
+    "yes": false
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 4,
+   "nominee": 12
+  },
+  {
+   "type": "vote",
+   "voters": [
+    2,
+    4,
+    5,
+    8,
+    12
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 3,
+   "nominee": 9
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    5,
+    8
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 5,
+   "nominee": 1
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    1,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     5,
+     10
+    ],
+    "yes": true
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 10,
+   "nominee": 8
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    5,
+    6,
+    10
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    10
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     10,
+     9
+    ],
+    "yes": true
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 8,
+   "nominee": 10
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    4,
+    6,
+    10
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 0,
+   "nominee": 3
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    2,
+    8
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    10
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     6,
+     8
+    ],
+    "yes": false
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 0,
+   "nominee": 0
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    3,
+    4,
+    5,
+    6,
+    8,
+    10
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     10,
+     8
+    ],
+    "yes": false
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 1,
+   "nominee": 3
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    2,
+    3,
+    6,
+    10
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     8,
+     6
+    ],
+    "yes": false
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 5,
+   "nominee": 2
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    4,
+    5,
+    8,
+    10
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 6,
+   "nominee": 10
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    3,
+    8
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     10,
+     8
+    ],
+    "yes": false
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 6,
+   "nominee": 2
+  },
+  {
+   "type": "vote",
+   "voters": [
+    2,
+    4,
+    5,
+    6,
+    8,
+    10
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 8,
+   "nominee": 7
+  },
+  {
+   "type": "vote",
+   "voters": [
+    10
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    9
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     7,
+     6
+    ],
+    "yes": false
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 6,
+   "nominee": 10
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    1,
+    5,
+    6,
+    8,
+    10
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 1,
+   "nominee": 11
+  },
+  {
+   "type": "vote",
+   "voters": [
+    4,
+    5,
+    10
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     2,
+     0
+    ],
+    "yes": false
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 1,
+   "nominee": 6
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    4,
+    10
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "reveal",
+    "player": 7,
+    "character": "slayer"
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     6,
+     7
+    ],
+    "yes": false
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 5,
+   "nominee": 7
+  },
+  {
+   "type": "vote",
+   "voters": [
+    5,
+    6
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     11,
+     8
+    ],
+    "yes": false
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T13",
+   "character": "scapegoat",
+   "alignment": "evil",
+   "after": 3
+  },
+  {
+   "type": "nominate",
+   "nominator": 5,
+   "nominee": 3
+  },
+  {
+   "type": "vote",
+   "voters": []
+  },
+  {
+   "type": "nominate",
+   "nominator": 13,
+   "nominee": 5
+  },
+  {
+   "type": "vote",
+   "voters": [
+    13
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5
+   ]
+  }
+ ]
+}

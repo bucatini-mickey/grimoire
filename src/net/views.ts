@@ -88,11 +88,11 @@ const script = (s: GameState) => G.getScript(s.scriptId || 'trouble-brewing');
 const charName = (s: GameState, id: CharacterId) => G.charDef(script(s), id).name;
 const nameOf = (s: GameState, id: SeatId) => s.seats[id]?.name ?? '?';
 
-/** How many players the woken player chooses. */
-export function playerPicks(kind: string): number {
-	if (G.stepAction(kind) === 'choose') return 1;
-	if (kind === 'fortune-teller') return 2;
-	if (kind === 'ravenkeeper') return 1;
+/** How many players the woken player chooses (with the game, exactly: the Po after a night of choosing no one picks three). */
+export function playerPicks(kind: string, state?: GameState, seat?: SeatId | null): number {
+	if (G.stepAction(kind) === 'choose') return state ? G.pickSpec(state, kind, seat ?? null).count : 1;
+	if (kind === 'fortune-teller' || kind === 'chambermaid' || kind === 'seamstress') return 2;
+	if (kind === 'ravenkeeper' || kind === 'dreamer') return 1;
 	return 0;
 }
 
@@ -102,16 +102,52 @@ export const PICK_PROMPT: Record<string, string> = {
 	butler: 'Choose your master',
 	imp: 'Choose a player to kill',
 	'fortune-teller': 'Choose two players',
-	ravenkeeper: 'Choose a player to learn their character'
+	ravenkeeper: 'Choose a player to learn their character',
+	chambermaid: 'Choose two other living players',
+	dreamer: 'Choose another player',
+	seamstress: 'Choose two other players',
+	sailor: 'Choose a living player',
+	innkeeper: 'Choose two players to keep safe',
+	exorcist: 'Choose a player',
+	gambler: 'Choose a player, then guess their character',
+	courtier: 'Choose a character',
+	professor: 'Choose a dead player',
+	'devils-advocate': 'Choose a living player',
+	assassin: 'Choose a player, or no one',
+	godfather: 'Choose a player to kill',
+	zombuul: 'Choose a player to kill',
+	pukka: 'Choose a player',
+	shabaloth: 'Choose two players to kill',
+	po: 'Choose a player, or no one'
 };
 
-/** The Monk and the Butler must choose another; everyone else may choose anyone. */
-export const pickAllowed = (kind: string, by: SeatId | null, target: SeatId) => !((kind === 'monk' || kind === 'butler') && target === by);
+/** Who the woken player may choose: the rules of their ability (another player, the living, the dead, not last night's choice). */
+export function pickAllowed(state: GameState, kind: string, by: SeatId | null, target: SeatId): boolean {
+	if (kind === 'chambermaid') return target !== by && state.seats[target].alive;
+	if (kind === 'dreamer' || kind === 'seamstress') return target !== by;
+	if (G.stepAction(kind) !== 'choose') return true;
+	const spec = G.pickSpec(state, kind, by);
+	const t = state.seats[target];
+	if (spec.notSelf && target === by) return false;
+	if (spec.alive && !t.alive) return false;
+	if (spec.dead && t.alive) return false;
+	if (spec.notLast && state.effects.some((e) => e.kind === 'chose-last' && e.by === by && e.target === target)) return false;
+	return true;
+}
+
+/** The prompt for a pick (the Lunatic sees their believed Demon's). */
+export function pickPrompt(state: GameState, kind: string, seat: SeatId | null): string {
+	const k = kind === G.LUNATIC && seat !== null ? state.seats[seat].believes : kind;
+	const n = playerPicks(kind, state, seat);
+	if (k === 'po' && n === 3) return 'Choose three players to kill';
+	return PICK_PROMPT[k] ?? (n === 1 ? 'Choose a player' : `Choose ${n} players`);
+}
 
 /** The character a step is about: the evil-team and reveal steps are about the player's own. */
 export function stepRole(state: GameState, kind: string, seat: SeatId | null): CharacterId {
-	if (kind === G.NEW_DEMON) return 'imp';
-	if (seat !== null && (kind === G.REVEAL || kind === G.MINION_INFO || kind === G.DEMON_INFO)) return state.seats[seat].believes;
+	if (kind === G.NEW_DEMON) return seat !== null ? state.seats[seat].character : 'imp';
+	if (kind === G.GODFATHER_INFO) return 'godfather';
+	if (seat !== null && (kind === G.REVEAL || kind === G.MINION_INFO || kind === G.DEMON_INFO || kind === G.EXORCISED || kind === G.LUNATIC_INFO || kind === G.LUNATIC)) return state.seats[seat].believes;
 	return kind;
 }
 
@@ -168,6 +204,8 @@ function evilKnowledge(state: GameState, kind: string, seat: SeatId | null): Sec
 	];
 }
 
+const YESNO_QUESTION: Record<string, string> = { flowergirl: 'Did a Demon vote today?', 'town-crier': 'Did a Minion nominate today?' };
+
 /** The information pages for an answer the Storyteller has chosen. */
 export function infoSections(state: GameState, kind: string, info: Info): Section[] {
 	const nm = (id: SeatId) => nameOf(state, id);
@@ -179,6 +217,12 @@ export function infoSections(state: GameState, kind: string, info: Info): Sectio
 		case 'fortune': return [{ title: 'You learn', lines: [`Is ${nm(info.players[0])} or ${nm(info.players[1])} the Demon?`], style: 'note' }, { title: '', lines: [info.yes ? 'Yes' : 'No'], style: 'big' }];
 		case 'character': return [{ title: 'You learn', lines: ['Executed today'], style: 'note' }, { title: '', lines: [cn(info.character)], style: 'big' }];
 		case 'reveal': return [{ title: 'You learn', lines: [nm(info.player)], style: 'big' }, { title: '', lines: ['is the'], style: 'note' }, { title: '', lines: [cn(info.character)], style: 'big' }];
+		case 'woke': return [{ title: 'You learn', lines: [`Of ${nm(info.players[0])} and ${nm(info.players[1])}, woke tonight`], style: 'note' }, { title: '', lines: [String(info.value)], style: 'big' }];
+		case 'characters': return [{ title: 'Outsiders in play', lines: info.characters.length ? info.characters.map(cn) : ['None'], style: 'big' }];
+		case 'yesno': return [{ title: 'You learn', lines: [YESNO_QUESTION[kind] ?? ''], style: 'note' }, { title: '', lines: [info.yes ? 'Yes' : 'No'], style: 'big' }];
+		case 'dream': return [{ title: 'You learn', lines: [nm(info.player)], style: 'big' }, { title: '', lines: ['is one of'], style: 'note' }, { title: '', lines: info.characters.map(cn), style: 'big' }];
+		case 'players': return [{ title: 'One of these is the Demon', lines: info.players.map(nm), style: 'big' }];
+		case 'same': return [{ title: 'You learn', lines: [`Are ${nm(info.players[0])} and ${nm(info.players[1])} on the same team?`], style: 'note' }, { title: '', lines: [info.yes ? 'Yes' : 'No'], style: 'big' }];
 	}
 }
 
@@ -193,8 +237,8 @@ function grimoire(state: GameState): Wake['grimoire'] {
 		if (state.redHerring === id) flags.push('R');
 		const notes: string[] = [];
 		if (s.character !== s.believes) notes.push(`thinks: ${charName(state, s.believes)}`);
-		if (state.butlerMaster === id) notes.push("Butler's master");
-		if (state.night?.protectedSeat === id) notes.push('Monk protects');
+		if (G.butlerMaster(state) === id) notes.push("Butler's master");
+		if (G.safeFromDemon(state, id)) notes.push('Monk protects');
 		return { name: s.name, character: charName(state, s.character), evil: s.alignment === 'evil', flags, notes };
 	});
 	return { lines, bluffs: state.bluffs.map((b) => charName(state, b)) };
@@ -208,19 +252,23 @@ export function wakeFor(state: GameState, step: G.NightStep, answer: Info | null
 	const kind = step.kind;
 	const role = stepRole(state, kind, step.seat);
 	const def = G.charDef(script(state), role);
-	const sections: Section[] = [{ title: 'You are', lines: [kind === G.NEW_DEMON ? 'now the Imp' : `the ${def.name}`], style: 'big' }];
+	const sections: Section[] = [{ title: 'You are', lines: [kind === G.NEW_DEMON ? `now the ${def.name}` : `the ${def.name}`], style: 'big' }];
+	if (kind === G.EXORCISED && step.seat !== null) {
+		const ex = state.effects.find((e) => e.kind === 'exorcised' && e.target === step.seat);
+		if (ex?.by != null) sections.push({ title: 'The Exorcist chose you', lines: [nameOf(state, ex.by)], style: 'big' }, { title: '', lines: ['You do not act tonight.'], style: 'note' });
+	}
 	if (state.night?.n === 1) {
 		sections.push({ title: 'Your ability', lines: [def.ability], style: 'text' });
 		sections.push({ title: 'Your team', lines: [G.teamAlignment(def.team) === 'evil' ? 'Evil' : 'Good'], style: 'big' });
 	}
 	sections.push(...evilKnowledge(state, kind, step.seat));
 	const wake: Wake = { id: `${state.night?.n ?? 0}:${step.id}`, seat: step.seat, role, sections };
-	const need = playerPicks(kind);
+	const need = playerPicks(kind, state, step.seat);
 	if (need && !answer) {
 		wake.pick = {
 			count: need,
-			prompt: PICK_PROMPT[kind] ?? 'Choose',
-			allowed: state.order.filter((id) => pickAllowed(kind, step.seat, id))
+			prompt: pickPrompt(state, kind, step.seat),
+			allowed: state.order.filter((id) => pickAllowed(state, kind, step.seat, id))
 		};
 		if (G.stepAction(kind) === 'tell') wake.followUp = true;
 	}

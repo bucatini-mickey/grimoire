@@ -1,0 +1,258 @@
+{
+ "rule": "wake-in-order",
+ "detail": "pit-hag:6 (order 29) after a step of order 49",
+ "seed": 2778,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior",
+    "Maud",
+    "Ned",
+    "Orla"
+   ],
+   "scriptId": "sects-and-violets"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "witch",
+    "snake-charmer",
+    "flowergirl",
+    "clockmaker",
+    "dreamer",
+    "vigormortis",
+    "pit-hag",
+    "mathematician",
+    "oracle",
+    "juggler",
+    "sweetheart",
+    "cerenovus",
+    "seamstress",
+    "sage",
+    "artist"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "mutant",
+    "barber",
+    "town-crier"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    13
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    9
+   ],
+   "character": "juggler"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 1
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "dream",
+    "player": 12,
+    "characters": [
+     "seamstress",
+     "evil-twin"
+    ]
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "same",
+    "players": [
+     6,
+     8
+    ],
+    "yes": false
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ],
+   "character": "snake-charmer"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ],
+   "character": "vortox"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ]
+  },
+  {
+   "type": "storyteller-kill",
+   "seat": 2
+  },
+  {
+   "type": "storyteller-kill",
+   "seat": 3
+  },
+  {
+   "type": "storyteller-kill",
+   "seat": 7
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "dream",
+    "player": 13,
+    "characters": [
+     "sage",
+     "evil-twin"
+    ]
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 1
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 0,
+   "nominee": 6
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    4,
+    5,
+    8,
+    9,
+    11
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    12
+   ],
+   "character": "seamstress"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    11
+   ],
+   "character": "barber"
+  }
+ ]
+}

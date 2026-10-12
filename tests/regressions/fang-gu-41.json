@@ -1,0 +1,459 @@
+{
+ "rule": "fang-gu",
+ "detail": "the Fang Gu jumped a second time",
+ "seed": 41,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior",
+    "Maud",
+    "Ned",
+    "Orla"
+   ],
+   "scriptId": "sects-and-violets"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "flowergirl",
+    "evil-twin",
+    "oracle",
+    "town-crier",
+    "clockmaker",
+    "juggler",
+    "savant",
+    "sweetheart",
+    "fang-gu",
+    "dreamer",
+    "mutant",
+    "witch",
+    "barber",
+    "pit-hag",
+    "snake-charmer"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "philosopher",
+    "artist",
+    "sage"
+   ],
+   "evilTwin": 14
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    14
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 3
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "dream",
+    "player": 0,
+    "characters": [
+     "flowergirl",
+     "evil-twin"
+    ]
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 12,
+   "nominee": 6
+  },
+  {
+   "type": "vote",
+   "voters": [
+    3,
+    4,
+    6,
+    7,
+    8
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    12
+   ],
+   "character": "mathematician"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    13
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "dream",
+    "player": 6,
+    "characters": [
+     "savant",
+     "evil-twin"
+    ]
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "yesno",
+    "yes": true
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "yesno",
+    "yes": false
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 1
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 4
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 4,
+   "nominee": 11
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    3,
+    6,
+    9,
+    10,
+    13,
+    14
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    12
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "dream",
+    "player": 6,
+    "characters": [
+     "savant",
+     "evil-twin"
+    ]
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "yesno",
+    "yes": false
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 2
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 4,
+   "nominee": 2
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    3,
+    7,
+    8,
+    11,
+    14
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "yesno",
+    "yes": true
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 12,
+   "nominee": 8
+  },
+  {
+   "type": "vote",
+   "voters": [
+    5,
+    6,
+    7,
+    12,
+    14
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 1,
+   "nominee": 12
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    2,
+    4,
+    5,
+    6,
+    10,
+    12
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    14
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "dream",
+    "player": 4,
+    "characters": [
+     "clockmaker",
+     "evil-twin"
+    ]
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "yesno",
+    "yes": true
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "dream",
+    "player": 12,
+    "characters": [
+     "mathematician",
+     "evil-twin"
+    ]
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "yesno",
+    "yes": false
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    10
+   ]
+  }
+ ]
+}

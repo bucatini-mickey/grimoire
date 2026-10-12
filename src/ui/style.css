@@ -382,6 +382,46 @@ textarea {
 
 /* ---- the big vote buttons ------------------------------------------------------------------ */
 .giants-row { width: calc(var(--cw) * 26); }
+
+/* ---- the start screen: the mode, and the script, as option tags ----------------------------- */
+.modes-row, .tags-row { width: 100%; max-width: 560px; height: auto; padding: 4px 0; margin: 0 auto; }
+.modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.mode {
+	display: flex; flex-direction: column; align-items: center; gap: 2px;
+	padding: 12px 4px 10px;
+	color: var(--ink);
+	background: color-mix(in srgb, var(--bg) 86%, var(--ink));
+	border: 2px solid color-mix(in srgb, var(--dim) 70%, transparent);
+	border-radius: 12px;
+	font-family: var(--book);
+	cursor: pointer;
+	transition: transform .12s, background .2s, box-shadow .2s;
+}
+.mode:hover { border-color: var(--rubric); }
+.mode:active { transform: scale(.97); }
+.mode.on {
+	color: var(--press-ink);
+	background: var(--press);
+	border-color: var(--press);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 55%, transparent), 0 6px 14px color-mix(in srgb, var(--ink) 30%, transparent);
+}
+.mode-ico { font-size: 1.9em; line-height: 1; color: var(--rubric); }
+.mode.on .mode-ico { color: var(--gold); }
+.mode-name { font-family: var(--gothic); font-weight: 700; font-size: 1.25em; }
+.mode-sub { font-size: .78em; opacity: .75; text-align: center; }
+.tags { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.tag {
+	padding: 5px 14px;
+	color: var(--ink);
+	background: transparent;
+	border: 1.5px solid var(--dim);
+	border-radius: 999px;
+	font-family: var(--book); font-size: 1em;
+	cursor: pointer;
+	transition: background .2s, color .2s;
+}
+.tag:hover { border-color: var(--rubric); }
+.tag.on { color: var(--bg); background: var(--rubric); border-color: var(--rubric); }
 .giants { display: flex; gap: 10px; padding: 8px 0 0; }
 .giant {
 	flex: 1;
@@ -410,3 +450,109 @@ textarea {
 	color: var(--ink); background: transparent; border: 3px double var(--dim); padding: 4px 0;
 }
 .row:has(.code-input) { height: auto; }
+
+/* ---- mode 2: the village (src/town/village.ts) ------------------------------------------- */
+body.in-village #app { width: auto; max-width: 760px; padding: 0; }
+/* On the map the page does not scroll: the map fills the screen, controls sit under the thumb. */
+body.village-map { overflow: hidden; overscroll-behavior: none; }
+.village { font-family: var(--book); font-size: 17px; line-height: 1.35; }
+.village button {
+	font: 600 17px var(--book); color: var(--ink); background: none; cursor: pointer;
+	border: 1px solid var(--dim); border-radius: 3px; padding: 8px 14px; min-height: 46px;
+	touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none;
+}
+.village button.primary { background: var(--press); color: var(--press-ink); border-color: var(--press); }
+.village button.on { border-color: var(--rubric); color: var(--rubric); box-shadow: inset 0 0 0 1px var(--rubric); }
+.v-dim { color: var(--dim); }
+/* The map is the whole screen; the bar and the buttons float over it. */
+.v-map { position: fixed; inset: 0; background: #000; }
+.v-top {
+	position: absolute; left: 0; right: 0; top: 0; z-index: 1;
+	display: flex; align-items: center; gap: 10px; min-height: 44px;
+	padding: calc(4px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right)) 4px calc(10px + env(safe-area-inset-left));
+	background: linear-gradient(rgba(0, 0, 0, .7), rgba(0, 0, 0, 0)); color: #e8d8b2;
+}
+.v-top > b { font-family: var(--gothic); font-size: 1.45em; color: var(--rubric); }
+.v-top .v-status { flex: 1; font-size: .85em; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.v-top button, .v-tools button { background: rgba(20, 16, 12, .72); color: #e8d8b2; border-color: rgba(232, 216, 178, .45); }
+.v-top button { min-height: 38px; padding: 4px 10px; font-size: 15px; }
+.v-tools button.primary { background: #e8d8b2; color: #16110c; border-color: #e8d8b2; }
+.v-top button.on, .v-tools button.on { color: #f0907a; border-color: #f0907a; box-shadow: none; }
+.v-code { font-family: var(--mono); letter-spacing: .12em; color: var(--gold); font-weight: 700; }
+.v-stage { position: absolute; inset: 0; }
+.v-stage canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: pointer; }
+.v-near {
+	position: absolute; left: calc(6px + env(safe-area-inset-left)); top: calc(48px + env(safe-area-inset-top)); max-width: 62%; pointer-events: none;
+	background: rgba(0, 0, 0, .55); color: #e8d8b2; border-radius: 3px; padding: 4px 8px; font-size: 14px;
+}
+.v-where { font-style: italic; opacity: .8; }
+.v-who { display: flex; align-items: center; gap: 8px; }
+.v-who b { min-width: 5.5em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.v-meter { position: relative; flex: 1; min-width: 50px; height: 6px; border: 1px solid rgba(232, 216, 178, .5); }
+.v-meter i, .v-meter em { position: absolute; left: 0; top: 0; bottom: 0; }
+.v-meter i { background: rgba(232, 216, 178, .25); }
+.v-meter em { background: #e8b84a; }
+.v-banner {
+	position: absolute; left: 50%; top: 18%; transform: translateX(-50%); width: min(88%, 420px); z-index: 2;
+	background: var(--bg); border: 3px double var(--rubric); padding: 10px 14px; text-align: center; pointer-events: none;
+	box-shadow: 0 6px 30px rgba(0, 0, 0, .5);
+}
+.v-banner b { display: block; font-family: var(--gothic); font-size: 1.7em; color: var(--rubric); }
+.v-tools {
+	position: absolute; left: 0; right: 0; bottom: 0; z-index: 1;
+	display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+	padding: 10px calc(10px + env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left));
+	pointer-events: none;
+}
+.v-tools > * { pointer-events: auto; }
+.v-tools .v-dim { color: #e8d8b2; }
+.v-zoom { display: flex; gap: 6px; margin-left: auto; }
+.v-zoom button { min-width: 46px; padding: 0; }
+/* Sheets that slide up from the bottom: the Storyteller's drawer, People, a request for a private word. */
+.v-panel {
+	position: absolute; left: 0; right: 0; bottom: 0; max-height: 75%; max-width: 560px; margin: 0 auto; overflow-y: auto; z-index: 2;
+	background: var(--bg); border-top: 3px double var(--rubric); padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+	display: flex; flex-direction: column; gap: 10px; box-shadow: 0 -8px 30px rgba(0, 0, 0, .4);
+}
+.v-panel[hidden], .v-toast[hidden] { display: none; }
+.v-ask { z-index: 3; border-top-color: var(--gold); font-size: 1.1em; }
+.v-sheet-head { display: flex; justify-content: space-between; align-items: center; font-family: var(--gothic); font-size: 1.3em; color: var(--rubric); }
+.v-sheet-head button { font-family: var(--book); font-size: 15px; min-height: 38px; }
+.v-person { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 4px 0; border-bottom: 1px solid rgba(122, 102, 70, .25); }
+.v-person b { font-size: 1.1em; }
+.v-person-btns { margin-left: auto; display: flex; gap: 6px; }
+.v-person-btns button { min-height: 40px; padding: 4px 10px; font-size: 15px; }
+.v-toast {
+	position: absolute; left: 50%; top: calc(56px + env(safe-area-inset-top)); transform: translateX(-50%); z-index: 2;
+	background: rgba(20, 16, 12, .85); color: #e8d8b2; border: 1px solid rgba(232, 216, 178, .4); border-radius: 3px;
+	padding: 6px 12px; max-width: 90%; text-align: center; pointer-events: none;
+}
+.v-private { color: #e8d8b2; background: rgba(20, 16, 12, .72); border: 1px solid #e8b84a; border-radius: 3px; padding: 8px 10px; }
+.v-private b { color: #e8b84a; }
+.v-st-row { display: flex; gap: 8px; }
+.v-st-row button { flex: 1; }
+.v-share { font-size: .9em; color: var(--dim); overflow-wrap: anywhere; }
+.v-qr { width: 150px; background: #fff; padding: 2px; }
+.v-qr svg { display: block; width: 100%; height: auto; }
+.v-file { font-size: .9em; color: var(--dim); }
+.v-file input { display: block; margin-top: 4px; font: inherit; }
+.v-lobby { max-width: 420px; margin: 0 auto; padding: 24px 16px; display: flex; flex-direction: column; gap: 12px; }
+.v-lobby h1 { font-family: 'UnifrakturCook', var(--gothic); color: var(--rubric); font-size: 2.6em; text-align: center; margin: 0; }
+.v-lobby label { display: flex; flex-direction: column; gap: 4px; color: var(--dim); }
+.v-lobby input { font: 600 20px var(--book); color: var(--ink); background: transparent; border: 0; border-bottom: 2px solid var(--dim); padding: 6px 2px; }
+.v-lobby #v-code { font-family: var(--mono); letter-spacing: .3em; text-transform: uppercase; }
+.v-or { text-align: center; color: var(--dim); font-style: italic; }
+.v-lobby a { color: var(--dim); }
+
+/* In a game the village is a layer of its own, under the grimoire's pages (#card, z-index 10). */
+#village-root { position: fixed; inset: 0; z-index: 5; }
+#village-root[hidden] { display: none; }
+#village-root {
+	--book: 'Grenze', 'Iowan Old Style', Georgia, serif;
+	--gothic: 'Grenze Gotisch', 'UnifrakturCook', 'Old English Text MT', serif;
+	--mono: 'Courier Prime', 'Courier New', ui-monospace, monospace;
+}
+
+/* The Storyteller's next step in the game, over the village, above the buttons. */
+.v-stbar { bottom: calc(70px + env(safe-area-inset-bottom)); z-index: 2; border-top-color: var(--gold); max-height: 40%; }
+.v-choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }

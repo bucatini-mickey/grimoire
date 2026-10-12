@@ -1,0 +1,67 @@
+{
+ "rule": "wake-in-order",
+ "detail": "traveller-info:13 (order 0.5) after a step of order 43",
+ "seed": 1879,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior",
+    "Maud"
+   ],
+   "scriptId": "bad-moon-rising"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "courtier",
+    "gossip",
+    "gambler",
+    "shabaloth",
+    "sailor",
+    "assassin",
+    "devils-advocate",
+    "chambermaid",
+    "fool",
+    "minstrel",
+    "innkeeper",
+    "exorcist",
+    "mastermind"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "goon",
+    "grandmother",
+    "lunatic"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T13",
+   "character": "matron",
+   "alignment": "evil",
+   "after": 11
+  },
+  {
+   "type": "acknowledge"
+  }
+ ]
+}

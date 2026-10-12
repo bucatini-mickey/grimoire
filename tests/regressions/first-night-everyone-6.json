@@ -1,0 +1,198 @@
+{
+ "rule": "first-night-everyone",
+ "detail": "Bram(imp) never woke on the first night",
+ "seed": 6,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme"
+   ],
+   "scriptId": "trouble-brewing"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "saint",
+    "baron",
+    "empath",
+    "imp",
+    "recluse"
+   ],
+   "redHerring": null,
+   "bluffs": []
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 2
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 2,
+   "nominee": 3
+  },
+  {
+   "type": "vote",
+   "voters": []
+  },
+  {
+   "type": "nominate",
+   "nominator": 4,
+   "nominee": 0
+  },
+  {
+   "type": "vote",
+   "voters": [
+    4
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 2
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 2,
+   "nominee": 3
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    2,
+    4
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 1
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 4,
+   "nominee": 0
+  },
+  {
+   "type": "vote",
+   "voters": [
+    4
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 1,
+   "nominee": 1
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 1
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 2,
+   "nominee": 4
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    3,
+    4
+   ]
+  },
+  {
+   "type": "end-day"
+  }
+ ]
+}

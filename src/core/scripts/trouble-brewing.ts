@@ -4,11 +4,9 @@ import type { CharacterDef, Script } from '../types.ts';
  * Trouble Brewing. Ability text is our own paraphrase, written for the
  * Storyteller's reference - not the printed card wording.
  *
- * Wake order numbers are relative sort keys. The sequence follows the
- * official night sheet as best remembered; the only orderings the rules
- * actually depend on are: Poisoner first, Monk before the Imp, the Imp
- * before the Ravenkeeper and before every "learn" ability, Spy last.
- * Those are pinned by tests. See docs/DESIGN.md, "Things to verify".
+ * Wake order: a number here only says the character wakes that night; the
+ * order itself comes from the official night sheet (scripts/night-order.ts),
+ * applied in script.ts.
  */
 const characters: CharacterDef[] = [
 	// ---- Townsfolk ----

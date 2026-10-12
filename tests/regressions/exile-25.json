@@ -1,0 +1,338 @@
+{
+ "rule": "exile",
+ "detail": "exile: 3 of 3 needed, passed false",
+ "seed": 25,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory"
+   ],
+   "scriptId": "bad-moon-rising"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "fool",
+    "tea-lady",
+    "pacifist",
+    "mastermind",
+    "devils-advocate",
+    "innkeeper",
+    "zombuul",
+    "gossip",
+    "courtier",
+    "professor"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "sailor",
+    "grandmother",
+    "gambler"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T10",
+   "character": "apprentice",
+   "alignment": "evil",
+   "after": 6
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 10,
+   "nominee": 4
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    1,
+    2,
+    4,
+    6,
+    7,
+    8,
+    9
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "character": "devils-advocate"
+  },
+  {
+   "type": "choose",
+   "character": "innkeeper"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2,
+    8
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    9
+   ]
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T11",
+   "character": "judge",
+   "alignment": "good",
+   "after": 9
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 10,
+   "nominee": 8
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    1,
+    3,
+    5,
+    7,
+    8,
+    9,
+    11
+   ]
+  },
+  {
+   "type": "end-day",
+   "executionSurvives": false
+  },
+  {
+   "type": "choose",
+   "targets": [
+    10,
+    5
+   ],
+   "drunk": 10
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 3,
+   "nominee": 6
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    2,
+    3,
+    5,
+    7,
+    10
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5,
+    2
+   ],
+   "drunk": 5
+  },
+  {
+   "type": "choose",
+   "targets": [
+    11
+   ]
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "traveller-leaves",
+   "seat": 10
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 2,
+   "nominee": 3
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    1,
+    2,
+    3,
+    7,
+    8,
+    9,
+    11
+   ]
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T12",
+   "character": "matron",
+   "alignment": "good",
+   "after": 7
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6,
+    9
+   ],
+   "drunk": 6
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "gossip",
+   "by": 7,
+   "true": true
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6,
+    12
+   ],
+   "drunk": 6
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    9
+   ]
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "exile",
+   "traveller": 11,
+   "supporters": [
+    0,
+    3,
+    4,
+    5,
+    6,
+    10,
+    11,
+    12
+   ]
+  },
+  {
+   "type": "exile",
+   "traveller": 12,
+   "supporters": [
+    1,
+    3,
+    5
+   ]
+  }
+ ]
+}

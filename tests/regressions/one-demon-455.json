@@ -1,0 +1,244 @@
+{
+ "rule": "one-demon",
+ "detail": "no living Demon and the game goes on",
+ "seed": 455,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior",
+    "Maud"
+   ],
+   "scriptId": "sects-and-violets"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "seamstress",
+    "dreamer",
+    "snake-charmer",
+    "artist",
+    "barber",
+    "mathematician",
+    "juggler",
+    "evil-twin",
+    "fang-gu",
+    "philosopher",
+    "sage",
+    "cerenovus",
+    "witch"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "klutz",
+    "flowergirl",
+    "mutant"
+   ],
+   "evilTwin": 1
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "choose",
+   "character": "sweetheart"
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    9
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    12
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    12
+   ],
+   "character": "oracle"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "dream",
+    "player": 6,
+    "characters": [
+     "juggler",
+     "evil-twin"
+    ]
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "same",
+    "players": [
+     1,
+     9
+    ],
+    "yes": true
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 3
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 9,
+   "nominee": 8
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    2,
+    6,
+    7,
+    8,
+    11,
+    12
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 12,
+   "nominee": 5
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    5,
+    6,
+    7,
+    10,
+    12
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    9
+   ],
+   "character": "dreamer"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "dream",
+    "player": 7,
+    "characters": [
+     "evil-twin",
+     "clockmaker"
+    ]
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 11,
+   "nominee": 9
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    1,
+    4,
+    5,
+    6,
+    7,
+    9,
+    10
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ],
+   "character": "seamstress"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ]
+  }
+ ]
+}

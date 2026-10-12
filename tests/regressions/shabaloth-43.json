@@ -1,0 +1,146 @@
+{
+ "rule": "shabaloth",
+ "detail": "the Shabaloth chose 0",
+ "seed": 43,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior"
+   ],
+   "scriptId": "bad-moon-rising"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "devils-advocate",
+    "assassin",
+    "sailor",
+    "professor",
+    "innkeeper",
+    "lunatic",
+    "gambler",
+    "courtier",
+    "gossip",
+    "tinker",
+    "fool",
+    "shabaloth"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "goon",
+    "tea-lady",
+    "minstrel"
+   ],
+   "fabled": [
+    {
+     "id": "toymaker"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ],
+   "drunk": 8
+  },
+  {
+   "type": "choose",
+   "character": "assassin"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ],
+   "drunk": 2
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1,
+    5
+   ],
+   "drunk": 5
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ],
+   "character": "professor"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7,
+    10
+   ]
+  },
+  {
+   "type": "choose",
+   "none": true
+  }
+ ]
+}

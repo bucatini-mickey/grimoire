@@ -17,12 +17,12 @@ export function emptyState(): GameState {
 		phase: { kind: 'setup' },
 		redHerring: null,
 		bluffs: [],
-		poison: null,
-		butlerMaster: null,
+		effects: [],
 		spent: [],
 		night: null,
 		day: null,
 		lastExecution: null,
+		mastermind: null,
 		newDemon: null
 	};
 }
@@ -48,40 +48,88 @@ export function reduce(prev: GameState, e: GameEvent): GameState {
 			});
 			s.redHerring = e.redHerring;
 			s.bluffs = [...e.bluffs];
+			if (e.fabled?.length) s.fabled = e.fabled.map((f) => ({ ...f }));
 			break;
 		}
 
 		case 'night-began':
 			s.phase = { kind: 'night', n: e.n };
-			s.night = { n: e.n, done: [], deaths: [], protectedSeat: null, demonMadeTonight: null };
+			s.night = {
+				n: e.n, done: [], deaths: [], demonMadeTonight: null, revived: [],
+				dayDeaths: [...(s.day?.deaths ?? [])],
+				dayVoters: [...new Set((s.day?.nominations ?? []).flatMap((x) => x.voters ?? []))],
+				dayNominators: (s.day?.nominations ?? []).map((x) => x.nominator),
+				demonKills: [],
+				changed: [],
+				gossip: (s.day?.gossip ?? []).filter((g) => g.true).map((g) => ({ by: g.by }))
+			};
 			s.day = null;
-			// Dusk: the Poisoner's last choice wears off.
-			s.poison = null;
+			// Dusk: whatever lasts "until dusk" wears off (the Poisoner's poison), and what lasts until this dusk.
+			s.effects = s.effects.filter((x) => x.until !== 'dusk' && !(typeof x.until === 'object' && x.until.dusk <= e.n));
 			break;
 
-		case 'chose': {
-			const t = e.targets[0];
-			if (e.role === 'poisoner' && e.effective) s.poison = { by: e.by, target: t };
-			if (e.role === 'monk' && e.effective && s.night) s.night.protectedSeat = t;
-			// A Drunk "Butler" does not exist (the Drunk thinks they are a Townsfolk),
-			// so any Butler choosing is a real Butler; poisoned or not, they pick a master.
-			if (e.role === 'butler') s.butlerMaster = t;
+		case 'effect-added':
+			s.effects.push({ ...e.effect });
+			break;
+
+		case 'effects-ended': {
+			const m = e.match as Record<string, unknown>;
+			s.effects = s.effects.filter((x) => !Object.entries(m).every(([k, v]) => (x as unknown as Record<string, unknown>)[k] === v));
 			break;
 		}
 
 		case 'step-done':
 		case 'step-skipped':
 			s.night?.done.push(e.step);
-			if (e.step.startsWith('new-demon:')) s.newDemon = null;
+			if (s.night && e.order !== undefined) s.night.reached = Math.max(s.night.reached ?? -Infinity, e.order);
+			if (e.step.startsWith('new-demon:') && s.newDemon && e.step === `new-demon:${s.newDemon.seat}`) s.newDemon = null;
 			break;
 
 		case 'died': {
 			const seat = s.seats[e.seat];
 			seat.alive = false;
+			seat.undead = false;
 			if (s.night) s.night.deaths.push(e.seat);
+			if (s.night && s.phase.kind === 'night' && e.cause === 'demon') (s.night.demonKills ??= []).push(e.seat);
+			if (s.day && s.phase.kind === 'day') s.day.deaths.push(e.seat);
 			if (e.cause === 'execution' && s.day) s.lastExecution = { day: s.day.n, seat: e.seat };
-			// A dead Poisoner has no ability, so the poison ends.
-			if (s.poison?.by === e.seat) s.poison = null;
+			// The dead have no ability: effects that live on their source end (the Poisoner's poison).
+			s.effects = s.effects.filter((x) => !(x.endsWithSource && x.by === e.seat));
+			break;
+		}
+
+		case 'votes-restored':
+			for (const x of s.seats) if (!x.alive) x.ghostVote = true;
+			break;
+
+		case 'traveller-joined': {
+			s.seats.push({ id: e.seat, name: e.name, character: e.character, believes: e.character, alignment: e.alignment, alive: true, ghostVote: true, traveller: true });
+			s.order.splice(s.order.indexOf(e.after) + 1, 0, e.seat);
+			// Joining at night: their ability acts tonight only if its place is still to come.
+			if (s.night && s.phase.kind === 'night') (s.night.changed ??= []).push({ seat: e.seat, at: s.night.reached ?? -Infinity });
+			break;
+		}
+
+		case 'judged': {
+			// Pardoned: not executed today, and the votes for them do not count.
+			if (e.verdict === 'pardon' && s.day) {
+				const nom = [...s.day.nominations].reverse().find((n) => n.nominee === e.nominee);
+				if (nom) nom.votes = 0;
+				if (s.day.block === e.nominee) s.day.block = null;
+				s.day.highest = Math.max(0, ...s.day.nominations.filter((n) => n.nominee !== e.nominee).map((n) => n.votes ?? 0));
+			}
+			break;
+		}
+
+		case 'character-changed': {
+			const seat = s.seats[e.seat];
+			seat.character = e.character;
+			seat.believes = e.believes;
+			if (s.night && s.phase.kind === 'night') (s.night.changed ??= []).push({ seat: e.seat, at: e.at ?? 0 });
+			// What they did as their old character, and that ends with them, ends (a Poisoner turned into something else).
+			s.effects = s.effects.filter((x) => !(x.endsWithSource && x.by === e.seat && x.role !== e.character));
+			// A dead Minion's kept ability (the Vigormortis) was that Minion's: it ends.
+			s.effects = s.effects.filter((x) => !(x.kind === 'keeps-ability' && x.target === e.seat));
 			break;
 		}
 
@@ -91,16 +139,22 @@ export function reduce(prev: GameState, e: GameEvent): GameState {
 			seat.believes = e.character;
 			seat.alignment = 'evil';
 			s.newDemon = { seat: e.seat, during: s.phase.kind === 'night' ? 'night' : 'day' };
-			if (s.night && s.phase.kind === 'night') s.night.demonMadeTonight = e.seat;
+			if (s.night && s.phase.kind === 'night') {
+				s.night.demonMadeTonight = e.seat;
+				(s.night.made ??= []).push({ seat: e.seat, at: e.at ?? 0 });
+			}
+			if (s.night && s.phase.kind === 'night' && e.via === 'pit-hag') s.night.arbitrary = true;
 			// A Poisoner who becomes the Demon is no longer the Poisoner.
-			if (s.poison?.by === e.seat) s.poison = null;
+			s.effects = s.effects.filter((x) => !(x.endsWithSource && x.by === e.seat && x.role !== e.character));
 			break;
 		}
 
 		case 'day-began':
 			s.phase = { kind: 'day', n: e.n };
 			s.night = null;
-			s.day = { n: e.n, stage: 'discussion', nominations: [], block: null, highest: 0, executed: null };
+			s.day = { n: e.n, stage: 'discussion', nominations: [], block: null, highest: 0, executed: null, deaths: [], gossip: [] };
+			// Dawn: whatever lasts "tonight" wears off (the Monk's protection).
+			s.effects = s.effects.filter((x) => x.until !== 'dawn');
 			break;
 
 		case 'nominated':
@@ -151,16 +205,50 @@ export function reduce(prev: GameState, e: GameEvent): GameState {
 				seat.alignment = teamAlignment(charDef(getScript(s.scriptId), e.character).team);
 			}
 			if (e.believes !== undefined) seat.believes = e.believes;
-			if (e.alive === false && s.poison?.by === e.seat) s.poison = null;
+			if (e.alive === false) s.effects = s.effects.filter((x) => !(x.endsWithSource && x.by === e.seat));
 			break;
 		}
 
 		case 'poison-set':
-			s.poison = e.target === null ? null : { by: null, target: e.target };
+			// The Storyteller's hand: poison someone until dusk, or (null) cure all poison.
+			s.effects = s.effects.filter((x) => x.kind !== 'poisoned');
+			if (e.target !== null) s.effects.push({ kind: 'poisoned', target: e.target, by: null, role: 'storyteller', until: 'dusk' });
 			break;
 
 		case 'red-herring-set':
 			s.redHerring = e.seat;
+			break;
+
+		case 'alignment-changed':
+			s.seats[e.seat].alignment = e.alignment;
+			break;
+
+		case 'revived': {
+			const seat = s.seats[e.seat];
+			seat.alive = true;
+			seat.undead = false;
+			seat.ghostVote = true;
+			// Back to life with every ability, even a once-per-game one already used.
+			s.spent = s.spent.filter((x) => !x.startsWith(`${e.seat}:`));
+			s.night?.revived.push(e.seat);
+			break;
+		}
+
+		case 'seems-dead': {
+			const seat = s.seats[e.seat];
+			seat.alive = false;
+			seat.undead = true;
+			if (s.night) s.night.deaths.push(e.seat);
+			if (s.day && s.phase.kind === 'day') s.day.deaths.push(e.seat);
+			break;
+		}
+
+		case 'gossiped':
+			s.day?.gossip.push({ by: e.by, true: e.true });
+			break;
+
+		case 'mastermind-day':
+			s.mastermind = { day: e.day };
 			break;
 
 		case 'game-over':
@@ -176,6 +264,7 @@ export function reduce(prev: GameState, e: GameEvent): GameState {
 		case 'kill-prevented':
 		case 'kill-redirected':
 		case 'slayer-shot':
+		case 'survived-execution':
 		case 'note':
 			break;
 	}
@@ -183,5 +272,26 @@ export function reduce(prev: GameState, e: GameEvent): GameState {
 }
 
 export function replay(events: GameEvent[]): GameState {
-	return events.reduce(reduce, emptyState());
+	return upgradeLog(events).reduce(reduce, emptyState());
+}
+
+/**
+ * Games saved before effects were events (2026-10) recorded only the choices;
+ * this adds the effects those choices made, so an old game loads as it was.
+ */
+export function upgradeLog(events: GameEvent[]): GameEvent[] {
+	if (events.some((e) => e.type === 'effect-added' || e.type === 'effects-ended')) return events;
+	const out: GameEvent[] = [];
+	for (const e of events) {
+		out.push(e);
+		if (e.type !== 'chose') continue;
+		const t = e.targets[0];
+		if (e.role === 'poisoner' && e.effective) out.push({ type: 'effect-added', effect: { kind: 'poisoned', target: t, by: e.by, role: 'poisoner', until: 'dusk', endsWithSource: true } });
+		if (e.role === 'monk' && e.effective) out.push({ type: 'effect-added', effect: { kind: 'safe-from-demon', target: t, by: e.by, role: 'monk', until: 'dawn' } });
+		if (e.role === 'butler') {
+			out.push({ type: 'effects-ended', match: { kind: 'master', by: e.by } });
+			out.push({ type: 'effect-added', effect: { kind: 'master', target: t, by: e.by, role: 'butler', until: 'game' } });
+		}
+	}
+	return out;
 }

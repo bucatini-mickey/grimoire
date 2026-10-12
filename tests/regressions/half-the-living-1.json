@@ -1,0 +1,117 @@
+{
+ "rule": "half-the-living",
+ "detail": "needed 6, should be 1",
+ "seed": 1,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit"
+   ],
+   "scriptId": "bad-moon-rising"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "grandmother",
+    "tea-lady",
+    "exorcist",
+    "courtier",
+    "minstrel",
+    "devils-advocate",
+    "godfather",
+    "gossip",
+    "pacifist",
+    "professor",
+    "po"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "innkeeper",
+    "lunatic",
+    "moonchild"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "character": "exorcist"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "characters",
+    "characters": []
+   }
+  },
+  {
+   "type": "choose",
+   "targets": [
+    9
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "reveal",
+    "player": 1,
+    "character": "tea-lady"
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T11",
+   "character": "voudon",
+   "alignment": "evil",
+   "after": 1
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 8,
+   "nominee": 6
+  },
+  {
+   "type": "vote",
+   "voters": []
+  }
+ ]
+}

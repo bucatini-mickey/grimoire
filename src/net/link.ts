@@ -23,27 +23,32 @@ export type LinkStatus = 'connecting' | 'open' | 'closed' | 'error';
 
 // ---- the Storyteller's side -------------------------------------------------------------
 
-export interface HostLink {
+export interface HostLink<Out = HostMsg> {
 	room: string;
+	/** The PeerJS peer, for voice calls. */
+	peer: Peer;
 	status: LinkStatus;
 	/** Connected phones, by connection id. */
 	peers: Map<string, DataConnection>;
-	send(peerId: string, msg: HostMsg): void;
+	send(peerId: string, msg: Out): void;
 	close(): void;
 }
 
-export function hostRoom(
+/** `prefix` keeps different kinds of room apart (the grimoire, the village). */
+export function hostRoom<In = PlayerMsg, Out = HostMsg>(
 	room: string,
 	on: {
-		message: (peerId: string, msg: PlayerMsg) => void;
+		message: (peerId: string, msg: In) => void;
 		joined: (peerId: string) => void;
 		left: (peerId: string) => void;
 		status: (s: LinkStatus, detail?: string) => void;
-	}
-): HostLink {
-	const peer = new Peer(PREFIX + room);
-	const link: HostLink = {
+	},
+	prefix = PREFIX
+): HostLink<Out> {
+	const peer = new Peer(prefix + room);
+	const link: HostLink<Out> = {
 		room,
+		peer,
 		status: 'connecting',
 		peers: new Map(),
 		send(peerId, msg) {
@@ -64,7 +69,7 @@ export function hostRoom(
 			link.peers.set(conn.peer, conn);
 			on.joined(conn.peer);
 		});
-		conn.on('data', (data) => on.message(conn.peer, data as PlayerMsg));
+		conn.on('data', (data) => on.message(conn.peer, data as In));
 		conn.on('close', () => {
 			link.peers.delete(conn.peer);
 			on.left(conn.peer);
@@ -75,20 +80,23 @@ export function hostRoom(
 
 // ---- a player's side -----------------------------------------------------------------------
 
-export interface PlayerLink {
+export interface PlayerLink<Out = PlayerMsg> {
+	peer: Peer;
 	status: LinkStatus;
-	send(msg: PlayerMsg): void;
+	send(msg: Out): void;
 	close(): void;
 }
 
-export function joinRoom(
+export function joinRoom<In = HostMsg, Out = PlayerMsg>(
 	room: string,
-	on: { message: (msg: HostMsg) => void; status: (s: LinkStatus, detail?: string) => void }
-): PlayerLink {
+	on: { message: (msg: In) => void; status: (s: LinkStatus, detail?: string) => void },
+	prefix = PREFIX
+): PlayerLink<Out> {
 	const peer = new Peer();
 	let conn: DataConnection | null = null;
 	let closing = false;
-	const link: PlayerLink = {
+	const link: PlayerLink<Out> = {
+		peer,
 		status: 'connecting',
 		send(msg) {
 			if (conn?.open) conn.send(msg);
@@ -100,10 +108,10 @@ export function joinRoom(
 	};
 	const set = (s: LinkStatus, detail?: string) => { link.status = s; on.status(s, detail); };
 	const connect = () => {
-		const c = peer.connect(PREFIX + room.toUpperCase(), { reliable: true });
+		const c = peer.connect(prefix + room.toUpperCase(), { reliable: true });
 		conn = c;
 		c.on('open', () => set('open'));
-		c.on('data', (data) => on.message(data as HostMsg));
+		c.on('data', (data) => on.message(data as In));
 		c.on('close', () => {
 			if (closing) return;
 			set('connecting');

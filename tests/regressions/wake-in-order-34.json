@@ -1,0 +1,169 @@
+{
+ "rule": "wake-in-order",
+ "detail": "courtier:5 (order 18) after a step of order 65",
+ "seed": 34,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory"
+   ],
+   "scriptId": "bad-moon-rising"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "chambermaid",
+    "mastermind",
+    "gossip",
+    "fool",
+    "tea-lady",
+    "courtier",
+    "professor",
+    "pukka",
+    "gambler",
+    "assassin"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "innkeeper",
+    "moonchild",
+    "grandmother"
+   ],
+   "fabled": [
+    {
+     "id": "storm-catcher",
+     "character": "gambler"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     3,
+     8
+    ],
+    "value": 0
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ],
+   "character": "chambermaid"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ]
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     9,
+     6
+    ],
+    "value": 2
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "character": "courtier"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ],
+   "character": "minstrel"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ],
+   "character": "tinker"
+  }
+ ]
+}

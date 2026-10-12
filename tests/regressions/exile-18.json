@@ -1,0 +1,75 @@
+{
+ "rule": "exile",
+ "detail": "exile: 3 of 4 needed, passed true",
+ "seed": 18,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn"
+   ],
+   "scriptId": "trouble-brewing"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "poisoner",
+    "monk",
+    "undertaker",
+    "imp",
+    "saint",
+    "mayor"
+   ],
+   "redHerring": null,
+   "bluffs": []
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T6",
+   "character": "bureaucrat",
+   "alignment": "evil",
+   "after": 5
+  },
+  {
+   "type": "exile",
+   "traveller": 6,
+   "supporters": [
+    1,
+    4,
+    6
+   ]
+  }
+ ]
+}

@@ -1,0 +1,153 @@
+{
+ "rule": "vortox",
+ "detail": "Dorn(town-crier) (sober) told something true under the Vortox without \"I insist\"",
+ "seed": 14,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal"
+   ],
+   "scriptId": "sects-and-violets"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "pit-hag",
+    "seamstress",
+    "fang-gu",
+    "town-crier",
+    "sweetheart",
+    "mathematician",
+    "klutz",
+    "philosopher"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "artist",
+    "sage",
+    "dreamer"
+   ],
+   "fabled": [
+    {
+     "id": "ferryman"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "choose",
+   "character": "savant"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "same",
+    "players": [
+     3,
+     6
+    ],
+    "yes": true
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 4,
+   "nominee": 3
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    1,
+    4,
+    5,
+    7
+   ]
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T8",
+   "character": "bone-collector",
+   "alignment": "evil",
+   "after": 0
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ],
+   "character": "vortox"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "storyteller-kill",
+   "seat": 4
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "yesno",
+    "yes": false
+   }
+  }
+ ]
+}

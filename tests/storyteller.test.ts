@@ -39,7 +39,7 @@ test('the Storyteller can move tokens by hand, and it is logged', () => {
 	s = ok(s, { type: 'adjust', seat: 3, character: 'drunk', believes: 'chef' });
 	assert.equal(s.seats[3].believes, 'chef');
 	s = ok(s, [{ type: 'set-poison', target: 5 }, { type: 'set-red-herring', seat: 4 }]);
-	assert.deepEqual(s.poison, { by: null, target: 5 });
+	assert.deepEqual(s.effects.filter((e) => e.kind === 'poisoned').map((e) => [e.target, e.by]), [[5, null]]);
 	assert.equal(s.redHerring, 4);
 	s = ok(s, { type: 'adjust', seat: 4, alive: false });
 	assert.equal(s.seats[4].alive, false);
@@ -80,7 +80,7 @@ test('Investigator leans: helping good pairs the Minion with another evil player
 test('Empath and Fortune Teller candidates', () => {
 	const s = game(['imp', 'washerwoman', 'poisoner', 'empath', 'monk', 'soldier', 'fortune-teller'], { redHerring: 5 });
 	assert.deepEqual(infoCandidates(s, 'empath', 3).map((c) => [c.info, c.truthful]), [[{ kind: 'number', value: 1 }, true]]);
-	s.poison = { by: 2, target: 3 };
+	s.effects.push({ kind: 'poisoned', target: 3, by: 2, role: 'poisoner', until: 'dusk', endsWithSource: true });
 	const lies = infoCandidates(s, 'empath', 3);
 	assert.ok(lies.some((c) => !c.truthful && c.info.kind === 'number' && c.info.value === 0));
 	const ft = infoCandidates(s, 'fortune-teller', 6, [4, 5]);

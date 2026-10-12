@@ -1,0 +1,280 @@
+{
+ "rule": "survive-execution",
+ "detail": "Kit(fool) survived execution by the Tea Lady without cause",
+ "seed": 805,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior",
+    "Maud",
+    "Ned",
+    "Orla"
+   ],
+   "scriptId": "bad-moon-rising"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "godfather",
+    "lunatic",
+    "exorcist",
+    "chambermaid",
+    "pacifist",
+    "tea-lady",
+    "tinker",
+    "assassin",
+    "moonchild",
+    "professor",
+    "fool",
+    "devils-advocate",
+    "courtier",
+    "pukka",
+    "gambler"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "grandmother",
+    "goon",
+    "minstrel"
+   ],
+   "fabled": [
+    {
+     "id": "storm-catcher",
+     "character": "professor"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "characters",
+    "characters": [
+     "lunatic",
+     "tinker",
+     "moonchild"
+    ]
+   }
+  },
+  {
+   "type": "choose",
+   "targets": [
+    11
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     12,
+     6
+    ],
+    "value": 1
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "swap-seats",
+   "a": 5,
+   "b": 9
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5
+   ],
+   "character": "tea-lady"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ]
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "tinker",
+   "seat": 6
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5
+   ],
+   "character": "grandmother"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    12
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T15",
+   "character": "apprentice",
+   "alignment": "good",
+   "after": 4
+  },
+  {
+   "type": "choose",
+   "character": "fool"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 9,
+   "nominee": 10
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    4,
+    5,
+    7,
+    9,
+    15
+   ]
+  },
+  {
+   "type": "end-day"
+  }
+ ]
+}

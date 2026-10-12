@@ -1,0 +1,980 @@
+{
+ "rule": "fool",
+ "detail": "T14(fool) died on the Fool's first death",
+ "seed": 1729,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior",
+    "Maud",
+    "Ned"
+   ],
+   "scriptId": "bad-moon-rising"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "shabaloth",
+    "exorcist",
+    "assassin",
+    "chambermaid",
+    "professor",
+    "gossip",
+    "devils-advocate",
+    "sailor",
+    "minstrel",
+    "innkeeper",
+    "grandmother",
+    "tea-lady",
+    "fool",
+    "godfather"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "gambler",
+    "goon",
+    "courtier"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    10
+   ],
+   "drunk": 7
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "characters",
+    "characters": []
+   }
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "reveal",
+    "player": 1,
+    "character": "exorcist"
+   }
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 5,
+   "nominee": 5
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    3,
+    4,
+    5,
+    10,
+    11
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 4,
+   "nominee": 7
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    3,
+    4,
+    5,
+    7,
+    9,
+    13
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 11,
+   "nominee": 13
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    1,
+    2,
+    3,
+    6,
+    7,
+    9,
+    11,
+    13
+   ]
+  },
+  {
+   "type": "gossip",
+   "by": 5,
+   "true": false
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5,
+    8
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    10
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8,
+    10
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    11
+   ]
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     10,
+     8
+    ],
+    "value": 1
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 4,
+   "nominee": 9
+  },
+  {
+   "type": "vote",
+   "voters": [
+    5,
+    11
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 2,
+   "nominee": 5
+  },
+  {
+   "type": "vote",
+   "voters": [
+    4,
+    5,
+    6,
+    9,
+    11
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    12
+   ],
+   "drunk": 7
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5,
+    13
+   ],
+   "drunk": 13
+  },
+  {
+   "type": "choose",
+   "targets": [
+    11
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    9
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8,
+    12
+   ]
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     11,
+     9
+    ],
+    "value": 1
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "slay",
+   "by": 11,
+   "target": 3
+  },
+  {
+   "type": "nominate",
+   "nominator": 5,
+   "nominee": 12
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    2,
+    3,
+    4,
+    5,
+    7,
+    8,
+    10,
+    11
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 1,
+   "nominee": 0
+  },
+  {
+   "type": "vote",
+   "voters": [
+    3,
+    4,
+    5,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ],
+   "drunk": 7
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2,
+    12
+   ],
+   "drunk": 2
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    12
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2,
+    1
+   ],
+   "regurgitate": null
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     9,
+     5
+    ],
+    "value": 1
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 12,
+   "nominee": 1
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    4,
+    5,
+    11,
+    12
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 10,
+   "nominee": 12
+  },
+  {
+   "type": "vote",
+   "voters": [
+    4,
+    5,
+    6,
+    9,
+    12
+   ]
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T14",
+   "character": "apprentice",
+   "alignment": "good",
+   "after": 13
+  },
+  {
+   "type": "nominate",
+   "nominator": 4,
+   "nominee": 6
+  },
+  {
+   "type": "vote",
+   "voters": [
+    2,
+    5,
+    6,
+    7,
+    9,
+    10,
+    11,
+    12
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "character": "fool"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ],
+   "drunk": 7
+  },
+  {
+   "type": "choose",
+   "targets": [
+    11,
+    7
+   ],
+   "drunk": 11
+  },
+  {
+   "type": "choose",
+   "targets": [
+    9,
+    12
+   ],
+   "regurgitate": 1
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "choose",
+   "targets": [
+    11
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     12,
+     7
+    ],
+    "value": 1
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 10,
+   "nominee": 12
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    5,
+    7,
+    9,
+    13
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 2,
+   "nominee": 2
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    1,
+    5,
+    11,
+    14
+   ]
+  },
+  {
+   "type": "swap-seats",
+   "a": 10,
+   "b": 4
+  },
+  {
+   "type": "gossip",
+   "by": 5,
+   "true": false
+  },
+  {
+   "type": "exile",
+   "traveller": 14,
+   "supporters": [
+    1,
+    2,
+    3,
+    6,
+    7,
+    13,
+    14
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    10
+   ],
+   "drunk": 10
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    14,
+    5
+   ],
+   "regurgitate": 9
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4,
+    7
+   ],
+   "drunk": 4
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     11,
+     12
+    ],
+    "value": 0
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T15",
+   "character": "judge",
+   "alignment": "good",
+   "after": 9
+  },
+  {
+   "type": "nominate",
+   "nominator": 9,
+   "nominee": 8
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    2,
+    4,
+    6,
+    7,
+    8,
+    9,
+    10,
+    12,
+    15
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 10,
+   "nominee": 11
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    3,
+    8,
+    9,
+    12,
+    15
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 12,
+   "nominee": 7
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    2,
+    3,
+    4,
+    5,
+    9,
+    11,
+    12,
+    14,
+    15
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ],
+   "drunk": 7
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7,
+    0
+   ],
+   "drunk": 7
+  },
+  {
+   "type": "choose",
+   "targets": [
+    11
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    11,
+    2
+   ],
+   "regurgitate": null
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     10,
+     7
+    ],
+    "value": 1
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "exile",
+   "traveller": 15,
+   "supporters": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    7,
+    11,
+    12,
+    13,
+    14
+   ]
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 1,
+   "nominee": 12
+  },
+  {
+   "type": "vote",
+   "voters": [
+    7,
+    11,
+    12,
+    15
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ],
+   "drunk": 7
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8,
+    4
+   ],
+   "drunk": 4
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     0,
+     4
+    ],
+    "value": 0
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 12,
+   "nominee": 11
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    1,
+    3,
+    7,
+    9,
+    10,
+    12
+   ]
+  },
+  {
+   "type": "slay",
+   "by": 7,
+   "target": 6
+  },
+  {
+   "type": "nominate",
+   "nominator": 3,
+   "nominee": 9
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    4,
+    9
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    12,
+    0
+   ],
+   "drunk": 0
+  },
+  {
+   "type": "choose",
+   "targets": [
+    9
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    15,
+    7
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     8,
+     1
+    ],
+    "value": 1
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 8,
+   "nominee": 12
+  },
+  {
+   "type": "vote",
+   "voters": [
+    2,
+    4,
+    7,
+    9,
+    10
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 0,
+   "nominee": 8
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    4,
+    7,
+    12
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 12,
+   "nominee": 5
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    1,
+    7
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3,
+    7
+   ],
+   "drunk": 7
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8,
+    0
+   ],
+   "regurgitate": 15
+  }
+ ]
+}

@@ -1,0 +1,134 @@
+{
+ "rule": "sailor",
+ "detail": "Fenn(sailor), a sober Sailor, died",
+ "seed": 487,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior",
+    "Maud"
+   ],
+   "scriptId": "bad-moon-rising"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "grandmother",
+    "gambler",
+    "devils-advocate",
+    "goon",
+    "courtier",
+    "sailor",
+    "exorcist",
+    "assassin",
+    "innkeeper",
+    "godfather",
+    "po",
+    "tea-lady",
+    "chambermaid"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "tinker",
+    "gossip",
+    "pacifist"
+   ],
+   "fabled": [
+    {
+     "id": "doomsayer"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ],
+   "drunk": 0
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "characters",
+    "characters": [
+     "goon"
+    ]
+   }
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "reveal",
+    "player": 1,
+    "character": "gambler"
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     9,
+     10
+    ],
+    "value": 1
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "doomsayer",
+   "by": 8,
+   "victim": 5
+  }
+ ]
+}

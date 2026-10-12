@@ -1,0 +1,226 @@
+{
+ "rule": "minstrel",
+ "detail": "everyone made drunk without a Minion dying by execution",
+ "seed": 841,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior",
+    "Maud",
+    "Ned",
+    "Orla"
+   ],
+   "scriptId": "bad-moon-rising"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "gambler",
+    "professor",
+    "chambermaid",
+    "goon",
+    "tinker",
+    "pukka",
+    "grandmother",
+    "godfather",
+    "lunatic",
+    "innkeeper",
+    "mastermind",
+    "exorcist",
+    "devils-advocate",
+    "minstrel",
+    "sailor"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "pacifist",
+    "gossip",
+    "moonchild"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    14
+   ],
+   "drunk": 14
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "characters",
+    "characters": [
+     "goon",
+     "tinker",
+     "lunatic"
+    ]
+   }
+  },
+  {
+   "type": "choose",
+   "targets": [
+    14
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "reveal",
+    "player": 0,
+    "character": "gambler"
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     5,
+     10
+    ],
+    "value": 1
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    10
+   ],
+   "drunk": 10
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8,
+    3
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    12
+   ],
+   "character": "shabaloth"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    12
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    13
+   ]
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     9,
+     8
+    ],
+    "value": 2
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 6,
+   "nominee": 7
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    3,
+    4,
+    5,
+    6,
+    10,
+    13,
+    14
+   ]
+  },
+  {
+   "type": "end-day"
+  }
+ ]
+}

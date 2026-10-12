@@ -7,7 +7,7 @@
  */
 import type { GameState, Info, SeatId } from './types.ts';
 import { charDef, getScript } from './script.ts';
-import { chefNumbers, empathNumbers, fortuneAnswers, judgeInfo, librarianNoneIsTrue, PAIR_ROLE_TEAM } from './rules.ts';
+import { chefNumbers, empathNumbers, fortuneAnswers, judgeInfo, librarianNoneIsTrue, PAIR_ROLE_TEAM, wokeTonight } from './rules.ts';
 
 /**
  * `chosen` is what the player picked, for the roles that pick before they
@@ -51,7 +51,65 @@ export function suggestInfo(state: GameState, role: string, to: SeatId, chosen: 
 			if (chosen.length !== 1) return null;
 			info = { kind: 'reveal', player: chosen[0], character: state.seats[chosen[0]].character };
 			break;
+		case 'grandmother': {
+			const child = others.find((s) => s.alignment === 'good' && ['townsfolk', 'outsider'].includes(charDef(script, s.character).team));
+			if (!child) return null;
+			info = { kind: 'reveal', player: child.id, character: child.character };
+			break;
+		}
+		case 'chambermaid': {
+			const pick = chosen.length === 2 ? chosen : others.filter((s) => s.alive).slice(0, 2).map((s) => s.id);
+			if (pick.length !== 2) return null;
+			const n = pick.filter((p) => wokeTonight(state, p)).length;
+			info = { kind: 'woke', players: [pick[0], pick[1]], value: n };
+			break;
+		}
+		case 'godfather-info':
+		case 'godfather':
+			info = { kind: 'characters', characters: state.seats.filter((s) => charDef(script, s.character).team === 'outsider').map((s) => s.character) };
+			break;
 	}
 	if (info && judgeInfo(state, to, role, info).truthful) return info;
+	// The rest (Sects & Violets): try the possible answers in turn and take the first true one.
+	if (!info) for (const c of possibleAnswers(state, role, to, chosen)) if (judgeInfo(state, to, role, c).truthful) return c;
 	return null;
+}
+
+/** Every answer of the right shape, for the roles answered by trying (small lists). */
+function possibleAnswers(state: GameState, role: string, to: SeatId, chosen: SeatId[]): Info[] {
+	const script = getScript(state.scriptId);
+	const others = state.seats.filter((x) => x.id !== to).map((x) => x.id);
+	const numbers = (max: number): Info[] => Array.from({ length: max + 1 }, (_, value) => ({ kind: 'number', value }));
+	switch (role) {
+		case 'clockmaker':
+		case 'oracle':
+		case 'juggler':
+		case 'mathematician':
+			return numbers(state.seats.length);
+		case 'flowergirl':
+		case 'town-crier':
+			return [{ kind: 'yesno', yes: true }, { kind: 'yesno', yes: false }];
+		case 'dreamer': {
+			const player = chosen[0] ?? others[0];
+			const good = script.characters.filter((c) => c.team === 'townsfolk' || c.team === 'outsider');
+			const evil = script.characters.filter((c) => c.team === 'minion' || c.team === 'demon');
+			const own = state.seats[player].character;
+			// Their own character first, with any of the other side.
+			const mine = script.characters.find((c) => c.id === own);
+			const pairs: Info[] = [];
+			if (mine) for (const o of (good.includes(mine) ? evil : good)) pairs.push({ kind: 'dream', player, characters: [mine.id, o.id] });
+			for (const g of good) for (const e of evil) pairs.push({ kind: 'dream', player, characters: [g.id, e.id] });
+			return pairs;
+		}
+		case 'seamstress': {
+			const [a, b] = chosen.length === 2 ? chosen : others.slice(0, 2);
+			return [{ kind: 'same', players: [a, b], yes: true }, { kind: 'same', players: [a, b], yes: false }];
+		}
+		case 'sage': {
+			const out: Info[] = [];
+			for (const a of others) for (const b of others) if (a < b) out.push({ kind: 'players', players: [a, b] });
+			return out;
+		}
+	}
+	return [];
 }

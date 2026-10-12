@@ -12,12 +12,14 @@ import { COLS, INNER, blank, btn, buttonRows, center, endPanel, frameBottom, fra
 import type { Row } from './ascii.ts';
 import { joinRoom } from '../net/link.ts';
 import type { LinkStatus, PlayerLink } from '../net/link.ts';
-import type { Announcement, ClockView, HostMsg } from '../net/protocol.ts';
+import type { Announcement, ClockView, HostMsg, VoteView } from '../net/protocol.ts';
 import type { CharacterCard, PublicView, Wake } from '../net/views.ts';
 import type { SeatId } from '../core/index.ts';
 import { CARD_COLS, CARD_INNER, big, cardButtons, nextPage, note, wakeRows } from './wakepages.ts';
 import type { Page } from './wakepages.ts';
 import * as T from './timer.ts';
+import { villageOnPhone } from '../town/village.ts';
+import type { Extra } from '../town/village.ts';
 
 const CLIENT_KEY = 'grimoire.client';
 const ROOM_KEY = 'grimoire.room';
@@ -50,8 +52,46 @@ const P = {
 	page: 'who' as Page,
 	picks: [] as SeatId[],
 	announce: null as Announcement[] | null,
-	message: ''
+	message: '',
+	/** In the village: their character, opened from the village's bar. */
+	cardOpen: false,
+	/** A nomination under way, and whether my hand is up for it. */
+	vote: null as VoteView | null,
+	handUp: false
 };
+
+/**
+ * The village's buttons for this player: their character; in the day,
+ * Nominate (the Storyteller accepts it); during a vote, their hand.
+ */
+function villageButtons(): Extra[] {
+	const out: Extra[] = [{ label: 'My character', act: () => { P.cardOpen = !P.cardOpen; render(); } }];
+	const v = P.view, me = P.seat;
+	if (!v || me === null || v.phase !== 'day') return out;
+	const mine = v.seats.find((s) => s.id === me);
+	const vote = P.vote;
+	if (vote?.voting) {
+		const canVote = !!mine && (mine.alive || mine.ghostVote);
+		const passed = vote.at === null || vote.order.indexOf(me) < vote.order.indexOf(vote.at);
+		if (canVote && !passed) {
+			out.unshift({
+				label: P.handUp ? 'Lower hand' : 'Raise hand', primary: !P.handUp,
+				act: () => { P.handUp = !P.handUp; P.link?.send({ t: 'hand', up: P.handUp }); village?.refresh(); }
+			});
+		}
+	} else if (!vote && mine?.alive && v.executed === null && !v.nominations.some((n) => n.nominator === me)) {
+		out.unshift({
+			label: 'Nominate', primary: true,
+			act: () => village?.choose('Nominate whom?',
+				v.order.filter((id) => !v.nominations.some((n) => n.nominee === id)).map((id) => ({ id: String(id), label: nameOf(id) })),
+				(id) => P.link?.send({ t: 'nominate', nominee: Number(id) }))
+		});
+	}
+	return out;
+}
+
+/** Mode 2: the village, once the Storyteller turns it on. */
+let village: ReturnType<typeof villageOnPhone> | null = null;
 
 let root: HTMLElement;
 let cardRoot: HTMLElement;
@@ -84,6 +124,7 @@ function receive(msg: HostMsg) {
 			break;
 		case 'public':
 			P.view = msg.view;
+			village?.refresh();
 			P.clock = msg.clock ? { ...msg.clock, at: Date.now() } : null;
 			break;
 		case 'card':
@@ -112,6 +153,22 @@ function receive(msg: HostMsg) {
 		case 'denied':
 			P.message = msg.reason;
 			break;
+		case 'vote':
+			if (!msg.vote || !msg.vote.voting || msg.vote.nominee !== P.vote?.nominee) P.handUp = false;
+			P.vote = msg.vote;
+			village?.refresh();
+			break;
+		case 'note':
+			if (village) village.toast(msg.text);
+			else P.message = msg.text;
+			break;
+		case 'village':
+			if (!village && P.link) {
+				const link = P.link;
+				village = villageOnPhone({ peer: link.peer, send: (m) => link.send({ t: 'village', m }) }, villageButtons);
+			}
+			village?.receive(msg.m);
+			return;
 	}
 	render();
 }
@@ -234,6 +291,17 @@ function overlay(): Row[] {
 			for (const l of a.lines) rows.push(...wrap(l, CARD_INNER).map((w) => row(txt(center(w, CARD_INNER), 'gold', 'heading'))));
 		}
 		rows.push(endPanel(), blank(), ...cardButtons([btn('Done', () => { P.announce = null; render(); }, { style: 'primary' })]));
+		return rows;
+	}
+	if (P.cardOpen && !P.wake) {
+		const rows: Row[] = [blank(), rubric('Your character')];
+		if (!P.card) rows.push(...wrap('It will appear here once the Storyteller deals.', CARD_INNER).map((l) => row(txt(center(l, CARD_INNER), 'dim'))));
+		else {
+			rows.push(row(txt(center(P.card.name, CARD_INNER), P.card.team === 'evil' ? 'evil' : 'good', 'heading')));
+			rows.push(row(txt(center(P.card.team === 'evil' ? 'Evil' : 'Good', CARD_INNER), 'dim')));
+			rows.push(...wrap(P.card.ability, CARD_INNER).map((l) => row(txt(l))));
+		}
+		rows.push(endPanel(), blank(), ...cardButtons([btn('Hide', () => { P.cardOpen = false; render(); }, { style: 'primary' })]));
 		return rows;
 	}
 	const w = P.wake;

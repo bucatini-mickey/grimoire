@@ -1,0 +1,123 @@
+{
+ "rule": "fool",
+ "detail": "Fenn(fool) died on the Fool's first death",
+ "seed": 1396,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen"
+   ],
+   "scriptId": "bad-moon-rising"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "tea-lady",
+    "exorcist",
+    "pukka",
+    "mastermind",
+    "chambermaid",
+    "fool",
+    "innkeeper"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "gossip",
+    "grandmother",
+    "moonchild"
+   ],
+   "fabled": [
+    {
+     "id": "doomsayer"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     6,
+     5
+    ],
+    "value": 0
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2,
+    6
+   ],
+   "drunk": 2
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     1,
+     6
+    ],
+    "value": 2
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "doomsayer",
+   "by": 1,
+   "victim": 5
+  }
+ ]
+}

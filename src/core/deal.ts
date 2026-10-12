@@ -37,11 +37,16 @@ export function randomDeal(script: Script, players: number, seed: number): Extra
 
 	const demon = ids('demon').slice(0, comp.demon);
 	const minions = ids('minion').slice(0, comp.minion);
-	for (const m of minions) {
-		const mod = charDef(script, m).setup;
+	for (const m of [...minions, ...demon]) {
+		const def = charDef(script, m);
+		// A fixed change (the Baron), or one of the Storyteller's options (the Godfather), at random.
+		// Only options that leave a possible setup (no fewer than zero Outsiders).
+		const options = (def.setupOptions ?? []).filter((o) => comp.outsider + (o.outsider ?? 0) >= 0 && comp.townsfolk + (o.townsfolk ?? 0) >= 0);
+		const mod = def.setup ?? (options.length ? options[Math.floor(rand() * options.length)] : undefined);
 		comp.townsfolk += mod?.townsfolk ?? 0;
 		comp.outsider += mod?.outsider ?? 0;
 	}
+	if (comp.outsider < 0) { comp.townsfolk += comp.outsider; comp.outsider = 0; }
 	const outsiders = ids('outsider').slice(0, comp.outsider);
 	const townsfolk = ids('townsfolk').slice(0, comp.townsfolk);
 	const characters = shuffle([...demon, ...minions, ...outsiders, ...townsfolk], rand);
@@ -63,5 +68,7 @@ export function randomDeal(script: Script, players: number, seed: number): Extra
 	);
 	const bluffs = evilLearnEachOther(players) ? bluffPool.slice(0, 3) : [];
 
-	return { type: 'assign', characters, drunkBelieves, redHerring, bluffs };
+	// The Evil Twin's good twin: a good player.
+	const evilTwin = characters.includes('evil-twin') ? shuffle(goodSeats, rand)[0] : undefined;
+	return { type: 'assign', characters, drunkBelieves, redHerring, bluffs, ...(evilTwin !== undefined ? { evilTwin } : {}) };
 }

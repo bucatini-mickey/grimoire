@@ -1,0 +1,131 @@
+{
+ "rule": "gambler",
+ "detail": "the Gambler guessed wrong and lived",
+ "seed": 22,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior",
+    "Maud",
+    "Ned",
+    "Orla"
+   ],
+   "scriptId": "bad-moon-rising"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "devils-advocate",
+    "assassin",
+    "exorcist",
+    "minstrel",
+    "chambermaid",
+    "gambler",
+    "professor",
+    "innkeeper",
+    "goon",
+    "fool",
+    "courtier",
+    "pukka",
+    "moonchild",
+    "gossip",
+    "mastermind"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "lunatic",
+    "tea-lady",
+    "grandmother"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "character": "sailor"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    12
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ]
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    14,
+    9
+   ],
+   "drunk": 9
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ],
+   "character": "grandmother"
+  }
+ ]
+}

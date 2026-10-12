@@ -1,0 +1,66 @@
+{
+ "rule": "droisoned-abilities-fail",
+ "detail": "Kit(philosopher) as philosopher: effective true, should be false",
+ "seed": 59,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior",
+    "Maud",
+    "Ned",
+    "Orla"
+   ],
+   "scriptId": "sects-and-violets"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "witch",
+    "flowergirl",
+    "cerenovus",
+    "juggler",
+    "sage",
+    "oracle",
+    "dreamer",
+    "seamstress",
+    "artist",
+    "town-crier",
+    "philosopher",
+    "klutz",
+    "pit-hag",
+    "no-dashii",
+    "barber"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "mutant",
+    "sweetheart",
+    "clockmaker"
+   ],
+   "fabled": [
+    {
+     "id": "ferryman"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "choose",
+   "character": "snake-charmer"
+  }
+ ]
+}

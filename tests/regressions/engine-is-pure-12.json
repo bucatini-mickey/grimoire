@@ -1,0 +1,65 @@
+{
+ "rule": "engine-is-pure",
+ "detail": "choose: Error: \"traveller-info\" is not on Trouble Brewing     at charDef (file:///E:/Claude/Personal/Game%20Dev/Grimoire/src/core/script.ts:42:16)     at describeStep (file:///E:/Claude/Personal/Game%20Dev/Grimoire/src/core/engine.ts:267:9)",
+ "seed": 12,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior",
+    "Maud"
+   ],
+   "scriptId": "trouble-brewing"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "drunk",
+    "chef",
+    "empath",
+    "recluse",
+    "ravenkeeper",
+    "imp",
+    "scarlet-woman",
+    "slayer",
+    "fortune-teller",
+    "librarian",
+    "poisoner",
+    "baron",
+    "investigator"
+   ],
+   "drunkBelieves": "monk",
+   "redHerring": 9,
+   "bluffs": [
+    "soldier",
+    "mayor",
+    "undertaker"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T13",
+   "character": "scapegoat",
+   "alignment": "evil",
+   "after": 8
+  },
+  {
+   "type": "choose",
+   "target": 0
+  }
+ ]
+}

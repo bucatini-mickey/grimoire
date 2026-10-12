@@ -48,10 +48,14 @@ test('the dead vote once, then never again', () => {
 	refused(t, { type: 'vote', voters: [1, 1] }, /twice/);
 });
 
-test('the Butler votes only with their master', () => {
-	let s = ok(day1(), { type: 'nominate', nominator: 7, nominee: 1 });
-	refused(s, { type: 'vote', voters: [6, 0] }, /Butler/);
-	ok(s, { type: 'vote', voters: [6, 7] });
+test('the Butler votes only with their master; if they slip, it is counted with a note', () => {
+	const s = ok(day1(), { type: 'nominate', nominator: 7, nominee: 1 });
+	const slip = perform(s, { type: 'vote', voters: [6, 0] });
+	assert.ok(slip.ok);
+	assert.equal(slip.ok && slip.state.day!.nominations[0].votes, 2, 'counted anyway, so the Butler is not revealed');
+	assert.ok(slip.ok && slip.events.some((e) => e.type === 'note' && /Butler/.test(e.text)));
+	const fine = perform(s, { type: 'vote', voters: [6, 7] });
+	assert.ok(fine.ok && !fine.events.some((e) => e.type === 'note'));
 });
 
 test('the Virgin executes a Townsfolk nominator, once', () => {

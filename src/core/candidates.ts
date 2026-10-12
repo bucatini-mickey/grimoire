@@ -18,6 +18,7 @@
  */
 import type { CharacterId, GameState, Info, Seat, SeatId } from './types.ts';
 import { charDef, getScript, charactersOfTeam } from './script.ts';
+import { suggestInfo } from './suggest.ts';
 import {
 	chefNumbers, clockwiseFrom, empathNumbers, fortuneAnswers, isDroisoned, judgeInfo, livingNeighbours, PAIR_ROLE_TEAM, registrations, teamOf
 } from './rules.ts';
@@ -162,5 +163,7 @@ export function infoCandidates(state: GameState, role: string, to: SeatId, chose
 		}
 		return out;
 	}
+	// Any other role: the plain true answer, as a starting point.
+	add('neutral', suggestInfo(state, role, to, chosen), 'True.');
 	return out;
 }

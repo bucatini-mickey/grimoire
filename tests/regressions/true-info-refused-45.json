@@ -1,0 +1,302 @@
+{
+ "rule": "true-info-refused",
+ "detail": "Hal (empath) could not be told the truth: {\"kind\":\"number\",\"value\":1}",
+ "seed": 45,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde"
+   ],
+   "scriptId": "trouble-brewing"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "soldier",
+    "imp",
+    "baron",
+    "butler",
+    "saint",
+    "drunk",
+    "librarian",
+    "empath",
+    "recluse"
+   ],
+   "drunkBelieves": "undertaker",
+   "redHerring": null,
+   "bluffs": [
+    "slayer",
+    "washerwoman",
+    "fortune-teller"
+   ],
+   "fabled": [
+    {
+     "id": "toymaker"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "pair",
+    "players": [
+     8,
+     2
+    ],
+    "character": "recluse"
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 3,
+   "nominee": 7
+  },
+  {
+   "type": "vote",
+   "voters": [
+    3,
+    4,
+    5,
+    6,
+    7
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "character",
+    "character": "empath"
+   }
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ]
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T9",
+   "character": "bureaucrat",
+   "alignment": "good",
+   "after": 7
+  },
+  {
+   "type": "nominate",
+   "nominator": 0,
+   "nominee": 0
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    5,
+    6,
+    7,
+    8
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    9
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "character",
+    "character": "soldier"
+   }
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 6,
+   "nominee": 5
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    1,
+    2,
+    5,
+    6,
+    9
+   ]
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T10",
+   "character": "thief",
+   "alignment": "good",
+   "after": 7
+  },
+  {
+   "type": "nominate",
+   "nominator": 3,
+   "nominee": 7
+  },
+  {
+   "type": "vote",
+   "voters": [
+    4,
+    6
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 5,
+   "nominee": 1
+  },
+  {
+   "type": "vote",
+   "voters": [
+    3,
+    4,
+    6,
+    8,
+    10
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ]
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ]
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 10,
+   "nominee": 4
+  },
+  {
+   "type": "vote",
+   "voters": [
+    3,
+    4,
+    5,
+    8
+   ]
+  },
+  {
+   "type": "exile",
+   "traveller": 10,
+   "supporters": [
+    1,
+    2,
+    3,
+    7,
+    8,
+    10
+   ]
+  },
+  {
+   "type": "end-day"
+  }
+ ]
+}

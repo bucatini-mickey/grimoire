@@ -1,0 +1,268 @@
+[
+ {
+  "id": "alchemist",
+  "with": [
+   "boffin",
+   "marionette",
+   "mastermind",
+   "organgrinder",
+   "spy",
+   "summoner",
+   "widow",
+   "wraith"
+  ]
+ },
+ {
+  "id": "alhadikhia",
+  "with": [
+   "mastermind",
+   "princess"
+  ]
+ },
+ {
+  "id": "boffin",
+  "with": [
+   "cultleader",
+   "drunk",
+   "goon",
+   "heretic",
+   "ogre",
+   "politician",
+   "villageidiot"
+  ]
+ },
+ {
+  "id": "bountyhunter",
+  "with": [
+   "kazali",
+   "philosopher"
+  ]
+ },
+ {
+  "id": "butler",
+  "with": [
+   "organgrinder"
+  ]
+ },
+ {
+  "id": "cannibal",
+  "with": [
+   "butler",
+   "juggler",
+   "princess",
+   "zealot"
+  ]
+ },
+ {
+  "id": "cerenovus",
+  "with": [
+   "goblin"
+  ]
+ },
+ {
+  "id": "heretic",
+  "with": [
+   "baron",
+   "godfather",
+   "lleech",
+   "pithag",
+   "spy",
+   "widow"
+  ]
+ },
+ {
+  "id": "legion",
+  "with": [
+   "engineer",
+   "hatter",
+   "minstrel",
+   "politician",
+   "preacher",
+   "summoner",
+   "zealot"
+  ]
+ },
+ {
+  "id": "leviathan",
+  "with": [
+   "banshee",
+   "exorcist",
+   "farmer",
+   "grandmother",
+   "hatter",
+   "innkeeper",
+   "king",
+   "mayor",
+   "monk",
+   "pithag",
+   "ravenkeeper",
+   "sage",
+   "soldier"
+  ]
+ },
+ {
+  "id": "lilmonsta",
+  "with": [
+   "hatter",
+   "magician",
+   "poppygrower",
+   "psychopath",
+   "scarletwoman",
+   "vizier"
+  ]
+ },
+ {
+  "id": "lleech",
+  "with": [
+   "mastermind",
+   "slayer"
+  ]
+ },
+ {
+  "id": "magician",
+  "with": [
+   "legion",
+   "marionette",
+   "spy",
+   "vizier",
+   "widow",
+   "wraith"
+  ]
+ },
+ {
+  "id": "marionette",
+  "with": [
+   "balloonist",
+   "huntsman",
+   "kazali",
+   "lilmonsta",
+   "summoner"
+  ]
+ },
+ {
+  "id": "mastermind",
+  "with": [
+   "vigormortis"
+  ]
+ },
+ {
+  "id": "mathematician",
+  "with": [
+   "chambermaid",
+   "drunk",
+   "lunatic",
+   "marionette"
+  ]
+ },
+ {
+  "id": "pithag",
+  "with": [
+   "cultleader",
+   "damsel",
+   "goon",
+   "ogre",
+   "politician",
+   "villageidiot"
+  ]
+ },
+ {
+  "id": "plaguedoctor",
+  "with": [
+   "baron",
+   "boomdandy",
+   "eviltwin",
+   "fearmonger",
+   "goblin",
+   "marionette",
+   "scarletwoman",
+   "spy",
+   "wraith"
+  ]
+ },
+ {
+  "id": "recluse",
+  "with": [
+   "ogre",
+   "sage"
+  ]
+ },
+ {
+  "id": "riot",
+  "with": [
+   "atheist",
+   "banshee",
+   "exorcist",
+   "farmer",
+   "grandmother",
+   "innkeeper",
+   "king",
+   "mayor",
+   "monk",
+   "ravenkeeper",
+   "sage",
+   "soldier"
+  ]
+ },
+ {
+  "id": "scarletwoman",
+  "with": [
+   "alhadikhia",
+   "fanggu"
+  ]
+ },
+ {
+  "id": "spy",
+  "with": [
+   "damsel",
+   "ogre",
+   "poppygrower"
+  ]
+ },
+ {
+  "id": "summoner",
+  "with": [
+   "clockmaker",
+   "courtier",
+   "engineer",
+   "hatter",
+   "kazali",
+   "lordoftyphon",
+   "pithag",
+   "poppygrower",
+   "preacher",
+   "pukka",
+   "zombuul"
+  ]
+ },
+ {
+  "id": "vizier",
+  "with": [
+   "alsaahir",
+   "courtier",
+   "fearmonger",
+   "investigator",
+   "politician",
+   "preacher",
+   "zealot"
+  ]
+ },
+ {
+  "id": "vortox",
+  "with": [
+   "banshee"
+  ]
+ },
+ {
+  "id": "widow",
+  "with": [
+   "damsel",
+   "poppygrower"
+  ]
+ },
+ {
+  "id": "yaggababble",
+  "with": [
+   "exorcist"
+  ]
+ }
+]

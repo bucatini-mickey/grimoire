@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { nightSteps, perform, reduce, empathNumbers } from '../src/core/index.ts';
+import { nightSteps, perform, reduce, empathNumbers, isPoisoned } from '../src/core/index.ts';
 import type { GameState } from '../src/core/index.ts';
 import { game, ok, refused, next, playNight } from './helpers.ts';
 
@@ -80,7 +80,7 @@ test('starpass to the only Minion', () => {
 	s = ok(s, [{ type: 'choose', target: 3 }, { type: 'choose', target: 6 }, { type: 'choose', target: 0 }]);
 	assert.equal(s.seats[0].alive, false);
 	assert.equal(s.seats[1].character, 'imp');
-	assert.equal(s.poison, null, 'the Poisoner became the Imp, so the poison ends');
+	assert.equal(s.effects.some((e) => e.kind === 'poisoned'), false, 'the Poisoner became the Imp, so the poison ends');
 	assert.equal(next(s), 'new-demon:1');
 	s = ok(s, { type: 'acknowledge' });
 	assert.ok(!nightSteps(s).some((x) => x.id === 'imp:1'), 'the new Imp does not also kill tonight');
@@ -136,15 +136,15 @@ test('the Undertaker wakes only after an execution death', () => {
 
 test('poison lasts through the day and wears off at dusk', () => {
 	let s = playNight(base(), { poisoner: { type: 'choose', target: 4 } });
-	assert.equal(s.poison?.target, 4);
+	assert.equal(isPoisoned(s, 4), true);
 	s = ok(s, { type: 'end-day' });
-	assert.equal(s.poison, null);
+	assert.equal(s.effects.some((e) => e.kind === 'poisoned'), false);
 });
 
 test('poison ends at once if the Poisoner dies', () => {
 	const s = playNight(base(), { poisoner: { type: 'choose', target: 4 } });
-	assert.equal(s.poison?.target, 4);
-	assert.equal(reduce(s, { type: 'died', seat: 1, cause: 'execution' }).poison, null);
+	assert.equal(isPoisoned(s, 4), true);
+	assert.equal(isPoisoned(reduce(s, { type: 'died', seat: 1, cause: 'execution' }), 4), false);
 });
 
 test('a Scarlet Woman made the Demon by day is told, then kills that night', () => {

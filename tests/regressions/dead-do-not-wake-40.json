@@ -1,0 +1,123 @@
+{
+ "rule": "dead-do-not-wake",
+ "detail": "Hal (dead) woke as new-demon",
+ "seed": 40,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior"
+   ],
+   "scriptId": "sects-and-violets"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "seamstress",
+    "sweetheart",
+    "pit-hag",
+    "town-crier",
+    "oracle",
+    "vigormortis",
+    "philosopher",
+    "evil-twin",
+    "sage",
+    "juggler",
+    "mathematician",
+    "savant"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "artist",
+    "mutant",
+    "flowergirl"
+   ],
+   "evilTwin": 10
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "choose",
+   "character": "philosopher"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "same",
+    "players": [
+     4,
+     2
+    ],
+    "yes": false
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 3
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ],
+   "character": "vortox"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ]
+  },
+  {
+   "type": "acknowledge"
+  }
+ ]
+}

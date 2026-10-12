@@ -1,0 +1,71 @@
+{
+ "rule": "evil-twin",
+ "detail": "the good twin Cael was executed and evil did not win",
+ "seed": 47,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme"
+   ],
+   "scriptId": "sects-and-violets"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "town-crier",
+    "evil-twin",
+    "oracle",
+    "artist",
+    "vigormortis"
+   ],
+   "redHerring": null,
+   "bluffs": [],
+   "evilTwin": 2
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 1,
+   "nominee": 2
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    1,
+    3
+   ]
+  },
+  {
+   "type": "end-day"
+  }
+ ]
+}

@@ -1,0 +1,740 @@
+{
+ "rule": "true-info-refused",
+ "detail": "Dorn (chef) could not be told the truth: {\"kind\":\"number\",\"value\":2}",
+ "seed": 102,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior"
+   ],
+   "scriptId": "trouble-brewing"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "drunk",
+    "imp",
+    "baron",
+    "chef",
+    "washerwoman",
+    "undertaker",
+    "soldier",
+    "butler",
+    "investigator",
+    "saint",
+    "recluse",
+    "poisoner"
+   ],
+   "drunkBelieves": "fortune-teller",
+   "redHerring": 8,
+   "bluffs": [
+    "librarian",
+    "mayor",
+    "monk"
+   ],
+   "fabled": [
+    {
+     "id": "toymaker"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "pair",
+    "players": [
+     5,
+     6
+    ],
+    "character": "undertaker"
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "pair",
+    "players": [
+     11,
+     1
+    ],
+    "character": "poisoner"
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 1
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     11,
+     9
+    ],
+    "yes": false
+   }
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 4,
+   "nominee": 9
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    2,
+    3,
+    4,
+    7,
+    8
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 10,
+   "nominee": 6
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    2,
+    5,
+    9,
+    11
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 2,
+   "nominee": 2
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    1,
+    3,
+    6,
+    7,
+    11
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ]
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 6,
+   "nominee": 9
+  },
+  {
+   "type": "vote",
+   "voters": [
+    4,
+    7,
+    9,
+    11
+   ]
+  },
+  {
+   "type": "swap-seats",
+   "a": 10,
+   "b": 4
+  },
+  {
+   "type": "nominate",
+   "nominator": 5,
+   "nominee": 3
+  },
+  {
+   "type": "vote",
+   "voters": [
+    5,
+    8,
+    10
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 4,
+   "nominee": 4
+  },
+  {
+   "type": "vote",
+   "voters": [
+    2,
+    3,
+    4,
+    7,
+    10
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ],
+   "newDemon": 2
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5
+   ]
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    10
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    11
+   ]
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 7,
+   "nominee": 1
+  },
+  {
+   "type": "vote",
+   "voters": [
+    3,
+    4,
+    5,
+    9,
+    11
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 3,
+   "nominee": 6
+  },
+  {
+   "type": "vote",
+   "voters": [
+    4,
+    5,
+    7,
+    9,
+    11
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 10,
+   "nominee": 7
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    2,
+    3,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    10
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "character",
+    "character": "butler"
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 3,
+   "nominee": 9
+  },
+  {
+   "type": "vote",
+   "voters": [
+    5,
+    7,
+    8
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 8,
+   "nominee": 8
+  },
+  {
+   "type": "vote",
+   "voters": [
+    4,
+    5,
+    6
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 5,
+   "nominee": 5
+  },
+  {
+   "type": "vote",
+   "voters": [
+    3,
+    4,
+    6,
+    8,
+    9,
+    10
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 3,
+   "nominee": 7
+  },
+  {
+   "type": "vote",
+   "voters": [
+    3,
+    4,
+    6,
+    8,
+    9,
+    11
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 4,
+   "nominee": 6
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    5,
+    6,
+    8,
+    11
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ]
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 3,
+   "nominee": 6
+  },
+  {
+   "type": "vote",
+   "voters": [
+    4,
+    6,
+    8,
+    9,
+    11
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ]
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 11,
+   "nominee": 0
+  },
+  {
+   "type": "vote",
+   "voters": [
+    4
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 4,
+   "nominee": 10
+  },
+  {
+   "type": "vote",
+   "voters": [
+    4,
+    9
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 3,
+   "nominee": 2
+  },
+  {
+   "type": "vote",
+   "voters": [
+    9
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T12",
+   "character": "bureaucrat",
+   "alignment": "evil",
+   "after": 5
+  },
+  {
+   "type": "nominate",
+   "nominator": 4,
+   "nominee": 9
+  },
+  {
+   "type": "vote",
+   "voters": [
+    3,
+    8,
+    11,
+    12
+   ]
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T13",
+   "character": "beggar",
+   "alignment": "good",
+   "after": 5
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T14",
+   "character": "gunslinger",
+   "alignment": "good",
+   "after": 10
+  },
+  {
+   "type": "nominate",
+   "nominator": 8,
+   "nominee": 4
+  },
+  {
+   "type": "vote",
+   "voters": [
+    4,
+    8,
+    14
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 12,
+   "nominee": 6
+  },
+  {
+   "type": "vote",
+   "voters": [
+    3,
+    9,
+    12,
+    13
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ]
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "swap-seats",
+   "a": 3,
+   "b": 12
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 3,
+   "nominee": 9
+  },
+  {
+   "type": "vote",
+   "voters": [
+    3,
+    4,
+    14
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ]
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 3,
+   "nominee": 3
+  },
+  {
+   "type": "vote",
+   "voters": [
+    4,
+    6,
+    8,
+    12,
+    13
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 8,
+   "nominee": 5
+  },
+  {
+   "type": "vote",
+   "voters": [
+    4,
+    9,
+    11,
+    13,
+    14
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 4,
+   "nominee": 9
+  },
+  {
+   "type": "vote",
+   "voters": [
+    3,
+    9,
+    13
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    14
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    11
+   ]
+  }
+ ]
+}

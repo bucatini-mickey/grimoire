@@ -1,0 +1,411 @@
+{
+ "rule": "wake-once",
+ "detail": "Hal(dreamer) woke 2 times on night 9",
+ "seed": 11,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior",
+    "Maud",
+    "Ned",
+    "Orla"
+   ],
+   "scriptId": "sects-and-violets"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "savant",
+    "artist",
+    "pit-hag",
+    "seamstress",
+    "fang-gu",
+    "juggler",
+    "klutz",
+    "witch",
+    "sweetheart",
+    "dreamer",
+    "mathematician",
+    "barber",
+    "clockmaker",
+    "snake-charmer",
+    "evil-twin"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "philosopher",
+    "town-crier",
+    "flowergirl"
+   ],
+   "evilTwin": 3
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    10
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 2
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "dream",
+    "player": 2,
+    "characters": [
+     "pit-hag",
+     "clockmaker"
+    ]
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "same",
+    "players": [
+     2,
+     11
+    ],
+    "yes": false
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    11
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    11
+   ],
+   "character": "oracle"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "dream",
+    "player": 0,
+    "characters": [
+     "savant",
+     "evil-twin"
+    ]
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 11,
+   "nominee": 7
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    2,
+    3,
+    9
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 1,
+   "nominee": 13
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    2,
+    4,
+    10,
+    11,
+    13,
+    14
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ],
+   "character": "vortox"
+  },
+  {
+   "type": "storyteller-kill",
+   "seat": 4
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "dream",
+    "player": 10,
+    "characters": [
+     "mathematician",
+     "evil-twin"
+    ]
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    14
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    14
+   ],
+   "character": "vigormortis"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "dream",
+    "player": 14,
+    "characters": [
+     "vigormortis",
+     "clockmaker"
+    ]
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 9,
+   "nominee": 2
+  },
+  {
+   "type": "vote",
+   "voters": [
+    5,
+    6
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 7,
+   "nominee": 9
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    5,
+    9,
+    10,
+    12,
+    14
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ],
+   "character": "philosopher"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 4
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "character": "dreamer"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    14
+   ],
+   "character": "no-dashii"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    13
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "dream",
+    "player": 9,
+    "characters": [
+     "dreamer",
+     "evil-twin"
+    ]
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 2
+   }
+  },
+  {
+   "type": "end-night"
+  }
+ ]
+}

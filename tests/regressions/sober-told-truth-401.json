@@ -1,0 +1,770 @@
+{
+ "rule": "sober-told-truth",
+ "detail": "Hal(oracle) (sober) told something false without \"I insist\"",
+ "seed": 401,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior",
+    "Maud",
+    "Ned"
+   ],
+   "scriptId": "sects-and-violets"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "seamstress",
+    "cerenovus",
+    "town-crier",
+    "evil-twin",
+    "sage",
+    "juggler",
+    "snake-charmer",
+    "oracle",
+    "vortox",
+    "clockmaker",
+    "witch",
+    "savant",
+    "philosopher",
+    "sweetheart"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "dreamer",
+    "artist",
+    "flowergirl"
+   ],
+   "evilTwin": 12,
+   "fabled": [
+    {
+     "id": "ferryman"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "choose",
+   "character": "flowergirl"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    13
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ],
+   "character": "mathematician"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 3
+   }
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 13,
+   "nominee": 2
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    2,
+    3,
+    4,
+    5,
+    8,
+    9
+   ]
+  },
+  {
+   "type": "juggle",
+   "by": 5,
+   "guesses": [
+    {
+     "player": 4,
+     "character": "sage"
+    },
+    {
+     "player": 6,
+     "character": "philosopher"
+    },
+    {
+     "player": 8,
+     "character": "town-crier"
+    },
+    {
+     "player": 10,
+     "character": "witch"
+    },
+    {
+     "player": 12,
+     "character": "flowergirl"
+    }
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ],
+   "character": "oracle"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "yesno",
+    "yes": false
+   },
+   "override": false
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "same",
+    "players": [
+     13,
+     10
+    ],
+    "yes": true
+   },
+   "override": true
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 3
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 7,
+   "nominee": 8
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    1,
+    3,
+    6,
+    7,
+    8,
+    9
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 10,
+   "nominee": 6
+  },
+  {
+   "type": "vote",
+   "voters": [
+    5,
+    6,
+    7,
+    8,
+    10,
+    11,
+    13
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 5,
+   "nominee": 10
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    12
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 4,
+   "nominee": 2
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    2,
+    6,
+    9,
+    11,
+    12
+   ]
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T14",
+   "character": "barista",
+   "alignment": "evil",
+   "after": 0
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ],
+   "barista": "twice"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "yesno",
+    "yes": false
+   },
+   "override": true
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 4
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "swap-seats",
+   "a": 5,
+   "b": 0
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 8,
+   "nominee": 1
+  },
+  {
+   "type": "vote",
+   "voters": [
+    3,
+    6,
+    7,
+    11,
+    12,
+    14
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 3,
+   "nominee": 5
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    10
+   ]
+  },
+  {
+   "type": "traveller-leaves",
+   "seat": 14
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    13
+   ]
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 3,
+   "nominee": 0
+  },
+  {
+   "type": "vote",
+   "voters": [
+    5,
+    6,
+    7,
+    11
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 0,
+   "nominee": 13
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    5,
+    7,
+    8,
+    9,
+    11,
+    12
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 4
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 5,
+   "nominee": 2
+  },
+  {
+   "type": "vote",
+   "voters": [
+    5,
+    6,
+    8,
+    9,
+    11
+   ]
+  },
+  {
+   "type": "swap-seats",
+   "a": 8,
+   "b": 2
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "yesno",
+    "yes": true
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 4
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 5,
+   "nominee": 0
+  },
+  {
+   "type": "vote",
+   "voters": [
+    3,
+    4,
+    6,
+    7,
+    8,
+    12
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "yesno",
+    "yes": true
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 4
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T15",
+   "character": "butcher",
+   "alignment": "good",
+   "after": 2
+  },
+  {
+   "type": "nominate",
+   "nominator": 11,
+   "nominee": 5
+  },
+  {
+   "type": "vote",
+   "voters": [
+    5,
+    7,
+    11
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 3,
+   "nominee": 8
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    3,
+    5,
+    7,
+    9,
+    12,
+    15
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "yesno",
+    "yes": false
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 4
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "ferryman"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 3,
+   "nominee": 4
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    1,
+    2,
+    3,
+    12,
+    13
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 6,
+   "nominee": 11
+  },
+  {
+   "type": "vote",
+   "voters": [
+    3,
+    4,
+    9,
+    10,
+    11,
+    14,
+    15
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    9
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "yesno",
+    "yes": false
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 4
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 5,
+   "nominee": 6
+  },
+  {
+   "type": "vote",
+   "voters": [
+    3,
+    7,
+    15
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 7,
+   "nominee": 3
+  },
+  {
+   "type": "vote",
+   "voters": [
+    3,
+    7,
+    9,
+    12,
+    15
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 3,
+   "nominee": 0
+  },
+  {
+   "type": "vote",
+   "voters": [
+    5,
+    7,
+    8
+   ]
+  },
+  {
+   "type": "exile",
+   "traveller": 15,
+   "supporters": [
+    0,
+    1,
+    2,
+    8,
+    10,
+    12,
+    14
+   ]
+  },
+  {
+   "type": "end-day"
+  }
+ ]
+}

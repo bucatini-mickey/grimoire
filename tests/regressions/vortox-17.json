@@ -1,0 +1,104 @@
+{
+ "rule": "vortox",
+ "detail": "no execution today with a working Vortox, and evil did not win",
+ "seed": 17,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior"
+   ],
+   "scriptId": "sects-and-violets"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "barber",
+    "savant",
+    "clockmaker",
+    "juggler",
+    "witch",
+    "cerenovus",
+    "sage",
+    "flowergirl",
+    "vortox",
+    "mutant",
+    "oracle",
+    "artist"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "mathematician",
+    "seamstress",
+    "town-crier"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    9
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ],
+   "character": "barber"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 2
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  }
+ ]
+}

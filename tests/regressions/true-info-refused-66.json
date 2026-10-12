@@ -1,0 +1,468 @@
+{
+ "rule": "true-info-refused",
+ "detail": "Cael (empath) could not be told the truth: {\"kind\":\"number\",\"value\":1}",
+ "seed": 66,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen"
+   ],
+   "scriptId": "trouble-brewing"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "monk",
+    "spy",
+    "empath",
+    "librarian",
+    "imp",
+    "fortune-teller",
+    "virgin"
+   ],
+   "redHerring": 0,
+   "bluffs": [
+    "butler",
+    "washerwoman",
+    "saint"
+   ],
+   "fabled": [
+    {
+     "id": "toymaker"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "none"
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 1
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     6,
+     1
+    ],
+    "yes": false
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 3,
+   "nominee": 5
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    1,
+    2,
+    4
+   ]
+  },
+  {
+   "type": "swap-seats",
+   "a": 3,
+   "b": 2
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 1
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 4,
+   "nominee": 0
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    5
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 1
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 0,
+   "nominee": 5
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    2,
+    3
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 4,
+   "nominee": 0
+  },
+  {
+   "type": "vote",
+   "voters": [
+    2,
+    3,
+    6
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 1
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T7",
+   "character": "thief",
+   "alignment": "good",
+   "after": 0
+  },
+  {
+   "type": "nominate",
+   "nominator": 6,
+   "nominee": 0
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    3,
+    4,
+    6,
+    7
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 1
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "swap-seats",
+   "a": 4,
+   "b": 5
+  },
+  {
+   "type": "nominate",
+   "nominator": 6,
+   "nominee": 6
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ]
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 2,
+   "nominee": 6
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    2,
+    3,
+    4
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 3,
+   "nominee": 3
+  },
+  {
+   "type": "vote",
+   "voters": [
+    3,
+    6
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 4,
+   "nominee": 2
+  },
+  {
+   "type": "vote",
+   "voters": [
+    2,
+    7
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 4,
+   "nominee": 5
+  },
+  {
+   "type": "vote",
+   "voters": [
+    3,
+    4
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 3,
+   "nominee": 3
+  },
+  {
+   "type": "vote",
+   "voters": [
+    2,
+    4
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 4,
+   "nominee": 4
+  },
+  {
+   "type": "vote",
+   "voters": [
+    2,
+    3
+   ]
+  },
+  {
+   "type": "nominate",
+   "nominator": 2,
+   "nominee": 6
+  },
+  {
+   "type": "vote",
+   "voters": []
+  },
+  {
+   "type": "end-day"
+  }
+ ]
+}

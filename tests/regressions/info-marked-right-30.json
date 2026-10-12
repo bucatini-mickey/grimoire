@@ -1,0 +1,113 @@
+{
+ "rule": "info-marked-right",
+ "detail": "Fenn(empath) (empath): {\"kind\":\"number\",\"value\":0} marked truthful=true, really false",
+ "seed": 30,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior"
+   ],
+   "scriptId": "trouble-brewing"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "recluse",
+    "undertaker",
+    "ravenkeeper",
+    "investigator",
+    "spy",
+    "empath",
+    "washerwoman",
+    "imp",
+    "mayor",
+    "drunk",
+    "poisoner",
+    "librarian"
+   ],
+   "drunkBelieves": "chef",
+   "redHerring": null,
+   "bluffs": [
+    "slayer",
+    "soldier",
+    "butler"
+   ],
+   "fabled": [
+    {
+     "id": "doomsayer"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "pair",
+    "players": [
+     8,
+     1
+    ],
+    "character": "mayor"
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "pair",
+    "players": [
+     0,
+     4
+    ],
+    "character": "recluse"
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "pair",
+    "players": [
+     4,
+     7
+    ],
+    "character": "spy"
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 3
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  }
+ ]
+}

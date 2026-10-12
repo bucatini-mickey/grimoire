@@ -1,0 +1,333 @@
+{
+ "rule": "exile",
+ "detail": "exile: 4 of 4 needed, passed false",
+ "seed": 31,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior"
+   ],
+   "scriptId": "bad-moon-rising"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "assassin",
+    "moonchild",
+    "mastermind",
+    "sailor",
+    "gossip",
+    "zombuul",
+    "lunatic",
+    "chambermaid",
+    "grandmother",
+    "innkeeper",
+    "courtier",
+    "tea-lady"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "fool",
+    "gambler",
+    "pacifist"
+   ],
+   "fabled": [
+    {
+     "id": "doomsayer"
+    },
+    {
+     "id": "ferryman"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ],
+   "drunk": 3
+  },
+  {
+   "type": "choose",
+   "character": "assassin"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "reveal",
+    "player": 1,
+    "character": "moonchild"
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     4,
+     3
+    ],
+    "value": 1
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ],
+   "drunk": 3
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2,
+    7
+   ],
+   "drunk": 2
+  },
+  {
+   "type": "choose",
+   "targets": [
+    10
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    11
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     2,
+     11
+    ],
+    "value": 0
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "doomsayer",
+   "by": 9,
+   "victim": 6
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 1,
+   "nominee": 10
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    2,
+    3,
+    4,
+    8,
+    9
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5
+   ],
+   "drunk": 5
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5,
+    8
+   ],
+   "drunk": 8
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     8,
+     9
+    ],
+    "value": 1
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ],
+   "drunk": 3
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5,
+    2
+   ],
+   "drunk": 2
+  },
+  {
+   "type": "choose",
+   "targets": [
+    11
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     1,
+     9
+    ],
+    "value": 1
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 7,
+   "nominee": 2
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    5,
+    6,
+    7,
+    9,
+    10,
+    11
+   ]
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T12",
+   "character": "voudon",
+   "alignment": "evil",
+   "after": 11
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5
+   ],
+   "drunk": 3
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8,
+    4
+   ],
+   "drunk": 8
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     1,
+     0
+    ],
+    "value": 0
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "exile",
+   "traveller": 12,
+   "supporters": [
+    1,
+    4,
+    5,
+    9
+   ]
+  }
+ ]
+}

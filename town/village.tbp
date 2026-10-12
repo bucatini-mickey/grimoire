@@ -1,0 +1,97 @@
+tachyon-blueprint 1
+# The demo village for Grimoire's mode 2: a 15th-century hamlet in a forest
+# clearing (church and graveyard, tavern, smithy, stables, cottages, the market
+# cross where the town gathers at dusk). One level. Made by town/make-village.mjs;
+# edit that and run it again, or edit this by hand, or build one in Tachyon.
+name village
+size 84 60 1
+key , floor grass
+key T wall leaves
+key . floor gravel
+key _ floor stone block
+key # wall stone block
+key D floor stone block | door
+key h floor stone block | chair
+key o floor stone block | well
+key k floor stone block | brazier
+key a floor stone block | altar
+key p floor stone block | pew
+key i floor stone block | candle
+key g floor soil
+key m floor soil | statue
+key M floor stone block | statue
+key x floor soil | coffin
+key W wall wood
+key + floor wood
+key d floor wood | door
+key b floor wood | bed
+key t floor wood | table
+key c floor wood | chair
+key e floor wood | chest
+key r floor wood | barrel
+key K floor wood | brazier
+key n floor soil | anvil
+key y floor soil | hay bale
+key ! floor grass | torch
+level 0
+TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT#######TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT#_____#TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+TTTTTTTTTTTTT,,TTTTTTTTTTTTTTTTTTTTTTTT#__M__#TT,TTTTTTTTTTTTTTTTTTTT,TTTTTTTTTTTTTT
+TTTTTTTTTTT,,,T,,,TTTTTTTTTTT,,,,T######_____######TTTTTTTTTTTTTTTT,,,TTTTTTTTTTTTTT
+TTTTTTTTTT,,,,,T,TTWWWWWWWWWWWWWT,#i___###D###___i#,,,,TTTTTTTTT,T,,,,,,TTTTTTTTTTTT
+TTTTTTTT,,,,,,,,,,,WggggggggggggW,#_______________#,,TT,TTTTTT,T,,,,,,,,,,TTTTTTTTTT
+TTTTTTTT,,,,,,,,,,,WgmggmggmggmgW,#_____iaai______#,,,,T,,,,T,,,,,,,,,,,,,,T,TTTTTTT
+TTTTTTTTTT,,,,,,,,,WggggggggggggW,#_______________#,,,,,,,,,,,T,,,,,,,,,,,,T,TTTTTTT
+TTTTTTT,,,,,,,,,,,,Wggmggmggmgg,,,#_______________#,,,,,,,,,,,,,,,,,,,,,,,,,,TTTTTTT
+TTTTTTT,,,,,,,,,,,,WggggggggggggW,#_pppp____ppppp_#,,,,,,,T,,,,,,,,,,,,,,,,,TTTTTTTT
+TTTTTTTT,,,,,,,,,,,WgmggmggmggmgW,#_______________#,,,,,,,,,,,,,,,,,,,,,,T,,TTTTTTTT
+TTTTTTT,,,,,,,,,,,,WggggggggggxgW,#_pppp____ppppp_#,,,,WWWWWWW,,,,,,,,T,,TWWWWWWWTTT
+TTTTTTTT,TT,,,,,,T,WggggggggggggW,#_______________#,T,,Wb+++eW,,,WWWWWWW,TWb+++eWTTT
+TTTTTTTTT,,,,,,,,,,WWWWWWWWWWWWW,,#i_____________i#,,,,W+++++W,,,Wb+++eW,,d+++++WTTT
+TTTTTTTTTT,,,,,,,,,,,,,,,,,,,,,,,,#######DD########,,,,W+++tcW,,,W+++++W,,W+++tcWTTT
+TTTTTTTTT,,,,,,g,,,,,,,,,,,,,,,,,,,,,,,,,...,,,,,,,,,,,WWWdWWW,,,W+++tcW,,WWWWWWWTTT
+TTTTTTTT,,WWWWWWW,,,,,,,,,,,,,,,,,,,,,,,,.!.,,,,,,,,,,,,,,,,,T,,,WWWdWWW,TTTTTTTTTTT
+TTTTTTTT,,Wb+++eW,,WWWWWWW,,,,,,,,,,,,,,,,..,,,,,,,,,,,,,,,,,,,,,,,,!gg,,TTTTTTTTTTT
+TTTTTTTT,,W+++++d,,Wb+++eW,,,,,,,,,,,,,,,,..,,,,,,,,,T,,,,T,,,,,,,,,gg,,,,,TTTTTTTTT
+TTTTTTTTT,W+++tcW,,W+++++W,,,,,,,,,,,,,,,,..,,,,,,,,,,,,,,,,,,,,,,,gg,,,,,,TTTTTTTTT
+TTTTTTTT,,WWWWWWWg,W+++tcW,,,,,,,,,,,,,,,,..,,,,,,,,,,WWWWWWWWWWWWWWWWWWWWW,TTTTTTTT
+TTTTTTT,,,,,,,,,,g,WWWdWWW,,,,,,,,,,,,,.__..._,,,,,,,,W+rrrrrrK+W+++c+++rrW,TTTTTTTT
+TTTTTTT,,,T,,,,,,g,,,,,,,,,,,,,,,,,,,__________.,,,,,,W+++++++++W++ctc++++WT,TTTTTTT
+TTTTTT,,,,,,,,,,!g,,,,,,,,,,,,,,,,,.______________,,,,W+++++++++d+++++++++WTTTTTTTTT
+TTTTTTT,,,WWWWWWWg,,,,,,,,,,,,,,,,_________________,,!W+ctc+ctc+W++++++++KW,,TTTTTTT
+TTTTTTT,T,Wb+++eWg,,,,,,,,,,,,,,,______h_h__h_______,,d++c+++c++WWWdWWWdWWW,TTTTTTTT
+TTTTTTTT,,W+++++dg,,,,,,,,,,,,,,,k___h________h____k,,d+++++++++W+++eWe+++WTTTTTTTTT
+TTTTTTTT,,W+++tcWg,,,T,,,,,,T,,,_______________h_____!W+ctc+ctc+W++++W++++W,TTTTTTTT
+TTTTTTTTT,WWWWWWWg,,,,,,,,,,,,,,.___h________________,W++c+++c++W++++W++++WTTTTTTTTT
+TTTTTTTTT,,,,,,,,g,,,,,,,,,,,,gg._________M_____h____,W++++++++KWb+++W+++bWTTTTTTTTT
+TTTTTTTTT,,,,,!,,g,,,,,,,,,,gggg____h_______________.,WWWWWWWWWWWWWWWWWWWWWTTTTTTTTT
+TTTTTTTT,,,,,,,,,g,,,,!,ggggggg,.______________h____.ggggggggggg,,,,,,,,,,TTTTTTTTTT
+TTTTTTggggggggggggggggggggggg,,,,____h________h_____gggg!gggggggg,,,,,,,,TTTTTTTTTTT
+TTTTTTggggggggggggggggggg,g,,,,,,k_____h_h__h____o__,,,,,,,,,,gggggggggggggggggTTTTT
+TTTTTTgTT,,,,,,,,,,,,,,,,,g,,,,,,,________________.T,,,,,,,,,,,ggg!gggggggggggTTTTTT
+TTTTTTTT,,,,,,,,,,,,,,,,#gggggg#,,,._____________.,,,,,,,,,,,,,,g,,,,,,,,,,WWWWWWWTT
+TTTTTTTT,,,,,,,,,,,,,,,,#gggggg#,,,,,.__________,,,,WWWdWWW,,,,,g,,,,,,,,,TWb+++eWTT
+TTTTTTT,,,,,,,T,,,,,,,,,#gggggg#,,,,,,,_____..,,,,T,Wb+++eW,,,,,g,,,,,,,,,,d+++++WTT
+TTTTTTT,,,,,,,,T,,,,,,,,#gngggr#,,,,,,,,!gg,,,,,,,,,W+++++W,,,,,g,,,,,,,,,TW+++tcWTT
+TTTTTTT,,,,,,WWWdWWW,,,,#gggkgg#,,,,,,,,,gg,,,,,,,,,W+++tcW,,,,,g,,,,,,,,,,WWWWWWWTT
+TTTTTTT,,,,,,Wb+++eW,,,,########,,,,,,,,,gg,,,,,,,,,WWWWWWW,,,!,g,,,,,,,,,,,TTTTTTTT
+TTTTTTTT,,,,,W+++++W,,,gggg,,,,,,,,,,T,,,gg,,,,,,,,,,,,,,,,,,,,,g,,,,,,,,,,TTTTTTTTT
+TTTTTTTT,,,,,W+++tcW,,gg,!,,,,,,,,,,,,,,,gg,,,,,,,,,,T,,,,,,,,,,g,,,,,,,,,,,TTTTTTTT
+TTTTTTTT,,,,,WWWWWWWggg,,,,,,,,T,,,,,,,,,gg,,,,,,,,,,,,,,,,,,,WWWWWWWWWWWWWWWTTTTTTT
+TTTTTTTT,,,,,,,,,,,,g,,,,,,,,,,,,,,,,,,,,gg,,,,,!,,,,,,,,,,,,,WgyggyggyggyggWTTTTTTT
+TTTTTTTT,T,,,,,,,,,,WWWWWWW,,,,,,,,,,,,,ggg,,,,,,,,,,,,,,,TTT,WgggggggggggggWTTTTTTT
+TTTTTTTTT,,,,,,,,,,,Wb+++eW,,,WWWdWWWT,,gg,TWWWWWWW,,,,,,,T,,,dgggggggrgggggWTTTTTTT
+TTTTTTTT,,,,,,,,,,,TW+++++d,,,Wb+++eW,gggg,,Wb+++eW,,,,,TTTT,,dgggggggggggggWTTTTTTT
+TTTTTTTTT,,,,,,,,,,,W+++tcW,,,W+++++WggggTT,d+++++W,,,,T,T,,,,WgggggggggggggWTTTTTTT
+TTTTTTTT,,,,,,,,,,,,WWWWWWW,,,W+++tcWg!,TTTTW+++tcW,,,T,T,,T,,WgyyyyyyyyyyygWTTTTTTT
+TTTTTTT,T,,,,,,,,,T,,TTTTTTT,,WWWWWWWgTTTTT,WWWWWWW,,,T,,TTTTTWWWWWWWWWWWWWWWTTTTTTT
+TTTTTTT,TT,,,,,,,,,,,,TT,,T,,,,,,,,,gg,TTT,,,,,,,,,,,,,TT,TTT,,,,,,,,,,TTT,,TTTTTTTT
+TTTTTTT,,T,,,,,,,,TT,TTTTT,,,,,,,,,,g,,TTTTT,T,T,,,,,T,TTTTTT,,T,,,T,,,,T,TTTTTTTTTT
+TTTTTTTT,,,,,,,,,,,,TTTTTT,T,,,,,,T,TTTTTTT,,TT,,,,TTTTTTTTTT,T,,,,,,,,,T,TTTTTTTTTT
+TTTTTTTTT,,,,,,T,,,TTTTTTTTT,,,,,T,TTTTTTTTTT,TT,,,,,,,TTTTTTTT,,T,,,,,,TTTTTTTTTTTT
+TTTTTTTTTTTT,,T,,TTTTTTTTTTT,,TTTT,,TTTTTTTTTT,,,,,,,,TTTTTTTTTT,,T,,,,T,TTTTTTTTTTT
+TTTTTTTTTTTTTT,TTTTTTTTTTTTTTT,,TTTTTTTTTTTTTTT,T,,,TTTTTTTTTTTTTTTT,TTTTTTTTTTTTTTT
+TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT,TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+end
