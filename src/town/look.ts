@@ -14,7 +14,7 @@
  *
  * The numbers are Tachyon's, so the torchlight matches.
  */
-import { at } from './map.ts';
+import { at, isWindow } from './map.ts';
 import type { Phase, Town } from './map.ts';
 
 export type Rgb = [number, number, number];
@@ -32,7 +32,9 @@ const MATS: Record<string, Mat> = {
 	'stone block': { fg: [178, 176, 168], bg: [62, 60, 58], wall: '#', floors: ['+'], style: 'double' },
 	slate: { fg: [96, 104, 124], bg: [36, 40, 50], wall: '▓', floors: ['≡'] },
 	granite: { fg: [118, 116, 124], bg: [46, 44, 52], wall: '▓', floors: ['.', '·', '.', ','] },
-	water: { fg: [96, 150, 196], bg: [18, 44, 72], wall: '≈', floors: ['~', '≈', '~', '-'] }
+	water: { fg: [96, 150, 196], bg: [18, 44, 72], wall: '≈', floors: ['~', '≈', '~', '-'] },
+	glass: { fg: [170, 214, 232], bg: [44, 70, 84], wall: '░', floors: ['.'] },
+	ice: { fg: [200, 230, 244], bg: [70, 96, 112], wall: '░', floors: ['.'] }
 };
 const FALLBACK = MATS.soil;
 
@@ -108,8 +110,8 @@ export const sunlight = (phase: Phase): Rgb => mul(daylight(HOUR[phase]), MOOD[p
 
 const isWallAt = (t: Town, x: number, y: number) => at(t, x, y)?.tile === 'wall';
 const isDoorAt = (t: Town, x: number, y: number) => !!at(t, x, y)?.things.includes('door');
-/** Light passes open cells and doorways; walls and trees stop it. */
-const blocksLight = (t: Town, x: number, y: number) => { const c = at(t, x, y); return !c || c.tile === 'wall'; };
+/** Light passes open cells, doorways and windows; walls and trees stop it. */
+const blocksLight = (t: Town, x: number, y: number) => { const c = at(t, x, y); return !c || (c.tile === 'wall' && !isWindow(c)); };
 
 /** Sky exposure: full outdoors, then one less per step through doorways into rooms. */
 const skyCache = new WeakMap<Town, Uint8Array>();
@@ -213,7 +215,7 @@ export function remembered(fg: Rgb, bg: Rgb): [Rgb, Rgb] {
  * neighbours it joins (1 up, 2 right, 4 down, 8 left) and whether the line is
  * double (stone) or single (timber). A shut door carries its wall's line too.
  */
-export interface Look { ch: string; fg: Rgb; bg: Rgb; emissive: boolean; wall?: { mask: number; style: 'double' | 'single' }; }
+export interface Look { ch: string; fg: Rgb; bg: Rgb; emissive: boolean; wall?: { mask: number; style: 'double' | 'single' }; glass?: boolean; }
 
 /** Wildflowers: one colour per patch, from the hedgerow. */
 const FLOWERS: Rgb[] = [[214, 74, 82], [232, 196, 72], [168, 120, 214], [236, 230, 214], [96, 150, 226], [230, 140, 70]];
@@ -222,13 +224,22 @@ const FLOWERS: Rgb[] = [[214, 74, 82], [232, 196, 72], [168, 120, 214], [236, 23
 export function lookAt(t: Town, x: number, y: number, ms = 0): Look {
 	const c = at(t, x, y)!;
 	const m = MATS[c.mat] ?? FALLBACK;
-	const joins = (dx: number, dy: number) => (isWallAt(t, x + dx, y + dy) && !!(MATS[at(t, x + dx, y + dy)!.mat] ?? FALLBACK).style) || isDoorAt(t, x + dx, y + dy);
+	const joins = (dx: number, dy: number) => {
+		const n = at(t, x + dx, y + dy);
+		return (n?.tile === 'wall' && (!!(MATS[n.mat] ?? FALLBACK).style || isWindow(n))) || isDoorAt(t, x + dx, y + dy);
+	};
 	const maskHere = () => (joins(0, -1) ? 1 : 0) | (joins(1, 0) ? 2 : 0) | (joins(0, 1) ? 4 : 0) | (joins(-1, 0) ? 8 : 0);
 	if (c.tile === 'wall') {
 		// Rock: broken, uneven texture; other unjoined walls (hedges, trees) their own mark.
 		if (c.mat === 'granite') {
 			const h = hash(x, y, 11);
 			return { ch: ['▒', '▓', '▒', '░', '▲', '▒'][h % 6], fg: lerp(m.fg, [150, 146, 136], (h >> 4 & 7) / 10), bg: lerp(m.bg, [30, 30, 34], (h >> 8 & 3) / 4), emissive: false };
+		}
+		// A window: the wall's line carried through it, in pale glass.
+		if (isWindow(c)) {
+			const side = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => at(t, x + dx, y + dy)).find((n) => n?.tile === 'wall' && !isWindow(n));
+			const style = (MATS[side?.mat ?? ''] ?? FALLBACK).style ?? 'single';
+			return { ch: ' ', fg: m.fg, bg: m.bg, emissive: false, wall: { mask: maskHere() & ((joins(1, 0) || joins(-1, 0)) ? 10 : 5), style }, glass: true };
 		}
 		if (!m.style) return { ch: m.wall, fg: m.fg, bg: m.bg, emissive: false };
 		return { ch: ' ', fg: m.fg, bg: m.bg, emissive: false, wall: { mask: maskHere(), style: m.style } };

@@ -631,9 +631,12 @@ function draw() {
 		if (S.phase !== 'day') for (const q of S.people.values()) srcs.push({ x: q.x, y: q.y, c: q.id === S.me ? LANTERN : (LANTERN.map((v) => v * 0.75) as Rgb) });
 		dyn = lightMap(t, srcs);
 	}
-	// Beyond the town and whatever you cannot see: the fog.
+	// Indoors (a player inside, not in the doorway): no fog in here, and outside is dark
+	// but for what a doorway or a window shows. Outdoors, beyond what you can see: the fog.
+	const mine = p.st ? [] : roomsAt(t, p);
+	const inside = mine.length > 0 && !mine.includes(t.outdoors);
 	const fogBase = FOG[S.phase];
-	c.fillStyle = css(fogBase);
+	c.fillStyle = inside ? '#060608' : css(fogBase);
 	c.fillRect(0, 0, cw, chh);
 	const s = S.cell;
 	// You in the middle; beyond the town's edge is dark.
@@ -658,6 +661,11 @@ function draw() {
 			const i = x + y * t.w;
 			const shown = vis.has(i);
 			if (!shown && !S.seen![i]) continue;
+			// Rooms have no fog. Indoors, a wall or doorway of your room counts as in here.
+			const r = t.room[i];
+			const indoors = r >= 0 ? r !== t.outdoors : inside && touchesRoom(t, x, y, mine);
+			// Indoors, what you are not seeing now is out of mind: only your own room is remembered.
+			if (inside && !shown && !t.locked.has(i) && !(r >= 0 ? mine.includes(r) : touchesRoom(t, x, y, mine))) continue;
 			const look = lookAt(t, x, y, now);
 			let fg: Rgb, bg: Rgb;
 			if (shown) {
@@ -672,7 +680,7 @@ function draw() {
 				if (t.locked.has(i)) [fg, bg] = [look.fg, mul(look.bg, [0.6, 0.6, 0.6])];
 			}
 			// The fog: thicker with distance and at the forest's edge, glowing where firelight falls in it.
-			const f = fogAt(t, x, y, cam, S.phase, now) * (p.st ? 0.6 : 1) * (shown ? 1 : 0.6) + (shown ? 0 : 0.35);
+			const f = indoors ? (shown ? 0 : 0.2) : fogAt(t, x, y, cam, S.phase, now) * (p.st ? 0.6 : 1) * (shown ? 1 : 0.6) + (shown ? 0 : 0.35);
 			if (f > 0.01) {
 				const glow = dyn ? ([0, 1, 2].map((k) => fogBase[k] + dyn![i * 3 + k] * 0.18) as Rgb) : fogBase;
 				fg = lerp(fg, glow, Math.min(1, f * 1.05));
@@ -683,6 +691,12 @@ function draw() {
 			c.fillStyle = css(bg);
 			ground.set(i, c.fillStyle);
 			c.fillRect(px, py, s + 0.5, s + 0.5);
+			if (look.glass) {
+				// The pane: a pale bar along the wall, lit by whatever is brighter, in or out.
+				const h = look.wall!.mask & 10;
+				c.fillStyle = css(lerp(bg, fg, 0.35));
+				c.fillRect(px + (h ? 0 : s * 0.3), py + (h ? s * 0.3 : 0), h ? s + 0.5 : s * 0.4, h ? s * 0.4 : s + 0.5);
+			}
 			if (look.wall) drawWall(c, look.wall, px, py, s, fg);
 			c.fillStyle = css(fg);
 			if (look.ch !== ' ') c.fillText(look.ch, px + s * 0.5, py + s * 0.54);
@@ -697,6 +711,7 @@ function draw() {
 	for (const l of t.labels) {
 		const i = l.x + l.y * t.w;
 		if (!S.seen![i] && !p.st) continue;
+		if (inside && !vis.has(i)) continue;
 		const lx = ox + l.x * s + s * 0.15, ly = oy + l.y * s - s * 0.55;
 		if (lx > cw || ly > chh || lx + s * 12 < 0 || ly + s < 0) continue;
 		const f = fogAt(t, l.x, l.y, cam, S.phase, now) * (p.st ? 0.6 : 1);
@@ -722,8 +737,8 @@ function draw() {
 		c.fillRect(ox + q.x * s, oy + q.y * s, s + 0.5, s + 0.5);
 		drawPerson(c, q, ox + q.x * s + s / 2, oy + q.y * s + s / 2, s * 0.95, q.id !== S.me);
 	}
-	// Wisps: soft banks of mist rolling slowly across the view.
-	for (let k = 0; k < 6; k++) {
+	// Wisps: soft banks of mist rolling slowly across the view (not indoors).
+	for (let k = 0; k < (inside ? 0 : 6); k++) {
 		const wx = ((noise(k * 3.1, now * 0.00003, 9) * 1.6 - 0.3) * cw + now * 0.006 * (k % 2 ? 1 : -0.6)) % (cw * 1.4) - cw * 0.2;
 		const wy = noise(k * 5.7, now * 0.00002, 11) * chh;
 		const r = Math.max(cw, chh) * (0.18 + 0.12 * noise(k, now * 0.00004, 13));
@@ -755,6 +770,15 @@ function draw() {
  * for stone, single for timber; a lone post where it joins nothing. Lines run
  * edge to edge, so neighbouring walls meet without gaps.
  */
+/** Is (x, y) beside one of these rooms (a wall or doorway of it)? */
+function touchesRoom(t: Town, x: number, y: number, rooms: number[]): boolean {
+	for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+		const nx = x + dx, ny = y + dy;
+		if (nx >= 0 && ny >= 0 && nx < t.w && ny < t.h && rooms.includes(t.room[nx + ny * t.w])) return true;
+	}
+	return false;
+}
+
 const bitOf = (dx: number, dy: number) => (dy < 0 ? 1 : dx > 0 ? 2 : dy > 0 ? 4 : dx < 0 ? 8 : 0);
 
 function drawWall(c: CanvasRenderingContext2D, w: { mask: number; style: 'double' | 'single' }, px: number, py: number, s: number, fg: Rgb) {

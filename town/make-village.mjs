@@ -97,6 +97,9 @@ put(62, 22, 'K'); // the hearth
 for (const [x, y] of [[57, 25], [61, 25], [57, 28], [61, 28]]) { put(x, y, 't'); put(x - 1, y, 'c'); put(x + 1, y, 'c'); put(x, y + 1, 'c'); }
 put(63, 30, 'K');
 put(53, 25, '!'); put(53, 28, '!');
+// Windows: the church's tall lights down both sides; the tavern's two onto the square. The rest stay dark.
+for (const y of [7, 10, 12]) { put(ch.x0, y, 'w'); put(ch.x1, y, 'w'); }
+for (const [x, y] of [[54, 23], [54, 30]]) put(x, y, 'w');
 
 // ---- the smithy, south-west of the square: open-fronted, a forge and an anvil ----
 house(24, 36, 31, 41, '#', 'g');
@@ -112,25 +115,30 @@ put(70, 47, 'r');
 
 // ---- cottages: one room, a bed, a table, a chair, a chest; homes for the night ----
 const cottages = [];
-const cottage = (x0, y0, doorSide) => {
+const cottage = (x0, y0, doorSide, glazed = false) => {
 	const x1 = x0 + 6, y1 = y0 + 4;
 	house(x0, y0, x1, y1, 'W', '+');
 	put(x0 + 1, y0 + 1, 'b'); put(x1 - 1, y0 + 1, 'e'); put(x1 - 2, y1 - 1, 't'); put(x1 - 1, y1 - 1, 'c');
 	const door = doorSide === 's' ? [x0 + 3, y1] : doorSide === 'n' ? [x0 + 3, y0] : doorSide === 'e' ? [x1, y0 + 2] : [x0, y0 + 2];
 	put(door[0], door[1], 'd');
+	// The better-off have a window, opposite the door; the rest make do with the door.
+	if (glazed) {
+	const win = doorSide === 's' ? [x0 + 3, y0] : doorSide === 'n' ? [x0 + 3, y1] : doorSide === 'e' ? [x0, y0 + 2] : [x1, y0 + 2];
+	put(win[0], win[1], 'w');
+	}
 	cottages.push({ x0, y0, x1, y1, door, inside: [x0 + 2, y0 + 2] });
 };
-cottage(10, 17, 'e');
+cottage(10, 17, 'e', true);
 cottage(19, 18, 's');
 cottage(10, 25, 'e');
 cottage(13, 40, 'n');
-cottage(20, 46, 'e');
+cottage(20, 46, 'e', true);
 cottage(30, 47, 'n');
-cottage(44, 47, 'w');
+cottage(44, 47, 'w', true);
 cottage(55, 12, 's');
-cottage(65, 13, 's');
+cottage(65, 13, 's', true);
 cottage(74, 12, 'w');
-cottage(75, 36, 'w');
+cottage(75, 36, 'w', true);
 cottage(52, 37, 'n');
 
 // ---- torches along the ways, few and far between ----
@@ -140,7 +148,7 @@ for (const [x, y] of [[22, 32], [16, 24], [34, 31], [42, 17], [40, 39], [56, 33]
 
 // Every door opens onto a way out: from each outside door, clear the fewest trees to reach a track.
 const ROAD = new Set(['g', '.', '_']);
-const isWall = (ch) => ch === 'W' || ch === '#';
+const isWall = (ch) => ch === 'W' || ch === '#' || ch === 'w';
 for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
 	if (g[y][x] !== 'd' && g[y][x] !== 'D') continue;
 	for (const [ax, ay] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
@@ -255,6 +263,7 @@ key m floor soil | statue
 key M floor stone block | statue
 key x floor soil | coffin
 key W wall wood
+key w wall glass
 key + floor wood
 key d floor wood | door
 key b floor wood | bed

@@ -24,6 +24,7 @@ key m floor soil | statue
 key M floor stone block | statue
 key x floor soil | coffin
 key W wall wood
+key w wall glass
 key + floor wood
 key d floor wood | door
 key b floor wood | bed
@@ -69,30 +70,30 @@ TTTTTTTTT,,T,,,f,,,T,,,T,T,,,T,,,Tf,,T,#__M__#TT,T,,gf,T,TTTT,,TT,,f,,gTT,,~~TTT
 TTTTTTTT,T,f,,T,,,,T,T,,,fT,,,,,,,######_____######,gT,f,,,TT,Tf,,,,,,gT,,T,~~~~~~~T
 TTTTTTT,,,,f,,,,,,TWWWWWWWWWWWWW,,#i___###D###___i#,g,,,,T,T,T,T,T,,,,g,,,,,f~~~~T~T
 TTTTTTTT,,,,,,,,,,fWggggggggggggW,#_______________#,g,,,,,,,T,,T,,,,,,g,,,,,,TTTTTTT
-TTTTTTTf,,f,,,,f,,,WgmggmggmggmgW,#_____iaai______#,g,,,,,,,,,,,,,,,,,g,,,,TfTTTTTTT
+TTTTTTTf,,f,,,,f,,,WgmggmggmggmgW,w_____iaai______w,g,,,,,,,,,,,,,,,,,g,,,,TfTTTTTTT
 TTTTTTTTTT,,,,f,,,,WggggggggggggW,#_______________#,gf,,,,,,,,T,,,,,,,g,,,,T,TTTTTTT
 TTTTTTT,,,,,,,,,,,,Wggmggmggmgg,,,#_______________#,g,,,,,,,,,,f,,,,,,,,,,,,,TTTTTTT
-TTTTTTT,,f,,,f,,,,,WggggggggggggW,#_pppp____ppppp_#,g,,,,,T,,f,,,,,,,,,,,,,,TTTTTTTT
+TTTTTTT,,f,,,f,,,,,WggggggggggggW,w_pppp____ppppp_w,g,,,,,T,,f,,,,,,,,,,,,,,TTTTTTTT
 TTTTTTTT,,,,,,,,,,,WgmggmggmggmgW,#_______________#,g,,,,,,,,,,,,,,,,,,,,T,,TTTTTTTT
-TTTTTTT,,,,,,,,,,,,WggggggggggxgW,#_pppp____ppppp_#,g,,WWWWWWW,,,f,,,,T,,TWWWWWWWTTT
-TTTTTTTT,TT,,,,,,T,WggggggggggggW,#_______________#,g,,Wb+++eW,,,WWWWWWW,TWb+++eWTTT
+TTTTTTT,,,,,,,,,,,,WggggggggggxgW,w_pppp____ppppp_w,g,,WWWWWWW,,,f,,,,T,,TWWWWWWWTTT
+TTTTTTTT,TT,,,,,,T,WggggggggggggW,#_______________#,g,,Wb+++eW,,,WWWwWWW,TWb+++eWTTT
 TTTTTTTTT,,,,f,,,,,WWWWWWWWWWWWW,,#i_____________i#,,,,W+++++W,,,Wb+++eW,,d+++++WTTT
 TTTTTTTTTT,,,,,,,,,,,,,,,,,,,,,,,,#######DD########,,,,W+++tcW,,,W+++++W,,W+++tcWTTT
 TTTTTTTTT,,,,,,g,,,,,,,,,,,,,,,,,,,,,,,,,...,,,,,,,,,,,WWWdWWW,,,W+++tcW,,WWWWWWWTTT
 TTTTTTTT,,WWWWWWW,,,,,,,,,,,,,,,,,,,,,,,,.!.,,,,,f,,,,,,,f,ffT,f,WWWdWWW,TTTTTTTTTTT
 TTTTTTTT,,Wb+++eW,,WWWWWWW,,,,,,,,,,,ff,,,..,,,,,,,,,,,,,,f,,,,,,,f,!gg,,TTTTTTTTTTT
-TTTTTTTT,,W+++++df,Wb+++eW,,,,,,,,,,,,,,f,..,,,,,,,,,T,,,,Tf,,,,,,,,gg,,,,,TTTTTTTTT
+TTTTTTTT,,w+++++df,Wb+++eW,,,,,,,,,,,,,,f,..,,,,,,,,,T,,,,Tf,,,,,,,,gg,,,,,TTTTTTTTT
 TTTTTTTTT,W+++tcW,,W+++++W,,,,,,,,,f,,,,,,..,,,,,,,,,,,,,,,,,,,,,,,ggf,,,,,TTTTTTTTT
 TTTTTTTT,,WWWWWWWg,W+++tcW,,,,,,,,,,,,,,,,..,,,,,,,,,,WWWWWWWWWWWWWWWWWWWWW,TTTTTTTT
 TTTTTTT,,,fff,,f,g,WWWdWWW,,,,,,,,,,,,,.__..._,,,,,,,,W+rrrrrrK+W+++c+++rrW,TTTTTTTT
-TTTTTTT,,,T,,,,,,g,fff,fff,,,,,,,,,,,__________.,,,,,,W+++++++++W++ctc++++WT,TTTTTTT
+TTTTTTT,,,T,,,,,,g,fff,fff,,,,,,,,,,,__________.,,,,,,w+++++++++W++ctc++++WT,TTTTTTT
 TTTTTT,,,,,,f,,,!g,,,,,,,,,,,,,,f,,.______________f,,,W+++++++++d+++++++++WTTTTTTTTT
 TTTTTTT,,,WWWWWWWg,,,,,,,,,,,,,,,f_________________,,!W+ctc+ctc+W++++++++KW,,TTTTTTT
 TTTTTTT,T,Wb+++eWg,,,,,,,,,,,,,,,______h_h__h_______,,d++c+++c++WWWdWWWdWWW,TTTTTTTT
 TTTTTTTT,,W+++++dg,,,,,,,,,,,,,,,k___h________h____k,,d+++++++++W+++eWe+++WTTTTTTTTT
 TTTTTTTT,,W+++tcWg,,,T,,,,,,T,,,_______________h_____!W+ctc+ctc+W++++W++++W,TTTTTTTT
 TTTTTTTTT,WWWWWWWg,,,,,,,,,,,,,,.___h________________,W++c+++c++W++++W++++WTTTTTTTTT
-TTTTTTTTT,,,,,f,,g,,,,,,,,,,,,gg._________M_____h____fW++++++++KWb+++W+++bWTTTTTTTTT
+TTTTTTTTT,,,,,f,,g,,,,,,,,,,,,gg._________M_____h____fw++++++++KWb+++W+++bWTTTTTTTTT
 TTTTTTTTT,,,f,!,,g,,,,,ff,,,gggg____h_______________.,WWWWWWWWWWWWWWWWWWWWWTTTTTTTTT
 TTTTTTTTf,,,,,,,,g,,,,!,ggggggg,.______________h____.ggggggggggg,,,,,,,,,,TTTTTTTTTT
 TTTTTTggggggggggggggggggggggg,,,,____h________h_____gggg!gggggggg,,,,,,,,TTTTTTTTTTT
@@ -100,7 +101,7 @@ TTTTTTgggggggggggggggggggfg,,,,,,k_____h_h__h____o__,,,,,,,,,,gggggggggggggggggT
 TTTTTTgTTf,,,,,,,,,,,,,f,,g,f,ff,,________________.T,,f,,,,,,,,ggg!gggggggggggTTTTTT
 TTTTTTTT,,,,,,,,,,,f,,,,#gggggg#,,,._____________.,,,,,,,,,,,,,,g,,,,,,,,,,WWWWWWWTT
 TTTTTTTTf,,,,,,,f,,,,,,,#gggggg#,,,,,.__________,,,,WWWdWWW,,,,,g,,,,,,,,,TWb+++eWTT
-TTTTTTT,,,,,,fT,,,,f,,,,#gggggg#,,,,,,,_____..f,,,T,Wb+++eW,,,,,g,,f,,,,,,,d+++++WTT
+TTTTTTT,,,,,,fT,,,,f,,,,#gggggg#,,,,,,,_____..f,,,T,Wb+++eW,,,,,g,,f,,,,,,,d+++++wTT
 TTTTTTT,,,,,,,,T,,,,,,,,#gngggr#,f,,,,,,!gg,,,,,,,,,W+++++W,,,,,g,,,,,,,,,TW+++tcWTT
 TTTTTTT,,,,,,WWWdWWW,,,,#gggkgg#,,,,,,,,,gg,,,f,,f,,W+++tcW,,f,,g,,f,,,,f,,WWWWWWWTT
 TTTTTTT,,,,,,Wb+++eW,,,,########,f,,,,,f,gg,,,,,,,,,WWWWWWW,,,!,gf,,,,,,,,,,TTTTTTTT
@@ -110,8 +111,8 @@ TTTTTTTT,,,,,WWWWWWWggg,,,,,,,,Tf,,,,,,,,gg,,,,,,,,,,,f,,,,,,,WWWWWWWWWWWWWWWTTT
 TTTTTTTT,,,,,,,,ffffg,,,,,,,,,f,,,,,,,,,,gg,f,,,!,,f,,,,,,,,f,WgyggyggyggyggWTTTTTTT
 TTTTTTTT,T,,,,,,,,,,WWWWWWW,,f,,,,,,,,,,ggg,,,,,,,,,f,,,,,TTT,WgggggggggggggWTTTTTTT
 TTTTTTTTT,,,f,,f,,,fWb+++eW,,,WWWdWWWT,,gg,TWWWWWWW,,,,,,,T,,,dgggggggrgggggWTTTTTTT
-TTTTTTTT,,,,,,,,,,,TW+++++d,,,Wb+++eW,gggg,,Wb+++eW,,,,,TTTT,,dgggggggggggggWTTTTTTT
-TTTTTTTTT,,,,,,,,,f,W+++tcW,,,W+++++WggggTT,d+++++W,,,,T,T,,,,WgggggggggggggWTTTTTTT
+TTTTTTTT,,,,,,,,,,,Tw+++++d,,,Wb+++eW,gggg,,Wb+++eW,,,,,TTTT,,dgggggggggggggWTTTTTTT
+TTTTTTTTT,,,,,,,,,f,W+++tcW,,,W+++++WggggTT,d+++++w,,,,T,T,,,,WgggggggggggggWTTTTTTT
 TTTTTTTT,,,,,,,,,,,,WWWWWWW,,,W+++tcWg!,TTTTW+++tcW,,,T,T,,T,,WgyyyyyyyyyyygWTTTTTTT
 TTTTTTT,T,,f,,,,,,T,fTTTTTTT,,WWWWWWWgTTTTT,WWWWWWW,,,T,,TTTTTWWWWWWWWWWWWWWWTTTTTTT
 TTTTTTTfTT,,,,,,,,,,,,TT,,T,,,f,,fffgg,TTT,,ff,fff,,,,,TT,TTTf,f,,,,,,,TTT,,TTTTTTTT

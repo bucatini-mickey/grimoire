@@ -205,3 +205,17 @@ test('names of places sit at the top left of their buildings', () => {
 	assert.deepEqual(bp.labels, [{ x: 0, y: 0, text: 'The Hut' }]);
 	assert.throws(() => parseBlueprint('tachyon-blueprint 1\nsize 1 1 1\nlevel 0\n \nlabel 0 0\nend\n'), /label needs/);
 });
+
+test('windows (on some buildings): glass walls you see out of but cannot climb through; a plain wall hides the street', () => {
+	const win = { x: 10, y: 35 }; // the first cottage's window, opposite its door
+	assert.equal(town.cells[win.x + win.y * town.w].mat, 'glass');
+	assert.equal(walkable(town, win.x, win.y), false);
+	assert.ok(canSee(town, INSIDE, { x: 9, y: 35 }), 'out of the window');
+	assert.ok(!canSee(town, INSIDE, { x: 12, y: 31 }), 'not through the north wall');
+	assert.deepEqual(roomsAt(town, INSIDE).length, 1);
+	assert.ok(!sameRoom(town, INSIDE, { x: 9, y: 35 }), 'a window is still a wall: nobody outside hears you');
+	// Not every building is glazed: the next cottage down the track has none.
+	assert.equal(town.cells[10 + 43 * town.w].mat, 'wood');
+	const glass = town.cells.filter((c) => c.mat === 'glass').length;
+	assert.ok(glass >= 10 && glass <= 16, `${glass} windows`);
+});

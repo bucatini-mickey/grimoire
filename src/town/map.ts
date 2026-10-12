@@ -61,6 +61,9 @@ const LIGHTS = new Set(['torch', 'brazier', 'candle']);
 
 export const at = (t: Town, x: number, y: number): BpCell | null => (x < 0 || y < 0 || x >= t.w || y >= t.h ? null : t.cells[x + y * t.w]);
 const isDoor = (c: BpCell) => c.things.includes('door');
+/** Walls you can see (and daylight falls) through, as in Tachyon (material.rs): windows of glass, ice. */
+export const SEE_THROUGH = new Set(['glass', 'ice']);
+export const isWindow = (c: BpCell | null | undefined) => !!c && c.tile === 'wall' && SEE_THROUGH.has(c.mat);
 
 /** `ghost`: the Storyteller, who goes anywhere in the town, walls and all. */
 export function walkable(t: Town, x: number, y: number, ghost = false): boolean {
@@ -87,7 +90,7 @@ export function doorLeaves(t: Town, cell: number): number[] {
 /** Walls, trees and locked doors stop the eye (you see the door, not through it). */
 export function blocksSight(t: Town, x: number, y: number): boolean {
 	const c = at(t, x, y);
-	return !c || c.tile === 'wall' || t.locked.has(x + y * t.w);
+	return !c || (c.tile === 'wall' && !SEE_THROUGH.has(c.mat)) || t.locked.has(x + y * t.w);
 }
 
 /** The doors of a room. */
