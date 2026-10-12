@@ -160,6 +160,8 @@ function receive(msg: HostMsg) {
 			break;
 		case 'vote':
 			if (!msg.vote || !msg.vote.voting || msg.vote.nominee !== P.vote?.nominee) P.handUp = false;
+			// The Storyteller's phone lost my hand (it reloaded): raise it again.
+			else if (P.handUp && P.seat !== null && !msg.vote.raised.includes(P.seat)) P.link?.send({ t: 'hand', up: true });
 			P.vote = msg.vote;
 			village?.refresh();
 			break;

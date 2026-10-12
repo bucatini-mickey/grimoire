@@ -1558,7 +1558,7 @@ function startVote() {
 	f.speech = { stage: 'vote', timer: T.pause(f.speech!.timer, Date.now()) };
 	const order = G.voteOrder(state, nom.nominee);
 	f.vote = { order, index: 0, hands: [] };
-	ui.voteSmall = false;
+	ui.voteSmall = !!village && document.body.classList.contains('village-map');
 	skipVoteless();
 	save();
 	render();
@@ -1819,6 +1819,8 @@ let link: HostLink | null = null;
 /** Mode 2 inside the game: the village, when it is on. */
 let village: VillageHost | null = null;
 let villageKey = '';
+/** The night step the Storyteller last went to in the village. */
+let visitedWake = '';
 /** Nominations asked for from phones, waiting for the Storyteller. */
 let nomAsks: { by: SeatId; nominee: SeatId }[] = [];
 /** Hands raised on phones for the nomination under way (cleared for each new one). */
@@ -1916,8 +1918,24 @@ function villageActions(): StActions | null {
 		if (ui.remote && phone && ui.remote.seat === step.seat) {
 			return { text: `${role}: their pages are on their phone.`, buttons: [{ label: 'Take it back', act: () => { sendTo(phone, { t: 'sleep' }); ui.remote = null; render(); } }, grim] };
 		}
-		if (ui.message && who && ui.picks.length) return { text: ui.message, buttons: [{ label: 'Answer in the grimoire', primary: true, act: grim.act }] };
-		if (phone && canSendFirst(step)) return { text: `Next: ${role}.`, buttons: [{ label: `Send to ${who!.name}'s phone`, primary: true, act: () => wakePhone(step, phone, false) }, grim] };
+		const action = G.stepAction(step.kind);
+		const need = playerPicks(step.kind, state, step.seat);
+		if (phone && who && action === 'tell' && (!need || ui.picks.length >= need)) {
+			const seat = who.id;
+			const chose = need ? ` chose ${ui.picks.map(name).join(' and ')}` : '';
+			const droisoned = G.isDroisoned(state, seat);
+			const info = ui.draftInfo;
+			if (info && (G.judgeInfo(state, seat, step.kind, info).truthful || droisoned || ui.draftOverride)) {
+				return { text: `${role}${chose}. Tell them: ${infoText(info, step.kind)}`, buttons: [
+					{ label: `Tell ${who.name}`, primary: true, act: () => wakePhone(step, phone, true) },
+					{ label: 'Change', act: () => { ui.draftInfo = null; render(); } }, grim] };
+			}
+			const options = G.infoCandidates(state, step.kind, seat, ui.picks).filter((c) => c.truthful || droisoned);
+			return { text: `${role}${chose}. ${droisoned ? 'Drunk or poisoned: tell them anything.' : 'What do they learn?'}`, buttons: [
+				...options.map((c) => ({ label: `${infoText(c.info, step.kind)}${c.truthful ? '' : ' (false)'}`, act: () => { ui.draftInfo = c.info; ui.draftOverride = false; ui.compose = false; render(); } })),
+				{ label: 'Something else', act: grim.act }] };
+		}
+		if (phone && canSendFirst(step)) return { text: `${role}.`, buttons: [{ label: `Wake ${who!.name}`, primary: true, act: () => wakePhone(step, phone, false) }, { label: 'Skip', act: () => void act({ type: 'skip', reason: 'Storyteller skipped' }) }, grim] };
 		return { text: `Next: ${role}${phone ? '' : ' (no phone)'}. Run it in the grimoire.`, buttons: [{ label: 'Open the grimoire', primary: true, act: grim.act }] };
 	}
 	if (p.kind === 'over') return { text: `${p.winner === 'good' ? 'Good' : 'Evil'} wins. ${p.reason}`, buttons: [{ label: 'New game', primary: true, act: () => { village?.close(); newGame(); } }, grim] };
@@ -1925,7 +1943,21 @@ function villageActions(): StActions | null {
 	const f = flow(), day = state.day!, nom = openNomination();
 	if (nom && f.speech?.stage === 'accusation') return { text: `${name(nom.nominator)} accuses ${name(nom.nominee)}.`, buttons: [{ label: 'On to the defence', primary: true, act: toDefence }, { label: 'Withdraw', act: undo }] };
 	if (nom && f.speech?.stage === 'defence') return { text: `${name(nom.nominee)} defends.`, buttons: [{ label: 'Begin the vote', primary: true, act: startVote }] };
-	if (nom && f.vote) return { text: 'Counting hands.', buttons: [{ label: 'Show the count', primary: true, act: () => { ui.voteSmall = false; render(); } }] };
+	if (nom && f.vote) {
+		// Counting round the circle, from the bar, while the clock hand moves round the cross.
+		const v = f.vote;
+		const needed = Math.ceil(G.living(state).length / 2);
+		const tally = `${v.hands.length} for ${name(nom.nominee)}; ${needed} needed${day.highest ? `, more than ${day.highest}` : ''}.`;
+		if (v.index >= v.order.length) return { text: `The count: ${tally}`, buttons: [{ label: 'Record the vote', primary: true, act: recordVote }, { label: 'Full count', act: () => { ui.voteSmall = false; render(); } }] };
+		const id = v.order[v.index];
+		const hand = phoneHand(id);
+		const now = hand === null ? '' : hand ? ' (hand UP on their phone)' : ' (hand down on their phone)';
+		return { text: `${tally} Now: ${name(id)}${now}${state.seats[id].alive ? '' : ', a ghost vote'}.`, buttons: [
+			{ label: 'Hand up', primary: hand === true, act: () => answerVote(true) },
+			{ label: 'No hand', primary: hand === false, act: () => answerVote(false) },
+			...(link ? [{ label: autoCount ? 'Stop counting' : 'Count by phones', act: countByPhones }] : []),
+			{ label: 'Full count', act: () => { ui.voteSmall = false; render(); } }] };
+	}
 	if (day.stage === 'discussion') return { text: 'Discussion.', buttons: [{ label: 'Open nominations', primary: true, act: openNominations }, grim] };
 	const ask = validAsks()[0];
 	if (ask) return { text: `${name(ask.by)} nominates ${name(ask.nominee)}.`, buttons: [{ label: 'Accept', primary: true, act: () => acceptNomination(ask) }, { label: 'Not now', act: () => declineNomination(ask) }] };
@@ -1992,10 +2024,16 @@ function updatePhones() {
 
 function fromPhone(peer: string, msg: PlayerMsg) {
 	switch (msg.t) {
-		case 'hello':
+		case 'hello': {
 			phones.set(peer, msg.clientId);
 			welcome(peer);
+			// Back mid-wake (the phone reloaded or lost signal): their pages again.
+			const step = state.phase.kind === 'night' ? G.nextStep(state) : null;
+			if (step && ui.remote && ui.remote.seat === step.seat && seatOfClient(msg.clientId) === step.seat) {
+				sendTo(peer, { t: 'wake', wake: V.wakeFor(state, step, ui.remote.answered ? ui.draftInfo : null) });
+			}
 			break;
+		}
 		case 'claim': {
 			const client = phones.get(peer);
 			if (!client || !saved.net) return;
@@ -2063,8 +2101,11 @@ function fromPhone(peer: string, msg: PlayerMsg) {
 	render();
 }
 
+/** Tries at taking back our own code after a reload, while the broker still holds the old one. */
+let reclaimTries = 0;
+
 function startHosting(room = saved.net?.room ?? newRoomCode()) {
-	if (!saved.net || saved.net.room !== room) saved.net = { room, claims: saved.net?.claims ?? {} };
+	if (!saved.net || saved.net.room !== room) saved.net = { room, claims: saved.net?.claims ?? {}, village: saved.net?.village };
 	save();
 	link?.close();
 	link = hostRoom(room, {
@@ -2074,8 +2115,16 @@ function startHosting(room = saved.net?.room ?? newRoomCode()) {
 		status: (st, detail) => {
 			linkStatus = st;
 			linkDetail = detail ?? '';
-			// Someone else holds this code (an old tab, say): take a fresh one.
-			if (st === 'error' && detail === 'unavailable-id') { link?.close(); startHosting(newRoomCode()); return; }
+			// Our code is still held (this phone reloaded and the broker has not let go yet):
+			// keep asking for it for a while, so the players' phones find us again; then take a fresh one.
+			if (st === 'error' && detail === 'unavailable-id') {
+				link?.close();
+				if (reclaimTries++ < 12) { linkStatus = 'connecting'; linkDetail = ''; setTimeout(() => startHosting(room), 2500); render(); return; }
+				reclaimTries = 0;
+				startHosting(newRoomCode());
+				return;
+			}
+			if (st === 'open') reclaimTries = 0;
 			render();
 		}
 	});
@@ -2120,7 +2169,14 @@ function syncVillage() {
 	const key = `${p.kind}:${p.kind === 'night' || p.kind === 'day' ? p.n : 0}:${state.day?.stage ?? ''}`;
 	if (key !== villageKey) {
 		villageKey = key;
-		village.phase(p.kind === 'night' ? 'night' : p.kind === 'over' || (p.kind === 'day' && state.day?.stage === 'nominations') ? 'circle' : 'day');
+		village.phase(p.kind === 'night' ? 'night' : p.kind === 'over' || (p.kind === 'day' && state.day?.stage === 'nominations') ? 'dusk' : 'day');
+	}
+	// At night the Storyteller goes to whoever wakes next.
+	const step = p.kind === 'night' ? G.nextStep(state) : null;
+	const wakeKey = step ? `${state.phase.kind === 'night' ? state.phase.n : 0}:${step.id}` : '';
+	if (wakeKey && wakeKey !== visitedWake) {
+		const phone = step!.seat !== null ? peerOfSeat(step!.seat) : null;
+		if (phone) { visitedWake = wakeKey; village.visit(phone); }
 	}
 	village.caption(circleCaption(view));
 	const vv = voteView();
@@ -2176,7 +2232,7 @@ function phonesScreen(): Row[] {
 	rows.push({ segs: [], cls: 'qr-row', html: `<div class="qr">${qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true })}</div>` });
 	rows.push(rubric('The village'));
 	rows.push(...prose(village
-		? 'On: every seated phone walks the village, with voices by distance. The game sets day, night and the circle; sending someone their night pages takes you to their house.'
+		? 'On: every seated phone walks the village, with voices by distance. The game sets the day, the night, and dusk at the market cross for nominations and votes; at night you go to whoever wakes.'
 		: 'Play in the village (mode 2): each seated player walks a top-down town on their phone and talks to whoever is near.', 'dim'));
 	rows.push(...buttonRows(village
 		? [btn('Open the village', () => village?.open(), { style: 'primary' }), btn('Turn off', villageOff, { style: 'quiet' })]

@@ -350,6 +350,7 @@ function setPhase(phase: Phase) {
 		S.nightLocks.clear();
 	}
 	if (phase === 'night') sendEveryoneHome(t);
+	if (phase === 'dusk' && S.game) gatherAtCross(t);
 	for (const id of S.hostWire?.peers() ?? []) sendTo(id, { t: 'phase', phase });
 	announcePhase();
 }
@@ -377,6 +378,44 @@ function sendHome(t: Town, q: Person, taken: Set<number>) {
 	const b = S.bots.get(q.id);
 	if (b) b.route = [];
 	sendTo(q.id, { t: 'place', x: bed.x, y: bed.y });
+}
+
+/** Where seat `i` sits round the market cross: the game's seats spread evenly round it, the first at the top. */
+function seatCell(t: Town, i: number): P | null {
+	const L = t.seats.length;
+	if (!L || !t.meeting) return null;
+	const n = S.ring.length || [...S.people.values()].filter((q) => !q.st).length;
+	const m = t.meeting.at;
+	let top = 0, best = Infinity;
+	t.seats.forEach((c, k) => {
+		const a = Math.abs(Math.atan2(c.y - m.y, c.x - m.x) + Math.PI / 2);
+		if (a < best) { best = a; top = k; }
+	});
+	const step = n > 0 && n <= L && i < n ? L / n : 1;
+	return t.seats[(top + Math.round(i * step)) % L];
+}
+
+/** Dusk in a game: everyone to their seat round the market cross, the Storyteller to the cross. */
+function gatherAtCross(t: Town) {
+	for (const q of S.people.values()) {
+		if (q.st) continue;
+		const c = seatCell(t, q.seat);
+		if (!c) continue;
+		endPrivate(q);
+		q.x = c.x;
+		q.y = c.y;
+		const b = S.bots.get(q.id);
+		if (b) b.route = [];
+		sendTo(q.id, { t: 'place', x: c.x, y: c.y });
+	}
+	const st = [...S.people.values()].find((q) => q.st);
+	if (st && t.meeting) {
+		const m = t.meeting.at;
+		st.x = Math.round(m.x);
+		st.y = Math.round(m.y) + 1;
+		if (st.id === S.me) { S.route = []; cam.ready = false; }
+	}
+	S.dirty = true;
 }
 
 const occupied = () => new Set([...S.people.values()].map((q) => q.x + q.y * S.town!.w));
@@ -420,7 +459,7 @@ function moveBots() {
 		} else if (b.rest > 0) b.rest--;
 		else {
 			// Dusk: to their seat. Otherwise: wander somewhere nearby (at night, round the house).
-			const seat = S.phase === 'dusk' ? t.seats[p.seat % Math.max(1, t.seats.length)] : null;
+			const seat = S.phase === 'dusk' ? seatCell(t, p.seat) : null;
 			const goal = seat ?? { x: p.x + Math.round((Math.random() - 0.5) * 24), y: p.y + Math.round((Math.random() - 0.5) * 16) };
 			b.route = path(t, p, goal).slice(0, 30);
 			b.rest = S.phase === 'dusk' ? 6 : 4 + Math.floor(Math.random() * 12);
@@ -514,7 +553,7 @@ function loadTown(text: string) {
 	S.dirty = true;
 }
 
-const canWalk = () => S.phase !== 'circle' && !!me();
+const canWalk = () => S.phase !== 'circle' && !!me() && !(S.game && S.phase === 'dusk' && !me()!.st);
 
 function step(dx: number, dy: number) {
 	const p = me();
@@ -584,6 +623,8 @@ const GOLD: Rgb = [220, 160, 60];
 const MONO = '"Courier Prime", "Courier New", monospace';
 const CAVE_DARK: Rgb = [8, 8, 10];
 const BOOK = '"Grenze", "Iowan Old Style", Georgia, serif';
+/** People's initials: Almendra's bold capitals, medieval and plain to read even small. */
+const INITIALS = '"Almendra", "Grenze", Georgia, serif';
 /** People's letters: blackletter. */
 const GOTHIC = '"Grenze Gotisch", "UnifrakturCook", "Old English Text MT", serif';
 
@@ -594,29 +635,21 @@ function drawPerson(c: CanvasRenderingContext2D, q: Person, x: number, y: number
 	const ink = inkOf(q);
 	const talk = talking(q);
 	c.save();
-	// A token: a disc of their colour with their initial in dark ink, so nobody is
-	// mistaken for a wall, a fire or a flower. The Storyteller and the dead are hollow.
-	const r = size * 0.47;
+	// Their initial in their colour, in uncial capitals, edged in dark so it reads on any ground.
+	if (q.dead) c.globalAlpha = 0.5;
+	c.font = `700 ${Math.round(size * (q.st ? 1 : 0.95))}px ${q.st ? MONO : INITIALS}`;
+	c.textAlign = 'center';
+	c.textBaseline = 'middle';
+	c.lineJoin = 'round';
+	c.lineWidth = Math.max(2, size * 0.16);
+	c.strokeStyle = 'rgba(8, 6, 4, .9)';
+	c.strokeText(glyphOf(q), x, y + size * 0.04);
 	if (talk > 0.06) {
 		c.shadowColor = ink;
 		c.shadowBlur = 6 + Math.min(14, talk * 30);
 	}
-	c.beginPath();
-	c.arc(x, y, r, 0, Math.PI * 2);
-	const hollow = !!q.st || !!q.dead;
-	c.fillStyle = hollow ? 'rgba(12, 10, 8, .88)' : ink;
-	c.fill();
-	c.shadowBlur = 0;
-	c.lineWidth = Math.max(1.5, size * (hollow ? 0.09 : 0.07));
-	c.strokeStyle = hollow ? ink : 'rgba(10, 8, 6, .8)';
-	if (q.dead) c.setLineDash([size * 0.12, size * 0.08]);
-	c.stroke();
-	c.setLineDash([]);
-	c.fillStyle = hollow ? ink : '#140e08';
-	c.font = `700 ${Math.round(size * (q.st ? 0.6 : 0.66))}px ${q.st ? MONO : BOOK}`;
-	c.textAlign = 'center';
-	c.textBaseline = 'middle';
-	c.fillText(glyphOf(q), x, y + size * 0.03);
+	c.fillStyle = ink;
+	c.fillText(glyphOf(q), x, y + size * 0.04);
 	c.restore();
 	if (!label) return;
 	c.save();
@@ -675,7 +708,9 @@ function draw() {
 	c.fillRect(0, 0, cw, chh);
 	const s = S.cell;
 	// You in the middle; beyond the town's edge is dark.
-	const ox = Math.round(cw / 2 - (cam.x + 0.5) * s), oy = Math.round(chh / 2 - (cam.y + 0.5) * s);
+	const sheet = document.getElementById('card');
+	const lift = sheet && !sheet.hidden && document.body.classList.contains('village-map') ? Math.min(chh * 0.4, sheet.offsetHeight / 2) : 0;
+	const ox = Math.round(cw / 2 - (cam.x + 0.5) * s), oy = Math.round(chh / 2 - lift - (cam.y + 0.5) * s);
 	const xa = Math.max(0, Math.floor(-ox / s)), xb = Math.min(t.w, Math.ceil((cw - ox) / s));
 	const ya = Math.max(0, Math.floor(-oy / s)), yb = Math.min(t.h, Math.ceil((chh - oy) / s));
 	view = { x0: -ox / s, y0: -oy / s };
@@ -685,7 +720,7 @@ function draw() {
 	for (const i of vis) S.seen![i] = 1;
 	const sk = sky(t), day = sunlight(S.phase);
 	const seatSet = new Set(t.seats.map((q) => q.x + q.y * t.w));
-	const mySeat = t.seats.length && !p.st ? t.seats[p.seat % t.seats.length] : null;
+	const mySeat = !p.st ? seatCell(t, p.seat) : null;
 	c.font = `${Math.round(s * 0.8)}px ${MONO}`;
 	c.textAlign = 'center';
 	c.textBaseline = 'middle';
@@ -763,6 +798,28 @@ function draw() {
 	}
 	c.restore();
 
+	// At the cross (a game's dusk): the clock hand from the cross to whoever is being counted.
+	const atCross = S.game && S.phase === 'dusk' && !!t.meeting;
+	const ringAt = (seat: number): P | null => [...S.people.values()].find((q) => !q.st && q.seat === seat) ?? seatCell(t, seat);
+	const scr = (q: P) => ({ x: ox + (q.x + 0.5) * s, y: oy + (q.y + 0.5) * s });
+	if (atCross && S.vote && S.vote.at !== null) {
+		const to = ringAt(S.vote.at);
+		if (to) {
+			const a = scr(t.meeting!.at), b = scr(to);
+			c.save();
+			c.strokeStyle = 'rgba(255,210,122,.9)';
+			c.lineWidth = Math.max(2, s * 0.14);
+			c.lineCap = 'round';
+			c.shadowColor = '#ffd27a';
+			c.shadowBlur = 12;
+			c.beginPath();
+			c.moveTo(a.x, a.y);
+			c.lineTo(a.x + (b.x - a.x) * 0.8, a.y + (b.y - a.y) * 0.8);
+			c.stroke();
+			c.restore();
+		}
+	}
+
 	// People: anyone in sight and in enough light to make out (or right beside you).
 	// At night the Storyteller is seen only by whoever they visit.
 	const people = [...S.people.values()].filter((q) => {
@@ -776,6 +833,63 @@ function draw() {
 		c.fillStyle = ground.get(q.x + q.y * t.w) ?? '#000';
 		c.fillRect(ox + q.x * s, oy + q.y * s, s + 0.5, s + 0.5);
 		drawPerson(c, q, ox + q.x * s + s / 2, oy + q.y * s + s / 2, s * 0.95, q.id !== S.me);
+	}
+	if (atCross) {
+		// Seats whose player has no phone here: their place in the circle all the same.
+		for (const r of S.ring) {
+			if ([...S.people.values()].some((q) => !q.st && q.seat === r.seat)) continue;
+			const cell = seatCell(t, r.seat);
+			if (!cell) continue;
+			const at = scr(cell);
+			drawPerson(c, { id: `seat-${r.seat}`, name: r.name, ink: r.seat % INKS.length, x: cell.x, y: cell.y, voice: false, seat: r.seat, dead: r.dead, with: null }, at.x, at.y, s * 0.95, true);
+		}
+		// The vote: the nominee ringed in red; a hand up over whoever raised it (filled once counted).
+		const v = S.vote;
+		if (v) {
+			const nom = ringAt(v.nominee);
+			if (nom) {
+				const at = scr(nom);
+				c.save();
+				c.strokeStyle = '#f0705a';
+				c.lineWidth = Math.max(2, s * 0.1);
+				c.beginPath();
+				c.arc(at.x, at.y, s * 0.68, 0, Math.PI * 2);
+				c.stroke();
+				c.restore();
+			}
+			for (const seat of new Set([...v.raised, ...v.counted])) {
+				const q = ringAt(seat);
+				if (!q) continue;
+				const at = scr(q), counted = v.counted.includes(seat);
+				c.save();
+				c.fillStyle = '#ffd27a';
+				c.globalAlpha = counted ? 1 : 0.75;
+				c.font = `700 ${Math.round(s * 0.62)}px ${MONO}`;
+				c.textAlign = 'center';
+				c.textBaseline = 'bottom';
+				c.fillText(counted ? '▲' : '△', at.x + s * 0.55, at.y - s * 0.2);
+				c.restore();
+			}
+		}
+		// The day so far, written at the foot of the cross.
+		if (S.caption.length) {
+			const a = scr(t.meeting!.at);
+			const fs = Math.max(11, Math.round(s * 0.46));
+			c.save();
+			c.font = `600 ${fs}px ${BOOK}`;
+			const lines = S.caption.slice(0, 5);
+			const w = Math.min(cw - 24, Math.max(...lines.map((l) => c.measureText(l).width)) + 16);
+			const top = a.y + s * 1.7;
+			c.fillStyle = 'rgba(10,8,6,.72)';
+			c.fillRect(a.x - w / 2, top, w, lines.length * fs * 1.25 + 8);
+			c.textAlign = 'center';
+			c.textBaseline = 'top';
+			lines.forEach((l, i) => {
+				c.fillStyle = i ? 'rgba(232,216,178,.9)' : '#ffd27a';
+				c.fillText(l, a.x, top + 4 + i * fs * 1.25, w - 8);
+			});
+			c.restore();
+		}
 	}
 	// Wisps: soft banks of mist rolling slowly across the view (not indoors).
 	for (let k = 0; k < (inside ? 0 : inCave ? 2 : 6); k++) {
@@ -979,7 +1093,7 @@ function drawChrome() {
 		: `<button data-act="voice-mic" class="primary">Talk</button><button data-act="voice-tone">Test note</button>`;
 	const door = doorBeside();
 	const doorBtn = door !== null ? `<button data-act="door" class="v-door">${S.town!.locked.has(door) ? 'Unlock door' : 'Lock door'}</button>` : '';
-	const seat = S.phase === 'dusk' && p && !p.st && S.town?.seats.length ? `<button data-act="seat" class="primary">My seat</button>` : '';
+	const seat = S.phase === 'dusk' && !S.game && p && !p.st && S.town?.seats.length ? `<button data-act="seat" class="primary">My seat</button>` : '';
 	const priv = p?.with ? `<span class="v-private">Private: <b>${esc(nameOf(p.with))}</b></span><button data-act="end">End</button>` : '';
 	const extra = S.extra().map((e, i) => `<button data-act="extra" data-i="${i}" class="${e.primary ? 'primary' : ''}">${esc(e.label)}</button>`).join('');
 	tools.innerHTML = `${priv}${voiceBtns}${extra}<button data-act="people">People</button>${doorBtn}${seat}`
@@ -1012,7 +1126,8 @@ function drawChrome() {
 				const busy = q.with ? `<span class="v-dim">talking privately</span>` : '';
 				const askBtn = can && !q.with ? `<button data-act="ask" data-id="${esc(q.id)}">Private word</button>` : '';
 				const visitBtn = p?.st && !q.st ? `<button data-act="visit" data-id="${esc(q.id)}">Visit</button>` : '';
-				return `<div class="v-person"><b style="color:${inkOf(q)}">${esc(glyphOf(q))} ${esc(q.st ? 'Storyteller' : q.name)}</b>${busy}<span class="v-person-btns">${visitBtn}${askBtn}</span></div>`;
+				const state = q.dead ? '<span class="v-dim">dead</span>' : '';
+				return `<div class="v-person"><span class="v-mark" style="--ink:${inkOf(q)}" aria-hidden="true">${esc(glyphOf(q))}</span><span class="v-pname">${esc(q.st ? 'Storyteller' : q.name)}</span>${state}${busy}<span class="v-person-btns">${visitBtn}${askBtn}</span></div>`;
 			}).join('');
 	}
 
@@ -1021,9 +1136,9 @@ function drawChrome() {
 	if (S.host && S.stOpen) {
 		const link = `${location.origin}${location.pathname}#village=${S.room}`;
 		const ph = (k: Phase, label: string) => `<button data-act="phase-${k}" class="${S.phase === k ? 'on' : ''}">${label}</button>`;
-		st.innerHTML = `<div class="v-st-row">${ph('day', 'Day')}${ph('dusk', 'Ring the bell')}</div>
-			<div class="v-st-row">${ph('circle', 'The circle')}${ph('night', 'Night')}</div>
-			<div class="v-st-row"><button data-act="bot">+ Test villager</button><button data-act="st-toggle">Close</button></div>
+		st.innerHTML = (S.game ? '' : `<div class="v-st-row">${ph('day', 'Day')}${ph('dusk', 'Ring the bell')}</div>
+			<div class="v-st-row">${ph('circle', 'The circle')}${ph('night', 'Night')}</div>`)
+			+ `<div class="v-st-row"><button data-act="bot">+ Test villager</button><button data-act="st-toggle">Close</button></div>
 			${S.game ? '<button data-act="back-game" class="primary">Back to the grimoire</button>' : `<div class="v-share">Players scan this, or open <b>${esc(link)}</b></div>
 			<div class="v-qr">${qr(link)}</div>`}
 			<label class="v-file">Load my own town (.tbp)<input type="file" accept=".tbp,.txt" data-act="town-file"></label>
@@ -1059,7 +1174,7 @@ function qr(text: string): string {
 
 const BANNERS: Record<Phase, { title: string; line: string }> = {
 	day: { title: 'Dawn', line: 'Day. Wander, talk, conspire.' },
-	dusk: { title: 'The bell tolls', line: 'Dusk. Gather on the seats round the clocktower.' },
+	dusk: { title: 'The bell tolls', line: 'Dusk. The town gathers round the market cross.' },
 	circle: { title: 'The circle', line: 'The town gathers. Everyone sees and hears everyone.' },
 	night: { title: 'Night falls', line: 'You are at home and the doors are locked. The Storyteller may visit.' }
 };
@@ -1132,7 +1247,8 @@ function cellAt(ev: PointerEvent): P {
 
 function enterMap() {
 	// The face for people's initials and names, before the first frame needs it.
-	void document.fonts?.load('700 20px "Grenze"').then(() => { S.dirty = true; });
+	void document.fonts?.load('700 20px "Almendra"').then(() => { S.dirty = true; });
+	void document.fonts?.load('700 20px "Grenze"');
 	document.body.classList.add('village-map');
 	root.innerHTML = `<div class="village v-map">
 		<div class="v-stage"><canvas aria-label="The village. Tap a place to walk there, or hold and drag to steer."></canvas></div>
@@ -1224,7 +1340,8 @@ function onAct(act: string, el: HTMLElement) {
 		case 'mute': S.voice?.setMuted(!S.voice.muted); drawChrome(); break;
 		case 'seat': {
 			const p = me(), t = S.town;
-			if (p && t?.seats.length) walkTo(t.seats[p.seat % t.seats.length]);
+			const c = p && t ? seatCell(t, p.seat) : null;
+			if (c) walkTo(c);
 			break;
 		}
 		case 'people': S.sheet = S.sheet === 'people' ? null : 'people'; S.stOpen = false; drawChrome(); break;
@@ -1428,6 +1545,7 @@ function syncSeats(list: GameSeat[]) {
 		S.gone.set(`seat:${q.seat}`, q);
 		S.people.delete(q.id);
 	}
+	const fresh: Person[] = [];
 	for (const e of list) {
 		let q = S.people.get(e.peer);
 		if (!q) {
@@ -1440,10 +1558,18 @@ function syncSeats(list: GameSeat[]) {
 				q = addPerson(e.peer, e.name, { seat: e.seat, ink: e.seat % INKS.length });
 				if (S.phase === 'night') sendHome(t, q, occupied());
 			}
+			fresh.push(q);
 		}
 		q.name = e.name;
 		q.seat = e.seat;
 		q.dead = e.dead;
+	}
+	// Joining (or back) while the town is gathered: straight to their seat round the cross.
+	if (S.game && S.phase === 'dusk') {
+		for (const q of fresh) {
+			const c = seatCell(t, q.seat);
+			if (c) { q.x = c.x; q.y = c.y; sendTo(q.id, { t: 'place', x: c.x, y: c.y }); }
+		}
 	}
 	for (const id of [...S.welcomed]) if (!peers.has(id)) { S.welcomed.delete(id); S.hostWire?.send(id, { t: 'off' }); }
 	for (const e of list) if (!S.welcomed.has(e.peer)) { S.welcomed.add(e.peer); welcome(e.peer); }
