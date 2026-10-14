@@ -18,7 +18,7 @@ import type { SeatId } from '../core/index.ts';
 import { CARD_COLS, CARD_INNER, big, cardButtons, nextPage, note, wakeRows } from './wakepages.ts';
 import type { Page } from './wakepages.ts';
 import * as T from './timer.ts';
-import { villageOnPhone } from '../town/village.ts';
+import { INKS, villageOnPhone } from '../town/village.ts';
 import type { Extra } from '../town/village.ts';
 
 const CLIENT_KEY = 'grimoire.client';
@@ -202,43 +202,62 @@ function receive(msg: HostMsg) {
 // ---- screens ------------------------------------------------------------------------
 
 function header(): Row[] {
-	const status = P.status === 'open' ? 'linked' : P.status === 'connecting' ? 'linking...' : P.status === 'error' ? 'trouble linking' : 'not linked';
-	return [
-		{ segs: [txt('Grimoire', 'title')], cls: 'title' },
-		P.code ? { segs: [], cls: 'room-line-row', html: `<div class="room-line">Game <span class="room-code-sm">${P.code}</span> · ${status}</div>` } : row(txt(center('A player’s phone'), 'rubric', 'heading')),
-		blank()
-	];
+	return [{ segs: [txt('Grimoire', 'title')], cls: 'title' }];
+}
+
+const esc = (x: string) => x.replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);
+
+/** Leave the room for good: home, and this phone forgets it. */
+function leave() {
+	P.link?.close();
+	try { localStorage.removeItem(ROOM_KEY); } catch { /* fine */ }
+	location.hash = '';
+	location.reload();
+}
+
+/** A page's head: back home (or out of the room), and its name. */
+function head(title: string, back: [string, () => void]): Row {
+	return { segs: [], cls: 'page-head-row', custom: { html: `<div class="page-head"><button class="ghost" data-act="0">${back[0]}</button><span class="ph-title">${title}</span><span></span></div>`, acts: [back[1]] } };
 }
 
 function joinScreen(): Row[] {
-	const saved = (() => { try { return localStorage.getItem(ROOM_KEY) ?? ''; } catch { return ''; } })();
+	const tryJoin = () => {
+		const v = (document.getElementById('code') as HTMLInputElement | null)?.value ?? '';
+		const n = ((document.getElementById('pname') as HTMLInputElement | null)?.value ?? '').trim();
+		if (v.trim().length !== 4) { P.message = 'The code is four letters.'; render(); return; }
+		if (!n) { P.message = 'Your name, so the others know who you are.'; render(); return; }
+		P.name = n.slice(0, 14);
+		try { localStorage.setItem(NAME_KEY, P.name); } catch { /* fine */ }
+		P.message = '';
+		connect(v);
+	};
+	// Only a code from the link is filled in: never an old room from before.
 	return [
-		rubric('Join a game'),
-		...wrap('Type the four-letter code from the Storyteller’s phone, and your name.', INNER).map((l) => row(txt(l, 'dim'))),
-		endPanel(),
-		{ segs: [], html: `<input id="code" class="code-input" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" value="${P.code || saved}" aria-label="Game code" placeholder="CODE">` },
-		{ segs: [], html: `<input id="pname" class="name-input" maxlength="14" autocomplete="nickname" spellcheck="false" value="${P.name.replace(/"/g, '&quot;')}" aria-label="Your name" placeholder="Your name">` },
-		...buttonRows([btn('Join', () => {
-			const v = (document.getElementById('code') as HTMLInputElement | null)?.value ?? '';
-			const n = ((document.getElementById('pname') as HTMLInputElement | null)?.value ?? '').trim();
-			if (v.trim().length !== 4) { P.message = 'The code is four letters.'; render(); return; }
-			if (!n) { P.message = 'Your name, so the others know who you are.'; render(); return; }
-			P.name = n.slice(0, 14);
-			try { localStorage.setItem(NAME_KEY, P.name); } catch { /* fine */ }
-			P.message = '';
-			connect(v);
-		}, { style: 'primary' })], COLS)
+		head('Join a game', ['‹ Home', () => { location.hash = ''; location.reload(); }]),
+		{ segs: [], cls: 'join-row', custom: { html: `<div class="join">
+			<label class="rc-label" for="code">Room code</label>
+			<input id="code" class="code-input" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" value="${esc(P.code)}" placeholder="CODE">
+			<label class="rc-label" for="pname">Your name</label>
+			<input id="pname" maxlength="14" autocomplete="nickname" spellcheck="false" value="${esc(P.name)}" placeholder="Your name">
+			${P.message ? `<div class="rc-status">${esc(P.message)}</div>` : ''}
+			<button class="primary big-primary" data-act="0">Join</button>
+		</div>`, acts: [tryJoin] } }
 	];
 }
 
-/** Waiting in the room: everyone so far, you marked. */
+/** Waiting in the room: the code, everyone so far (you marked), and what happens next. */
 function lobbyScreen(): Row[] {
+	const dealing = P.seats.length > 0;
+	const people = P.lobby.map((n, i) => `<li class="lp${i === P.lobbyYou ? ' you' : ''}"><span class="av" style="--ink:${INKS[i % INKS.length]}">${esc(n[0]?.toUpperCase() ?? '?')}</span><span class="lp-name">${esc(n)}</span><span class="lp-tag">${i === P.lobbyYou ? 'you' : ''}</span></li>`).join('');
 	return [
-		rubric('In the room'),
-		...wrap('Waiting for the Storyteller to deal the characters. Everyone here so far:', INNER).map((l) => row(txt(l, 'dim'))),
-		...P.lobby.map((n, i) => row(txt(`  ${i + 1}. ${n}`, i === P.lobbyYou ? 'gold' : undefined), txt(i === P.lobbyYou ? '  (you)' : '', 'dim'))),
-		endPanel(),
-		...buttonRows([btn('Change my name', () => { P.link?.close(); P.status = 'closed'; render(); }, { style: 'quiet' })])
+		head('Lobby', ['Leave', leave]),
+		{ segs: [], cls: 'lobby-row', custom: { html: `<div class="lobby">
+			<div class="room-card"><div class="rc-label">Room code</div><div class="rc-code">${esc(P.code)}</div>
+				<div class="rc-hint">${dealing ? 'The Storyteller is dealing the characters…' : 'Waiting for the Storyteller to start.'}</div></div>
+			<div class="lobby-head"><span>Players</span><b>${P.lobby.length}</b></div>
+			<ul class="lobby-list">${people || '<li class="lp-empty">Just you so far…</li>'}</ul>
+			<button data-act="0">Change my name</button>
+		</div>`, acts: [() => { P.link?.close(); P.status = 'closed'; render(); }] } }
 	];
 }
 
@@ -316,13 +335,15 @@ function mainScreen(): Row[] {
 
 function screen(): Row[] {
 	const rows = header();
-	if (P.message) rows.push(...wrap(P.message, INNER).map((l) => row(txt(l, 'evil'))), blank());
 	if (!P.code || P.status === 'closed') return [...rows, ...joinScreen()];
+	if (P.message) rows.push(...wrap(P.message, INNER).map((l) => row(txt(l, 'evil'))), blank());
 	if (P.status !== 'open' && !P.view) {
 		return [...rows, rubric('Linking'), ...wrap(P.status === 'error' ? P.detail || 'Could not reach the Storyteller’s phone. Still trying.' : 'Finding the Storyteller’s phone...', INNER).map((l) => row(txt(l, 'dim'))),
-			...buttonRows([btn('Different code', () => { P.link?.close(); P.code = ''; P.status = 'closed'; render(); }, { style: 'quiet' })]), endPanel()];
+			...buttonRows([btn('Different code', leave, { style: 'quiet' })]), endPanel()];
 	}
-	if (P.seat === null) return [...rows, ...(P.seats.length ? seatScreen() : lobbyScreen())];
+	// Before the first night: the lobby (seated or not); a seat to pick only if the deal missed you.
+	if (P.seat === null && P.seats.length && P.view && P.view.phase !== 'setup') return [...rows, ...seatScreen()];
+	if (P.seat === null || !P.view || P.view.phase === 'setup') return [...rows, ...lobbyScreen()];
 	return [...rows, ...mainScreen()];
 }
 

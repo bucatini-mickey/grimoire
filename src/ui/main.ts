@@ -27,7 +27,7 @@ import { hostRoom, newRoomCode } from '../net/link.ts';
 import type { HostLink, LinkStatus } from '../net/link.ts';
 import type { ClockView, HostMsg, PlayerMsg, VoteView } from '../net/protocol.ts';
 import { startPlayer } from './player.ts';
-import { startVillage, villageForGame } from '../town/village.ts';
+import { INKS, startVillage, villageForGame } from '../town/village.ts';
 import type { Extra, StActions, VillageHost } from '../town/village.ts';
 import qrcode from 'qrcode-generator';
 import { CARD_COLS, CARD_INNER, big, cardButtons, nextPage, note, wakeRows } from './wakepages.ts';
@@ -153,6 +153,12 @@ const ui = {
 	voteSmall: false,
 	/** In a village game the count runs in the bar; the full count only when asked for. */
 	voteBig: false,
+	/** Which page: the home page, or the app itself (a grimoire, a hosted game). */
+	page: 'app' as 'home' | 'app',
+	/** Second taps that confirm ending a game (home: host anew, play in person, end it). */
+	confirm: '' as '' | 'host' | 'grimoire' | 'end',
+	showQr: false,
+	copied: false,
 	/** A wake sent to a player's phone and not yet finished. */
 	remote: null as null | { wakeId: string; seat: SeatId; answered: boolean },
 	names: 'Ada\nBram\nCael\nDorn\nEsme\nFenn\nGwen\nHal',
@@ -561,7 +567,7 @@ function header(): Row[] {
 		{ segs: [txt('Grimoire', 'title')], cls: 'title' },
 		row(txt(center(phase), 'rubric', 'heading')),
 		...buttonRows([
-			tab('grimoire', 'Grim'), tab('log', 'Log'), tab('ties', 'Ties'), tab('art', 'Art'), tab('options', 'Clock'), tab('phones', link ? 'Phones*' : 'Phones'),
+			btn('Home', () => go(''), { style: 'quiet' }), tab('grimoire', 'Grim'), tab('log', 'Log'), tab('ties', 'Ties'), tab('art', 'Art'), tab('options', 'Clock'), tab('phones', link ? 'Phones*' : 'Phones'),
 			...(village ? [btn('Village', () => village?.open(), { style: 'primary' })] : []),
 			btn('Undo', undo, { disabled: !saved.marks.length, style: 'quiet' }),
 			btn(ui.confirmNew ? 'Sure?' : 'New', () => { if (ui.confirmNew) newGame(); else { ui.confirmNew = true; render(); } }, { style: ui.confirmNew ? 'danger' : 'quiet' })
@@ -586,12 +592,6 @@ function emptyDraft(): Draft {
 	return { selected: [], placed: state.seats.map(() => null), drunkBelieves: null, redHerring: null, bluffs: [] };
 }
 
-const MODES = [
-	{ id: 'storyteller', icon: '\u2720', name: 'Storyteller', sub: 'Run the grimoire' },
-	{ id: 'player', icon: '\u2726', name: 'Player', sub: 'Join from your phone' },
-	{ id: 'village', icon: '\u2302', name: 'Village', sub: 'Play in the town' }
-] as const;
-
 /** Option tags: a row of choices, the chosen one lit. */
 function tagsRow(cls: string, items: { label: string; on: boolean; act: () => void; html?: string }[]): Row {
 	return {
@@ -603,44 +603,83 @@ function tagsRow(cls: string, items: { label: string; on: boolean; act: () => vo
 	};
 }
 
+/** The in-person grimoire's setup: the script and the players' names. */
 function namesScreen(): Row[] {
-	// Inside a village game (the drawer) it is already a village game: no choosing a mode.
-	if (villageGame()) {
-		ui.mode = 'village';
-		return [...lobbyRows(), ...scriptAndNames()];
-	}
-	const rows: Row[] = [...art(), blank()];
-	rows.push(tagsRow('modes', MODES.map((m) => ({
-		label: m.name, on: ui.mode === m.id, act: () => { ui.mode = m.id; render(); },
-		html: `<span class="mode-ico">${m.icon}</span><span class="mode-name">${m.name}</span><span class="mode-sub">${m.sub}</span>`
-	}))), blank());
-	if (ui.mode === 'player') {
-		rows.push(rubric('Join a Game'));
-		rows.push(...prose('If the Storyteller is running the game on their phone, join it from yours: you will see your character, wake when called, nominate and vote.', 'dim'));
-		rows.push(...buttonRows([btn('Join a game', () => { location.hash = '#join'; location.reload(); }, { style: 'primary' })]));
-		return [...rows, endPanel()];
-	}
-	if (ui.mode === 'village') {
-		rows.push(rubric('A Game in the Village'));
-		rows.push(...prose('The whole game, played in a fifteenth-century hamlet in the fog. Each player walks the town on their own phone and talks to whoever is near; at dusk the bell gathers everyone to the market cross for nominations and votes; at night they go home, and the Storyteller visits each house with their night pages. You run it all from here.', 'dim'));
-		rows.push(...prose('Open the room: the players then choose Player, type the code and their name, and appear in the lobby. Then choose the script and deal.', 'dim'));
-		rows.push(...buttonRows([
-			btn('Open the room', openVillageRoom, { style: 'primary' }),
-			btn('Just walk the town (no game)', () => { location.hash = '#village'; location.reload(); }, { style: 'quiet' })
-		]), endPanel());
-		return rows;
-	}
-	return [...rows, ...scriptAndNames()];
+	return [...pageHead('A game in person'), ...scriptAndNames()];
 }
 
-/** Open the room for a village game: the town, and the lobby in the drawer. */
-function openVillageRoom() {
-	const room = saved.net?.room ?? newRoomCode();
-	saved.net = { room, claims: {}, village: true, lobby: saved.net?.room === room ? saved.net.lobby ?? [] : [] };
+/** Go to a page of the app (a fresh start of it, so nothing old lingers). */
+function go(hash: string) {
+	location.hash = hash;
+	location.reload();
+}
+
+/** A page's head: back to the home page, and the page's name. */
+function pageHead(title: string, back: [string, () => void] = ['‹ Home', () => go('')]): Row[] {
+	return [{ segs: [], cls: 'page-head-row', custom: { html: `<div class="page-head"><button class="ghost" data-act="0">${escapeHtml(back[0])}</button><span class="ph-title">${escapeHtml(title)}</span><span></span></div>`, acts: [back[1]] } }];
+}
+
+const esc = (x: string) => x.replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);
+
+/** What a saved game is up to, in a few words. */
+function gameSummary(): string {
+	const p = state.phase;
+	if (p.kind === 'setup') return state.seats.length ? 'Dealing the characters' : `In the lobby · ${lobby().length} joined`;
+	if (p.kind === 'over') return p.winner === 'good' ? 'Over: good won' : 'Over: evil won';
+	return `${p.kind === 'night' ? 'Night' : 'Day'} ${p.n} · ${state.seats.length} players`;
+}
+
+/** Throw away the saved game (and its room). */
+function endSaved() {
+	link?.close();
+	link = null;
+	saved = { events: [], marks: [], settings: saved.settings, flow: freshFlow(saved.settings) };
+	state = G.replay([]);
 	save();
-	ui.drawer = 'actions';
-	if (link && link.room === room) { if (!village) villageOn(); render(); }
-	else startHosting(room);
+	ui.confirm = '';
+	render();
+}
+
+/** A new online game: a fresh room and its lobby. */
+function hostNew() {
+	link?.close();
+	saved = { events: [], marks: [], settings: saved.settings, flow: freshFlow(saved.settings), net: { room: newRoomCode(), claims: {}, village: true, lobby: [] } };
+	state = G.replay([]);
+	save();
+	go('#host');
+}
+
+/** The home page: host, join, play in person, or walk the town; and pick up a game already going. */
+function homeScreen(): Row[] {
+	const acts: (() => void)[] = [];
+	const a = (f: () => void) => { acts.push(f); return acts.length - 1; };
+	const busy = saved.events.length > 0 || (saved.net?.lobby?.length ?? 0) > 0;
+	const cards: string[] = [];
+	if (saved.net && busy) {
+		cards.push(`<div class="home-resume"><div><div class="hr-label">${saved.net.village ? 'Your game' : 'Your grimoire'} · room <b class="mono">${esc(saved.net.room)}</b></div><div class="hr-sub">${esc(gameSummary())}</div></div>
+			<button class="primary" data-act="${a(() => go(saved.net!.village ? '#host' : '#grimoire'))}">Resume</button>
+			<button class="ghost" data-act="${a(() => { if (ui.confirm === 'end') endSaved(); else { ui.confirm = 'end'; render(); } })}">${ui.confirm === 'end' ? 'Sure? End it' : 'End'}</button></div>`);
+	} else if (!saved.net && saved.events.length) {
+		cards.push(`<div class="home-resume"><div><div class="hr-label">Your grimoire</div><div class="hr-sub">${esc(gameSummary())}</div></div><button class="primary" data-act="${a(() => go('#grimoire'))}">Open</button></div>`);
+	}
+	const mine = (() => { try { return { room: localStorage.getItem('grimoire.room') ?? '', name: localStorage.getItem('grimoire.name') ?? '' }; } catch { return { room: '', name: '' }; } })();
+	if (mine.room && mine.name) {
+		cards.push(`<div class="home-resume"><div><div class="hr-label">Rejoin room <b class="mono">${esc(mine.room)}</b></div><div class="hr-sub">as ${esc(mine.name)}</div></div><button class="primary" data-act="${a(() => go(`#join=${mine.room}`))}">Rejoin</button></div>`);
+	}
+	const card = (ico: string, title: string, sub: string, act: () => void, cls = '') =>
+		`<button class="home-card ${cls}" data-act="${a(act)}"><span class="hc-ico">${ico}</span><span class="hc-text"><span class="hc-title">${title}</span><span class="hc-sub">${sub}</span></span></button>`;
+	const ending = busy && saved.net?.village;
+	cards.push(
+		card('\u2302', ui.confirm === 'host' ? 'Start a new game?' : 'Host a game', ui.confirm === 'host' ? 'Your current game will end. Tap again.' : 'Everyone on their own phone, in the village.', () => { if (ending && ui.confirm !== 'host') { ui.confirm = 'host'; render(); } else hostNew(); }, 'primary'),
+		card('\u2726', 'Join a game', 'Type the code from the Storyteller.', () => go('#join')),
+		card('\u2720', ui.confirm === 'grimoire' ? 'Play in person?' : 'Grimoire', ui.confirm === 'grimoire' ? 'Your online game will end. Tap again.' : 'One device: run an in-person game.', () => {
+			if (ending && ui.confirm !== 'grimoire') { ui.confirm = 'grimoire'; render(); return; }
+			if (ending) endSaved();
+			go('#grimoire');
+		}),
+		card('\u2618', 'Walk the village', 'Explore the town. No game.', () => go('#village'))
+	);
+	return [...art(), blank(), { segs: [], cls: 'home-row', custom: { html: `<div class="home">${cards.join('')}</div>`, acts } }];
 }
 
 /** The room's code, big and plain to read aloud. */
@@ -648,24 +687,78 @@ function roomCodeRow(room: string): Row {
 	return { segs: [], cls: 'room-code-row', html: `<div class="room-code" aria-label="Room code">${escapeHtml(room)}</div>` };
 }
 
-/** The lobby: the code to join with, and everyone in the room so far, in seating order. */
-function lobbyRows(): Row[] {
-	const rows: Row[] = [rubric('The Room')];
-	if (link) rows.push(roomCodeRow(link.room), ...prose('Players: open this app, choose Player, type the code and your name.', 'dim'));
+/** Someone playing without a phone, added by the Storyteller. */
+function addLocal() {
+	const el = document.getElementById('add-name') as HTMLInputElement | null;
+	const name = (el?.value ?? '').trim().slice(0, 14);
+	if (!name || !saved.net) return;
+	const list = (saved.net.lobby ??= []);
+	if (list.some((e) => e.name.toLowerCase() === name.toLowerCase())) { ui.message = `${name} is already here.`; render(); return; }
+	list.push({ client: `local:${name}`, name });
+	save();
+	for (const peer of phones.keys()) welcome(peer);
+	render();
+	document.getElementById('add-name')?.focus();
+}
+
+/** The invite link, copied (or shared, where the phone can). */
+function copyInvite() {
+	if (!saved.net) return;
+	const url = joinUrl(saved.net.room);
+	const nav = navigator as Navigator & { share?: (d: { url: string; title: string }) => Promise<void> };
+	if (nav.share && matchMedia('(pointer: coarse)').matches) { void nav.share({ url, title: 'Join my Grimoire game' }).catch(() => {}); return; }
+	void navigator.clipboard?.writeText(url).then(() => { ui.copied = true; render(); setTimeout(() => { ui.copied = false; render(); }, 2000); });
+}
+
+/** Deal from the lobby: everyone in it gets the seat in its order. */
+function dealFromLobby() {
+	const names = lobby().map((e) => e.name);
+	const made = act({ type: 'create', names, scriptId: ui.scriptId === 'custom' ? G.customScriptId(ui.customIds) : ui.scriptId });
+	if (!made || !saved.net) return;
+	saved.net.claims = {};
+	lobby().forEach((e, i) => { if (!e.client.startsWith('local:')) saved.net!.claims[e.client] = state.order[i]; });
+	save();
+	for (const peer of phones.keys()) welcome(peer);
+	render();
+}
+
+/** The host's lobby, a page of its own: the code, who has joined, the script, then deal. */
+function hostLobbyPage(): Row[] {
+	const net = saved.net!;
 	const list = lobby();
 	const online = new Set([...phones.entries()].filter(([peer]) => link?.peers.get(peer)?.open).map(([, c]) => c));
-	rows.push(rubric(`The Lobby (${list.length})`));
-	if (!list.length) rows.push(...prose('Nobody yet. Names appear here as players join.', 'dim'));
-	list.forEach((e, i) => {
-		rows.push({ segs: [
-			txt(pad(`${i + 1}. ${e.name}`, 18), online.has(e.client) ? undefined : 'dim'),
-			txt(pad(online.has(e.client) ? '' : 'away', 6), 'evil'),
-			...(i ? [btn('Up', () => lobbyUp(e.client), { style: 'quiet' })] : []),
-			btn('Remove', () => dropFromLobby(e.client), { style: 'quiet' })
-		] });
-	});
-	rows.push(endPanel(), blank());
-	return rows;
+	const acts: (() => void)[] = [];
+	const a = (f: () => void) => { acts.push(f); return acts.length - 1; };
+	const status = linkStatus === 'open' ? 'Open: players can join' : linkStatus === 'connecting' ? 'Opening the room…' : `Trouble: ${linkDetail || linkStatus}`;
+	const people = list.map((e, i) => {
+		const local = e.client.startsWith('local:'), on = local || online.has(e.client);
+		return `<li class="lp${on ? '' : ' away'}"><span class="av" style="--ink:${INKS[i % INKS.length]}">${esc(e.name[0].toUpperCase())}</span><span class="lp-name">${esc(e.name)}</span><span class="lp-tag">${local ? 'no phone' : on ? '' : 'away'}</span>`
+			+ (i ? `<button class="lp-btn" data-act="${a(() => lobbyUp(e.client))}" aria-label="Move ${esc(e.name)} up">↑</button>` : '<span class="lp-btn-gap"></span>')
+			+ `<button class="lp-btn" data-act="${a(() => dropFromLobby(e.client))}" aria-label="Remove ${esc(e.name)}">✕</button></li>`;
+	}).join('');
+	let qr = '';
+	if (ui.showQr) { const q = qrcode(0, 'M'); q.addData(joinUrl(net.room)); q.make(); qr = `<div class="qr lobby-qr">${q.createSvgTag({ cellSize: 4, margin: 2, scalable: true })}</div>`; }
+	const html = `<div class="lobby">
+		<div class="page-head"><button class="ghost" data-act="${a(() => go(''))}">‹ Home</button><span class="ph-title">Lobby</span><span></span></div>
+		<div class="room-card"><div class="rc-label">Room code</div><div class="rc-code">${esc(net.room)}</div><div class="rc-status ${linkStatus}">${esc(status)}</div>
+			<div class="rc-hint">Players open this app, tap <b>Join a game</b>, and type the code and their name.</div>
+			<div class="rc-actions"><button data-act="${a(copyInvite)}">${ui.copied ? 'Link copied' : 'Invite link'}</button><button data-act="${a(() => { ui.showQr = !ui.showQr; render(); })}">${ui.showQr ? 'Hide QR' : 'QR code'}</button></div>${qr}</div>
+		<div class="lobby-head"><span>Players</span><b>${list.length}</b><small>5 to 15 to play · seats go in this order</small></div>
+		<ul class="lobby-list">${people || '<li class="lp-empty">Waiting for players to join…</li>'}</ul>
+		<div class="add-row"><input id="add-name" maxlength="14" autocomplete="off" placeholder="Add someone without a phone"><button data-act="${a(addLocal)}">Add</button></div>
+	</div>`;
+	const n = list.length, ok = n >= 5 && n <= 15;
+	return [
+		{ segs: [], cls: 'lobby-row', custom: { html, acts } },
+		...messageRows(),
+		rubric('The Script'),
+		tagsRow('tags', [
+			...Object.values(G.SCRIPTS).map((sc) => ({ label: sc.name, on: ui.scriptId === sc.id, act: () => { ui.scriptId = sc.id; render(); } })),
+			{ label: 'Custom', on: ui.scriptId === 'custom', act: () => { ui.scriptId = 'custom'; render(); } }
+		]),
+		...customPicker(),
+		{ segs: [], cls: 'lobby-start-row', custom: { html: `<div class="lobby-start"><button class="big-primary" data-act="0"${ok ? '' : ' disabled'}>${ok ? `Choose the characters · ${n} players` : n < 5 ? `Need ${5 - n} more player${5 - n === 1 ? '' : 's'}` : 'Too many players (15 at most)'}</button></div>`, acts: [dealFromLobby] } }
+	];
 }
 
 /** The script and the players' names, then on to the characters. */
@@ -677,42 +770,12 @@ function scriptAndNames(): Row[] {
 		{ label: 'Custom', on: ui.scriptId === 'custom', act: () => { ui.scriptId = 'custom'; render(); } }
 	]));
 	rows.push(...customPicker(), blank());
-	const inRoom = villageGame();
-	if (inRoom) {
-		// The lobby is the players, in its order; anyone without a phone is added after.
-		rows.push(rubric('Without a Phone'));
-		rows.push(...prose('Anyone playing without a phone: one name per line. They sit after the lobby.', 'dim'));
-		rows.push({ segs: [], html: `<textarea id="extra-names" rows="3" spellcheck="false" aria-label="Players without a phone">${escapeHtml(ui.extraNames)}</textarea>` });
-	} else {
-		rows.push(rubric('The Players'));
-		rows.push(...prose('One name per line, in seating order, clockwise. 5 to 15 players.', 'dim'));
-		rows.push({ segs: [], html: `<textarea id="names" rows="8" spellcheck="false" aria-label="Player names">${escapeHtml(ui.names)}</textarea>` });
-	}
-	const count = lobby().length + ui.extraNames.split('\n').filter((x) => x.trim()).length;
-	if (inRoom) rows.push(...prose(`${count} player${count === 1 ? '' : 's'}: 5 to 15 to play.`, count >= 5 && count <= 15 ? 'good' : 'gold'));
+	rows.push(rubric('The Players'));
+	rows.push(...prose('One name per line, in seating order, clockwise. 5 to 15 players.', 'dim'));
+	rows.push({ segs: [], html: `<textarea id="names" rows="8" spellcheck="false" aria-label="Player names">${escapeHtml(ui.names)}</textarea>` });
 	rows.push(...buttonRows([btn('Choose the characters', () => {
-		const names = inRoom
-			? [...lobby().map((e) => e.name), ...ui.extraNames.split('\n').map((x) => x.trim()).filter(Boolean)]
-			: ui.names.split('\n').map((x) => x.trim()).filter(Boolean);
-		const made = act({ type: 'create', names, scriptId: ui.scriptId === 'custom' ? G.customScriptId(ui.customIds) : ui.scriptId });
-		// Everyone in the lobby takes the seat with their name.
-		if (made && inRoom && saved.net) {
-			saved.net.claims = {};
-			lobby().forEach((e, i) => { saved.net!.claims[e.client] = state.order[i]; });
-			save();
-			for (const peer of phones.keys()) welcome(peer);
-			render();
-			return;
-		}
-		// A village game: open the room for the phones straight away, with the village on.
-		if (made && ui.mode === 'village') {
-			const room = saved.net?.room ?? newRoomCode();
-			saved.net = { room, claims: saved.net?.room === room ? saved.net.claims : {}, village: true };
-			save();
-			ui.drawer = 'actions';
-			if (link && link.room === room) { if (!village) villageOn(); for (const peer of phones.keys()) welcome(peer); render(); }
-			else startHosting(room);
-		}
+		const names = ui.names.split('\n').map((x) => x.trim()).filter(Boolean);
+		act({ type: 'create', names, scriptId: ui.scriptId === 'custom' ? G.customScriptId(ui.customIds) : ui.scriptId });
 	}, { style: 'primary' })]));
 	return rows;
 }
@@ -2350,7 +2413,8 @@ function syncVillage() {
 		if (seat === null || !link.peers.get(peer)?.open || !state.seats[seat]) continue;
 		list.push({ peer, name: state.seats[seat].name, seat: state.order.indexOf(seat), dead: !(view.seats.find((s) => s.id === seat)?.alive ?? true) });
 	}
-	village.seats(list);
+	// Before the first night the phones wait in the lobby, not in the town.
+	village.seats(state.phase.kind === 'setup' ? [] : list);
 	village.ring(state.order.map((id, i) => ({ seat: i, name: state.seats[id].name, dead: !(view.seats.find((s) => s.id === id)?.alive ?? true) })));
 	// The game sets the village's phase when it moves on (the Storyteller may still ring the bell in between).
 	const p = state.phase;
@@ -2447,6 +2511,9 @@ function phonesScreen(): Row[] {
 // ---- assembling the screen ----------------------------------------------------------------------
 
 function screen(): Row[] {
+	if (saved.net?.village && state.phase.kind === 'setup') {
+		return state.seats.length ? [...pageHead('Choose the characters', ['‹ Lobby', undo]), ...draftScreen()] : hostLobbyPage();
+	}
 	const rows = header();
 	if (ui.tab === 'log') return [...rows, ...logScreen()];
 	if (ui.tab === 'ties') return [...rows, ...tiesScreen()];
@@ -2503,7 +2570,7 @@ function actionRows(): Row[] {
 	return rows;
 }
 
-const villageGame = () => !!village;
+const villageGame = () => !!village && state.phase.kind !== 'setup';
 let villageShown = false;
 let lastKind = state.phase.kind;
 
@@ -2573,7 +2640,14 @@ function render() {
 	document.body.classList.toggle('village-game', vg);
 	document.body.classList.toggle('drawer-open', vg && !!ui.drawer);
 	if (vg && !villageShown) { villageShown = true; village!.open(); }
-	if (!vg) villageShown = false;
+	if (!vg && villageShown) { village?.close(); villageShown = false; }
+	if (ui.page === 'home') {
+		document.body.classList.remove('village-game', 'drawer-open');
+		paint(root, paneled(homeScreen()));
+		cardRoot.hidden = true;
+		drawerTabs.hidden = true;
+		return;
+	}
 	paint(root, paneled(vg ? drawerScreen() : screen()));
 	paintDrawerTabs();
 	const voting = state.phase.kind === 'day' && !!flow().vote && !!openNomination() && (villageGame() ? ui.voteBig : !ui.voteSmall);
@@ -2626,8 +2700,12 @@ if (villageDemo) {
 	startVillage(root, (villageDemo[1] ?? '').toUpperCase());
 } else if (joining) {
 	startPlayer(root, cardRoot, (joining[1] ?? '').toUpperCase());
-} else {
+} else if ((location.hash === '#host' && saved.net?.village) || location.hash === '#grimoire') {
 	syncFlow();
 	render();
 	if (saved.net) startHosting(saved.net.room);
+} else {
+	ui.page = 'home';
+	if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+	render();
 }
