@@ -631,6 +631,20 @@ let canvas: HTMLCanvasElement;
 let view = { x0: 0, y0: 0 };
 let dyn: Uint8ClampedArray | null = null;
 let lightAt = 0, lightTick = 0, drawnAt = 0;
+/** Where each person is drawn: gliding after where they are, so steps slide instead of jump. */
+const shownAt = new Map<string, { x: number; y: number }>();
+/** Something is still gliding: draw the next frame too. */
+let animating = false;
+function glide(id: string, x: number, y: number, dt: number) {
+	let d = shownAt.get(id);
+	// Far (a teleport: home at night, to a seat, a visit): there at once.
+	if (!d || Math.hypot(d.x - x, d.y - y) > 3) { d = { x, y }; shownAt.set(id, d); return d; }
+	const k = 1 - Math.exp(-dt / 55);
+	d.x += (x - d.x) * k;
+	d.y += (y - d.y) * k;
+	if (Math.abs(d.x - x) < 0.01 && Math.abs(d.y - y) < 0.01) { d.x = x; d.y = y; } else animating = true;
+	return d;
+}
 /** The camera: glides after you, so you stay in the middle of the screen. */
 const cam = { x: 0, y: 0, ready: false };
 const GOLD: Rgb = [220, 160, 60];
@@ -687,10 +701,17 @@ function draw() {
 	const relight = !dyn || now - lightAt > 120;
 	if (!cam.ready) Object.assign(cam, { x: p.x, y: p.y, ready: true });
 	const settled = Math.abs(cam.x - p.x) < 0.01 && Math.abs(cam.y - p.y) < 0.01;
-	if (!relight && !S.dirty && settled && now - drawnAt < 250) return;
-	const k = Math.min(1, (now - drawnAt) / 90);
-	cam.x += (p.x - cam.x) * k;
-	cam.y += (p.y - cam.y) * k;
+	// Draw every frame while anything glides (and in the circle, where the fog drifts); otherwise only when needed.
+	if (!relight && !S.dirty && settled && !animating && S.phase !== 'circle' && now - drawnAt < 250) return;
+	const dt = Math.min(100, Math.max(1, now - drawnAt));
+	animating = false;
+	for (const q of S.people.values()) glide(q.id, q.x, q.y, dt);
+	for (const id of [...shownAt.keys()]) if (!S.people.has(id)) shownAt.delete(id);
+	// The camera eases after you, a little behind your own glide.
+	const me0 = shownAt.get(p.id) ?? p;
+	const k = 1 - Math.exp(-dt / 80);
+	cam.x += (me0.x - cam.x) * k;
+	cam.y += (me0.y - cam.y) * k;
 	if (Math.abs(cam.x - p.x) < 0.02 && Math.abs(cam.y - p.y) < 0.02) Object.assign(cam, { x: p.x, y: p.y });
 	S.dirty = false;
 	drawnAt = now;
@@ -829,8 +850,9 @@ function draw() {
 	for (const q of people) {
 		// Whoever stands on a bed or a chair hides it: their letter on the bare ground colour.
 		c.fillStyle = ground.get(q.x + q.y * t.w) ?? '#000';
-		c.fillRect(ox + q.x * s, oy + q.y * s, s + 0.5, s + 0.5);
-		drawPerson(c, q, ox + q.x * s + s / 2, oy + q.y * s + s / 2, s * 0.95, q.id !== S.me);
+		const d = shownAt.get(q.id) ?? q;
+		c.fillRect(ox + Math.round(d.x) * s, oy + Math.round(d.y) * s, s + 0.5, s + 0.5);
+		drawPerson(c, q, ox + d.x * s + s / 2, oy + d.y * s + s / 2, s * 0.95, q.id !== S.me);
 	}
 	if (atCross) {
 		// Seats whose player has no phone here: their place in the circle all the same.
