@@ -1016,8 +1016,9 @@ function drawWall(c: CanvasRenderingContext2D, w: { mask: number; style: 'double
 }
 
 /**
- * The circle: the town falls away into deep fog, and the players stand round
- * the rim of a giant clock face. During a nomination a shadowy hand rises and
+ * The circle: the castle's hall, where the town sits at a round oak table
+ * with the clock set into it (a candle at every place, snuffed and the chair
+ * knocked over when someone dies). During a nomination a shadowy hand rises and
  * points at the nominee; when the vote begins it sweeps clockwise to each
  * voter in turn. A pale hand runs down the time. The circle is sized to the
  * players: their marks keep the same spacing however many there are.
@@ -1041,27 +1042,43 @@ function drawCircle(c: CanvasRenderingContext2D, cw: number, chh: number, now: n
 		: walkers.sort((a, b) => a.seat - b.seat);
 	const n = Math.max(1, ring.length);
 	// One circle, as big as the room allows, whoever is playing: the marks shrink to fit as more join.
-	const size = Math.max(18, Math.min(38, ((2 * Math.PI * room * 0.72) / n) * 0.5));
+	// (and never too big for a short screen: the table and its clock always have room).
+	const size = Math.min(room * 0.2, Math.max(18, Math.min(38, ((2 * Math.PI * room * 0.72) / n) * 0.5)));
 	const r = room - size * 1.45;
 	const face = r - size * 0.9;
 	const angle = (k: number) => -Math.PI / 2 + (k / n) * Math.PI * 2;
 	const spot = (k: number) => ({ x: cx + Math.cos(angle(k)) * r, y: cy + Math.sin(angle(k)) * r });
 
-	// Night sky and fog: deep at the edges, drifting.
-	const g = c.createRadialGradient(cx, cy, face * 0.2, cx, cy, Math.max(cw, chh) * 0.75);
-	g.addColorStop(0, '#1d1a2c');
-	g.addColorStop(1, '#040308');
+	// The castle's hall: dark flagstones, torchlight from the walls, smoke drifting under the beams.
+	const g = c.createRadialGradient(cx, cy, face * 0.2, cx, cy, Math.max(cw, chh) * 0.8);
+	g.addColorStop(0, '#2a1d12');
+	g.addColorStop(1, '#070504');
 	c.fillStyle = g;
 	c.fillRect(0, 0, cw, chh);
-	for (let k = 0; k < 7; k++) {
-		const a = (k / 7) * Math.PI * 2 + now * 0.00004 * (k % 2 ? 1 : -1);
-		const d = r * (1.15 + 0.35 * noise(k, now * 0.00005, 3));
-		const fx = cx + Math.cos(a) * d, fy = cy + Math.sin(a) * d;
-		const fr = r * (0.7 + 0.4 * noise(k * 2.3, now * 0.00004, 5));
-		const mist = c.createRadialGradient(fx, fy, 0, fx, fy, fr);
-		mist.addColorStop(0, 'rgba(150, 140, 175, .16)');
-		mist.addColorStop(1, 'rgba(150, 140, 175, 0)');
-		c.fillStyle = mist;
+	c.save();
+	c.strokeStyle = 'rgba(0, 0, 0, .35)';
+	c.lineWidth = 1;
+	const flag = Math.max(34, room * 0.32);
+	for (let y = (cy % flag) - flag; y < chh; y += flag) {
+		c.beginPath(); c.moveTo(0, y); c.lineTo(cw, y); c.stroke();
+		const off = Math.round(y / flag) % 2 ? flag / 2 : 0;
+		for (let x = ((cx + off) % flag) - flag; x < cw; x += flag) { c.beginPath(); c.moveTo(x, y); c.lineTo(x, y + flag); c.stroke(); }
+	}
+	c.restore();
+	for (const [tx, ty, k] of [[0, top, 0], [cw, top, 1], [0, chh - bottom, 2], [cw, chh - bottom, 3]] as const) {
+		const flick = 0.85 + 0.15 * noise(k * 4.1, now * 0.004, 7);
+		const glow = c.createRadialGradient(tx, ty, 0, tx, ty, room * 1.1 * flick);
+		glow.addColorStop(0, 'rgba(255, 170, 80, .30)');
+		glow.addColorStop(1, 'rgba(255, 170, 80, 0)');
+		c.fillStyle = glow;
+		c.fillRect(0, 0, cw, chh);
+	}
+	for (let k = 0; k < 4; k++) {
+		const sx = cx + Math.cos(now * 0.00005 * (k + 1) + k * 1.7) * r * 1.2, sy = cy + Math.sin(now * 0.00004 * (k + 2) + k) * r * 0.9;
+		const smoke = c.createRadialGradient(sx, sy, 0, sx, sy, r * 0.9);
+		smoke.addColorStop(0, 'rgba(160, 150, 140, .07)');
+		smoke.addColorStop(1, 'rgba(160, 150, 140, 0)');
+		c.fillStyle = smoke;
 		c.fillRect(0, 0, cw, chh);
 	}
 
@@ -1079,30 +1096,76 @@ function drawCircle(c: CanvasRenderingContext2D, cw: number, chh: number, now: n
 	hand.a += Math.min(turn, dt * 3.2);
 
 	c.save();
-	// Cogs, ghostly, half lost in the fog behind the face.
-	const spin = hand.a * 2 + now / 5000;
-	c.globalAlpha = 0.28;
-	cog(c, cx - face * 0.72, cy - face * 0.62, face * 0.5, 14, spin);
-	cog(c, cx + face * 0.78, cy + face * 0.55, face * 0.4, 11, -spin * 1.27);
-	cog(c, cx + face * 0.6, cy - face * 0.78, face * 0.24, 8, spin * 2.1);
-	c.globalAlpha = 1;
-	// The face: pale and glowing, a ring of numerals' marks, one at every seat.
+	// The chairs round the table (a dead player's knocked over), then the round oak table.
+	const table = r - size * 0.1;
+	ring.forEach((q, k) => {
+		const a = angle(k) + (q.dead ? 0.55 : 0);
+		const hx = cx + Math.cos(angle(k)) * (r + size * 0.42), hy = cy + Math.sin(angle(k)) * (r + size * 0.42);
+		c.save();
+		c.translate(hx, hy);
+		c.rotate(a + Math.PI / 2);
+		c.globalAlpha = q.dead ? 0.55 : 1;
+		c.fillStyle = '#3b2513';
+		c.strokeStyle = 'rgba(0, 0, 0, .6)';
+		c.lineWidth = 1.5;
+		c.beginPath();
+		c.roundRect(-size * 0.55, -size * 0.32, size * 1.1, size * 0.64, size * 0.14);
+		c.fill();
+		c.stroke();
+		c.restore();
+	});
+	const wood = c.createRadialGradient(cx, cy, table * 0.2, cx, cy, table);
+	wood.addColorStop(0, '#6a4526');
+	wood.addColorStop(1, '#3f2814');
+	c.beginPath();
+	c.arc(cx, cy, table, 0, Math.PI * 2);
+	c.fillStyle = wood;
+	c.shadowColor = 'rgba(0, 0, 0, .7)';
+	c.shadowBlur = 24;
+	c.fill();
+	c.shadowBlur = 0;
+	c.strokeStyle = '#24160b';
+	c.lineWidth = Math.max(3, size * 0.16);
+	c.stroke();
+	// The grain.
+	c.strokeStyle = 'rgba(30, 18, 8, .28)';
+	c.lineWidth = 1;
+	for (let k = 1; k < 6; k++) { c.beginPath(); c.arc(cx + k * 2, cy - k, table * (0.2 + k * 0.13), 0.3 * k, 0.3 * k + Math.PI * 1.3); c.stroke(); }
+	// A candle at each place: lit while they live, snuffed (a thin smoke) when they die.
+	ring.forEach((q, k) => {
+		const a = angle(k);
+		const x = cx + Math.cos(a) * (r - size * 0.62), y = cy + Math.sin(a) * (r - size * 0.62);
+		c.fillStyle = '#e8dcc0';
+		c.fillRect(x - size * 0.07, y - size * 0.05, size * 0.14, size * 0.22);
+		if (!q.dead) {
+			const fl = 0.8 + 0.2 * noise(k * 3.3, now * 0.006, 2);
+			const halo = c.createRadialGradient(x, y - size * 0.1, 0, x, y - size * 0.1, size * 0.7 * fl);
+			halo.addColorStop(0, 'rgba(255, 200, 110, .45)');
+			halo.addColorStop(1, 'rgba(255, 200, 110, 0)');
+			c.fillStyle = halo;
+			c.beginPath(); c.arc(x, y - size * 0.1, size * 0.7 * fl, 0, Math.PI * 2); c.fill();
+			c.fillStyle = '#ffd27a';
+			c.beginPath(); c.ellipse(x, y - size * 0.14, size * 0.06, size * 0.12 * fl, 0, 0, Math.PI * 2); c.fill();
+		} else {
+			c.strokeStyle = 'rgba(200, 200, 200, .35)';
+			c.lineWidth = 1;
+			c.beginPath(); c.moveTo(x, y - size * 0.06); c.quadraticCurveTo(x + size * 0.1, y - size * 0.3, x - size * 0.04, y - size * 0.5); c.stroke();
+		}
+	});
+	// The clock, inlaid in the table: brass rim, dark face, a mark at every place.
 	const fg = c.createRadialGradient(cx, cy, face * 0.1, cx, cy, face);
-	fg.addColorStop(0, 'rgba(60, 54, 84, .55)');
-	fg.addColorStop(1, 'rgba(28, 24, 44, .75)');
+	fg.addColorStop(0, 'rgba(38, 28, 16, .92)');
+	fg.addColorStop(1, 'rgba(18, 12, 6, .95)');
 	c.beginPath();
 	c.arc(cx, cy, face, 0, Math.PI * 2);
 	c.fillStyle = fg;
 	c.fill();
-	c.shadowColor = 'rgba(190, 175, 255, .8)';
-	c.shadowBlur = 18 + Math.sin(now / 900) * 6;
-	c.strokeStyle = 'rgba(205, 192, 255, .55)';
-	c.lineWidth = 2;
+	c.strokeStyle = 'rgba(214, 172, 92, .95)';
+	c.lineWidth = Math.max(2.5, size * 0.1);
 	c.stroke();
-	c.shadowBlur = 0;
 	c.beginPath();
 	c.arc(cx, cy, face * 0.9, 0, Math.PI * 2);
-	c.strokeStyle = 'rgba(205, 192, 255, .22)';
+	c.strokeStyle = 'rgba(214, 172, 92, .35)';
 	c.lineWidth = 1;
 	c.stroke();
 	ring.forEach((q, k) => {
@@ -1110,7 +1173,7 @@ function drawCircle(c: CanvasRenderingContext2D, cw: number, chh: number, now: n
 		c.beginPath();
 		c.moveTo(cx + Math.cos(a) * face * 0.8, cy + Math.sin(a) * face * 0.8);
 		c.lineTo(cx + Math.cos(a) * face * 0.95, cy + Math.sin(a) * face * 0.95);
-		c.strokeStyle = nom ? 'rgba(240, 112, 90, .95)' : 'rgba(215, 205, 255, .6)';
+		c.strokeStyle = nom ? 'rgba(240, 112, 90, .95)' : 'rgba(232, 200, 130, .8)';
 		c.lineWidth = nom ? 4 : 2;
 		c.stroke();
 	});
@@ -1179,7 +1242,7 @@ function drawCircle(c: CanvasRenderingContext2D, cw: number, chh: number, now: n
 		c.textAlign = Math.abs(Math.cos(a)) < 0.3 ? 'center' : Math.cos(a) > 0 ? 'left' : 'right';
 		c.textBaseline = Math.sin(a) < -0.3 ? 'bottom' : Math.sin(a) > 0.3 ? 'top' : 'middle';
 		c.fillStyle = v && v.nominee === q.seat ? '#f0705a' : q.id === S.me ? ST_INK : 'rgba(232, 216, 178, .9)';
-		c.fillText(`${q.dead ? '† ' : ''}${q.name}${q.id === S.me ? ' (you)' : ''}`, x + Math.cos(a) * size * 0.7, y + Math.sin(a) * size * 0.7);
+		c.fillText(`${q.dead ? '† ' : ''}${q.name}${q.id === S.me ? ' (you)' : ''}`, x + Math.cos(a) * size * 1.05, y + Math.sin(a) * size * 1.05);
 		c.restore();
 	});
 	// The Storyteller at the hub.

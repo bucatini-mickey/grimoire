@@ -2709,3 +2709,6 @@ if (villageDemo) {
 	if (location.hash) history.replaceState(null, '', location.pathname + location.search);
 	render();
 }
+
+// A different page in the address (typed, a link, back or forward): open that page afresh.
+window.addEventListener('hashchange', () => location.reload());
