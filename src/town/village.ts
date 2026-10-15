@@ -27,7 +27,7 @@ import { hostRoom, joinRoom, newRoomCode } from '../net/link.ts';
 import type { LinkStatus } from '../net/link.ts';
 import type { Peer } from 'peerjs';
 import { parseBlueprint } from './blueprint.ts';
-import { at, canWorkDoor, DOOR_REACH, doorLeaves, doorStepIn, doorsOf, inMeeting, loudness, makeTown, path, roomsAt, sameRoom, visibleCells, walkable } from './map.ts';
+import { at, atSpeakingPlace, canWorkDoor, DOOR_REACH, doorLeaves, doorStepIn, doorsOf, inMeeting, loudness, makeTown, path, roomsAt, sameRoom, visibleCells, walkable } from './map.ts';
 import type { P, Phase, Town } from './map.ts';
 import { css, FOG, fogAt, LANTERN, sunlight, lerp, level, lightMap, lookAt, luma, mul, noise, remembered, sky, sources } from './look.ts';
 import type { Rgb } from './look.ts';
@@ -49,6 +49,8 @@ export interface Person {
 	seat: number;
 	/** The Storyteller (the host). */
 	st?: boolean;
+	/** The Storyteller's All ears: hears, and is heard by, everyone. */
+	ears?: boolean;
 	/** In a private conversation with. */
 	with?: string | null;
 	/** Dead in the game: still walks and talks, faded. */
@@ -229,6 +231,8 @@ function onUp(from: string, msg: Up) {
 		const q = S.people.get(msg.to);
 		if (!q || q.id === from) return;
 		if (!privateAllowed(p)) return sendTo(from, { t: 'notice', text: 'Private words wait for the day.' });
+		// A private word is with the Storyteller: a player and them, nobody else.
+		if (!p.st && !q.st) return sendTo(from, { t: 'notice', text: 'Private words are with the Storyteller.' });
 		if (p.with || q.with) return sendTo(from, { t: 'notice', text: `${q.with ? q.name : 'You'} ${q.with ? 'is' : 'are'} already talking privately.` });
 		sendTo(q.id, { t: 'asked', from });
 		sendTo(from, { t: 'notice', text: `Asked ${q.name}…` });
@@ -1332,7 +1336,7 @@ function drawChrome() {
 			+ (can ? '' : `<div class="v-dim">${p?.with ? 'You are already talking privately.' : 'Private words wait for the day.'}</div>`)
 			+ others.map((q) => {
 				const busy = q.with ? `<span class="v-dim">talking privately</span>` : '';
-				const askBtn = can && !q.with ? `<button data-act="ask" data-id="${esc(q.id)}">Private word</button>` : '';
+				const askBtn = can && !q.with && (q.st || p?.st) ? `<button data-act="ask" data-id="${esc(q.id)}">Private word</button>` : '';
 				const visitBtn = p?.st && !q.st ? `<button data-act="visit" data-id="${esc(q.id)}">Visit</button>` : '';
 				const state = q.dead ? '<span class="v-dim">dead</span>' : '';
 				return `<div class="v-person"><span class="v-mark" style="--ink:${inkOf(q)}" aria-hidden="true">${esc(glyphOf(q))}</span><span class="v-pname">${esc(q.st ? 'Storyteller' : q.name)}</span>${state}${busy}<span class="v-person-btns">${visitBtn}${askBtn}</span></div>`;
@@ -1346,7 +1350,8 @@ function drawChrome() {
 		const ph = (k: Phase, label: string) => `<button data-act="phase-${k}" class="${S.phase === k ? 'on' : ''}">${label}</button>`;
 		st.innerHTML = (S.game ? '' : `<div class="v-st-row">${ph('day', 'Day')}${ph('dusk', 'Ring the bell')}</div>
 			<div class="v-st-row">${ph('circle', 'The circle')}${ph('night', 'Night')}</div>`)
-			+ `<div class="v-st-row"><button data-act="bot">+ Test villager</button><button data-act="st-toggle">Close</button></div>
+			+ `<div class="v-st-row"><button data-act="ears" class="${me()?.ears ? 'on' : ''}">All ears: ${me()?.ears ? 'on' : 'off'}</button></div>
+			<div class="v-st-row"><button data-act="bot">+ Test villager</button><button data-act="st-toggle">Close</button></div>
 			${S.game ? '<button data-act="back-game" class="primary">Open the grimoire</button>' : `<div class="v-share">Players scan this, or open <b>${esc(link)}</b></div>
 			<div class="v-qr">${qr(link)}</div>`}
 			<label class="v-file">Load my own town (.tbp)<input type="file" accept=".tbp,.txt" data-act="town-file"></label>
@@ -1364,7 +1369,9 @@ function drawNear() {
 		: S.phase === 'circle' ? 'The circle: everyone hears everyone'
 		: S.phase === 'night' ? (p.st ? 'Night: whoever is in this room hears you' : 'Night: at home. Only the Storyteller may visit')
 		: inMeeting(t, p, S.phase) ? 'In the ring of seats: all in it hear you'
-		: t.room[p.x + p.y * t.w] === t.outdoors ? 'Outdoors' : 'Indoors: only this room hears you';
+		: p.st && p.ears ? 'All ears: you hear everyone, and everyone hears you'
+		: atSpeakingPlace(t, p) ? 'At the market cross: the whole town hears you'
+		: t.room[p.x + p.y * t.w] === t.outdoors ? 'Outdoors: voices carry' : 'Indoors: voices carry through open doors; lock them to be private';
 	const rows = near.slice(0, 5).map(({ q, loud }) => {
 		const lvl = S.voice ? S.voice.level(q.id) : 0;
 		return `<div class="v-who"><b style="color:${inkOf(q)}">${esc(q.st ? 'Storyteller' : q.name)}</b><span class="v-meter"><i style="width:${Math.round(loud * 100)}%"></i><em style="width:${Math.round(Math.min(1, lvl) * loud * 100)}%"></em></span></div>`;
@@ -1572,6 +1579,7 @@ function onAct(act: string, el: HTMLElement) {
 		}
 		case 'back': location.hash = ''; location.reload(); break;
 		case 'clock': S.clock?.toggle?.(); tickClock(); break;
+		case 'ears': { const m = me(); if (m?.st) { m.ears = !m.ears; S.dirty = true; drawChrome(); } break; }
 		case 'sound': {
 			const on = !soundOn();
 			store.set('grimoire.sound', on ? 'on' : 'off');

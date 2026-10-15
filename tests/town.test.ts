@@ -65,19 +65,44 @@ test('rooms: a house is its own room; its doorway joins it to the street', () =>
 	assert.ok(sameRoom(town, DOOR, INSIDE) && sameRoom(town, DOOR, STREET));
 });
 
-test('voices do not go through walls, carry from a doorway, and fade with distance', () => {
-	assert.equal(loudness(town, BY_DOOR, { x: 17, y: 38 }, 'day'), 0);
+test('voices carry round corners and through open doors, fade with distance, and stop at a locked door', () => {
+	const outside = { x: 17, y: 38 };
+	// Inside the cottage, the street can be heard through the open door (not through the wall).
+	assert.ok(loudness(town, BY_DOOR, outside, 'day') > 0);
 	assert.ok(loudness(town, DOOR, STREET, 'day') > 0.5);
 	assert.equal(loudness(town, { x: 25, y: 42 }, { x: 26, y: 42 }, 'day'), 1);
-	assert.ok(loudness(town, { x: 19, y: 42 }, { x: 26, y: 42 }, 'day') < 0.5);
-	assert.equal(loudness(town, { x: 19, y: 42 }, { x: 32, y: 42 }, 'day'), 0);
+	assert.ok(loudness(town, { x: 19, y: 42 }, { x: 26, y: 42 }, 'day') < 0.7);
+	assert.equal(loudness(town, { x: 19, y: 42 }, { x: 40, y: 42 }, 'day'), 0, 'too far');
 	assert.equal(loudness(town, { x: 25, y: 42 }, { x: 26, y: 42 }, 'night'), 0);
+	// Lock the door: the house is private.
+	const d = DOOR.x + DOOR.y * town.w;
+	town.locked.add(d);
+	try {
+		assert.equal(loudness(town, BY_DOOR, outside, 'day'), 0);
+		assert.equal(loudness(town, INSIDE, STREET, 'day'), 0);
+	} finally { town.locked.delete(d); }
 });
 
-test('the tavern back room is private from the hall', () => {
+test('the tavern back room: heard through its open door, private once it is locked', () => {
 	assert.ok(walkable(town, HALL.x, HALL.y) && walkable(town, BACK.x, BACK.y));
-	assert.equal(loudness(town, HALL, BACK, 'day'), 0);
 	assert.ok(!canSee(town, HALL, BACK));
+	const door = 64 + 40 * town.w;
+	assert.ok(town.cells[door].things.includes('door'));
+	assert.ok(loudness(town, HALL, BACK, 'day') > 0);
+	town.locked.add(door);
+	try { assert.equal(loudness(town, HALL, BACK, 'day'), 0); } finally { town.locked.delete(door); }
+});
+
+test('the market cross: whoever speaks beside it is heard across the town; the Storyteller with All ears hears everyone', async () => {
+	const { atSpeakingPlace } = await import('../src/town/map.ts');
+	const m = town.meeting!.at;
+	const crier = { x: Math.round(m.x), y: Math.round(m.y) + 1 };
+	assert.ok(atSpeakingPlace(town, crier));
+	assert.equal(loudness(town, INSIDE, crier, 'day'), 1, 'heard even inside a cottage');
+	assert.equal(loudness(town, crier, INSIDE, 'day'), 0, 'but the crier does not hear the whole town');
+	const st = { x: 70, y: 70, st: true, ears: true };
+	assert.equal(loudness(town, st, INSIDE, 'day'), 1);
+	assert.equal(loudness(town, INSIDE, st, 'day'), 1);
 });
 
 test('in the circle everyone hears everyone, however far across; outside it, distance counts', () => {

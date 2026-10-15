@@ -27,6 +27,8 @@ export interface Walker extends P {
 	st?: boolean;
 	/** In a private conversation with this person: they hear only each other. */
 	with?: string | null;
+	/** The Storyteller's All ears: they hear, and are heard by, everyone. */
+	ears?: boolean;
 }
 
 export interface Town {
@@ -301,7 +303,44 @@ export function path(t: Town, a: P, b: P, ghost = false): P[] {
 }
 
 /** Voices carry this far in the open, fading from full at 2 m to nothing. */
-export const HEARING = 10;
+/** How far a voice carries, in steps (round corners, through open doors). */
+export const HEARING = 14;
+
+/**
+ * How many steps sound takes from a cell to every other within earshot: round
+ * corners and through open doorways, never through walls, windows or a locked
+ * door. Cached: a few listeners, while nobody moves and no lock changes.
+ */
+const soundCache = new Map<string, Int16Array>();
+function soundSteps(t: Town, from: P): Int16Array {
+	const key = `${from.x},${from.y}|${[...t.locked].join(',')}`;
+	let d = soundCache.get(key);
+	if (d) return d;
+	d = new Int16Array(t.w * t.h).fill(-1);
+	const start = from.x + from.y * t.w;
+	d[start] = 0;
+	const q = [start];
+	for (let i = 0; i < q.length; i++) {
+		const c = q[i], x = c % t.w, y = (c - x) / t.w;
+		if (d[c] >= HEARING) continue;
+		for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+			const nx = x + dx, ny = y + dy;
+			if (nx < 0 || ny < 0 || nx >= t.w || ny >= t.h) continue;
+			const n = nx + ny * t.w;
+			if (d[n] >= 0 || t.cells[n].tile === 'wall' || t.locked.has(n)) continue;
+			d[n] = d[c] + 1;
+			q.push(n);
+		}
+	}
+	if (soundCache.size > 48) soundCache.clear();
+	soundCache.set(key, d);
+	return d;
+}
+
+/** Beside the market cross: whoever speaks there, the whole town hears (by day and at dusk). */
+export function atSpeakingPlace(t: Town, p: P): boolean {
+	return !!t.meeting && Math.hypot(p.x - t.meeting.at.x, p.y - t.meeting.at.y) <= 1.6;
+}
 
 /** The ring of seats in the square, by day or at dusk: everyone inside hears everyone inside. */
 export function inMeeting(t: Town, p: P, phase: Phase): boolean {
@@ -309,15 +348,25 @@ export function inMeeting(t: Town, p: P, phase: Phase): boolean {
 }
 
 /** How loud b sounds to a, 0 to 1. Nobody talks at night: the town sleeps. */
+/**
+ * How loud `b` sounds to `a` (0 to 1). Sound carries: round corners and
+ * through open doors, fading with the steps it takes; walls, windows and a
+ * locked door stop it, so a house you lock is private. Whoever stands at the
+ * market cross is heard by the whole town. The Storyteller with All ears on
+ * hears and is heard by everyone; a private word is the Storyteller and one
+ * player, nobody else.
+ */
 export function loudness(t: Town, a: Walker, b: Walker, phase: Phase): number {
-	// A private conversation: the two hear each other wherever they are, and nobody else hears them.
+	// A private word: the two hear each other wherever they are, and nobody else hears them.
 	if (a.with || b.with) return a.with === b.id && b.with === a.id ? 1 : 0;
 	if (phase === 'circle') return 1;
 	// Night: the town sleeps; only the Storyteller talks, to whoever is in the room they visit.
 	if (phase === 'night') return (a.st || b.st) && sameRoom(t, a, b) ? 1 : 0;
+	if ((a.st && a.ears) || (b.st && b.ears)) return 1;
+	if (atSpeakingPlace(t, b)) return 1;
 	if (inMeeting(t, a, phase) && inMeeting(t, b, phase)) return 1;
-	if (!sameRoom(t, a, b)) return 0;
-	const d = Math.hypot(a.x - b.x, a.y - b.y);
+	const d = soundSteps(t, a)[b.x + b.y * t.w];
+	if (d < 0) return 0;
 	if (d <= 2) return 1;
 	return Math.max(0, 1 - (d - 2) / (HEARING - 2));
 }
