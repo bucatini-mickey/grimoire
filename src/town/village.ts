@@ -33,7 +33,7 @@ import { css, FOG, fogAt, LANTERN, sunlight, lerp, level, lightMap, lookAt, luma
 import type { Rgb } from './look.ts';
 import { audio, bell, startVoice } from './voice.ts';
 import type { Voice, VoiceMode } from './voice.ts';
-import VILLAGE from '../../town/village.tbp';
+import VILLAGE from '../../town/castle.tbp';
 
 const PREFIX = 'grimoire-village-';
 

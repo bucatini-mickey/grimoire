@@ -56,7 +56,7 @@ export interface Town {
 }
 
 const GRASS: BpCell = { tile: 'floor', mat: 'grass', things: [] };
-const BLOCKING = new Set(['well', 'brazier', 'altar', 'statue', 'anvil', 'barrel', 'bookshelf', 'coffin', 'table', 'waterfall', 'bell', 'clock']);
+const BLOCKING = new Set(['well', 'brazier', 'altar', 'statue', 'anvil', 'barrel', 'bookshelf', 'coffin', 'table', 'waterfall', 'bell', 'clock', 'oak', 'loom', 'oven', 'cart']);
 /** Deep water: you cannot walk it, but you see and hear across it. A plank bridge crosses. */
 const isWater = (c: BpCell) => c.mat === 'water' && !c.things.includes('plank bridge');
 const LIGHTS = new Set(['torch', 'brazier', 'candle']);
@@ -339,7 +339,7 @@ function soundSteps(t: Town, from: P): Int16Array {
 
 /** Beside the market cross: whoever speaks there, the whole town hears (by day and at dusk). */
 export function atSpeakingPlace(t: Town, p: P): boolean {
-	return !!t.meeting && Math.hypot(p.x - t.meeting.at.x, p.y - t.meeting.at.y) <= 1.6;
+	return !!t.meeting && Math.hypot(p.x - t.meeting.at.x, p.y - t.meeting.at.y) <= 2.3;
 }
 
 /** The ring of seats in the square, by day or at dusk: everyone inside hears everyone inside. */
