@@ -41,7 +41,7 @@ export const INKS: Ink[] = [
 ];
 const INK_BY_KEY = new Map(INKS.map((i) => [i.key, i]));
 
-/** The colours as CSS, for both the pictures (fill) and the easel's cells (background). */
+/** The colours as CSS, for the pictures. */
 export function paletteCss(): string {
 	const vars = (when: 'day' | 'night') => INKS.map((i) => `--px-${i.name}:${i[when]};`).join('');
 	const rules = INKS.map((i) => `.px-${i.name}{fill:var(--px-${i.name})}.cell.px-${i.name},.swatch.px-${i.name}{background:var(--px-${i.name})}`).join('');

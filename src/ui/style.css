@@ -205,36 +205,12 @@ body.village-map #card {
 
 
 /* Rows that hold pictures or forms are as tall as they need, in whole rows. */
-.row.title, .title-art, .card-pic, .easel-row, .ring-row { height: auto; }
+.row.title, .title-art, .card-pic, .ring-row { height: auto; }
 .title-art { display: flex; justify-content: center; padding: 6px 0 2px; }
 .title-tower { width: calc(var(--cw) * 10); height: auto; }
 .pixel { display: block; }
 .card-pic { display: flex; justify-content: center; padding: 4px 0; }
 .card-sprite { width: calc(var(--cw) * 8); height: auto; }
-
-/* ---- the easel ----------------------------------------------------------------------- */
-.easel {
-	display: grid;
-	grid-template-columns: repeat(var(--w), 1fr);
-	width: min(calc(var(--cw) * 40), calc(var(--cw) * 40 * var(--w) / var(--h)));
-	margin: 4px auto;
-	border: 1px solid var(--dim);
-	touch-action: none;
-	user-select: none;
-	background-image: repeating-conic-gradient(color-mix(in srgb, var(--dim) 18%, transparent) 0 25%, transparent 0 50%);
-	background-size: calc(200% / var(--w)) calc(200% / var(--h));
-}
-.cell { aspect-ratio: 1 / 1; outline: 1px solid color-mix(in srgb, var(--dim) 20%, transparent); }
-.cell.empty { background: transparent; }
-.swatches { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; padding: 4px 0; }
-.swatch { width: calc(var(--cw) * 3.2); aspect-ratio: 1 / 1; border: 1px solid var(--dim); padding: 0; font: inherit; color: var(--dim); cursor: pointer; }
-.swatch.erase { background: transparent; }
-.swatch.chosen { outline: 3px solid var(--gold); outline-offset: 1px; }
-.easel-preview { display: flex; align-items: end; justify-content: center; gap: 24px; padding: 6px 0; }
-.preview-big { width: calc(var(--cw) * 12); height: auto; }
-.preview-small { width: calc(var(--cw) * 4); height: auto; }
-.easel-row textarea { font-family: var(--mono); font-size: .8em; }
-.row:has(textarea) { height: auto; }
 
 /* ---- frames: a manuscript double rule ------------------------------------------------
  * Two hairlines 3px apart, down the middle of the outer columns and along

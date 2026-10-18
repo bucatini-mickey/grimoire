@@ -21,7 +21,6 @@ import { COLS, INNER, Canvas, blank, btn, buttonRows, center, endPanel, frameBot
 import type { Button, Row, Seg, Tone } from './ascii.ts';
 import * as T from './timer.ts';
 import { paletteCss, sprite, svg, towerScene } from './pixel.ts';
-import { easelRows, wireEasel } from './easel.ts';
 import * as V from '../net/views.ts';
 import { hostRoom, newRoomCode } from '../net/link.ts';
 import type { HostLink, LinkStatus } from '../net/link.ts';
@@ -125,7 +124,7 @@ const flow = () => saved.flow;
 
 // ---- passing screen state ------------------------------------------------------
 
-type Tab = 'grimoire' | 'log' | 'ties' | 'art' | 'options' | 'phones';
+type Tab = 'grimoire' | 'log' | 'ties' | 'options' | 'phones';
 /** In a village game the grimoire is a drawer over the town; these are its tabs. */
 type DrawerTab = Tab | 'actions';
 type DayMode = 'none' | 'nominate' | 'slay';
@@ -572,7 +571,7 @@ function header(): Row[] {
 		{ segs: [txt('Grimoire', 'title')], cls: 'title' },
 		row(txt(center(phase), 'rubric', 'heading')),
 		...buttonRows([
-			btn('Home', () => go(''), { style: 'quiet' }), tab('grimoire', 'Grim'), tab('log', 'Log'), tab('ties', 'Ties'), tab('art', 'Art'), tab('options', 'Clock'), tab('phones', link ? 'Phones*' : 'Phones'),
+			btn('Home', () => go(''), { style: 'quiet' }), tab('grimoire', 'Grim'), tab('log', 'Log'), tab('ties', 'Ties'), tab('options', 'Clock'), tab('phones', link ? 'Phones*' : 'Phones'),
 			...(village ? [btn('Village', () => village?.open(), { style: 'primary' })] : []),
 			btn('Undo', undo, { disabled: !saved.marks.length, style: 'quiet' }),
 			btn(ui.confirmNew ? 'Sure?' : 'New', () => { if (ui.confirmNew) newGame(); else { ui.confirmNew = true; render(); } }, { style: ui.confirmNew ? 'danger' : 'quiet' })
@@ -2546,7 +2545,6 @@ function screen(): Row[] {
 	if (ui.tab === 'ties') return [...rows, ...tiesScreen()];
 	if (ui.tab === 'options') return [...rows, ...optionsScreen()];
 	if (ui.tab === 'phones') return [...rows, ...phonesScreen()];
-	if (ui.tab === 'art') return [...rows, ...easelRows(script().characters.map((c) => ({ id: c.id, name: c.name })), render)];
 	const p = state.phase;
 	if (p.kind === 'setup') return [...rows, ...(state.seats.length ? draftScreen() : [...namesScreen(), ...messageRows()])];
 	rows.push(...circleRows(), ...messageRows(), ...inspectRows(), ...actionRows());
@@ -2621,7 +2619,6 @@ function drawerScreen(): Row[] {
 	if (tab === 'ties') return [...rows, ...tiesScreen()];
 	if (tab === 'options') return [...rows, ...optionsScreen()];
 	if (tab === 'phones') return [...rows, ...phonesScreen()];
-	if (tab === 'art') return [...rows, ...easelRows(script().characters.map((c) => ({ id: c.id, name: c.name })), render)];
 	if (p.kind === 'setup') return [...rows, ...(state.seats.length ? draftScreen() : [...namesScreen(), ...messageRows()])];
 	if (tab === 'actions') return [...rows, ...messageRows(), ...actionRows()];
 	// The grimoire: the circle of seats and tokens, and whoever is tapped.
@@ -2629,7 +2626,7 @@ function drawerScreen(): Row[] {
 }
 
 /** The tabs on the drawer's edge: each pulls it out on that page; the open one puts it away. */
-const DRAWER_TABS: [DrawerTab, string, string][] = [['actions', '\u2726', 'Actions'], ['grimoire', '\u25CE', 'Grimoire'], ['log', '\u2261', 'Log'], ['phones', '\u260F\uFE0E', 'Phones'], ['options', '\u29D7', 'Clock'], ['ties', '\u2696\uFE0E', 'Ties'], ['art', '\u270E\uFE0E', 'Art']];
+const DRAWER_TABS: [DrawerTab, string, string][] = [['actions', '\u2726', 'Actions'], ['grimoire', '\u25CE', 'Grimoire'], ['log', '\u2261', 'Log'], ['phones', '\u260F\uFE0E', 'Phones'], ['options', '\u29D7', 'Clock'], ['ties', '\u2696\uFE0E', 'Ties']];
 const drawerTabs = document.createElement('nav');
 drawerTabs.id = 'drawer-tabs';
 drawerTabs.setAttribute('aria-label', 'The grimoire');
@@ -2717,7 +2714,6 @@ setInterval(tick, 250);
 const inks = document.createElement('style');
 inks.textContent = paletteCss();
 document.head.appendChild(inks);
-wireEasel(root, () => render());
 
 root.addEventListener('input', (ev) => {
 	const t = ev.target as HTMLTextAreaElement;
