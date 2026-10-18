@@ -46,6 +46,14 @@ const ALL_TRAVELLERS: CharacterDef[] = [
 	...EXPERIMENTAL.filter((c) => c.team === 'traveller').map((c) => ({ ...c, firstNight: firstNightOrder(c.id), otherNight: otherNightOrder(c.id) }))
 ];
 
+/** Laissez un Faire (Steven Medway): a small script for five or six. The Cult Leader may be swapped for the Amnesiac. */
+const LAISSEZ_UN_FAIRE = ['balloonist', 'savant', 'fisherman', 'artist', 'cult-leader', 'mutant', 'lunatic', 'goblin', 'widow', 'leviathan'];
+SCRIPTS['laissez-un-faire'] = officialOrder({
+	id: 'laissez-un-faire', name: 'Laissez un Faire',
+	characters: LAISSEZ_UN_FAIRE.map((id) => CATALOG.find((c) => c.id === id)!),
+	travellers: ALL_TRAVELLERS
+});
+
 /** A character modelled by the engine (the three scripts and their Travellers), or only known (resolved by hand). */
 export const isModelled = (id: CharacterId) => [troubleBrewing, badMoonRising, sectsAndViolets].some((sc) => sc.characters.some((c) => c.id === id)) || Object.values(TRAVELLERS).flat().some((c) => c.id === id);
 

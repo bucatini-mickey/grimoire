@@ -28,6 +28,7 @@ import type { HostLink, LinkStatus } from '../net/link.ts';
 import type { ClockView, HostMsg, PlayerMsg, VoteView } from '../net/protocol.ts';
 import { startPlayer } from './player.ts';
 import { INKS, startVillage, villageForGame } from '../town/village.ts';
+import { AMNESIAC_IDEAS, savantPair, savantStatements } from './helpers.ts';
 import type { Extra, StActions, VillageHost } from '../town/village.ts';
 import qrcode from 'qrcode-generator';
 import { CARD_COLS, CARD_INNER, big, cardButtons, nextPage, note, wakeRows } from './wakepages.ts';
@@ -153,6 +154,10 @@ const ui = {
 	voteSmall: false,
 	/** In a village game the count runs in the bar; the full count only when asked for. */
 	voteBig: false,
+	/** The Savant helper: which suggestions, and true-and-false or (drunk, poisoned) two truths or two lies. */
+	savantSeed: 1,
+	savantMode: 'normal' as 'normal' | 'truths' | 'lies',
+	amnesiacSeed: 0,
 	/** Which page: the home page, or the app itself (a grimoire, a hosted game). */
 	page: 'app' as 'home' | 'app',
 	/** Second taps that confirm ending a game (home: host anew, play in person, end it). */
@@ -1537,6 +1542,28 @@ function storytellerTools(): Row[] {
 		rows.push(blank(), rubric(`${k.name}, the Klutz, chooses`));
 		rows.push(...prose('On learning they died, they publicly choose a living player. If evil, good loses.', 'dim'));
 		rows.push(...buttonRows(living.map((id) => btn(state.seats[id].name, () => act({ type: 'klutz', by: k.id, target: id }), { width: 10 })), INNER, 0));
+	}
+	// The Savant: today's pair of statements, one true and one false (drunk or poisoned: two truths or two lies, if you like).
+	for (const sv of state.seats.filter((x) => x.character === 'savant' && x.alive && day)) {
+		const droisoned = G.isDroisoned(state, sv.id);
+		const mode = droisoned ? ui.savantMode : 'normal';
+		rows.push(blank(), rubric(`${sv.name}, the Savant`));
+		rows.push(...prose(droisoned ? 'Drunk or poisoned: any two statements will do. Two truths or two lies can be crueller.' : 'If they visit you today: one true statement and one false, in either order.', droisoned ? 'evil' : 'dim'));
+		for (const st of savantPair(savantStatements(state, sv.id, ui.savantSeed), ui.savantSeed, mode)) rows.push(...prose(`${st.true ? 'TRUE' : 'FALSE'}: ${st.text}`, st.true ? 'good' : 'evil'));
+		rows.push(...buttonRows([
+			btn('Another pair', () => { ui.savantSeed++; render(); }, { style: 'quiet' }),
+			...(droisoned ? (['normal', 'truths', 'lies'] as const).map((m) => btn(m === 'normal' ? 'True and false' : m === 'truths' ? 'Two truths' : 'Two lies', () => { ui.savantMode = m; render(); }, { style: ui.savantMode === m ? 'on' : 'quiet' })) : [])
+		]));
+	}
+	// The Amnesiac: ideas for the ability you give them (they guess it by day; you say how close).
+	for (const am of state.seats.filter((x) => x.character === 'amnesiac' && x.alive)) {
+		rows.push(blank(), rubric(`${am.name}, the Amnesiac`));
+		rows.push(...prose('Ideas for their secret ability. Each day they may guess it; tell them whether they are cold, warm or right.', 'dim'));
+		for (let k = 0; k < 3; k++) {
+			const idea = AMNESIAC_IDEAS[(ui.amnesiacSeed * 3 + k) % AMNESIAC_IDEAS.length];
+			rows.push(...prose(`${idea.name}: ${idea.text}`, 'gold'));
+		}
+		rows.push(...buttonRows([btn('More ideas', () => { ui.amnesiacSeed++; render(); }, { style: 'quiet' })]));
 	}
 	rows.push(...juggleRows(day));
 	rows.push(...travellerRows(day));
