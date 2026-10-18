@@ -1315,6 +1315,9 @@ function drawChrome() {
 	const bar2 = root.querySelector('.v-stbar') as HTMLElement;
 	const sa = S.host ? S.stActions : null;
 	bar2.hidden = !sa;
+	// Sit just above the buttons, however many rows they wrap to (a private word adds a row).
+	const toolsEl = root.querySelector<HTMLElement>('.v-tools');
+	if (toolsEl) bar2.style.bottom = `${toolsEl.offsetHeight}px`;
 	if (sa) bar2.innerHTML = `<div>${esc(sa.text)}</div><div class="v-st-row">${sa.buttons.map((b, i) => `<button data-act="st-act" data-i="${i}" class="${b.primary ? 'primary' : ''}">${esc(b.label)}</button>`).join('')}</div>`;
 
 	// A request for a private word, waiting.
