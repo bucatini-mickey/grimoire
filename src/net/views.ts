@@ -65,6 +65,8 @@ export interface PublicSeat {
 
 export interface PublicView {
 	phase: 'setup' | 'night' | 'day' | 'over';
+	/** The script being played (its look follows it: Laissez un Faire is occult). */
+	script?: string;
 	n: number;
 	order: SeatId[];
 	seats: PublicSeat[];
@@ -162,6 +164,7 @@ export function publicView(state: GameState): PublicView {
 	const p = state.phase;
 	return {
 		phase: p.kind,
+		script: state.scriptId,
 		n: p.kind === 'night' || p.kind === 'day' ? p.n : 0,
 		order: [...state.order],
 		seats: state.seats.map((s) => ({ id: s.id, name: s.name, alive: !deadAtDusk(state, s.id) && (s.alive || state.phase.kind === 'night'), ghostVote: s.ghostVote })),

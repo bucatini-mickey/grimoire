@@ -703,3 +703,21 @@ button.ghost { border-color: transparent !important; color: var(--dim) !importan
 .big-primary:disabled { opacity: .5; cursor: default; }
 .join .code-input { margin: 0 auto; }
 .join-status { text-align: center; color: var(--dim); font-size: 15px; }
+
+/* ---- Laissez un Faire: the occult. Drowned greens and black, bone and tarnished brass, a Victorian face; a sigil and something reaching from the corner. ---- */
+:root[data-theme="occult"], :root[data-theme="occult"][data-phase="night"] {
+	--bg: #0f1a17; --bg-edge: #020504; --ink: #ddd5bf; --dim: #7f8f84; --rubric: #8ec3a9; --gold: #b8954f;
+	--good: #7fb0c4; --evil: #c85a48; --poison: #9ccf6a; --drunk: #b48ad0; --press: #ddd5bf; --press-ink: #0f1a17;
+	color-scheme: dark;
+}
+:root[data-theme="occult"] #app, :root[data-theme="occult"] #card {
+	--book: 'IM Fell English', 'Iowan Old Style', Georgia, serif;
+	--book-sc: 'IM Fell English SC', 'IM Fell English', Georgia, serif;
+	--gothic: 'IM Fell English SC', 'IM Fell English', Georgia, serif;
+}
+:root[data-theme="occult"] body { background: radial-gradient(ellipse at 50% 35%, #18291f 0%, var(--bg) 48%, var(--bg-edge) 125%) fixed, var(--bg); }
+:root[data-theme="occult"] body::before, :root[data-theme="occult"] body::after { content: ''; position: fixed; pointer-events: none; z-index: 0; opacity: .09; background-repeat: no-repeat; background-size: contain; }
+:root[data-theme="occult"] body::before { right: -40px; top: -40px; width: 260px; height: 260px; background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20200%20200%22%20fill%3D%22none%22%20stroke%3D%22%238ec3a9%22%20stroke-width%3D%222%22%3E%3Ccircle%20cx%3D%22100%22%20cy%3D%22100%22%20r%3D%2280%22%2F%3E%3Ccircle%20cx%3D%22100%22%20cy%3D%22100%22%20r%3D%2262%22%2F%3E%3Cpath%20d%3D%22M100%2020%20L169%20140%20L31%20140%20Z%20M100%20180%20L31%2060%20L169%2060%20Z%22%2F%3E%3Cellipse%20cx%3D%22100%22%20cy%3D%22100%22%20rx%3D%2222%22%20ry%3D%2212%22%2F%3E%3Ccircle%20cx%3D%22100%22%20cy%3D%22100%22%20r%3D%226%22%20fill%3D%22%238ec3a9%22%2F%3E%3C%2Fsvg%3E"); }
+:root[data-theme="occult"] body::after { left: 0; bottom: 0; width: 240px; height: 240px; opacity: .12; background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20220%20220%22%20fill%3D%22none%22%20stroke%3D%22%238ec3a9%22%20stroke-width%3D%223%22%20stroke-linecap%3D%22round%22%3E%3Cpath%20d%3D%22M0%20220%20C40%20170%2030%20120%2080%20100%20C130%2080%20120%2040%20160%2030%20C185%2024%20200%2040%20190%2058%20C182%2072%20165%2066%20168%2054%22%2F%3E%3Cpath%20d%3D%22M0%20200%20C30%20160%2020%20130%2055%20112%22%20stroke-width%3D%222%22%2F%3E%3Cg%20fill%3D%22%238ec3a9%22%20stroke%3D%22none%22%3E%3Ccircle%20cx%3D%2270%22%20cy%3D%22108%22%20r%3D%223%22%2F%3E%3Ccircle%20cx%3D%2298%22%20cy%3D%2294%22%20r%3D%223%22%2F%3E%3Ccircle%20cx%3D%22124%22%20cy%3D%2274%22%20r%3D%222.6%22%2F%3E%3Ccircle%20cx%3D%22146%22%20cy%3D%2244%22%20r%3D%222.2%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"); }
+:root[data-theme="occult"] #app, :root[data-theme="occult"] #card { position: relative; z-index: 1; }
+:root[data-theme="occult"] .home-card.primary, :root[data-theme="occult"] .big-primary { box-shadow: 0 0 0 1px var(--gold), 0 6px 20px rgba(0, 0, 0, .5); }

@@ -2597,6 +2597,9 @@ function actionRows(): Row[] {
 	return rows;
 }
 
+/** The look a script asks for. */
+const themeOf = (id: string | undefined) => (id === 'laissez-un-faire' ? 'occult' : '');
+
 const villageGame = () => !!village && state.phase.kind !== 'setup';
 let villageShown = false;
 let lastKind = state.phase.kind;
@@ -2659,6 +2662,8 @@ const cardRoot = document.getElementById('card')!;
 
 function render() {
 	document.documentElement.dataset.phase = state.phase.kind === 'night' ? 'night' : 'day';
+	// The script sets the look: Laissez un Faire is occult (drowned greens, bone, brass, a Victorian face).
+	document.documentElement.dataset.theme = themeOf(state.seats.length ? state.scriptId : ui.scriptId);
 	// A village game: the town is always there; the grimoire is a drawer over it.
 	const vg = villageGame();
 	// The game begins: put the drawer away and be in the town (the bar runs the night).

@@ -395,6 +395,7 @@ function overlay(): Row[] {
 
 function render() {
 	document.documentElement.dataset.phase = P.view?.phase === 'night' ? 'night' : 'day';
+	document.documentElement.dataset.theme = P.view?.script === 'laissez-un-faire' ? 'occult' : '';
 	paint(root, paneled(screen()));
 	const pages = overlay();
 	cardRoot.hidden = !pages.length;
