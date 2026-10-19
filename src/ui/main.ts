@@ -686,7 +686,7 @@ function homeScreen(): Row[] {
 		}),
 		card('\u2618', 'Walk the village', 'Explore the town. No game.', () => go('#village'))
 	);
-	return [...art(), blank(), { segs: [], cls: 'home-row', custom: { html: `<div class="home">${resumes.join('')}<div class="recipe"><p class="rx">℞ <b>A Receipt</b> for a Game</p><p class="rx-note">Take five to fifteen friends and one Storyteller, and proceed in one of these ways:</p><div class="rx-rule"></div>${cards.join('')}</div></div>`, acts } }];
+	return [...art(), blank(), { segs: [], cls: 'home-row', custom: { html: `<div class="home">${resumes.join('')}<div class="recipe">${cards.join('')}</div></div>`, acts } }];
 }
 
 /** The room's code, big and plain to read aloud. */

@@ -738,7 +738,7 @@ body { background: var(--paper, none) 0 0 / auto no-repeat fixed, radial-gradien
    step, its number in the margin in red or blue by turns; pointed at, the step is washed in honey. */
 .recipe { display: flex; flex-direction: column; }
 :root:not([data-theme="occult"]) .recipe {
-	position: relative; padding: 22px 20px 16px; background: var(--leaf);
+	position: relative; padding: 10px 16px; background: var(--leaf);
 	border: 7px solid transparent;
 	background-image: linear-gradient(var(--leaf), var(--leaf)), linear-gradient(135deg, #f0d684, #c39535 30%, #9d7224 50%, #e2c070 70%, #b38a33);
 	background-origin: border-box; background-clip: padding-box, border-box;
@@ -765,9 +765,8 @@ body { background: var(--paper, none) 0 0 / auto no-repeat fixed, radial-gradien
 :root:not([data-theme="occult"]) .home-card:nth-child(even of .home-card) .hc-rib::before { color: var(--lapis); }
 :root:not([data-theme="occult"]) .hc-ico { display: none; }
 :root:not([data-theme="occult"]) .hc-text { display: block; }
-:root:not([data-theme="occult"]) .hc-title { display: inline; font: 700 1.3em 'Almendra', Georgia, serif; color: var(--ink); }
-:root:not([data-theme="occult"]) .hc-title::after { content: ":"; color: var(--rubric); margin-right: .3em; }
-:root:not([data-theme="occult"]) .hc-sub { display: inline; font: italic 400 1.1em/1.4 var(--book); color: var(--ink); opacity: 1; }
+:root:not([data-theme="occult"]) .hc-title { display: block; font: 700 1.3em 'Almendra', Georgia, serif; color: var(--ink); }
+:root:not([data-theme="occult"]) .hc-sub { display: block; font: italic 400 1.1em/1.4 var(--book); color: var(--ink); opacity: 1; }
 :root:not([data-theme="occult"]) .home-card.primary .hc-title { color: var(--rubric); }
 :root:not([data-theme="occult"]) .home .home-card:hover .hc-rib, :root:not([data-theme="occult"]) .home .home-card:focus-visible .hc-rib { background: color-mix(in srgb, var(--honey) 45%, transparent); }
 :root:not([data-theme="occult"]) .home .home-card:focus-visible { outline: 1px dotted var(--ink); outline-offset: 2px; }
