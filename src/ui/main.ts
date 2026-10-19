@@ -655,6 +655,19 @@ function hostNew() {
 }
 
 /** The home page: host, join, play in person, or walk the town; and pick up a game already going. */
+/**
+ * The apothecary's shelf: an object for each way in, painted flat and outlined
+ * in ink like the jars and simples of the Tractatus de Herbis. Host: an albarello;
+ * join: a mortar and pestle; the grimoire: a bound book; the village: a cornflower.
+ */
+const OBJ_INK = 'stroke="#3a2614" stroke-width="1.3" stroke-linejoin="round"';
+const SHELF: Record<string, string> = {
+	'⌂': `<svg class="hc-obj" viewBox="0 0 48 52" aria-hidden="true"><g ${OBJ_INK}><ellipse cx="24" cy="7" rx="9" ry="2.6" fill="#e6dcc0"/><path d="M15 7v4c-4 3-4 6 0 8v22c0 4 4 6 9 6s9-2 9-6V19c4-2 4-5 0-8V7" fill="#3a5ba8"/><path d="M14.6 22h18.8v12H14.6z" fill="#efe4c6"/><path d="M15 25.5h18M15 30.5h18" stroke="#b8402a"/><path d="M19 28c2-2 3 2 5 0s3 2 5 0" fill="none" stroke="#3a5ba8"/><path d="M15 15h18" fill="none" stroke="#d9b247" stroke-width="2"/></g></svg>`,
+	'✦': `<svg class="hc-obj" viewBox="0 0 48 52" aria-hidden="true"><g ${OBJ_INK}><path d="M30 4l5 2-9 24-4-1z" fill="#b08a5a"/><path d="M8 24h32c0 12-7 19-16 19S8 36 8 24z" fill="#a7a3c0"/><ellipse cx="24" cy="24" rx="16" ry="3.2" fill="#8c88a8"/><path d="M17 43h14l2 5H15z" fill="#a7a3c0"/><path d="M14 31c4 3 16 3 20 0" fill="none" stroke="#7d7997"/></g></svg>`,
+	'✠': `<svg class="hc-obj" viewBox="0 0 48 52" aria-hidden="true"><g ${OBJ_INK}><path d="M9 12l26-4v34L9 46z" fill="#b8402a"/><path d="M35 8l4 2v34l-4-2z" fill="#efe4c6"/><path d="M9 46l4 2 26-4" fill="none"/><path d="M13 17l18-3v24l-18 3z" fill="none" stroke="#d9b247" stroke-width="1.6"/><circle cx="22" cy="27" r="4" fill="#d9b247"/><path d="M33 22h7M33 30h7" stroke="#d9b247" stroke-width="2.4"/></g></svg>`,
+	'☘': `<svg class="hc-obj" viewBox="0 0 48 52" aria-hidden="true"><g ${OBJ_INK}><path d="M24 50V20M24 34c-5-3-9-8-10-14M24 30c5-3 8-7 9-12M24 42c-4-1-8-3-10-7" fill="none" stroke="#5f8f4a" stroke-width="2"/><path d="M14 35c-3-1-5 1-6 3 3 1 5 0 6-3zM33 27c3 0 5 2 5 4-3 0-5-1-5-4z" fill="#7fae5a"/><g fill="#3d64c8"><path d="M24 20l-6-5 2-3-3-4 4 1 3-4 2 4 4-1-2 4 3 3z"/><path d="M14 20l-5-3 1-3-3-2 3 0 1-3 2 3 3-1-1 3 2 2z"/><path d="M33 18l4-4-1-3 3-2-1 3 3 1-2 2 2 3-3 0z"/></g><path d="M22 20h4l-1 3h-2zM13 20h3l-1 2h-1zM32 18h3l-1 2h-1z" fill="#8fae6a"/></g></svg>`
+};
+
 function homeScreen(): Row[] {
 	const acts: (() => void)[] = [];
 	const a = (f: () => void) => { acts.push(f); return acts.length - 1; };
@@ -671,8 +684,9 @@ function homeScreen(): Row[] {
 	if (mine.room && mine.name) {
 		cards.push(`<div class="home-resume"><div><div class="hr-label">Rejoin room <b class="mono">${esc(mine.room)}</b></div><div class="hr-sub">as ${esc(mine.name)}</div></div><button class="primary" data-act="${a(() => go(`#join=${mine.room}`))}">Rejoin</button></div>`);
 	}
+	// Each way in carries a glyph (the occult look) and an object on the apothecary's shelf (the herbal look).
 	const card = (ico: string, title: string, sub: string, act: () => void, cls = '') =>
-		`<button class="home-card ${cls}" data-act="${a(act)}"><span class="hc-rib"><span class="hc-ico">${ico}</span><span class="hc-text"><span class="hc-title">${title}</span><span class="hc-sub">${sub}</span></span></span></button>`;
+		`<button class="home-card ${cls}" data-act="${a(act)}"><span class="hc-rib"><span class="hc-ico"><span class="hc-glyph">${ico}</span>${SHELF[ico] ?? ''}</span><span class="hc-text"><span class="hc-title">${title}</span><span class="hc-sub">${sub}</span></span></span></button>`;
 	const ending = busy && saved.net?.village;
 	cards.push(
 		card('\u2302', ui.confirm === 'host' ? 'Start a new game?' : 'Host a game', ui.confirm === 'host' ? 'Your current game will end. Tap again.' : 'Everyone on their own phone, in the village.', () => { if (ending && ui.confirm !== 'host') { ui.confirm = 'host'; render(); } else hostNew(); }, 'primary'),
