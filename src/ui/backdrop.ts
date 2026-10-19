@@ -75,15 +75,15 @@ function grain(x: CanvasRenderingContext2D, W: number, H: number, alpha: number,
 
 function vellum(x: CanvasRenderingContext2D, W: number, H: number, night: boolean) {
 	const r = rng(4), m = Math.min(W, H);
-	const stains: [number, number, number][] = [[W * (0.08 + r() * 0.2), H * (0.7 + r() * 0.25), m * (0.12 + r() * 0.08)], [W * (0.6 + r() * 0.35), H * (0.02 + r() * 0.15), m * (0.07 + r() * 0.06)]];
+	const stains: [number, number, number][] = [[W * (0.08 + r() * 0.2), H * (0.7 + r() * 0.25), m * (0.12 + r() * 0.08)], [W * (0.6 + r() * 0.35), H * (0.02 + r() * 0.15), m * (0.07 + r() * 0.06)], [W * (0.75 + r() * 0.2), H * (0.45 + r() * 0.2), m * (0.05 + r() * 0.05)]];
 	// The candle: a warm pool high in the middle of the page.
 	const cx = W / 2, cy = H * 0.3, cr = Math.max(W, H) * 0.75;
 	field(x, W, H, (X, Y) => {
 		const ck = fbm(X / 260, Y / 260, 3) - 0.5, mo = vnoise(X / 38 + 50, Y / 38) - 0.5;
 		const e = Math.min(X, Y, W - 1 - X, H - 1 - Y) / m, edge = 1 - Math.min(1, e / 0.16);
-		let L = 1 + 0.07 * ck + 0.035 * mo - 0.2 * edge * edge, Yl = 0.5 * edge * edge + 0.15 * Math.max(0, ck);
+		let L = 1 + 0.08 * ck + 0.04 * mo - 0.26 * edge * edge, Yl = 0.7 * edge * edge + 0.22 * Math.max(0, ck) + 0.1 * fbm(X / 500 + 7, Y / 500, 2);
 		for (const [sx, sy, sr] of stains) if (Math.hypot(X - sx, Y - sy) < sr * (0.85 + 0.3 * fbm(X / 60, Y / 60, 2))) { L -= 0.018; Yl += 0.16; }
-		if (!night) return [(247 - 8 * Yl) * L, (239 - 18 * Yl) * L, (219 - 36 * Yl) * L];
+		if (!night) return [(244 - 10 * Yl) * L, (234 - 22 * Yl) * L, (209 - 42 * Yl) * L];
 		const glow = Math.max(0, 1 - Math.hypot(X - cx, (Y - cy) * 1.2) / cr);
 		const k = (0.16 + 0.34 * glow * glow) * L;
 		return [(150 - 10 * Yl) * k + 6, (108 - 18 * Yl) * k + 4, (66 - 30 * Yl) * k + 2];
@@ -102,7 +102,7 @@ function vellum(x: CanvasRenderingContext2D, W: number, H: number, night: boolea
 	grain(x, W, H, night ? 18 : 26, 60, 255);
 	const dot = night ? (a: number) => `rgba(10,6,2,${a})` : (a: number) => `rgba(110,80,50,${a})`;
 	for (let n = 0; n < (W * H) / 2600; n++) { x.fillStyle = dot(0.12 + r() * 0.18); x.beginPath(); x.arc(r() * W, r() * H, 0.5 + r() * 0.7, 0, 6.3); x.fill(); } // hair follicles
-	for (let c = 0; c < 5; c++) { // foxing
+	for (let c = 0; c < 9; c++) { // foxing
 		const fx = r() * W, fy = r() * H;
 		for (let n = 0; n < 14; n++) { x.fillStyle = night ? `rgba(90,50,20,${0.08 + r() * 0.15})` : `rgba(150,95,45,${0.1 + r() * 0.25})`; x.beginPath(); x.arc(fx + (r() - 0.5) * 70, fy + (r() - 0.5) * 50, 0.8 + r() * 3.2, 0, 6.3); x.fill(); }
 	}
@@ -116,56 +116,6 @@ function vellum(x: CanvasRenderingContext2D, W: number, H: number, night: boolea
 	for (let y = 30; y < H; y += 28) { x.beginPath(); x.moveTo(col.l, y + (r() - 0.5)); x.lineTo(col.r, y + (r() - 0.5)); x.stroke(); }
 	x.fillStyle = night ? 'rgba(0,0,0,.4)' : 'rgba(110,70,40,.4)';
 	for (let y = 30; y < H; y += 28) x.fillRect(col.l - 12, y - 0.8, 1.6, 1.6);
-	// Simples in the margins, where there is room: a cornflower to the left, reeds to the right.
-	if (col.l > 150) { herb(x, col.l * 0.5, H - 30, Math.min(col.l * 0.8, 260), night, 'cornflower'); herb(x, col.r + (W - col.r) * 0.5, H - 30, Math.min((W - col.r) * 0.8, 260), night, 'reeds'); }
-}
-
-/** A plant as the herbals paint them: flat colour, an ink outline, every line wavering a little. */
-function herb(x: CanvasRenderingContext2D, cx: number, base: number, size: number, night: boolean, kind: 'cornflower' | 'reeds') {
-	const r = rng(kind === 'reeds' ? 5 : 9), k = size / 200, fade = night ? 0.35 : 0.9;
-	const ink = `rgba(58,38,20,${0.8 * fade})`, green = `rgba(95,143,74,${fade})`, leaf = `rgba(127,174,90,${fade})`;
-	x.save(); x.lineCap = 'round'; x.lineJoin = 'round';
-	const stroke = (pts: [number, number][], col: string, w: number) => {
-		x.beginPath(); pts.forEach(([px, py], i) => (i ? x.lineTo(px + (r() - 0.5) * k, py + (r() - 0.5) * k) : x.moveTo(px, py)));
-		x.strokeStyle = ink; x.lineWidth = w + 1.6 * k; x.stroke(); x.strokeStyle = col; x.lineWidth = w; x.stroke();
-	};
-	const blade = (bx: number, by: number, ang: number, len: number) => {
-		const tx = bx + Math.cos(ang) * len, ty = by + Math.sin(ang) * len, nx = -Math.sin(ang) * len * 0.16, ny = Math.cos(ang) * len * 0.16;
-		x.beginPath(); x.moveTo(bx, by); x.quadraticCurveTo((bx + tx) / 2 + nx, (by + ty) / 2 + ny, tx, ty); x.quadraticCurveTo((bx + tx) / 2 - nx, (by + ty) / 2 - ny, bx, by);
-		x.fillStyle = leaf; x.fill(); x.strokeStyle = ink; x.lineWidth = 0.9 * k + 0.3; x.stroke();
-	};
-	if (kind === 'reeds') {
-		// A tuft of earth, cut away below as the painters showed it, and reeds standing from it.
-		x.beginPath(); x.moveTo(cx - 80 * k, base); x.quadraticCurveTo(cx, base - 26 * k, cx + 80 * k, base); x.lineTo(cx + 74 * k, base + 14 * k); x.lineTo(cx - 76 * k, base + 14 * k); x.closePath();
-		x.fillStyle = `rgba(111,154,76,${fade})`; x.fill(); x.strokeStyle = ink; x.lineWidth = 1.2; x.stroke();
-		x.fillStyle = `rgba(160,110,60,${fade})`; x.fillRect(cx - 76 * k, base + 6 * k, 150 * k, 8 * k);
-		for (let i = 0; i < 5; i++) {
-			const sx = cx - 56 * k + i * 28 * k, top = base - (150 + r() * 40) * k;
-			stroke([[sx, base - 8 * k], [sx + (r() - 0.5) * 6 * k, (base + top) / 2], [sx + (r() - 0.5) * 8 * k, top]], `rgba(222,226,190,${fade})`, 4 * k + 1);
-			for (let j = 1; j < 4; j++) { const ny = base - 8 * k - j * (base - top) / 4; x.strokeStyle = ink; x.lineWidth = 0.8; x.beginPath(); x.moveTo(sx - 3 * k, ny); x.lineTo(sx + 3 * k, ny); x.stroke(); blade(sx, ny, -Math.PI / 2 + (j % 2 ? 0.7 : -0.7), 30 * k); }
-			blade(sx, top, -Math.PI / 2 + (r() - 0.5) * 0.4, 26 * k);
-		}
-	} else {
-		// A cornflower: a branching stem, grey-green buds, ragged blue heads.
-		const heads: [number, number][] = [];
-		const branch = (bx: number, by: number, ang: number, len: number, d: number) => {
-			const tx = bx + Math.cos(ang) * len, ty = by + Math.sin(ang) * len;
-			stroke([[bx, by], [(bx + tx) / 2 + (r() - 0.5) * 8 * k, (by + ty) / 2], [tx, ty]], green, 2.2 * k + 0.6);
-			blade((bx + tx) / 2, (by + ty) / 2, ang + (r() < 0.5 ? 0.9 : -0.9), 34 * k);
-			if (d < 2) { branch(tx, ty, ang - 0.55, len * 0.7, d + 1); branch(tx, ty, ang + 0.5, len * 0.66, d + 1); } else heads.push([tx, ty]);
-		};
-		branch(cx, base, -Math.PI / 2, 70 * k, 0);
-		heads.forEach(([hx, hy], i) => {
-			if (i % 3 === 2) { x.beginPath(); x.ellipse(hx, hy, 6 * k, 9 * k, 0, 0, 6.3); x.fillStyle = `rgba(150,170,120,${fade})`; x.fill(); x.strokeStyle = ink; x.lineWidth = 0.8; x.stroke(); return; }
-			x.beginPath(); x.ellipse(hx, hy + 6 * k, 6 * k, 7 * k, 0, 0, 6.3); x.fillStyle = `rgba(150,170,120,${fade})`; x.fill(); x.strokeStyle = ink; x.lineWidth = 0.8; x.stroke();
-			for (let pp = 0; pp < 7; pp++) {
-				const a = -Math.PI / 2 + (pp - 3) * 0.38, len = (16 + r() * 6) * k;
-				x.beginPath(); x.moveTo(hx, hy); x.lineTo(hx + Math.cos(a - 0.12) * len, hy + Math.sin(a - 0.12) * len); x.lineTo(hx + Math.cos(a) * len * 1.15, hy + Math.sin(a) * len * 1.15); x.lineTo(hx + Math.cos(a + 0.12) * len, hy + Math.sin(a + 0.12) * len); x.closePath();
-				x.fillStyle = `rgba(61,100,200,${fade})`; x.fill(); x.strokeStyle = `rgba(30,50,110,${fade})`; x.lineWidth = 0.7; x.stroke();
-			}
-		});
-	}
-	x.restore();
 }
 
 // ---- the Victorian book of the occult ------------------------------------------------------------
