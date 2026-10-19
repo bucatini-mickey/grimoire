@@ -315,6 +315,41 @@ function textBoxes(s: Text): string {
 	return body || data ? `${gap}<span class="${cls}"${data} style="width:calc(var(--cw) * ${chars.length - lead})">${esc(body, s.face === 'art')}</span>` : gap;
 }
 
+/** The book's name at the head of the page, its first letter a painted initial. */
+export function titleRow(word = 'Grimoire'): Row {
+	const [first, ...rest] = [...word];
+	return { segs: [], cls: 'title', html: `<h1 class="ms-title" aria-label="${escAttr(word)}"><span class="ini" aria-hidden="true">${esc(first)}</span><span aria-hidden="true">${esc(rest.join(''))}</span></h1>` };
+}
+
+/**
+ * Words set in a book face are wider or narrower than the grid's columns, and
+ * a long name may not fit its box at all. Any word or button that would spill
+ * past its box is set a little smaller, so the box's right edge (a border, the
+ * next word) stays where the grid put it. Measured after the fonts load and
+ * again whenever the page changes width.
+ */
+const painted = new Set<HTMLElement>();
+function fit(root: HTMLElement) {
+	if (!root.isConnected) { painted.delete(root); return; }
+	const els = root.querySelectorAll<HTMLElement>('.s:not(.art), .b');
+	for (const el of els) el.style.fontSize = '';
+	const shrink: [HTMLElement, number][] = [];
+	for (const el of els) {
+		const w = el.clientWidth, sw = el.scrollWidth;
+		if (w > 0 && sw > w + 0.5) shrink.push([el, w / sw]);
+	}
+	// Read everything first, then write, so the page lays out once.
+	const sizes = shrink.map(([el]) => parseFloat(getComputedStyle(el).fontSize));
+	shrink.forEach(([el, k], i) => { el.style.fontSize = `${(sizes[i] * k * 0.98).toFixed(2)}px`; });
+}
+if (typeof document !== 'undefined') {
+	const again = () => { for (const r of [...painted]) fit(r); };
+	void document.fonts?.ready.then(again);
+	document.fonts?.addEventListener?.('loadingdone', again);
+	let t = 0;
+	addEventListener('resize', () => { clearTimeout(t); t = setTimeout(again, 120) as unknown as number; });
+}
+
 /**
  * Draw rows into `root`. Buttons get a data-id; one delegated listener on the
  * root calls the right action, so re-rendering never leaks listeners.
@@ -358,6 +393,8 @@ export function paint(root: HTMLElement, rows: Row[]) {
 		html.push(`<div class="${cls}"${style}>${inner || '&nbsp;'}</div>`);
 	}
 	root.innerHTML = html.join('');
+	fit(root);
+	painted.add(root);
 	(root as HTMLElement & { _actions?: (() => void)[] })._actions = actions;
 	if (!root.dataset.wired) {
 		root.dataset.wired = '1';

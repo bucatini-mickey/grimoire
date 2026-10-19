@@ -8,7 +8,7 @@
  * Storyteller. Nothing is decided here, and nothing secret arrives here
  * except what views.ts says is yours.
  */
-import { COLS, INNER, blank, btn, buttonRows, center, endPanel, frameBottom, frameTop, paint, paneled, pad, row, rubric, txt, wrap } from './ascii.ts';
+import { COLS, INNER, titleRow, blank, btn, buttonRows, center, endPanel, frameBottom, frameTop, paint, paneled, pad, row, rubric, txt, wrap } from './ascii.ts';
 import type { Row } from './ascii.ts';
 import { joinRoom } from '../net/link.ts';
 import type { LinkStatus, PlayerLink } from '../net/link.ts';
@@ -202,7 +202,7 @@ function receive(msg: HostMsg) {
 // ---- screens ------------------------------------------------------------------------
 
 function header(): Row[] {
-	return [{ segs: [txt('Grimoire', 'title')], cls: 'title' }];
+	return [titleRow()];
 }
 
 const esc = (x: string) => x.replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);

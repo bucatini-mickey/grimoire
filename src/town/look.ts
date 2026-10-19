@@ -34,6 +34,10 @@ const MATS: Record<string, Mat> = {
 	granite: { fg: [118, 116, 124], bg: [46, 44, 52], wall: '▓', floors: ['.', '·', '.', ','] },
 	water: { fg: [96, 150, 196], bg: [18, 44, 72], wall: '≈', floors: ['~', '≈', '~', '-'] },
 	glass: { fg: [170, 214, 232], bg: [44, 70, 84], wall: '░', floors: ['.'] },
+	// Saltgrave's: sooty brick terraces, wet cobbles, iron railings.
+	brick: { fg: [168, 92, 70], bg: [60, 30, 26], wall: '#', floors: ['+'], style: 'double' },
+	cobble: { fg: [124, 122, 120], bg: [40, 40, 42], wall: '▒', floors: ['∙', '·', ':', '∙', '.'] },
+	iron: { fg: [96, 102, 110], bg: [24, 26, 30], wall: '╫', floors: ['.'] },
 	ice: { fg: [200, 230, 244], bg: [70, 96, 112], wall: '░', floors: ['.'] }
 };
 const FALLBACK = MATS.soil;
@@ -48,7 +52,9 @@ const KINDS: Record<string, Kind> = {
 	candle: { ch: 'i', fg: [250, 240, 200], light: [170, 130, 70], flicker: true },
 	altar: { ch: '╤', fg: STONE }, pew: { ch: '═', fg: BROWN }, coffin: { ch: '▬', fg: [90, 60, 40] }, statue: { ch: '†', fg: STONE },
 	well: { ch: 'O', fg: STONE }, anvil: { ch: '¬', fg: [120, 120, 130] }, 'hay bale': { ch: '"', fg: [220, 200, 100] },
-	sign: { ch: '¶', fg: BROWN }, bell: { ch: ' ', fg: [214, 172, 92] }, oak: { ch: '♣', fg: [70, 120, 46] }, loom: { ch: '╫', fg: BROWN }, oven: { ch: '◙', fg: [200, 120, 70], light: [150, 80, 30] }, cart: { ch: '⌐', fg: BROWN }, clock: { ch: ' ', fg: [214, 172, 92] }, flowers: { ch: '*', fg: [220, 120, 160] }, waterfall: { ch: '¦', fg: [200, 228, 240] }, rug: { ch: '░', fg: [150, 50, 50] }, 'plank bridge': { ch: '=', fg: [150, 110, 70] }
+	sign: { ch: '¶', fg: BROWN }, bell: { ch: ' ', fg: [214, 172, 92] }, oak: { ch: '♣', fg: [70, 120, 46] }, loom: { ch: '╫', fg: BROWN }, oven: { ch: '◙', fg: [200, 120, 70], light: [150, 80, 30] }, cart: { ch: '⌐', fg: BROWN }, clock: { ch: ' ', fg: [214, 172, 92] }, flowers: { ch: '*', fg: [220, 120, 160] }, waterfall: { ch: '¦', fg: [200, 228, 240] }, rug: { ch: '░', fg: [150, 50, 50] },
+	'gas lamp': { ch: '‡', fg: [214, 236, 196], light: [150, 186, 150] }, fern: { ch: '♠', fg: [72, 150, 96] },
+	sigil: { ch: '✶', fg: [120, 230, 180], light: [50, 130, 100], flicker: true }, 'plank bridge': { ch: '=', fg: [150, 110, 70] }
 };
 const DOUBLE = ['■', '║', '═', '╚', '║', '║', '╔', '╠', '═', '╝', '═', '╩', '╗', '╣', '╦', '╬'];
 const SINGLE = ['o', '│', '─', '└', '│', '│', '┌', '├', '─', '┘', '─', '┴', '┐', '┤', '┬', '┼'];

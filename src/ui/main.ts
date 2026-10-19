@@ -17,7 +17,7 @@
  */
 import * as G from '../core/index.ts';
 import type { Candidate, CharacterId, Command, GameEvent, GameState, Info, SeatId, Script, Lean } from '../core/index.ts';
-import { COLS, INNER, Canvas, blank, btn, buttonRows, center, endPanel, frameBottom, frameTop, paint, paneled, pad, row, rubric, rule, segWidth, txt, wrap } from './ascii.ts';
+import { COLS, INNER, Canvas, titleRow, blank, btn, buttonRows, center, endPanel, frameBottom, frameTop, paint, paneled, pad, row, rubric, rule, segWidth, txt, wrap } from './ascii.ts';
 import type { Button, Row, Seg, Tone } from './ascii.ts';
 import * as T from './timer.ts';
 import { paletteCss, sprite, svg, towerScene } from './pixel.ts';
@@ -26,6 +26,7 @@ import { hostRoom, newRoomCode } from '../net/link.ts';
 import type { HostLink, LinkStatus } from '../net/link.ts';
 import type { ClockView, HostMsg, PlayerMsg, VoteView } from '../net/protocol.ts';
 import { startPlayer } from './player.ts';
+import { startBackdrop } from './backdrop.ts';
 import { INKS, startVillage, villageForGame } from '../town/village.ts';
 import { AMNESIAC_IDEAS, savantPair, savantStatements } from './helpers.ts';
 import type { Extra, StActions, VillageHost } from '../town/village.ts';
@@ -568,7 +569,7 @@ function header(): Row[] {
 		p.kind === 'day' ? `Day ${p.n}` : 'Game over';
 	const tab = (t: Tab, label: string) => btn(label, () => { ui.tab = t; render(); }, { style: ui.tab === t ? 'on' : undefined });
 	return [
-		{ segs: [txt('Grimoire', 'title')], cls: 'title' },
+		titleRow(),
 		row(txt(center(phase), 'rubric', 'heading')),
 		...buttonRows([
 			btn('Home', () => go(''), { style: 'quiet' }), tab('grimoire', 'Grim'), tab('log', 'Log'), tab('ties', 'Ties'), tab('options', 'Clock'), tab('phones', link ? 'Phones*' : 'Phones'),
@@ -671,7 +672,7 @@ function homeScreen(): Row[] {
 		cards.push(`<div class="home-resume"><div><div class="hr-label">Rejoin room <b class="mono">${esc(mine.room)}</b></div><div class="hr-sub">as ${esc(mine.name)}</div></div><button class="primary" data-act="${a(() => go(`#join=${mine.room}`))}">Rejoin</button></div>`);
 	}
 	const card = (ico: string, title: string, sub: string, act: () => void, cls = '') =>
-		`<button class="home-card ${cls}" data-act="${a(act)}"><span class="hc-ico">${ico}</span><span class="hc-text"><span class="hc-title">${title}</span><span class="hc-sub">${sub}</span></span></button>`;
+		`<button class="home-card ${cls}" data-act="${a(act)}"><span class="hc-rib"><span class="hc-ico">${ico}</span><span class="hc-text"><span class="hc-title">${title}</span><span class="hc-sub">${sub}</span></span></span></button>`;
 	const ending = busy && saved.net?.village;
 	cards.push(
 		card('\u2302', ui.confirm === 'host' ? 'Start a new game?' : 'Host a game', ui.confirm === 'host' ? 'Your current game will end. Tap again.' : 'Everyone on their own phone, in the village.', () => { if (ending && ui.confirm !== 'host') { ui.confirm = 'host'; render(); } else hostNew(); }, 'primary'),
@@ -800,10 +801,11 @@ function customPicker(): Row[] {
 }
 
 function art(): Row[] {
+	// The frontispiece: the clocktower as a miniature in a frame of gold leaf, and the book's name.
 	return [
-		{ segs: [], cls: 'title-art', html: svg(sprite('tower') ?? [], 'title-tower') },
-		row(txt(center('Blood on the Clocktower'), 'rubric', 'heading')),
-		row(txt(center('a Storyteller\u2019s companion'), 'dim'))
+		{ segs: [], cls: 'title-art', html: `<figure class="miniature"><div class="mini-in">${svg(sprite('tower') ?? [], 'title-tower')}</div></figure>` },
+		titleRow(),
+		{ segs: [], cls: 'subtitle', html: '<p class="ms-rub">Blood on the Clocktower</p><p class="ms-sub">a Storyteller\u2019s companion</p>' }
 	];
 }
 
@@ -2439,6 +2441,7 @@ function syncVillage() {
 		if (seat === null || !link.peers.get(peer)?.open || !state.seats[seat]) continue;
 		list.push({ peer, name: state.seats[seat].name, seat: state.order.indexOf(seat), dead: !(view.seats.find((s) => s.id === seat)?.alive ?? true) });
 	}
+	village.script(state.seats.length ? state.scriptId : ui.scriptId);
 	// Before the first night the phones wait in the lobby, not in the town.
 	village.seats(state.phase.kind === 'setup' ? [] : list);
 	village.ring(state.order.map((id, i) => ({ seat: i, name: state.seats[id].name, dead: !(view.seats.find((s) => s.id === id)?.alive ?? true) })));
@@ -2720,6 +2723,8 @@ root.addEventListener('input', (ev) => {
 	if (t.id === 'names') ui.names = t.value;
 	if (t.id === 'extra-names') ui.extraNames = t.value;
 });
+
+startBackdrop();
 
 // A player's phone (#join=CODE, or "Join a game") runs the player app instead.
 const joining = location.hash.match(/^#join(?:=([A-Za-z]{4}))?/);

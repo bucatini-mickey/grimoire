@@ -34,6 +34,10 @@ import type { Rgb } from './look.ts';
 import { audio, bell, startVoice } from './voice.ts';
 import type { Voice, VoiceMode } from './voice.ts';
 import VILLAGE from '../../town/castle.tbp';
+import SALTGRAVE from '../../town/victorian.tbp';
+
+/** The town a script is played in: Laissez un Faire in gas-lit Saltgrave, the rest in the castle town. A town the Storyteller loaded themselves wins. */
+const townFor = (script: string | undefined) => store.get('grimoire.town') ?? (script === 'laissez-un-faire' ? SALTGRAVE : VILLAGE);
 
 const PREFIX = 'grimoire-village-';
 
@@ -296,10 +300,10 @@ function workDoor(d: number) {
 	S.dirty = true;
 }
 
-function openVillage() {
+function openVillage(script?: string) {
 	S.host = true;
 	S.room = newRoomCode();
-	S.townText = store.get('grimoire.town') ?? VILLAGE;
+	S.townText = townFor(script);
 	loadTown(S.townText);
 	const link = hostRoom<Up, Down>(S.room, {
 		message: (peerId, msg) => {
@@ -434,6 +438,17 @@ function gatherAtCross(t: Town) {
 		if (st.id === S.me) { S.route = []; cam.ready = false; }
 	}
 	S.dirty = true;
+}
+
+/** The nearest walkable cell to `p` not in `taken`. */
+function nearestOpen(t: Town, p: P, taken: Set<number>): P {
+	for (let r = 0; r < Math.max(t.w, t.h); r++)
+		for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+			if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+			const x = p.x + dx, y = p.y + dy;
+			if (walkable(t, x, y) && !taken.has(x + y * t.w)) return { x, y };
+		}
+	return p;
 }
 
 const occupied = () => new Set([...S.people.values()].map((q) => q.x + q.y * S.town!.w));
@@ -1556,7 +1571,7 @@ function lobby(code: string) {
 	root.innerHTML = `<div class="village v-lobby">
 		<h1>The Village</h1>
 		<p class="v-dim">Walk the town on your own phone. Talk to whoever is near you: voices fade with distance and stop at walls.</p>
-		${code ? '' : '<button data-act="open" class="primary">Open a village (I am the Storyteller)</button><div class="v-or">or join one</div>'}
+		${code ? '' : '<button data-act="open" class="primary">Open the castle town (I am the Storyteller)</button><button data-act="open-saltgrave">Open Saltgrave, the Victorian harbour</button><div class="v-or">or join one</div>'}
 		<label>Your name <input id="v-name" maxlength="14" value="${esc(name)}" autocomplete="off"></label>
 		<label>Village code <input id="v-code" maxlength="4" value="${esc(code)}" autocomplete="off" autocapitalize="characters"></label>
 		<button data-act="join" class="${code ? 'primary' : ''}">Join</button>
@@ -1571,6 +1586,7 @@ function onAct(act: string, el: HTMLElement) {
 	const id = el.dataset.id ?? '';
 	switch (act) {
 		case 'open': audio(); openVillage(); break;
+		case 'open-saltgrave': audio(); openVillage('laissez-un-faire'); break;
 		case 'join': {
 			const code = (root.querySelector<HTMLInputElement>('#v-code')?.value ?? '').trim().toUpperCase();
 			if (code.length !== 4 || !name) { alert('Enter your name and the four-letter code.'); return; }
@@ -1744,6 +1760,8 @@ export interface VillageHost {
 	/** The game's clock (shown in the top bar and on the clock at the cross). */
 	clock(src: ClockSource | null): void;
 	toast(text: string): void;
+	/** The script being played, which picks the town. */
+	script(id: string | undefined): void;
 }
 
 /** The Storyteller's side, on the grimoire's own room. */
@@ -1755,7 +1773,7 @@ export function villageForGame(wire: HostWire, onBack: () => void): VillageHost 
 	S.hostWire = { ...wire, peers: () => [...S.welcomed] };
 	S.status = 'open';
 	if (!S.town) {
-		S.townText = store.get('grimoire.town') ?? VILLAGE;
+		S.townText = townFor(undefined);
 		loadTown(S.townText);
 	}
 	// A new room means a new name for the Storyteller's phone.
@@ -1780,6 +1798,23 @@ export function villageForGame(wire: HostWire, onBack: () => void): VillageHost 
 		ring: (seats) => { if (JSON.stringify(seats) !== JSON.stringify(S.ring)) { S.ring = seats; S.dirty = true; } },
 		clock: (src) => { S.clock = src; },
 		toast,
+		script: (id) => {
+			const text = townFor(id);
+			if (text === S.townText) return;
+			S.townText = text;
+			loadTown(text);
+			// Everyone stands somewhere in the new town: at their seat if they have one, by the meeting place if not.
+			const t = S.town!;
+			const taken = new Set<number>();
+			for (const q of S.people.values()) {
+				const c = (!q.st && seatCell(t, q.seat)) || nearestOpen(t, t.meeting ? { x: Math.round(t.meeting.at.x), y: Math.round(t.meeting.at.y) } : { x: t.w >> 1, y: t.h >> 1 }, taken);
+				q.x = c.x; q.y = c.y; taken.add(c.x + c.y * t.w);
+				const b = S.bots.get(q.id);
+				if (b) b.route = [];
+			}
+			S.route = []; cam.ready = false;
+			for (const id of S.welcomed) welcome(id);
+		},
 		stop: () => {
 			for (const id of S.welcomed) wire.send(id, { t: 'off' });
 			S.welcomed.clear();

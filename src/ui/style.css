@@ -290,8 +290,10 @@ body.village-map #card {
 .ring-centre {
 	position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
 	text-align: center; pointer-events: none;
+	/* Inside the inner ring, however long the names in it. */
+	width: 54cqw;
 }
-.ring-caption { font-family: var(--book); color: var(--dim); font-size: 3.6cqw; line-height: 1.35; white-space: nowrap; }
+.ring-caption { font-family: var(--book); color: var(--dim); font-size: 3.6cqw; line-height: 1.35; text-wrap: balance; overflow-wrap: anywhere; }
 .ring-caption:first-child { font-family: var(--gothic); font-weight: 700; color: var(--rubric); font-size: 6.5cqw; line-height: 1.2; }
 
 .tok {
@@ -344,7 +346,9 @@ body.village-map #card {
 	font-family: var(--book); font-weight: 600;
 	font-size: clamp(11px, 3.4cqw, 16px);
 	line-height: 1.05;
-	white-space: nowrap;
+	/* A long name takes two lines under its token rather than running into the next seat's. */
+	width: 170%; margin-left: -35%;
+	text-align: center; text-wrap: balance; overflow-wrap: anywhere;
 	color: var(--ink);
 }
 .tok-rem {
@@ -680,20 +684,163 @@ button.ghost { border-color: transparent !important; color: var(--dim) !importan
 .join .code-input { margin: 0 auto; }
 .join-status { text-align: center; color: var(--dim); font-size: 15px; }
 
-/* ---- Laissez un Faire: the occult. Drowned greens and black, bone and tarnished brass, a Victorian face; a sigil and something reaching from the corner. ---- */
+/* ==== The page: a leaf of vellum (backdrop.ts paints it into --paper) ===================================
+ * After the bestiary leaf on jsonsummers.github.io/links: iron-gall ink, vermilion rubrics, lapis and gold
+ * leaf; EB Garamond for the text, IM Fell for headings, a painted initial at the head of the page. The
+ * ASCII stays: the grid, the [bracketed] buttons, the drawn frames, now ruled in red. */
+:root {
+	--bg: #ece0c2; --bg-edge: #d8c595; --ink: #24180d; --dim: #6b5233; --rubric: #a8321f; --gold: #8f6a1e;
+	--good: #2d4a95; --evil: #a8321f; --press: #24180d; --press-ink: #f1e6c8;
+	--leaf: #f1e6c8; --leaf-gold: #b98a2e; --lapis: #2d4a95; --verm: #b0402a; --honey: #d9a23c;
+}
+:root[data-phase="night"] {
+	--bg: #1c140c; --bg-edge: #070503; --ink: #ead9b4; --dim: #9a8461; --rubric: #e0745a; --gold: #dcae55;
+	--good: #8fb0e6; --evil: #e0745a; --press: #ead9b4; --press-ink: #1c140c;
+	--leaf: #2b2015; --leaf-gold: #c9993c; --lapis: #4d6fc4; --verm: #c8563c; --honey: #8a6424;
+}
+body { background: var(--paper, none) 0 0 / auto no-repeat fixed, radial-gradient(ellipse at center, var(--bg) 55%, var(--bg-edge) 130%) fixed, var(--bg); }
+#card { background: var(--paper, none) 0 0 / auto no-repeat fixed, var(--bg); }
+#app, #card {
+	--book: 'EB Garamond', 'IM Fell English', Georgia, serif;
+	--book-sc: 'IM Fell English SC', 'EB Garamond', Georgia, serif;
+	--gothic: 'IM Fell English SC', 'IM Fell English', Georgia, serif;
+}
+.s.heading { font-weight: 400; letter-spacing: .03em; }
+.b { font-weight: 400; letter-spacing: .02em; }
+.b-primary, .b-danger { font-weight: 400; }
+/* The frames are ruled in red, as a scribe ruled for the rubricator. */
+.frame-top, .frame-mid, .frame-bot { --ln: color-mix(in srgb, var(--rubric) 55%, transparent); }
+
+/* The book's name: a lapis initial on a square of gold leaf, red penwork trailing down the margin. */
+.row.title { font: inherit; color: var(--ink); padding: 10px 0 4px; }
+.ms-title { margin: 0; display: flex; justify-content: center; align-items: flex-end; gap: .03em; font: 400 clamp(2.6rem, 11vw, 3.6rem)/1 'IM Fell English', Georgia, serif; color: var(--ink); }
+.ini {
+	position: relative; display: inline-grid; place-items: center; width: 1.16em; height: 1.16em; font-size: 1.22em; line-height: 1;
+	color: var(--lapis); background: radial-gradient(circle at 30% 25%, #f0d684, #c39535 55%, #9d7224);
+	border: 2px solid #24180d; box-shadow: inset 0 0 0 3px rgba(255, 240, 190, .35), inset 0 0 0 4px rgba(36, 24, 13, .5);
+}
+.ini::after {
+	content: ""; position: absolute; left: -34%; top: 72%; width: 44%; height: 1.5em; pointer-events: none;
+	background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 100' fill='none' stroke='%23b0402a' stroke-width='1.4' stroke-linecap='round'%3E%3Cpath d='M12 0c0 20 8 26 4 44s-10 22-4 40'/%3E%3Cpath d='M16 18c6 2 12-2 14 4M16 34c-7 2-9 8-5 10M14 56c6-1 10 3 8 8M12 74c-6 2-6 8-1 9'/%3E%3Ccircle cx='30' cy='22' r='1.6' fill='%23b0402a'/%3E%3Ccircle cx='11' cy='44' r='1.6' fill='%23b0402a'/%3E%3Ccircle cx='22' cy='64' r='1.6' fill='%23b0402a'/%3E%3C/svg%3E") no-repeat top left / contain;
+}
+.subtitle { height: auto; white-space: normal; text-align: center; }
+.ms-rub { margin: 14px 0 0; color: var(--verm); font: italic 400 1.35em/1.3 'IM Fell English', Georgia, serif; }
+.ms-sub { margin: 2px 0 6px; color: var(--dim); font: 400 1.05em var(--book); font-variant: small-caps; letter-spacing: .08em; }
+
+/* The frontispiece: the clocktower as a miniature in gold leaf over red bole. */
+.title-art { padding: 14px 0 6px; }
+.miniature { margin: 0; padding: 5px; background: linear-gradient(135deg, #f0d684, #c39535 40%, #9d7224 60%, #e2c070); box-shadow: 0 0 0 1.5px #24180d, 0 0 0 4px #8e2f1d, 0 0 0 5.5px #24180d, 0 6px 18px rgba(36, 24, 13, .25); }
+.mini-in { padding: 10px 18px 4px; background: radial-gradient(ellipse at 50% 30%, #3f5fa8, #2d4a95 55%, #1f3470); box-shadow: inset 0 0 0 1px #24180d; }
+.mini-in .title-tower { display: block; }
+
+/* The ways in: banderoles, gold-edged for the Storyteller, vermilion for the rest; pointed at, they fill with honey. */
+.home { gap: 14px; }
+.home .home-card, .home .home-card.primary {
+	--c: var(--verm);
+	display: block; padding: 2px !important; min-height: 0 !important; border: 0; border-radius: 0 !important; background: var(--c); color: var(--ink);
+	clip-path: polygon(0 0, 100% 0, 96% 50%, 100% 100%, 0 100%, 4% 50%); transition: transform .15s ease;
+}
+.home .home-card.primary { --c: var(--leaf-gold); padding: 3px !important; }
+.hc-rib { display: flex; align-items: center; gap: 14px; padding: 12px 9% 12px 9%; background: var(--leaf); clip-path: polygon(0 0, 100% 0, 96.2% 50%, 100% 100%, 0 100%, 3.8% 50%); transition: background-color .3s; text-align: left; }
+.home .home-card:hover .hc-rib, .home .home-card:focus-visible .hc-rib { background: var(--honey); }
+.home .home-card:active { transform: translateY(1px) scale(.99); }
+.hc-ico { font-size: 28px; color: var(--verm); width: 34px; }
+.home-card:nth-child(even) .hc-ico { color: var(--lapis); }
+.home-card.primary .hc-ico { color: var(--lapis); }
+.hc-title { font: 400 22px 'IM Fell English', Georgia, serif; color: var(--ink); }
+.home-card.primary .hc-title { font-size: 24px; }
+.hc-sub { font: italic 400 15px var(--book); color: var(--dim); opacity: 1; }
+.home-resume { border: 0; border-radius: 0; padding: 10px 2px; border-top: 1px solid color-mix(in srgb, var(--verm) 55%, transparent); border-bottom: 1px solid color-mix(in srgb, var(--verm) 55%, transparent); }
+.hr-label { font: 400 18px 'IM Fell English', Georgia, serif; }
+.hr-sub { font-style: italic; }
+
+/* Buttons off the grid: a ruled box of ink; the main one is gold leaf. */
+.home button, .lobby button, .page-head button, .lobby-start button, .join button { font: 400 18px var(--book); border-radius: 2px; border: 1px solid var(--dim); }
+.home-resume button.primary, .join button.primary, .big-primary {
+	background: radial-gradient(circle at 30% 25%, #f0d684, #c39535 55%, #9d7224) !important; color: #24180d !important; border: 1.5px solid #24180d !important;
+	box-shadow: inset 0 0 0 2px rgba(255, 240, 190, .35), 0 4px 14px rgba(36, 24, 13, .2) !important; font-family: 'IM Fell English SC', Georgia, serif !important; letter-spacing: .04em;
+}
+.big-primary { border-radius: 2px !important; }
+.ph-title, .lobby-head { font-family: 'IM Fell English SC', Georgia, serif; font-weight: 400; color: var(--rubric); }
+.lobby-head b { font-family: var(--book); }
+/* The room's code: a charter, its code in a clerk's hand of plain letters. */
+.room-card { border-radius: 0; border: 0; background: var(--leaf); box-shadow: 0 0 0 1px var(--dim), 0 0 0 4px var(--leaf), 0 0 0 5px var(--rubric); }
+.rc-label { font-family: 'IM Fell English SC', Georgia, serif; text-transform: none; font-size: 15px; color: var(--rubric); }
+.rc-code { color: var(--ink); }
+/* The players: written in, each with a painted initial, gold and lapis by turn. */
+.lp { border-radius: 0; background: none; border-bottom: 1px solid color-mix(in srgb, var(--dim) 35%, transparent); }
+.av { border-radius: 0; width: 34px; height: 34px; font: 400 21px 'IM Fell English', Georgia, serif; color: var(--lapis); background: radial-gradient(circle at 30% 25%, #f0d684, #c39535 55%, #9d7224); border: 1.5px solid #24180d; }
+.lp:nth-child(even) .av { color: var(--verm); }
+.lp-name { font: 400 19px var(--book); }
+.lp-empty { border-radius: 0; font-family: var(--book); }
+.add-row input, .join input { border-radius: 2px; font-family: var(--book); background: color-mix(in srgb, var(--leaf) 60%, transparent); }
+#drawer-tabs button { font-family: 'IM Fell English SC', Georgia, serif; font-weight: 400; }
+
+/* ==== Laissez un Faire: a Victorian book of the occult ===================================================
+ * Marbled endpapers, a damp gaslit page, brass rules with tentacles at the corners (backdrop.ts). Old
+ * Standard for the text, Playfair's Didone capitals for the headings, an engraved initial in a brass
+ * frame, labels with their corners cut like a museum's cards. */
 :root[data-theme="occult"], :root[data-theme="occult"][data-phase="night"] {
-	--bg: #0f1a17; --bg-edge: #020504; --ink: #ddd5bf; --dim: #7f8f84; --rubric: #8ec3a9; --gold: #b8954f;
-	--good: #7fb0c4; --evil: #c85a48; --poison: #9ccf6a; --drunk: #b48ad0; --press: #ddd5bf; --press-ink: #0f1a17;
+	--bg: #0f1a17; --bg-edge: #020504; --ink: #e2dac4; --dim: #8a998d; --rubric: #8ec3a9; --gold: #c9a45a;
+	--good: #8ab8cc; --evil: #d0644f; --poison: #9ccf6a; --drunk: #b48ad0; --press: #e2dac4; --press-ink: #0f1a17;
+	--leaf: #15231f; --leaf-gold: #b8954f; --lapis: #8ec3a9; --verm: #d0644f; --honey: #23392f; --brass: #b8954f;
 	color-scheme: dark;
 }
 :root[data-theme="occult"] #app, :root[data-theme="occult"] #card {
-	--book: 'IM Fell English', 'Iowan Old Style', Georgia, serif;
-	--book-sc: 'IM Fell English SC', 'IM Fell English', Georgia, serif;
-	--gothic: 'IM Fell English SC', 'IM Fell English', Georgia, serif;
+	--book: 'Old Standard TT', 'IM Fell English', Georgia, serif;
+	--book-sc: 'Playfair Display SC', 'Old Standard TT', Georgia, serif;
+	--gothic: 'Playfair Display SC', 'Old Standard TT', Georgia, serif;
 }
-:root[data-theme="occult"] body { background: radial-gradient(ellipse at 50% 35%, #18291f 0%, var(--bg) 48%, var(--bg-edge) 125%) fixed, var(--bg); }
-:root[data-theme="occult"] body::before, :root[data-theme="occult"] body::after { content: ''; position: fixed; pointer-events: none; z-index: 0; opacity: .09; background-repeat: no-repeat; background-size: contain; }
-:root[data-theme="occult"] body::before { right: -40px; top: -40px; width: 260px; height: 260px; background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20200%20200%22%20fill%3D%22none%22%20stroke%3D%22%238ec3a9%22%20stroke-width%3D%222%22%3E%3Ccircle%20cx%3D%22100%22%20cy%3D%22100%22%20r%3D%2280%22%2F%3E%3Ccircle%20cx%3D%22100%22%20cy%3D%22100%22%20r%3D%2262%22%2F%3E%3Cpath%20d%3D%22M100%2020%20L169%20140%20L31%20140%20Z%20M100%20180%20L31%2060%20L169%2060%20Z%22%2F%3E%3Cellipse%20cx%3D%22100%22%20cy%3D%22100%22%20rx%3D%2222%22%20ry%3D%2212%22%2F%3E%3Ccircle%20cx%3D%22100%22%20cy%3D%22100%22%20r%3D%226%22%20fill%3D%22%238ec3a9%22%2F%3E%3C%2Fsvg%3E"); }
-:root[data-theme="occult"] body::after { left: 0; bottom: 0; width: 240px; height: 240px; opacity: .12; background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20220%20220%22%20fill%3D%22none%22%20stroke%3D%22%238ec3a9%22%20stroke-width%3D%223%22%20stroke-linecap%3D%22round%22%3E%3Cpath%20d%3D%22M0%20220%20C40%20170%2030%20120%2080%20100%20C130%2080%20120%2040%20160%2030%20C185%2024%20200%2040%20190%2058%20C182%2072%20165%2066%20168%2054%22%2F%3E%3Cpath%20d%3D%22M0%20200%20C30%20160%2020%20130%2055%20112%22%20stroke-width%3D%222%22%2F%3E%3Cg%20fill%3D%22%238ec3a9%22%20stroke%3D%22none%22%3E%3Ccircle%20cx%3D%2270%22%20cy%3D%22108%22%20r%3D%223%22%2F%3E%3Ccircle%20cx%3D%2298%22%20cy%3D%2294%22%20r%3D%223%22%2F%3E%3Ccircle%20cx%3D%22124%22%20cy%3D%2274%22%20r%3D%222.6%22%2F%3E%3Ccircle%20cx%3D%22146%22%20cy%3D%2244%22%20r%3D%222.2%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"); }
-:root[data-theme="occult"] #app, :root[data-theme="occult"] #card { position: relative; z-index: 1; }
-:root[data-theme="occult"] .home-card.primary, :root[data-theme="occult"] .big-primary { box-shadow: 0 0 0 1px var(--gold), 0 6px 20px rgba(0, 0, 0, .5); }
+:root[data-theme="occult"] .s.heading { letter-spacing: .06em; }
+:root[data-theme="occult"] .b { font-size: .98em; letter-spacing: .03em; }
+:root[data-theme="occult"] .frame-top, :root[data-theme="occult"] .frame-mid, :root[data-theme="occult"] .frame-bot { --ln: color-mix(in srgb, var(--brass) 60%, transparent); }
+:root[data-theme="occult"] .ms-title { font: italic 700 clamp(2.5rem, 10.5vw, 3.4rem)/1 'Playfair Display', Georgia, serif; color: var(--ink); }
+/* The engraved initial: bone on black in a brass frame, a tentacle curling from its foot. */
+:root[data-theme="occult"] .ini {
+	font: 900 1.12em/1 'Playfair Display SC', Georgia, serif; color: #e2dac4; background: radial-gradient(circle at 50% 40%, #1e302a, #070b0a);
+	border: 1.5px solid var(--brass); box-shadow: 0 0 0 3px #070b0a, 0 0 0 4px var(--brass), inset 0 0 12px rgba(142, 195, 169, .25);
+}
+:root[data-theme="occult"] .ini::after {
+	left: -48%; top: 64%; width: 56%; height: 1.6em;
+	background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 100' fill='none' stroke='%236f9e86' stroke-linecap='round'%3E%3Cpath d='M30 0C34 18 10 26 14 46S34 64 24 80C18 90 8 88 9 80C10 74 17 75 16 80' stroke-width='3'/%3E%3Cg fill='%23c9bfa4' stroke='none'%3E%3Ccircle cx='27' cy='14' r='1.3'/%3E%3Ccircle cx='17' cy='34' r='1.3'/%3E%3Ccircle cx='21' cy='56' r='1.2'/%3E%3Ccircle cx='24' cy='72' r='1.1'/%3E%3C/g%3E%3C/svg%3E") no-repeat top left / contain;
+}
+:root[data-theme="occult"] .ms-rub { font: italic 400 1.3em 'Old Standard TT', Georgia, serif; color: var(--rubric); }
+:root[data-theme="occult"] .ms-sub { font-family: 'Playfair Display SC', Georgia, serif; letter-spacing: .14em; font-size: .9em; }
+/* The frontispiece in an oval brass frame, like a cabinet photograph's. */
+:root[data-theme="occult"] .miniature { padding: 4px; border-radius: 50%; background: linear-gradient(135deg, #e3c07a, #8a6a2c 45%, #c9a45a 60%, #5e4520); box-shadow: 0 0 0 1px #070b0a, 0 0 0 5px #0d1513, 0 0 0 6px var(--brass), 0 10px 30px rgba(0, 0, 0, .6); }
+:root[data-theme="occult"] .mini-in { border-radius: 50%; padding: 18px 30px 10px; background: radial-gradient(ellipse at 50% 35%, #2b4a40, #10201b 60%, #050908); }
+/* The ways in: cut-cornered cards with a brass double rule. */
+:root[data-theme="occult"] .home .home-card, :root[data-theme="occult"] .home .home-card.primary {
+	--c: color-mix(in srgb, var(--brass) 70%, transparent); padding: 1px !important;
+	clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px), 0 12px);
+}
+:root[data-theme="occult"] .home .home-card.primary { --c: var(--brass); padding: 2px !important; }
+:root[data-theme="occult"] .hc-rib {
+	padding: 14px 18px; background: linear-gradient(180deg, #172722, #0c1513);
+	clip-path: polygon(11px 0, calc(100% - 11px) 0, 100% 11px, 100% calc(100% - 11px), calc(100% - 11px) 100%, 11px 100%, 0 calc(100% - 11px), 0 11px);
+	box-shadow: inset 0 0 0 3px #0c1513, inset 0 0 0 4px color-mix(in srgb, var(--brass) 45%, transparent);
+}
+:root[data-theme="occult"] .home .home-card:hover .hc-rib, :root[data-theme="occult"] .home .home-card:focus-visible .hc-rib { background: linear-gradient(180deg, #23392f, #12201b); }
+:root[data-theme="occult"] .hc-ico, :root[data-theme="occult"] .home-card:nth-child(even) .hc-ico { color: var(--brass); }
+:root[data-theme="occult"] .hc-title { font: 700 20px 'Playfair Display SC', Georgia, serif; letter-spacing: .04em; color: var(--ink); }
+:root[data-theme="occult"] .hc-sub { font-family: 'Old Standard TT', Georgia, serif; }
+:root[data-theme="occult"] .hr-label { font-family: 'Playfair Display SC', Georgia, serif; }
+:root[data-theme="occult"] .home-resume { border-color: color-mix(in srgb, var(--brass) 55%, transparent); }
+:root[data-theme="occult"] .home-resume button.primary, :root[data-theme="occult"] .join button.primary, :root[data-theme="occult"] .big-primary {
+	background: linear-gradient(180deg, #d9b56a, #9c7a36) !important; color: #0c1513 !important; border: 1px solid #0c1513 !important;
+	box-shadow: 0 0 0 1px var(--brass), 0 6px 20px rgba(0, 0, 0, .5) !important; font-family: 'Playfair Display SC', Georgia, serif !important;
+}
+:root[data-theme="occult"] .ph-title, :root[data-theme="occult"] .lobby-head, :root[data-theme="occult"] .rc-label { font-family: 'Playfair Display SC', Georgia, serif; }
+:root[data-theme="occult"] .room-card { background: #0c1513; box-shadow: 0 0 0 1px var(--brass), 0 0 0 4px #0c1513, 0 0 0 5px var(--brass); }
+:root[data-theme="occult"] .rc-code { color: var(--gold); }
+:root[data-theme="occult"] .av { border-radius: 50%; font: 900 19px 'Playfair Display SC', Georgia, serif; color: #e2dac4; background: radial-gradient(circle at 50% 40%, #1e302a, #070b0a); border: 1.5px solid var(--brass); }
+:root[data-theme="occult"] .lp:nth-child(even) .av { color: var(--rubric); }
+:root[data-theme="occult"] .lp-name { font-family: 'Old Standard TT', Georgia, serif; }
+:root[data-theme="occult"] #drawer-tabs { background: #070b0a; border-top-color: var(--brass); }
+:root[data-theme="occult"] #drawer-tabs button { font-family: 'Playfair Display SC', Georgia, serif; color: #e2dac4; }
+:root[data-theme="occult"] #drawer-tabs button.on { color: var(--rubric); border-color: color-mix(in srgb, var(--rubric) 60%, transparent); }
+/* Old Standard and Playfair are wide faces: a size smaller on the grid, and the buttons in Old Standard's small capitals, so words fit their columns without squeezing. */
+:root[data-theme="occult"] .s { font-size: 1em; }
+:root[data-theme="occult"] .b { font-family: 'Old Standard TT', Georgia, serif; font-variant-caps: small-caps; font-size: 1em; letter-spacing: .01em; }
+:root[data-theme="occult"] .s.heading { font-size: 1.05em; }
+:root[data-theme="occult"] .row.prose { font-size: 1.1em; }
