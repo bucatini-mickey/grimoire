@@ -12,10 +12,10 @@ function game() {
 	return r.state;
 }
 
-test('Laissez un Faire is a script: five Townsfolk, two Outsiders, two Minions, the Leviathan', () => {
+test('Laissez un Faire, with the Amnesiac: six Townsfolk, two Outsiders, two Minions, the Leviathan', () => {
 	const s = G.getScript('laissez-un-faire');
 	const n = (t: string) => s.characters.filter((c) => c.team === t).length;
-	assert.deepEqual([n('townsfolk'), n('outsider'), n('minion'), n('demon')], [5, 2, 2, 1]);
+	assert.deepEqual([n('townsfolk'), n('outsider'), n('minion'), n('demon')], [6, 2, 2, 1]);
 });
 
 test('the Savant: a true and a false statement; or two truths, or two lies; and the truths are true', () => {

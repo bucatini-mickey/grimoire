@@ -758,12 +758,9 @@ body { background: var(--paper, none) 0 0 / auto no-repeat fixed, radial-gradien
 }
 :root:not([data-theme="occult"]) .home .home-card:last-child { border-bottom: 0; }
 :root:not([data-theme="occult"]) .hc-rib { display: grid; grid-template-columns: 2.6em 1fr; align-items: baseline; padding: 10px 6px 10px 0; transition: background-color .3s; }
-:root:not([data-theme="occult"]) .hc-rib::before {
-	content: counter(step, upper-roman) "."; justify-self: end; padding-right: .5em;
-	font: 700 1.5em/1 'Almendra', Georgia, serif; color: var(--verm);
-}
-:root:not([data-theme="occult"]) .home-card:nth-child(even of .home-card) .hc-rib::before { color: var(--lapis); }
-:root:not([data-theme="occult"]) .hc-ico { display: none; }
+/* Each way in marked with its sign in the margin, red and blue by turns, as a scribe marked his paragraphs. */
+:root:not([data-theme="occult"]) .hc-ico { justify-self: end; padding-right: .45em; width: auto; font: 400 1.45em/1 "Segoe UI Symbol", "Noto Sans Symbols 2", serif; color: var(--verm); }
+:root:not([data-theme="occult"]) .home-card:nth-child(even of .home-card) .hc-ico { color: var(--lapis); }
 :root:not([data-theme="occult"]) .hc-text { display: block; }
 :root:not([data-theme="occult"]) .hc-title { display: block; font: 700 1.3em 'Almendra', Georgia, serif; color: var(--ink); }
 :root:not([data-theme="occult"]) .hc-sub { display: block; font: italic 400 1.1em/1.4 var(--book); color: var(--ink); opacity: 1; }

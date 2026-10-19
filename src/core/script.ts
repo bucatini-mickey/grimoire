@@ -47,7 +47,7 @@ const ALL_TRAVELLERS: CharacterDef[] = [
 ];
 
 /** Laissez un Faire (Steven Medway): a small script for five or six. The Cult Leader may be swapped for the Amnesiac. */
-const LAISSEZ_UN_FAIRE = ['balloonist', 'savant', 'fisherman', 'artist', 'cult-leader', 'mutant', 'lunatic', 'goblin', 'widow', 'leviathan'];
+const LAISSEZ_UN_FAIRE = ['balloonist', 'savant', 'amnesiac', 'fisherman', 'artist', 'cult-leader', 'mutant', 'lunatic', 'goblin', 'widow', 'leviathan'];
 SCRIPTS['laissez-un-faire'] = officialOrder({
 	id: 'laissez-un-faire', name: 'Laissez un Faire',
 	characters: LAISSEZ_UN_FAIRE.map((id) => CATALOG.find((c) => c.id === id)!),
