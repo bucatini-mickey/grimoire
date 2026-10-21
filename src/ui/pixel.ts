@@ -5,8 +5,9 @@
  * every other letter names an ink from INKS. Each ink has a day and a night
  * colour (CSS variables --px-*), so pictures follow the page's light.
  *
- * The built-in sprites below are only defaults: anything drawn on the Art
- * tab is kept in this browser and used instead (see loadArt / saveArt).
+ * The built-in sprites below are only defaults. Pictures you draw yourself
+ * (PNGs in art/, see art/README.md) come first: the build reads them and
+ * main.ts hands them over with registerArt. art/logo.png is the logo.
  */
 
 export interface Ink {
@@ -41,6 +42,16 @@ export const INKS: Ink[] = [
 ];
 const INK_BY_KEY = new Map(INKS.map((i) => [i.key, i]));
 
+/** Your own pictures (art/*.png): their rows, and their colours, exactly as drawn. */
+let own: Record<string, string[]> = {};
+const OWN_INK = new Map<string, string>();
+export function registerArt(a: { palette: Record<string, string>; images: Record<string, string[]> }) {
+	own = a.images;
+	for (const [ch, hex] of Object.entries(a.palette)) OWN_INK.set(ch, hex);
+}
+/** Did you draw this one yourself? ('tower' is the logo.) */
+export const hasOwn = (id: string) => !!own[id] || (id === 'tower' && !!own.logo);
+
 /** The colours as CSS, for the pictures. */
 export function paletteCss(): string {
 	const vars = (when: 'day' | 'night') => INKS.map((i) => `--px-${i.name}:${i[when]};`).join('');
@@ -55,11 +66,11 @@ export function svg(sprite: string[], cls = ''): string {
 	sprite.forEach((line, y) => {
 		let x = 0;
 		while (x < line.length) {
-			const ink = INK_BY_KEY.get(line[x]);
-			if (!ink) { x++; continue; }
+			const ink = INK_BY_KEY.get(line[x]), hex = ink ? '' : OWN_INK.get(line[x]);
+			if (!ink && !hex) { x++; continue; }
 			let end = x;
 			while (end < line.length && line[end] === line[x]) end++;
-			rects += `<rect x="${x}" y="${y}" width="${end - x}" height="1" class="px-${ink.name}"/>`;
+			rects += ink ? `<rect x="${x}" y="${y}" width="${end - x}" height="1" class="px-${ink.name}"/>` : `<rect x="${x}" y="${y}" width="${end - x}" height="1" fill="${hex}"/>`;
 			x = end;
 		}
 	});
@@ -147,7 +158,7 @@ export function saveArt() {
 
 /** A picture by id: drawn on the Art tab, else built in, else nothing. */
 export function sprite(id: string): string[] | null {
-	return art[id] ?? DEFAULTS[id] ?? null;
+	return own[id] ?? (id === 'tower' ? own.logo : undefined) ?? art[id] ?? DEFAULTS[id] ?? null;
 }
 
 export function setSprite(id: string, rows: string[] | null) {

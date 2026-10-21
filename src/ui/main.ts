@@ -27,6 +27,11 @@ import type { HostLink, LinkStatus } from '../net/link.ts';
 import type { ClockView, HostMsg, PlayerMsg, VoteView } from '../net/protocol.ts';
 import { startPlayer } from './player.ts';
 import { startBackdrop } from './backdrop.ts';
+import OWN_ART from 'art:own';
+import { hasOwn, registerArt } from './pixel.ts';
+
+// The pictures you drew (art/*.png) take the place of the built-in ones.
+registerArt(OWN_ART);
 import { INKS, startVillage, villageForGame } from '../town/village.ts';
 import { AMNESIAC_IDEAS, savantPair, savantStatements } from './helpers.ts';
 import type { Extra, StActions, VillageHost } from '../town/village.ts';
@@ -805,7 +810,7 @@ function customPicker(): Row[] {
 function art(): Row[] {
 	// The frontispiece: the clocktower as a miniature in a frame of gold leaf, and the book's name.
 	return [
-		{ segs: [], cls: 'title-art', html: `<figure class="miniature"><div class="mini-in">${svg(sprite('tower') ?? [], 'title-tower')}</div></figure>` },
+		{ segs: [], cls: hasOwn('tower') ? 'title-art own' : 'title-art', html: `<figure class="miniature"><div class="mini-in">${svg(sprite('tower') ?? [], 'title-tower')}</div></figure>` },
 		titleRow(),
 		{ segs: [], cls: 'subtitle', html: '<p class="ms-rub">Blood on the Clocktower</p><p class="ms-sub">a Storyteller\u2019s companion</p>' }
 	];

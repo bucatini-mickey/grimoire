@@ -9,6 +9,7 @@ import * as esbuild from 'esbuild';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
 import { dirname } from 'node:path';
+import { readArt } from './tools/art.mjs';
 import { fileURLToPath } from 'node:url';
 
 process.chdir(dirname(fileURLToPath(import.meta.url)));
@@ -30,6 +31,18 @@ const inline = {
 			writeFileSync('dist/index.html', html);
 			writeAppFiles();
 			console.log(`built dist/grimoire.html (${(html.length / 1024).toFixed(0)} KB)`);
+		});
+	}
+};
+
+// ---- your own pictures: art/*.png, read afresh on every build (and whenever art/ changes) ----
+const ownArt = {
+	name: 'own-art',
+	setup(build) {
+		build.onResolve({ filter: /^art:own$/ }, () => ({ path: 'own', namespace: 'art' }));
+		build.onLoad({ filter: /.*/, namespace: 'art' }, () => {
+			mkdirSync('art', { recursive: true });
+			return { contents: JSON.stringify(readArt()), loader: 'json', watchDirs: ['art'] };
 		});
 	}
 };
@@ -63,17 +76,19 @@ function png(w, h, rgba) {
 	return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
 }
 
-/** The clocktower on dark vellum, as a square icon. */
+/** The logo (art/logo.png if you drew one, else the clocktower) on dark vellum, as a square icon. */
 function icon(size) {
-	const sprite = DEFAULTS.tower;
-	const colour = Object.fromEntries(INKS.map((i) => [i.key, i.day]));
+	const own = readArt();
+	const sprite = own.images.logo ?? DEFAULTS.tower;
+	const colour = { ...Object.fromEntries(INKS.map((i) => [i.key, i.day])), ...own.palette };
 	const bg = [0x16, 0x11, 0x0c, 255];
 	const rgba = Buffer.alloc(size * size * 4);
 	for (let i = 0; i < size * size; i++) rgba.set(bg, i * 4);
 	const sh = sprite.length, sw = Math.max(...sprite.map((r) => r.length));
-	const k = Math.floor((size * 0.72) / sh);
+	const k = Math.max(1, Math.floor((size * 0.72) / Math.max(sh, sw)));
 	const ox = Math.floor((size - sw * k) / 2), oy = Math.floor((size - sh * k) / 2);
 	sprite.forEach((line, y) => [...line].forEach((ch, x) => {
+		if (ch === '.') return;
 		const hex = colour[ch];
 		if (!hex) return;
 		const c = [1, 3, 5].map((p) => parseInt(hex.slice(p, p + 2), 16)).concat(255);
@@ -133,7 +148,7 @@ const options = {
 	write: false,
 	outdir: 'dist/.js',
 	loader: { '.tbp': 'text' },
-	plugins: [inline],
+	plugins: [ownArt, inline],
 	logLevel: 'warning'
 };
 

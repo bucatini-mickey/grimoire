@@ -882,3 +882,7 @@ body { background: var(--paper, none) 0 0 / auto no-repeat fixed, radial-gradien
 :root[data-theme="occult"] .tag { border-radius: 0; clip-path: polygon(6px 0, calc(100% - 6px) 0, 100% 6px, 100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px), 0 6px); font-family: 'Old Standard TT', Georgia, serif; }
 :root[data-theme="occult"] .tag.on { background: var(--brass); border-color: var(--brass); color: #0c1513; }
 :root[data-theme="occult"] .recipe { gap: 14px; }
+/* Your own logo (art/logo.png) stands at the head of the page in every look, at its own proportions. */
+.title-art.own { display: flex !important; }
+.title-art.own .miniature, .title-art.own .mini-in { padding: 0; background: none; box-shadow: none; border-radius: 0; }
+.title-art.own .title-tower { width: min(60%, 240px); height: auto; }
