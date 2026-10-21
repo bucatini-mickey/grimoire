@@ -886,3 +886,4 @@ body { background: var(--paper, none) 0 0 / auto no-repeat fixed, radial-gradien
 .title-art.own { display: flex !important; }
 .title-art.own .miniature, .title-art.own .mini-in { padding: 0; background: none; box-shadow: none; border-radius: 0; }
 .title-art.own .title-tower { width: min(60%, 240px); height: auto; }
+.title-art.own .miniature, .title-art.own .mini-in { width: 100%; display: flex; justify-content: center; }
