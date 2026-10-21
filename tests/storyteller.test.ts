@@ -21,10 +21,10 @@ test('a fresh day starts in discussion', () => {
 	ok(s, { type: 'nominate', nominator: 1, nominee: 2 });
 });
 
-test('votes go clockwise from the player after the nominee, the nominee last', () => {
+test('votes start on the nominee, then go clockwise', () => {
 	const s = base();
-	assert.deepEqual(voteOrder(s, 2), [3, 4, 5, 6, 0, 1, 2]);
-	assert.deepEqual(voteOrder(s, 6), [0, 1, 2, 3, 4, 5, 6]);
+	assert.deepEqual(voteOrder(s, 2), [2, 3, 4, 5, 6, 0, 1]);
+	assert.deepEqual(voteOrder(s, 6), [6, 0, 1, 2, 3, 4, 5]);
 	s.seats[4].alive = false;
 	s.seats[4].ghostVote = false;
 	assert.equal(canVote(s, 4), false);
@@ -98,7 +98,7 @@ test('players can be moved round the circle mid-game, and every neighbour rule f
 	assert.deepEqual(s.order, [4, 1, 2, 3, 0, 5, 6]);
 	assert.deepEqual(livingNeighbours(s, 3), [2, 0]);
 	assert.deepEqual(empathNumbers(s, 3), [2]);
-	assert.deepEqual(voteOrder(s, 3), [0, 5, 6, 4, 1, 2, 3]);
+	assert.deepEqual(voteOrder(s, 3), [3, 0, 5, 6, 4, 1, 2]);
 	// Move Cael (Poisoner) next to Ada (Imp): one evil pair.
 	s = ok(s, { type: 'swap-seats', a: 2, b: 5 });
 	assert.deepEqual(chefNumbers(s), [1]);

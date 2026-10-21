@@ -29,7 +29,7 @@ export interface VoteView {
 	nominee: SeatId;
 	/** The count has begun (after the accusation and defence). */
 	voting: boolean;
-	/** Clockwise from after the nominee, the nominee last. */
+	/** The nominee first, then clockwise. */
 	order: SeatId[];
 	/** Whose hand the count is at now (null: done). */
 	at: SeatId | null;

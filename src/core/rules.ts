@@ -511,12 +511,12 @@ export function judgeInfo(state: GameState, to: SeatId, role: CharacterId, info:
 }
 
 /**
- * The order hands are counted in: clockwise from the player after the
- * nominee, the nominee last. Every seat is listed, dead or alive; whether
+ * The order hands are counted in: the nominee first (the clock hand starts
+ * on them), then clockwise round the circle. Every seat is listed, dead or alive; whether
  * each may vote is for the caller (see canVote).
  */
 export function voteOrder(state: GameState, nominee: SeatId): SeatId[] {
-	return [...clockwiseFrom(state, nominee), nominee];
+	return [nominee, ...clockwiseFrom(state, nominee)];
 }
 
 export function canVote(state: GameState, id: SeatId): boolean {
