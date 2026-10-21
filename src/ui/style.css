@@ -922,3 +922,8 @@ body { background: var(--paper, none) 0 0 / auto no-repeat fixed, radial-gradien
 :root:not([data-theme="occult"]) .hc-ini { float: left; margin: 2px 10px 0 0; }
 :root:not([data-theme="occult"]) .hc-ini .asc { --cell-max: 1.6px; }
 :root:not([data-theme="occult"]) .ms-title { font-size: 2.6rem; }
+/* All the words in the pixel bastarda too, upright: the book face and its italics are gone from the herbal look. */
+:root:not([data-theme="occult"]) #app, :root:not([data-theme="occult"]) #card { --book: 'Jacquarda Bastarda 9', 'Almendra', Georgia, serif; }
+:root:not([data-theme="occult"]) :is(#app, #card) :is(.hc-sub, .ms-sub, .hr-sub, .row.prose, .card-label, .tok-rem, .tok-name, .ring-caption, .lp-name, .lp-tag, .rc-hint, .rc-status, .join-status, textarea, input, em, i) {
+	font-family: 'Jacquarda Bastarda 9', 'Almendra', Georgia, serif !important; font-style: normal !important; font-weight: 400 !important; -webkit-font-smoothing: none; font-smooth: never;
+}
