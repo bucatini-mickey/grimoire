@@ -678,7 +678,7 @@ function homeScreen(): Row[] {
 	}
 	// Each way in is a step of the receipt (the herbal look) or a card with its glyph (the occult look).
 	const card = (ico: string, title: string, sub: string, act: () => void, cls = '') =>
-		`<button class="home-card ${cls}" data-act="${a(act)}"><span class="hc-rib"><span class="hc-ico">${ico}</span><span class="hc-text"><span class="hc-title">${title}</span> <span class="hc-sub">${sub}</span></span></span></button>`;
+		`<button class="home-card ${cls}" data-act="${a(act)}"><span class="hc-rib"><span class="hc-ico">${ico}</span><span class="hc-text"><span class="hc-title"><span class="ms-asc hc-ini" data-asc="${[...title][0]}" data-initial data-initial-ink="${cls === 'primary' ? 'var(--verm)' : 'var(--lapis)'}"></span><span class="hc-first">${[...title][0]}</span>${[...title].slice(1).join('')}</span> <span class="hc-sub">${sub}</span></span></span></button>`;
 	const resumes = cards.splice(0);
 	const ending = busy && saved.net?.village;
 	cards.push(
@@ -812,7 +812,7 @@ function art(): Row[] {
 	return [
 		{ segs: [], cls: hasOwn('tower') ? 'title-art own' : 'title-art', html: `<figure class="miniature"><div class="mini-in">${svg(sprite('tower') ?? [], 'title-tower')}</div></figure>` },
 		titleRow(),
-		{ segs: [], cls: 'subtitle', html: '<p class="ms-rub">Blood on the Clocktower</p><p class="ms-sub">a Storyteller\u2019s companion</p>' }
+		{ segs: [], cls: 'subtitle', html: '<p class="ms-rub"><span class="ms-plain">Blood on the Clocktower</span><span class="ms-asc" data-asc="Blood on the Clocktower" data-face="small" data-ink="var(--verm)">Blood on the Clocktower</span></p><p class="ms-sub">a Storyteller\u2019s companion</p>' }
 	];
 }
 

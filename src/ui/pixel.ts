@@ -10,6 +10,8 @@
  * main.ts hands them over with registerArt. art/logo.png is the logo.
  */
 
+import { cellsHtml } from './asciiart.ts';
+
 export interface Ink {
 	key: string;
 	name: string;
@@ -59,22 +61,16 @@ export function paletteCss(): string {
 	return `:root{${vars('day')}}:root[data-phase="night"]{${vars('night')}}${rules}`;
 }
 
+/** A picture as ASCII on coloured blocks, one square cell to a pixel (see asciiart.ts). */
 export function svg(sprite: string[], cls = ''): string {
 	const h = Math.max(1, sprite.length);
-	const w = Math.max(1, ...sprite.map((r) => r.length));
-	let rects = '';
-	sprite.forEach((line, y) => {
-		let x = 0;
-		while (x < line.length) {
-			const ink = INK_BY_KEY.get(line[x]), hex = ink ? '' : OWN_INK.get(line[x]);
-			if (!ink && !hex) { x++; continue; }
-			let end = x;
-			while (end < line.length && line[end] === line[x]) end++;
-			rects += ink ? `<rect x="${x}" y="${y}" width="${end - x}" height="1" class="px-${ink.name}"/>` : `<rect x="${x}" y="${y}" width="${end - x}" height="1" fill="${hex}"/>`;
-			x = end;
-		}
-	});
-	return `<svg class="pixel ${cls}" viewBox="0 0 ${w} ${h}" shape-rendering="crispEdges" aria-hidden="true">${rects}</svg>`;
+	const w = Math.max(1, ...sprite.map((r) => [...r].length));
+	const rows = sprite.map((r) => [...r]);
+	return cellsHtml(w, h, (x, y) => {
+		const ch = rows[y][x];
+		const ink = ch && INK_BY_KEY.get(ch);
+		return ink ? `var(--px-${ink.name})` : (ch && OWN_INK.get(ch)) || null;
+	}, `pixel ${cls}`);
 }
 
 /** Lay smaller sprites onto a blank field, later ones on top. */

@@ -43,5 +43,5 @@ test('your own pictures: PNGs read exactly, trimmed, and drawn in their own colo
 	registerArt(art);
 	assert.ok(hasOwn('tower') && hasOwn('imp'));
 	assert.deepEqual(sprite('tower'), art.images.logo, 'the logo replaces the clocktower');
-	assert.match(svg(sprite('imp')!), /fill="#c8281e"/);
+	assert.match(svg(sprite('imp')!), /background:#c8281e/);
 });

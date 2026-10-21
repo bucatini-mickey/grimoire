@@ -761,12 +761,6 @@ body { background: var(--paper, none) 0 0 / auto no-repeat fixed, radial-gradien
 /* Each way in opens with a small illuminated initial: lapis on a square of gold leaf, dropped beside the lines. */
 :root:not([data-theme="occult"]) .hc-ico { display: none; }
 :root:not([data-theme="occult"]) .hc-rib { grid-template-columns: 1fr; padding-left: 4px; }
-:root:not([data-theme="occult"]) .hc-title::first-letter {
-	float: left; margin: 2px 10px 0 0; padding: 4px 7px 3px; font: 700 1.7em/1 'Almendra', Georgia, serif; color: var(--lapis);
-	background: radial-gradient(circle at 30% 25%, #f0d684, #c39535 55%, #9d7224); border: 1.5px solid #3a2614;
-	box-shadow: inset 0 0 0 2px rgba(255, 240, 190, .35), inset 0 0 0 3px rgba(58, 38, 20, .45);
-}
-:root:not([data-theme="occult"]) .home-card.primary .hc-title::first-letter { color: var(--verm); }
 :root:not([data-theme="occult"]) .hc-text { display: block; }
 :root:not([data-theme="occult"]) .hc-title { display: block; font: 700 1.3em 'Almendra', Georgia, serif; color: var(--ink); }
 :root:not([data-theme="occult"]) .hc-sub { display: block; font: italic 400 1.1em/1.4 var(--book); color: var(--ink); opacity: 1; }
@@ -887,3 +881,44 @@ body { background: var(--paper, none) 0 0 / auto no-repeat fixed, radial-gradien
 .title-art.own .miniature, .title-art.own .mini-in { padding: 0; background: none; box-shadow: none; border-radius: 0; }
 .title-art.own .title-tower { width: min(60%, 240px); height: auto; }
 .title-art.own .miniature, .title-art.own .mini-in { width: 100%; display: flex; justify-content: center; }
+
+/* ==== The lettering in pixels, to match the 32-bit pictures ============================================
+ * Bastarda 9 (a pixel bastarda, the herbals' own hand) for headings, buttons and labels; sizes on
+ * whole multiples of their grids and no smoothing, so every pixel stays square. Long sentences keep
+ * the book face, for reading. */
+:root:not([data-theme="occult"]) #app, :root:not([data-theme="occult"]) #card, :root:not([data-theme="occult"]) #drawer-tabs {
+	--book-sc: 'Jacquarda Bastarda 9', 'Almendra SC', Georgia, serif;
+	--gothic: 'Jacquarda Bastarda 9', 'Almendra', Georgia, serif;
+}
+:root:not([data-theme="occult"]) :is(.s.heading, .b, .hc-title, .ms-rub, .ms-sub, .hr-label, .ph-title, .lobby-head, .rc-label, .tag, .row.title, #drawer-tabs button, .home-resume button.primary, .join button.primary, .big-primary) {
+	font-family: 'Jacquarda Bastarda 9', 'Almendra', Georgia, serif !important; font-weight: 400 !important; font-style: normal !important; -webkit-font-smoothing: none; font-smooth: never; letter-spacing: 0;
+}
+:root:not([data-theme="occult"]) .hc-title { font-size: 27px; }
+:root:not([data-theme="occult"]) .ms-rub { font-size: 27px; }
+:root:not([data-theme="occult"]) .ms-sub { font-size: 18px; font-variant: normal; letter-spacing: .02em; }
+:root:not([data-theme="occult"]) :is(.ph-title, .hr-label) { font-size: 27px; }
+:root:not([data-theme="occult"]) :is(.lobby-head, .rc-label, .tag, #drawer-tabs button, .home-resume button.primary, .join button.primary, .big-primary) { font-size: 18px !important; }
+
+/* ==== ASCII on coloured blocks (asciiart.ts): pictures and lettering, one square cell to a pixel ==========
+ * --cell is a cell's side: as big as --cell-max, smaller when the picture would not fit the page. */
+.asc {
+	--cell: min(var(--cell-max, 5px), calc((100vw - 48px) / var(--cols)));
+	display: inline-block; vertical-align: bottom; font-family: 'Courier Prime', 'Courier New', monospace; font-weight: 700;
+	font-size: calc(var(--cell) / .6); line-height: var(--cell); white-space: pre; user-select: none;
+}
+.asc > div { height: var(--cell); overflow: hidden; }
+.asc span { display: inline-block; height: var(--cell); vertical-align: top; }
+.title-art .asc { --cell-max: 6px; }
+.title-art.own .title-tower { width: auto; }
+.card-pic .asc, .card-sprite.asc { --cell-max: 4px; width: auto; height: auto; }
+/* Which setting shows: lettering on blocks for the herbal, type for the occult. */
+.ms-asc .asc-word, .ms-asc .asc-initial { --cell-max: 5px; }
+.ms-title .ms-asc { display: inline-flex; align-items: flex-end; gap: 4px; }
+.ms-title .asc { --cell-max: 3.4px; }
+.ms-rub .asc { --cell-max: 2.5px; }
+:root:not([data-theme="occult"]) .ms-plain, :root:not([data-theme="occult"]) .hc-first { display: none; }
+:root[data-theme="occult"] .ms-asc { display: none; }
+.ms-asc:not(.asc-drawn) { font: inherit; }
+:root:not([data-theme="occult"]) .hc-ini { float: left; margin: 2px 10px 0 0; }
+:root:not([data-theme="occult"]) .hc-ini .asc { --cell-max: 1.6px; }
+:root:not([data-theme="occult"]) .ms-title { font-size: 2.6rem; }

@@ -315,10 +315,13 @@ function textBoxes(s: Text): string {
 	return body || data ? `${gap}<span class="${cls}"${data} style="width:calc(var(--cw) * ${chars.length - lead})">${esc(body, s.face === 'art')}</span>` : gap;
 }
 
+import { letter } from './asciiart.ts';
+
 /** The book's name at the head of the page, its first letter a painted initial. */
 export function titleRow(word = 'Grimoire'): Row {
 	const [first, ...rest] = [...word];
-	return { segs: [], cls: 'title', html: `<h1 class="ms-title" aria-label="${escAttr(word)}"><span class="ini" aria-hidden="true">${esc(first)}</span><span aria-hidden="true">${esc(rest.join(''))}</span></h1>` };
+	// Two settings: ASCII lettering on blocks (the herbal look) and type (the occult look); the page's look shows one.
+	return { segs: [], cls: 'title', html: `<h1 class="ms-title" aria-label="${escAttr(word)}"><span class="ms-plain" aria-hidden="true"><span class="ini">${esc(first)}</span>${esc(rest.join(''))}</span><span class="ms-asc" data-asc="${escAttr(word)}" data-initial aria-hidden="true">${esc(word)}</span></h1>` };
 }
 
 /**
@@ -394,6 +397,7 @@ export function paint(root: HTMLElement, rows: Row[]) {
 	}
 	root.innerHTML = html.join('');
 	fit(root);
+	letter(root);
 	painted.add(root);
 	(root as HTMLElement & { _actions?: (() => void)[] })._actions = actions;
 	if (!root.dataset.wired) {
