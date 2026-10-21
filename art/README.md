@@ -20,3 +20,13 @@ Character file names are the character's name in lower case, with spaces as hyph
   - Paint, GIMP or Photoshop (save as an ordinary 8-bit PNG, not interlaced)
 - **Seeing it:** with the dev server running (`npm run dev`), saving a PNG here rebuilds the app straight away. Otherwise run `npm run build`.
 - **Problems:** a picture that can't be read is skipped with a warning in the build output, and the built-in picture is used.
+
+## Making a picture simpler
+
+Detailed pictures can look busy as ASCII blocks. `tools/simplify.mjs` makes a smaller, plainer copy: each block of pixels becomes its commonest colour, and near-identical colours are merged.
+
+```
+node tools/simplify.mjs art/originals/logo-32.png art/logo.png 2 48
+```
+
+The `2` halves the size (3 makes it a third), and `48` is how close two colours must be to merge (higher means fewer colours). Keep the full-size drawings in `art/originals/`; the build only reads the PNGs directly in `art/`.

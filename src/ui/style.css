@@ -908,7 +908,7 @@ body { background: var(--paper, none) 0 0 / auto no-repeat fixed, radial-gradien
 }
 .asc > div { height: var(--cell); overflow: hidden; }
 .asc span { display: inline-block; height: var(--cell); vertical-align: top; }
-.title-art .asc { --cell-max: 6px; }
+.title-art .asc { --cell-max: 10px; }
 .title-art.own .title-tower { width: auto; }
 .card-pic .asc, .card-sprite.asc { --cell-max: 4px; width: auto; height: auto; }
 /* Which setting shows: lettering on blocks for the herbal, type for the occult. */

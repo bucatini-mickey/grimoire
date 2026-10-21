@@ -15,7 +15,7 @@ const hash = (x: number, y: number) => {
 	h = Math.imul(h ^ (h >>> 13), 1103515245);
 	return (h ^ (h >>> 16)) >>> 0;
 };
-const DIM = [' ', '.', ',', '\'', '`'], MID = [':', ';', '+', '=', '~', '-'], BRIGHT = ['*', '#', '%', '&', '@', '$'];
+const DIM = ['.', ',', ':', '-'], MID = ['=', '+', ':', '~', '-'], BRIGHT = ['#', '*', '%', '+'];
 
 /** How light a colour is, 0-1 (for '#rrggbb'; CSS colours count as middling). */
 function light(c: string): number {
@@ -25,10 +25,16 @@ function light(c: string): number {
 	return (0.3 * (n >> 16) + 0.59 * ((n >> 8) & 255) + 0.11 * (n & 255)) / 255;
 }
 
-/** One cell's character, from how light it is and where it is. */
-export function glyphFor(colour: string, x: number, y: number): string {
+/**
+ * One cell's character: one per colour, so a patch of colour reads as one
+ * material (all the wood alike, all the gold alike); dim colours get light
+ * marks, bright ones heavy. Where it is no longer matters (x, y kept for callers).
+ */
+export function glyphFor(colour: string, _x: number, _y: number): string {
 	const l = light(colour), set = l < 0.28 ? DIM : l < 0.62 ? MID : BRIGHT;
-	return set[hash(x, y) % set.length];
+	let h = 0;
+	for (const ch of colour) h = (Math.imul(h, 31) + ch.charCodeAt(0)) | 0;
+	return set[(h >>> 0) % set.length];
 }
 
 /**
@@ -36,7 +42,7 @@ export function glyphFor(colour: string, x: number, y: number): string {
  * or null for an empty cell. Runs of one colour share a span; each row is a
  * block one cell tall, so the cells come out square.
  */
-export function cellsHtml(w: number, h: number, colourAt: (x: number, y: number) => string | null, cls = '', mix = 58): string {
+export function cellsHtml(w: number, h: number, colourAt: (x: number, y: number) => string | null, cls = '', mix = 68): string {
 	const rows: string[] = [];
 	for (let y = 0; y < h; y++) {
 		let line = '', x = 0;
