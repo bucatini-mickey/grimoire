@@ -794,7 +794,7 @@ function villageCells(g: Grid): boolean {
 		const lines = wrap(banner.line, w - 4);
 		const bx = Math.floor((g.cols - w) / 2);
 		g.fill({ x: bx, y: mapY + 1, w, h: lines.length + 4 }, ' ', 5, 0);
-		g.box({ x: bx, y: mapY + 1, w, h: lines.length + 4 }, 6, 0);
+		g.box({ x: bx, y: mapY + 1, w, h: lines.length + 4 }, 6, 0, '', 6, 'double');
 		g.text(bx + Math.floor((w - banner.title.length) / 2), mapY + 2, banner.title, 8, 0);
 		lines.forEach((l, i) => g.text(bx + 2, mapY + 4 + i, l, 4, 0));
 	}
@@ -858,10 +858,10 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 			let ch = fold(look.ch);
 			if (look.wall) {
 				const m = look.wall.mask;
-				ch = (m & 10) && (m & 5) ? '+' : m & 10 ? (look.wall.style === 'double' ? '=' : '-') : '|';
-			} else if (look.glass) ch = '"';
-			else if (look.icon === 'bell') ch = 'A';
-			else if (look.icon === 'clock') ch = '@';
+				ch = (look.wall.style === 'double' ? WALL_DOUBLE : WALL_SINGLE)[m];
+			} else if (look.glass) ch = '▒';
+			else if (look.icon === 'bell') ch = '♪';
+			else if (look.icon === 'clock') ch = '☼';
 			else if (ch === ' ' && luma(bg) > 14) { ch = '.'; fg = lerp(bg, [255, 255, 255], 0.28); }
 			const fgi = quant(fg);
 			// Backgrounds carry meaning only: seats at dusk, and the page elsewhere.
@@ -894,7 +894,7 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 		const ink = q.st ? 6 : quant(hexRgb(inkOf(q)));
 		const mineQ = q.id === S.me;
 		const talk = talking(q) > 0.15;
-		g.set(sx, mapY + sy, q.st ? '*' : glyphOf(q), mineQ ? 0 : ink, mineQ ? ink : talk ? 1 : 0);
+		g.set(sx, mapY + sy, q.st ? '☼' : glyphOf(q), mineQ ? 0 : ink, mineQ ? ink : talk ? 1 : 0);
 	}
 	if (S.game && S.phase === 'dusk' && t.meeting) {
 		for (const r of S.ring) {
@@ -911,6 +911,10 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 	}
 }
 
+/** Wall joins by mask (1 up, 2 right, 4 down, 8 left) as CP437 line glyphs. */
+const WALL_SINGLE = [' ', '│', '─', '└', '│', '│', '┌', '├', '─', '┘', '─', '┴', '┐', '┤', '┬', '┼'];
+const WALL_DOUBLE = [' ', '║', '═', '╚', '║', '║', '╔', '╠', '═', '╝', '═', '╩', '╗', '╣', '╦', '╬'];
+
 const hexRgb = (h: string): Rgb => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
 
 /** The circle: everyone on one ring, the vote's hands raised. */
@@ -926,8 +930,8 @@ function circleCells(g: Grid, y0: number, h: number) {
 		const x = Math.round(cx + rx * Math.sin(a)), y = Math.round(cy - ry * Math.cos(a));
 		const person = [...S.people.values()].find((q) => !q.st && q.seat === r.seat);
 		const ink = r.dead ? 3 : person ? quant(hexRgb(inkOf(person))) : 3;
-		const hand = v?.raised.includes(r.seat) ? '^' : v?.counted.includes(r.seat) ? '.' : ' ';
-		const label = (hand + r.name).slice(0, 9);
+		const hand = v?.raised.includes(r.seat) ? '▲' : v?.counted.includes(r.seat) ? '•' : ' ';
+		const label = (hand + (r.dead ? '†' : '☺') + r.name).slice(0, 10);
 		const nominee = v?.nominee === r.seat;
 		g.text(x - Math.floor(label.length / 2), y, label, nominee ? 0 : ink, nominee ? 8 : 0);
 	});

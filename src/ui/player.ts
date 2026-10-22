@@ -298,7 +298,7 @@ function ring(): Row[] {
 			const fg = s.alive ? 4 : 3, bg = mine ? 1 : 0;
 			const cut = (t: string) => [...t].slice(0, tw).join('');
 			c.g.fill({ x, y, w: tw, h: 3 }, ' ', fg, bg);
-			c.g.text(x, y, cut((s.alive ? '' : '+') + s.name), mine ? 6 : fg, bg);
+			c.g.text(x, y, cut((s.alive ? '☺' : '†') + s.name), mine ? 6 : fg, bg);
 			c.g.text(x, y + 1, cut(role), reveal ? (P.card!.team === 'evil' ? 8 : 12) : fg, bg);
 			if (!s.alive && !s.ghostVote) c.g.text(x, y + 2, cut('no vote'), 3, bg);
 		});

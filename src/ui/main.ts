@@ -455,7 +455,7 @@ function table(look: (id: SeatId) => SeatLook, centre: string[] = [], title = 'T
 				c.g.fill({ x, y, w: tw, h: 3 }, ' ', fg, bg);
 				const cut = (t: string) => [...t].slice(0, tw).join('');
 				const flags = (l.flags.filter((f) => 't' in f) as { t: string; tone?: Tone }[]).map((f) => f.t).join('');
-				c.g.text(x, y, cut((s.alive ? '' : '+') + s.name), on ? 0 : lit ? 6 : fg, bg);
+				c.g.text(x, y, cut((s.alive ? '☺' : '†') + s.name), on ? 0 : lit ? 6 : fg, bg);
 				c.g.text(x, y + 1, cut(l.role), on ? 0 : c.ink(l.roleTone), bg);
 				c.g.text(x, y + 2, cut(flags || (l.reminders?.[0] ?? '')), on ? 0 : 3, bg);
 				c.hit({ x, y, w: tw, h: 3 }, () => tapSeat(id));

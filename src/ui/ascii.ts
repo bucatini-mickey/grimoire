@@ -141,7 +141,7 @@ export function rubric(title: string, width = COLS): Row {
 	const len = [...inner].length + 2;
 	const left = Math.max(1, Math.floor((width - len) / 2));
 	const right = Math.max(1, width - len - left);
-	return { ...row(txt('-'.repeat(left) + '§', 'dim'), txt(inner, 'rubric'), txt('§' + '-'.repeat(right), 'dim')), title };
+	return { ...row(txt('─'.repeat(left) + '§', 'dim'), txt(inner, 'rubric'), txt('§' + '─'.repeat(right), 'dim')), title };
 }
 
 /** The top of a frame: `+-= Title =---+`, drawn by paint (class frame-top). */
@@ -302,7 +302,7 @@ export function drawButton(c: Ctx, x: number, y: number, w: number, b: Button) {
 	const st = b.disabled ? 'off' : b.style ?? 'normal';
 	const [fg, bg, edge] = st === 'primary' ? [0, 8, 8] : st === 'on' ? [0, 6, 6] : st === 'danger' ? [8, 1, 8] : st === 'quiet' ? [3, 0, 2] : st === 'off' ? [2, 0, 1] : [4, 1, 3];
 	g.fill({ x, y, w, h: 3 }, ' ', fg, bg);
-	g.box({ x, y, w, h: 3 }, edge, bg);
+	g.box({ x, y, w, h: 3 }, edge, bg, '', edge, 'single');
 	const room = Math.max(1, w - 4);
 	const label = [...b.label].slice(0, room).join('');
 	g.text(x + 2 + Math.floor((room - [...label].length) / 2), y + 1, label, fg, bg);
@@ -329,7 +329,7 @@ export function titleRow(word = 'Grimoire'): Row {
 	return blockRow(7, (c) => {
 		const x0 = c.x + Math.floor((c.w - (9 + 1 + rest.length * 2)) / 2);
 		c.g.fill({ x: x0, y: c.y, w: 9, h: 7 }, ' ', 5, 6);
-		c.g.box({ x: x0, y: c.y, w: 9, h: 7 }, 9, 6);
+		c.g.box({ x: x0, y: c.y, w: 9, h: 7 }, 9, 6, '', 9, 'double');
 		art.forEach((ln, j) => [...ln].forEach((k, i) => c.g.set(x0 + 2 + i, c.y + 1 + j, k === '#' ? '#' : '.', k === '#' ? 8 : 6, k === '#' ? 1 : 6)));
 		rest.forEach((ch, i) => c.g.set(x0 + 10 + i * 2 + 1, c.y + 5, ch, 8, 0));
 		c.g.text(x0 + 10, c.y + 1, '~ ~ ~', 6, 0);
@@ -342,7 +342,7 @@ export function field(id: string, label: string, value: string, set: (v: string)
 		const active = term?.editing && fieldId === id;
 		const shown = active ? term!.entry : value;
 		c.g.fill({ x: c.x, y: c.y, w: c.w, h: 3 }, ' ', 4, 1);
-		c.g.box({ x: c.x, y: c.y, w: c.w, h: 3 }, active ? 6 : 3, 1, label, 8);
+		c.g.box({ x: c.x, y: c.y, w: c.w, h: 3 }, active ? 6 : 3, 1, label, 8, 'single');
 		const room = c.w - 4;
 		const view = [...shown].slice(-room).join('');
 		if (view) c.g.text(c.x + 2, c.y + 1, view, 5, 1);
@@ -360,20 +360,20 @@ let fieldId = '';
 function drawRow(g: Grid, r: Row, x0: number, y: number, width: number, h: number, ink: (t: Tone | undefined) => number) {
 	const ctx: Ctx = { g, x: x0, y, w: width, ink, hit: (rc, fn) => g.hit(rc, fn) };
 	if (r.cls === 'frame-top') {
-		g.text(x0, y, '+', 2);
-		for (let i = 1; i < width - 1; i++) g.set(x0 + i, y, '-', 2);
-		g.set(x0 + width - 1, y, '+', 2);
+		g.set(x0, y, '╔', 2);
+		for (let i = 1; i < width - 1; i++) g.set(x0 + i, y, '═', 2);
+		g.set(x0 + width - 1, y, '╗', 2);
 		const t = r.segs[0] && !isButton(r.segs[0]) ? r.segs[0].t : '';
 		g.text(x0 + 2, y, ` ${t} `, 8);
 		return;
 	}
 	if (r.cls === 'frame-bot') {
-		g.set(x0, y, '+', 2);
-		for (let i = 1; i < width - 1; i++) g.set(x0 + i, y, '-', 2);
-		g.set(x0 + width - 1, y, '+', 2);
+		g.set(x0, y, '╚', 2);
+		for (let i = 1; i < width - 1; i++) g.set(x0 + i, y, '═', 2);
+		g.set(x0 + width - 1, y, '╝', 2);
 		return;
 	}
-	const sides = () => { if (r.cls?.includes('frame-mid')) for (let j = 0; j < h; j++) { g.set(x0, y + j, '|', 2); g.set(x0 + width - 1, y + j, '|', 2); } };
+	const sides = () => { if (r.cls?.includes('frame-mid')) for (let j = 0; j < h; j++) { g.set(x0, y + j, '║', 2); g.set(x0 + width - 1, y + j, '║', 2); } };
 	if (r.block) {
 		// A block inside a frame sits within the side rules.
 		const inFrame = r.cls?.includes('frame-mid');
@@ -471,7 +471,7 @@ export function buttonBlock(buttons: Button[], width = INNER, gap = 1): Row {
 export function boxRow(lines: string[], tone: Tone = 'gold', width = INNER): Row {
 	return blockRow(lines.length + 2, (c) => {
 		const w = Math.min(width, c.w), x0 = c.x + Math.floor((c.w - w) / 2);
-		c.g.box({ x: x0, y: c.y, w, h: lines.length + 2 }, 2, 0);
+		c.g.box({ x: x0, y: c.y, w, h: lines.length + 2 }, 2, 0, '', 2, 'double');
 		lines.forEach((l, i) => c.g.text(x0 + Math.floor((w - [...l].length) / 2), c.y + 1 + i, l, c.ink(tone)));
 	});
 }
