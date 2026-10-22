@@ -882,23 +882,6 @@ body { background: var(--paper, none) 0 0 / auto no-repeat fixed, radial-gradien
 .title-art.own .title-tower { width: min(60%, 240px); height: auto; }
 .title-art.own .miniature, .title-art.own .mini-in { width: 100%; display: flex; justify-content: center; }
 
-/* ==== The lettering in pixels, to match the 32-bit pictures ============================================
- * Bastarda 9 (a pixel bastarda, the herbals' own hand) for headings, buttons and labels; sizes on
- * whole multiples of their grids and no smoothing, so every pixel stays square. Long sentences keep
- * the book face, for reading. */
-:root:not([data-theme="occult"]) #app, :root:not([data-theme="occult"]) #card, :root:not([data-theme="occult"]) #drawer-tabs {
-	--book-sc: 'Jacquarda Bastarda 9', 'Almendra SC', Georgia, serif;
-	--gothic: 'Jacquarda Bastarda 9', 'Almendra', Georgia, serif;
-}
-:root:not([data-theme="occult"]) :is(.s.heading, .b, .hc-title, .ms-rub, .ms-sub, .hr-label, .ph-title, .lobby-head, .rc-label, .tag, .row.title, #drawer-tabs button, .home-resume button.primary, .join button.primary, .big-primary) {
-	font-family: 'Jacquarda Bastarda 9', 'Almendra', Georgia, serif !important; font-weight: 400 !important; font-style: normal !important; -webkit-font-smoothing: none; font-smooth: never; letter-spacing: 0;
-}
-:root:not([data-theme="occult"]) .hc-title { font-size: 27px; }
-:root:not([data-theme="occult"]) .ms-rub { font-size: 27px; }
-:root:not([data-theme="occult"]) .ms-sub { font-size: 18px; font-variant: normal; letter-spacing: .02em; }
-:root:not([data-theme="occult"]) :is(.ph-title, .hr-label) { font-size: 27px; }
-:root:not([data-theme="occult"]) :is(.lobby-head, .rc-label, .tag, #drawer-tabs button, .home-resume button.primary, .join button.primary, .big-primary) { font-size: 18px !important; }
-
 /* ==== ASCII on coloured blocks (asciiart.ts): pictures and lettering, one square cell to a pixel ==========
  * --cell is a cell's side: as big as --cell-max, smaller when the picture would not fit the page. */
 .asc {
@@ -927,3 +910,14 @@ body { background: var(--paper, none) 0 0 / auto no-repeat fixed, radial-gradien
 :root:not([data-theme="occult"]) :is(#app, #card) :is(.hc-sub, .ms-sub, .hr-sub, .row.prose, .card-label, .tok-rem, .tok-name, .ring-caption, .lp-name, .lp-tag, .rc-hint, .rc-status, .join-status, textarea, input, em, i) {
 	font-family: 'Courier Prime', 'Courier New', monospace !important; font-style: normal !important; font-weight: 400 !important;
 }
+
+/* Readable lettering, for now: no lettering drawn in blocks (the logo stays a picture). The book's name and its
+   first letter, and each way in's first letter, are plain capitals in colour; headings and buttons in Almendra. */
+:root:not([data-theme="occult"]) .ms-asc, :root:not([data-theme="occult"]) .hc-ini { display: none !important; }
+:root:not([data-theme="occult"]) .ms-plain, :root:not([data-theme="occult"]) .hc-first { display: inline !important; }
+:root:not([data-theme="occult"]) .ms-title { font: 700 clamp(2.4rem, 10vw, 3.2rem)/1.1 'Almendra', Georgia, serif; }
+:root:not([data-theme="occult"]) .ms-title .ini { display: inline; width: auto; height: auto; font: inherit; font-size: 1.15em; color: var(--verm); background: none; border: 0; box-shadow: none; }
+:root:not([data-theme="occult"]) .ms-title .ini::after { content: none; }
+:root:not([data-theme="occult"]) .hc-first { color: var(--verm); font-size: 1.15em; }
+:root:not([data-theme="occult"]) .home-card:nth-child(even of .home-card) .hc-first { color: var(--lapis); }
+:root:not([data-theme="occult"]) .ms-rub { font: 700 1.3em/1.3 'Almendra', Georgia, serif; color: var(--verm); }
