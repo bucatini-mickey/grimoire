@@ -12,8 +12,8 @@ test('vendored pterm matches Tachyon web/pterm.ts when ../Tachyon exists', (t) =
 test('grid draws text and boxes, and taps hit the topmost region', () => {
 	const g = new Grid();
 	g.resize(10, 4);
-	g.box({ x: 0, y: 0, w: 6, h: 3 }, 4, 0, 'ab');
-	assert.equal(g.toText().split('\n')[0], '+ ab +');
+	g.box({ x: 0, y: 0, w: 8, h: 3 }, 4, 0, 'ab');
+	assert.equal(g.toText().split('\n')[0], '+- ab -+');
 	let hit = '';
 	g.hit({ x: 0, y: 0, w: 6, h: 3 }, () => (hit = 'under'));
 	g.hit({ x: 1, y: 1, w: 2, h: 1 }, () => (hit = 'over'));

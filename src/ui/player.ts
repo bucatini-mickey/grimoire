@@ -8,7 +8,7 @@
  * Storyteller. Nothing is decided here, and nothing secret arrives here
  * except what views.ts says is yours.
  */
-import { COLS, INNER, titleRow, blank, btn, buttonRows, center, endPanel, frameBottom, frameTop, paint, paneled, pad, row, rubric, txt, wrap } from './ascii.ts';
+import { COLS, INNER, titleRow, blank, blockRow, boxRow, btn, buttonBlock, buttonRows, center, endPanel, field, frameBottom, frameTop, listRow, paint, paneled, pad, redraw, row, rubric, setDynamic, setPalette, txt, wrap } from './ascii.ts';
 import type { Row } from './ascii.ts';
 import { joinRoom } from '../net/link.ts';
 import type { LinkStatus, PlayerLink } from '../net/link.ts';
@@ -216,14 +216,14 @@ function leave() {
 }
 
 /** A page's head: back home (or out of the room), and its name. */
-function head(title: string, back: [string, () => void]): Row {
-	return { segs: [], cls: 'page-head-row', custom: { html: `<div class="page-head"><button class="ghost" data-act="0">${back[0]}</button><span class="ph-title">${title}</span><span></span></div>`, acts: [back[1]] } };
+function head(title: string, back: [string, () => void]): Row[] {
+	return [buttonBlock([btn(back[0], back[1], { style: 'quiet' })]), rubric(title)];
 }
 
 function joinScreen(): Row[] {
 	const tryJoin = () => {
-		const v = (document.getElementById('code') as HTMLInputElement | null)?.value ?? '';
-		const n = ((document.getElementById('pname') as HTMLInputElement | null)?.value ?? '').trim();
+		const v = P.code;
+		const n = P.name.trim();
 		if (v.trim().length !== 4) { P.message = 'The code is four letters.'; render(); return; }
 		if (!n) { P.message = 'Your name, so the others know who you are.'; render(); return; }
 		P.name = n.slice(0, 14);
@@ -233,31 +233,27 @@ function joinScreen(): Row[] {
 	};
 	// Only a code from the link is filled in: never an old room from before.
 	return [
-		head('Join a game', ['‹ Home', () => { location.hash = ''; location.reload(); }]),
-		{ segs: [], cls: 'join-row', custom: { html: `<div class="join">
-			<label class="rc-label" for="code">Room code</label>
-			<input id="code" class="code-input" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" value="${esc(P.code)}" placeholder="CODE">
-			<label class="rc-label" for="pname">Your name</label>
-			<input id="pname" maxlength="14" autocomplete="nickname" spellcheck="false" value="${esc(P.name)}" placeholder="Your name">
-			${P.message ? `<div class="rc-status">${esc(P.message)}</div>` : ''}
-			<button class="primary big-primary" data-act="0">Join</button>
-		</div>`, acts: [tryJoin] } }
+		...head('Join a game', ['< Home', () => { location.hash = ''; location.reload(); }]),
+		field('code', 'Room code', P.code, (v) => { P.code = v.trim().toUpperCase(); render(); }, 4, 'four letters'),
+		field('pname', 'Your name', P.name, (v) => { P.name = v.trim(); render(); }, 14, 'tap to type'),
+		...(P.message ? [row(txt(P.message, 'rubric'))] : []),
+		buttonBlock([btn('Join', tryJoin, { style: 'primary', width: INNER })])
 	];
 }
 
 /** Waiting in the room: the code, everyone so far (you marked), and what happens next. */
 function lobbyScreen(): Row[] {
 	const dealing = P.seats.length > 0;
-	const people = P.lobby.map((n, i) => `<li class="lp${i === P.lobbyYou ? ' you' : ''}"><span class="av" style="--ink:${INKS[i % INKS.length]}">${esc(n[0]?.toUpperCase() ?? '?')}</span><span class="lp-name">${esc(n)}</span><span class="lp-tag">${i === P.lobbyYou ? 'you' : ''}</span></li>`).join('');
 	return [
-		head('Lobby', ['Leave', leave]),
-		{ segs: [], cls: 'lobby-row', custom: { html: `<div class="lobby">
-			<div class="room-card"><div class="rc-label">Room code</div><div class="rc-code">${esc(P.code)}</div>
-				<div class="rc-hint">${dealing ? 'The Storyteller is dealing the characters…' : 'Waiting for the Storyteller to start.'}</div></div>
-			<div class="lobby-head"><span>Players</span><b>${P.lobby.length}</b></div>
-			<ul class="lobby-list">${people || '<li class="lp-empty">Just you so far…</li>'}</ul>
-			<button data-act="0">Change my name</button>
-		</div>`, acts: [() => { P.link?.close(); P.status = 'closed'; render(); }] } }
+		...head('Lobby', ['Leave', leave]),
+		rubric('Room code'),
+		boxRow([P.code.split('').join(' ')], 'gold', 20),
+		...wrap(dealing ? 'The Storyteller is dealing the characters...' : 'Waiting for the Storyteller to start.', INNER).map((l) => row(txt(l, 'dim'))),
+		endPanel(),
+		rubric('Players - ' + P.lobby.length),
+		...(P.lobby.length ? P.lobby.map((n, i) => row(txt((i === P.lobbyYou ? '> ' : '  ') + n + (i === P.lobbyYou ? ' (you)' : ''), i === P.lobbyYou ? 'gold' : undefined))) : [row(txt('Just you so far...', 'dim'))]),
+		endPanel(),
+		buttonBlock([btn('Change my name', () => { P.link?.close(); P.status = 'closed'; render(); })])
 	];
 }
 
@@ -274,37 +270,46 @@ function seatScreen(): Row[] {
 function ring(): Row[] {
 	const v = P.view!;
 	const n = v.order.length;
-	const R = 36;
-	const d = Math.min(17, ((2 * Math.PI * R) / n) * 0.66);
-	const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-	const tokens = v.order.map((id, i) => {
-		const s = v.seats.find((x) => x.id === id)!;
-		const a = (2 * Math.PI * i) / n;
-		const x = 50 + R * Math.sin(a);
-		const y = 50 - R * Math.cos(a);
-		const mine = id === P.seat;
-		// Your own character shows on your token only while you have it showing above.
-		const reveal = mine && P.card && P.showCard;
-		const role = reveal ? P.card!.name : '';
-		const tone = reveal ? (P.card!.team === 'evil' ? 'evil' : 'good') : 'plain';
-		const longest = Math.max(4, ...role.split(/\s+/).map((w) => w.length));
-		const rs = Math.min(0.2, 1.55 / longest);
-		return `<div class="tok tone-${tone}${s.alive ? '' : ' dead'}${mine ? ' lit' : ''}" style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%;--d:${d.toFixed(2)};--rs:${rs.toFixed(3)}">`
-			+ `<span class="tok-face"><span class="tok-role">${esc(role)}</span>${!s.alive && !s.ghostVote ? '<span class="tok-rem">no vote</span>' : ''}</span>`
-			+ `<span class="tok-name">${s.alive ? '' : '† '}${esc(s.name)}</span></div>`;
-	});
 	const alive = v.seats.filter((s) => s.alive).length;
 	const caption: string[] = [];
-	if (v.phase === 'night') caption.push(`Night ${v.n}`, `${alive} alive`, 'Eyes closed');
+	if (v.phase === 'night') caption.push('Night ' + v.n, alive + ' alive', 'Eyes closed');
 	else if (v.phase === 'day') {
-		caption.push(`Day ${v.n}`, `${alive} alive · ${Math.ceil(alive / 2)} to execute`,
-			v.executed !== null ? `${esc(nameOf(v.executed))} executed` : v.block ? `Block: ${esc(nameOf(v.block.seat))} (${v.block.votes})` : 'Nobody on the block');
-		if (P.clock) caption.push('<span class="ring-clock" data-pclock></span>');
+		caption.push('Day ' + v.n, alive + ' alive - ' + Math.ceil(alive / 2) + ' to execute',
+			v.executed !== null ? nameOf(v.executed) + ' executed' : v.block ? 'Block: ' + nameOf(v.block.seat) + ' (' + v.block.votes + ')' : 'Nobody on the block');
+		if (P.clock) caption.push('@clock');
 	} else if (v.phase === 'over') caption.push(v.winner === 'good' ? 'Good wins' : 'Evil wins');
 	else caption.push('Waiting', 'for the Storyteller');
-	const middle = `<div class="ring-centre">${caption.map((c) => `<div class="ring-caption">${c}</div>`).join('')}</div>`;
-	return [...frameTop('The town'), { segs: [], cls: 'ring-row frame-mid', custom: { html: `<div class="ring">${middle}${tokens.join('')}</div>`, acts: [] } }, frameBottom()];
+	const rx = 16, ry = Math.max(6, Math.min(10, 3 + n / 2));
+	const h = Math.ceil(2 * ry) + 4;
+	const tw = Math.max(5, Math.min(9, Math.floor(2 * rx * Math.sin(Math.PI / Math.max(n, 2)) - 0.5)));
+	return [...frameTop('The town'), { ...blockRow(h, (c) => {
+		const cx = c.x + Math.floor(c.w / 2), cy = c.y + Math.floor(h / 2);
+		caption.forEach((line, i) => {
+			const text = line === '@clock' ? clockText() : line;
+			c.g.text(cx - Math.floor(text.length / 2), cy - Math.floor(caption.length / 2) + i, text, i === 0 ? 8 : 3);
+		});
+		v.order.forEach((id, i) => {
+			const s = v.seats.find((x) => x.id === id)!;
+			const a = (2 * Math.PI * i) / n;
+			const x = Math.round(cx + rx * Math.sin(a) - tw / 2), y = Math.round(cy - ry * Math.cos(a) - 1);
+			const mine = id === P.seat;
+			const reveal = mine && P.card && P.showCard;
+			const role = reveal ? P.card!.name : '';
+			const fg = s.alive ? 4 : 3, bg = mine ? 1 : 0;
+			const cut = (t: string) => [...t].slice(0, tw).join('');
+			c.g.fill({ x, y, w: tw, h: 3 }, ' ', fg, bg);
+			c.g.text(x, y, cut((s.alive ? '' : '+') + s.name), mine ? 6 : fg, bg);
+			c.g.text(x, y + 1, cut(role), reveal ? (P.card!.team === 'evil' ? 8 : 12) : fg, bg);
+			if (!s.alive && !s.ghostVote) c.g.text(x, y + 2, cut('no vote'), 3, bg);
+		});
+	}), cls: 'frame-mid' }, frameBottom()];
 }
+
+const clockText = () => {
+	if (!P.clock) return '';
+	const left = P.clock.running ? Math.max(0, P.clock.remainingMs - (Date.now() - P.clock.at)) : P.clock.remainingMs;
+	return T.clock(left);
+};
 
 function mainScreen(): Row[] {
 	const rows: Row[] = [];
@@ -394,29 +399,25 @@ function overlay(): Row[] {
 }
 
 function render() {
+	const theme = P.view?.script === 'laissez-un-faire' ? 'victorian' : 'manuscript';
 	document.documentElement.dataset.phase = P.view?.phase === 'night' ? 'night' : 'day';
 	document.documentElement.dataset.theme = P.view?.script === 'laissez-un-faire' ? 'occult' : '';
+	setPalette(() => theme + (P.view?.phase === 'night' || !P.view ? '-night' : '-day'));
 	paint(root, paneled(screen()));
 	const pages = overlay();
-	cardRoot.hidden = !pages.length;
-	if (pages.length) paint(cardRoot, paneled(pages, CARD_COLS));
-	cardRoot.classList.toggle('announce', !!P.announce);
+	paint(cardRoot, pages.length ? paneled(pages, CARD_COLS) : [], CARD_COLS);
 	tick();
 }
 
 function tick() {
-	const el = document.querySelector<HTMLElement>('[data-pclock]');
-	if (!el || !P.clock) return;
-	const left = P.clock.running ? Math.max(0, P.clock.remainingMs - (Date.now() - P.clock.at)) : P.clock.remainingMs;
-	el.textContent = T.clock(left);
-	el.classList.toggle('paused', !P.clock.running && left > 0);
-	el.classList.toggle('expired', left === 0);
+	if (P.clock) redraw();
 }
 
 export function startPlayer(appRoot: HTMLElement, overlayRoot: HTMLElement, code: string) {
 	root = appRoot;
 	cardRoot = overlayRoot;
 	setInterval(tick, 250);
+	setDynamic(() => null);
 	if (code && P.name) connect(code);
 	else { P.code = code; render(); }
 }

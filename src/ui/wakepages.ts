@@ -7,7 +7,6 @@
  */
 import { blank, btn, buttonRows, center, endPanel, pad, row, rubric, txt, wrap } from './ascii.ts';
 import type { Button, Row } from './ascii.ts';
-import { sprite, svg } from './pixel.ts';
 import type { SeatId } from '../core/index.ts';
 import type { Section, Wake } from '../net/views.ts';
 
@@ -35,9 +34,8 @@ export const note = (text: string): Row[] => wrap(text, CARD_INNER).map((l) => r
 export const cardButtons = (buttons: Button[]): Row[] => buttonRows(buttons, CARD_COLS);
 
 /** Room above the first panel for the character's picture, if one has been drawn. */
-export function pictureRows(character?: string): Row[] {
-	const pic = character ? sprite(character) : null;
-	return pic ? [{ segs: [], cls: 'card-pic', html: svg(pic, 'card-sprite') }] : [blank(), blank()];
+export function pictureRows(_character?: string): Row[] {
+	return [blank()];
 }
 
 export function sectionRows(sections: Section[]): Row[] {

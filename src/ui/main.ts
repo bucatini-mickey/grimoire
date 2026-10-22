@@ -17,25 +17,18 @@
  */
 import * as G from '../core/index.ts';
 import type { Candidate, CharacterId, Command, GameEvent, GameState, Info, SeatId, Script, Lean } from '../core/index.ts';
-import { COLS, INNER, Canvas, titleRow, blank, btn, buttonRows, center, endPanel, frameBottom, frameTop, paint, paneled, pad, row, rubric, rule, segWidth, txt, wrap } from './ascii.ts';
+import { COLS, INNER, Canvas, titleRow, blank, blockRow, boxRow, btn, buttonBlock, buttonRows, center, endPanel, field, frameBottom, frameTop, listRow, paint, paneled, pad, redraw, row, rubric, rule, segWidth, setDynamic, setExtra, setPalette, txt, wrap } from './ascii.ts';
 import type { Button, Row, Seg, Tone } from './ascii.ts';
 import * as T from './timer.ts';
-import { paletteCss, sprite, svg, towerScene } from './pixel.ts';
 import * as V from '../net/views.ts';
 import { hostRoom, newRoomCode } from '../net/link.ts';
 import type { HostLink, LinkStatus } from '../net/link.ts';
 import type { ClockView, HostMsg, PlayerMsg, VoteView } from '../net/protocol.ts';
 import { startPlayer } from './player.ts';
-import { startBackdrop } from './backdrop.ts';
-import OWN_ART from 'art:own';
-import { hasOwn, registerArt } from './pixel.ts';
 
-// The pictures you drew (art/*.png) take the place of the built-in ones.
-registerArt(OWN_ART);
 import { INKS, startVillage, villageForGame } from '../town/village.ts';
 import { AMNESIAC_IDEAS, savantPair, savantStatements } from './helpers.ts';
 import type { Extra, StActions, VillageHost } from '../town/village.ts';
-import qrcode from 'qrcode-generator';
 import { CARD_COLS, CARD_INNER, big, cardButtons, nextPage, note, wakeRows } from './wakepages.ts';
 import type { Page } from './wakepages.ts';
 
@@ -440,35 +433,34 @@ const escHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').re
 function table(look: (id: SeatId) => SeatLook, centre: string[] = [], title = 'The Grimoire'): Row[] {
 	const order = state.order.length ? state.order : state.seats.map((s) => s.id);
 	const n = order.length;
-	const R = 36; // ring radius, % of the ring's width
-	const d = Math.min(17, ((2 * Math.PI * R) / n) * 0.66); // token diameter, same units
-	const acts: (() => void)[] = [];
-	const tokens = order.map((id, i) => {
-		const s = state.seats[id];
-		const l = look(id);
-		const a = (2 * Math.PI * i) / n;
-		const x = 50 + R * Math.sin(a);
-		const y = 50 - R * Math.cos(a);
-		// Shrink the words to fit the longest one on a line of its own.
-		const longest = Math.max(...l.role.split(/\s+/).map((w) => w.length), 4);
-		const rs = Math.min(0.2, 1.55 / longest);
-		const flags = (l.flags.filter((f) => 't' in f) as { t: string; tone?: Tone }[])
-			.map((f) => `<b class="t-${f.tone ?? 'plain'}">${escHtml(f.t)}</b>`).join('');
-		const cls = ['tok', `tone-${l.roleTone}`, s.alive ? '' : 'dead', l.style === 'on' ? 'picked' : '', l.style === 'primary' ? 'lit' : ''].filter(Boolean).join(' ');
-		acts.push(() => tapSeat(id));
-		return `<button class="${cls}" data-act="${i}" style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%;--d:${d.toFixed(2)};--rs:${rs.toFixed(3)}" aria-label="${escHtml(`${s.name}, ${l.role}${s.alive ? '' : ', dead'}`)}">`
-			// Reminders sit inside the token, under the character, so they never crowd a neighbour.
-			+ `<span class="tok-face"><span class="tok-role">${escHtml(l.role)}</span>`
-			+ (l.reminders?.length ? `<span class="tok-rem">${l.reminders.slice(0, 2).map(escHtml).join('<br>')}</span>` : '')
-			+ `${flags ? `<span class="tok-flags">${flags}</span>` : ''}</span>`
-			+ `<span class="tok-name">${s.alive ? '' : '† '}${escHtml(s.name)}</span>`
-			+ `</button>`;
-	});
-	// Captions arrive as markup (already escaped), so a live clock can sit among them.
-	const middle = `<div class="ring-centre">${centre.map((c) => `<div class="ring-caption">${c}</div>`).join('')}</div>`;
+	const rx = 16, ry = Math.max(6, Math.min(10, 3 + n / 2));
+	const h = Math.ceil(2 * ry) + 4;
+	const tw = Math.max(5, Math.min(9, Math.floor((2 * rx * Math.sin(Math.PI / Math.max(n, 2))) - 0.5)));
 	return [
 		...frameTop(title),
-		{ segs: [], cls: 'ring-row frame-mid', custom: { html: `<div class="ring">${middle}${tokens.join('')}</div>`, acts } },
+		{ ...blockRow(h, (c) => {
+			const cx = c.x + Math.floor(c.w / 2), cy = c.y + Math.floor(h / 2);
+			centre.forEach((line, i) => {
+				const text = line.startsWith('@timer:') ? (dynamicText({ timer: line.slice(7) }) ?? '') : line;
+				c.g.text(cx - Math.floor(text.length / 2), cy - Math.floor(centre.length / 2) + i, text, i === 0 ? 8 : 3);
+			});
+			order.forEach((id, i) => {
+				const s = state.seats[id];
+				const l = look(id);
+				const a = (2 * Math.PI * i) / n;
+				const x = Math.round(cx + rx * Math.sin(a) - tw / 2), y = Math.round(cy - ry * Math.cos(a) - 1);
+				const on = l.style === 'on', lit = l.style === 'primary';
+				const bg = on ? 6 : lit ? 1 : 0;
+				const fg = on ? 0 : s.alive ? 4 : 3;
+				c.g.fill({ x, y, w: tw, h: 3 }, ' ', fg, bg);
+				const cut = (t: string) => [...t].slice(0, tw).join('');
+				const flags = (l.flags.filter((f) => 't' in f) as { t: string; tone?: Tone }[]).map((f) => f.t).join('');
+				c.g.text(x, y, cut((s.alive ? '' : '+') + s.name), on ? 0 : lit ? 6 : fg, bg);
+				c.g.text(x, y + 1, cut(l.role), on ? 0 : c.ink(l.roleTone), bg);
+				c.g.text(x, y + 2, cut(flags || (l.reminders?.[0] ?? '')), on ? 0 : 3, bg);
+				c.hit({ x, y, w: tw, h: 3 }, () => tapSeat(id));
+			});
+		}), cls: 'frame-mid' },
 		frameBottom()
 	];
 }
@@ -574,8 +566,7 @@ function header(): Row[] {
 		p.kind === 'day' ? `Day ${p.n}` : 'Game over';
 	const tab = (t: Tab, label: string) => btn(label, () => { ui.tab = t; render(); }, { style: ui.tab === t ? 'on' : undefined });
 	return [
-		titleRow(),
-		row(txt(center(phase), 'rubric', 'heading')),
+		row(txt(center('Grimoire - ' + phase), 'rubric')),
 		...buttonRows([
 			btn('Home', () => go(''), { style: 'quiet' }), tab('grimoire', 'Grim'), tab('log', 'Log'), tab('ties', 'Ties'), tab('options', 'Clock'), tab('phones', link ? 'Phones*' : 'Phones'),
 			...(village ? [btn('Village', () => village?.open(), { style: 'primary' })] : []),
@@ -603,14 +594,8 @@ function emptyDraft(): Draft {
 }
 
 /** Option tags: a row of choices, the chosen one lit. */
-function tagsRow(cls: string, items: { label: string; on: boolean; act: () => void; html?: string }[]): Row {
-	return {
-		segs: [], cls: `${cls}-row`,
-		custom: {
-			html: `<div class="${cls}">${items.map((t, i) => `<button class="${cls.replace(/s$/, '')}${t.on ? ' on' : ''}" data-act="${i}" aria-pressed="${t.on}">${t.html ?? escapeHtml(t.label)}</button>`).join('')}</div>`,
-			acts: items.map((t) => t.act)
-		}
-	};
+function tagsRow(_cls: string, items: { label: string; on: boolean; act: () => void }[]): Row {
+	return buttonBlock(items.map((t) => btn(t.label, t.act, { style: t.on ? 'on' : undefined })));
 }
 
 /** The in-person grimoire's setup: the script and the players' names. */
@@ -625,8 +610,8 @@ function go(hash: string) {
 }
 
 /** A page's head: back to the home page, and the page's name. */
-function pageHead(title: string, back: [string, () => void] = ['‹ Home', () => go('')]): Row[] {
-	return [{ segs: [], cls: 'page-head-row', custom: { html: `<div class="page-head"><button class="ghost" data-act="0">${escapeHtml(back[0])}</button><span class="ph-title">${escapeHtml(title)}</span><span></span></div>`, acts: [back[1]] } }];
+function pageHead(title: string, back: [string, () => void] = ['< Home', () => go('')]): Row[] {
+	return [buttonBlock([btn(back[0], back[1], { style: 'quiet' })]), rubric(title)];
 }
 
 const esc = (x: string) => x.replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);
@@ -661,56 +646,46 @@ function hostNew() {
 
 /** The home page: host, join, play in person, or walk the town; and pick up a game already going. */
 function homeScreen(): Row[] {
-	const acts: (() => void)[] = [];
-	const a = (f: () => void) => { acts.push(f); return acts.length - 1; };
 	const busy = saved.events.length > 0 || (saved.net?.lobby?.length ?? 0) > 0;
-	const cards: string[] = [];
+	const rows: Row[] = [...art(), blank()];
+	const resume = (label: string, sub: string, ...bs: Button[]) => rows.push(rubric(label), ...prose(sub, 'dim'), buttonBlock(bs), endPanel());
 	if (saved.net && busy) {
-		cards.push(`<div class="home-resume"><div><div class="hr-label">${saved.net.village ? 'Your game' : 'Your grimoire'} · room <b class="mono">${esc(saved.net.room)}</b></div><div class="hr-sub">${esc(gameSummary())}</div></div>
-			<button class="primary" data-act="${a(() => go(saved.net!.village ? '#host' : '#grimoire'))}">Resume</button>
-			<button class="ghost" data-act="${a(() => { if (ui.confirm === 'end') endSaved(); else { ui.confirm = 'end'; render(); } })}">${ui.confirm === 'end' ? 'Sure? End it' : 'End'}</button></div>`);
+		resume((saved.net.village ? 'Your game' : 'Your grimoire') + ' - ' + saved.net.room, gameSummary(),
+			btn('Resume', () => go(saved.net!.village ? '#host' : '#grimoire'), { style: 'primary' }),
+			btn(ui.confirm === 'end' ? 'Sure? End it' : 'End', () => { if (ui.confirm === 'end') endSaved(); else { ui.confirm = 'end'; render(); } }, { style: 'quiet' }));
 	} else if (!saved.net && saved.events.length) {
-		cards.push(`<div class="home-resume"><div><div class="hr-label">Your grimoire</div><div class="hr-sub">${esc(gameSummary())}</div></div><button class="primary" data-act="${a(() => go('#grimoire'))}">Open</button></div>`);
+		resume('Your grimoire', gameSummary(), btn('Open', () => go('#grimoire'), { style: 'primary' }));
 	}
 	const mine = (() => { try { return { room: localStorage.getItem('grimoire.room') ?? '', name: localStorage.getItem('grimoire.name') ?? '' }; } catch { return { room: '', name: '' }; } })();
-	if (mine.room && mine.name) {
-		cards.push(`<div class="home-resume"><div><div class="hr-label">Rejoin room <b class="mono">${esc(mine.room)}</b></div><div class="hr-sub">as ${esc(mine.name)}</div></div><button class="primary" data-act="${a(() => go(`#join=${mine.room}`))}">Rejoin</button></div>`);
-	}
-	// Each way in is a step of the receipt (the herbal look) or a card with its glyph (the occult look).
-	const card = (ico: string, title: string, sub: string, act: () => void, cls = '') =>
-		`<button class="home-card ${cls}" data-act="${a(act)}"><span class="hc-rib"><span class="hc-ico">${ico}</span><span class="hc-text"><span class="hc-title"><span class="ms-asc hc-ini" data-asc="${[...title][0]}" data-initial data-initial-ink="${cls === 'primary' ? 'var(--verm)' : 'var(--lapis)'}"></span><span class="hc-first">${[...title][0]}</span>${[...title].slice(1).join('')}</span> <span class="hc-sub">${sub}</span></span></span></button>`;
-	const resumes = cards.splice(0);
+	if (mine.room && mine.name) resume('Rejoin room ' + mine.room, 'as ' + mine.name, btn('Rejoin', () => go('#join=' + mine.room), { style: 'primary' }));
 	const ending = busy && saved.net?.village;
-	cards.push(
-		card('\u2302', ui.confirm === 'host' ? 'Start a new game?' : 'Host a game', ui.confirm === 'host' ? 'Your current game will end. Tap again.' : 'Everyone on their own phone, in the village.', () => { if (ending && ui.confirm !== 'host') { ui.confirm = 'host'; render(); } else hostNew(); }, 'primary'),
-		card('\u2726', 'Join a game', 'Type the code from the Storyteller.', () => go('#join')),
-		card('\u2720', ui.confirm === 'grimoire' ? 'Play in person?' : 'Grimoire', ui.confirm === 'grimoire' ? 'Your online game will end. Tap again.' : 'One device: run an in-person game.', () => {
-			if (ending && ui.confirm !== 'grimoire') { ui.confirm = 'grimoire'; render(); return; }
-			if (ending) endSaved();
-			go('#grimoire');
-		}),
-		card('\u2618', 'Walk the village', 'Explore the town. No game.', () => go('#village'))
-	);
-	return [...art(), blank(), { segs: [], cls: 'home-row', custom: { html: `<div class="home">${resumes.join('')}<div class="recipe">${cards.join('')}</div></div>`, acts } }];
+	const card = (title: string, sub: string, act: () => void, style?: Button['style']) => rows.push(buttonBlock([btn(title, act, { style, width: INNER })]), row(txt(center(sub, INNER), 'dim')));
+	card(ui.confirm === 'host' ? 'Start a new game?' : 'Host a game', ui.confirm === 'host' ? 'Your current game will end. Tap again.' : 'Everyone on their own phone, in the village.', () => { if (ending && ui.confirm !== 'host') { ui.confirm = 'host'; render(); } else hostNew(); }, 'primary');
+	card('Join a game', 'Type the code from the Storyteller.', () => go('#join'));
+	card(ui.confirm === 'grimoire' ? 'Play in person?' : 'Grimoire', ui.confirm === 'grimoire' ? 'Your online game will end. Tap again.' : 'One device: run an in-person game.', () => {
+		if (ending && ui.confirm !== 'grimoire') { ui.confirm = 'grimoire'; render(); return; }
+		if (ending) endSaved();
+		go('#grimoire');
+	});
+	card('Walk the village', 'Explore the town. No game.', () => go('#village'));
+	return rows;
 }
 
 /** The room's code, big and plain to read aloud. */
 function roomCodeRow(room: string): Row {
-	return { segs: [], cls: 'room-code-row', html: `<div class="room-code" aria-label="Room code">${escapeHtml(room)}</div>` };
+	return boxRow([room.split('').join(' ')], 'gold', 20);
 }
 
 /** Someone playing without a phone, added by the Storyteller. */
-function addLocal() {
-	const el = document.getElementById('add-name') as HTMLInputElement | null;
-	const name = (el?.value ?? '').trim().slice(0, 14);
+function addLocal(raw: string) {
+	const name = raw.trim().slice(0, 14);
 	if (!name || !saved.net) return;
 	const list = (saved.net.lobby ??= []);
-	if (list.some((e) => e.name.toLowerCase() === name.toLowerCase())) { ui.message = `${name} is already here.`; render(); return; }
-	list.push({ client: `local:${name}`, name });
+	if (list.some((e) => e.name.toLowerCase() === name.toLowerCase())) { ui.message = name + ' is already here.'; render(); return; }
+	list.push({ client: 'local:' + name, name });
 	save();
 	for (const peer of phones.keys()) welcome(peer);
 	render();
-	document.getElementById('add-name')?.focus();
 }
 
 /** The invite link, copied (or shared, where the phone can). */
@@ -739,29 +714,20 @@ function hostLobbyPage(): Row[] {
 	const net = saved.net!;
 	const list = lobby();
 	const online = new Set([...phones.entries()].filter(([peer]) => link?.peers.get(peer)?.open).map(([, c]) => c));
-	const acts: (() => void)[] = [];
-	const a = (f: () => void) => { acts.push(f); return acts.length - 1; };
-	const status = linkStatus === 'open' ? 'Open: players can join' : linkStatus === 'connecting' ? 'Opening the room…' : `Trouble: ${linkDetail || linkStatus}`;
-	const people = list.map((e, i) => {
+	const status = linkStatus === 'open' ? 'Open: players can join' : linkStatus === 'connecting' ? 'Opening the room...' : 'Trouble: ' + (linkDetail || linkStatus);
+	const rows: Row[] = [...pageHead('Lobby'), rubric('Room code'), roomCodeRow(net.room), row(txt(center(status, INNER), linkStatus === 'open' ? 'good' : 'evil')),
+		...prose('Players open this app, tap Join a game, and type the code and their name.', 'dim'),
+		buttonBlock([btn(ui.copied ? 'Link copied' : 'Invite link', copyInvite)]), endPanel(),
+		rubric('Players - ' + list.length), ...prose('5 to 15 to play. Seats go in this order.', 'dim')];
+	if (!list.length) rows.push(row(txt('Waiting for players to join...', 'dim')));
+	list.forEach((e, i) => {
 		const local = e.client.startsWith('local:'), on = local || online.has(e.client);
-		return `<li class="lp${on ? '' : ' away'}"><span class="av" style="--ink:${INKS[i % INKS.length]}">${esc(e.name[0].toUpperCase())}</span><span class="lp-name">${esc(e.name)}</span><span class="lp-tag">${local ? 'no phone' : on ? '' : 'away'}</span>`
-			+ (i ? `<button class="lp-btn" data-act="${a(() => lobbyUp(e.client))}" aria-label="Move ${esc(e.name)} up">↑</button>` : '<span class="lp-btn-gap"></span>')
-			+ `<button class="lp-btn" data-act="${a(() => dropFromLobby(e.client))}" aria-label="Remove ${esc(e.name)}">✕</button></li>`;
-	}).join('');
-	let qr = '';
-	if (ui.showQr) { const q = qrcode(0, 'M'); q.addData(joinUrl(net.room)); q.make(); qr = `<div class="qr lobby-qr">${q.createSvgTag({ cellSize: 4, margin: 2, scalable: true })}</div>`; }
-	const html = `<div class="lobby">
-		<div class="page-head"><button class="ghost" data-act="${a(() => go(''))}">‹ Home</button><span class="ph-title">Lobby</span><span></span></div>
-		<div class="room-card"><div class="rc-label">Room code</div><div class="rc-code">${esc(net.room)}</div><div class="rc-status ${linkStatus}">${esc(status)}</div>
-			<div class="rc-hint">Players open this app, tap <b>Join a game</b>, and type the code and their name.</div>
-			<div class="rc-actions"><button data-act="${a(copyInvite)}">${ui.copied ? 'Link copied' : 'Invite link'}</button><button data-act="${a(() => { ui.showQr = !ui.showQr; render(); })}">${ui.showQr ? 'Hide QR' : 'QR code'}</button></div>${qr}</div>
-		<div class="lobby-head"><span>Players</span><b>${list.length}</b><small>5 to 15 to play · seats go in this order</small></div>
-		<ul class="lobby-list">${people || '<li class="lp-empty">Waiting for players to join…</li>'}</ul>
-		<div class="add-row"><input id="add-name" maxlength="14" autocomplete="off" placeholder="Add someone without a phone"><button data-act="${a(addLocal)}">Add</button></div>
-	</div>`;
+		rows.push(listRow(e.name + (local ? ' (no phone)' : on ? '' : ' (away)'), on ? undefined : 'dim', [...(i ? [btn('Up', () => lobbyUp(e.client), { width: 6, style: 'quiet' })] : []), btn('x', () => dropFromLobby(e.client), { width: 6, style: 'quiet' })]));
+	});
+	rows.push(field('add-name', 'Add someone without a phone', '', addLocal, 14, 'tap to type a name'), endPanel());
 	const n = list.length, ok = n >= 5 && n <= 15;
 	return [
-		{ segs: [], cls: 'lobby-row', custom: { html, acts } },
+		...rows,
 		...messageRows(),
 		rubric('The Script'),
 		tagsRow('tags', [
@@ -769,7 +735,8 @@ function hostLobbyPage(): Row[] {
 			{ label: 'Custom', on: ui.scriptId === 'custom', act: () => { ui.scriptId = 'custom'; render(); } }
 		]),
 		...customPicker(),
-		{ segs: [], cls: 'lobby-start-row', custom: { html: `<div class="lobby-start"><button class="big-primary" data-act="0"${ok ? '' : ' disabled'}>${ok ? `Choose the characters · ${n} players` : n < 5 ? `Need ${5 - n} more player${5 - n === 1 ? '' : 's'}` : 'Too many players (15 at most)'}</button></div>`, acts: [dealFromLobby] } }
+		endPanel(),
+		buttonBlock([btn(ok ? 'Choose the characters - ' + n + ' players' : n < 5 ? 'Need ' + (5 - n) + ' more player' + (5 - n === 1 ? '' : 's') : 'Too many players (15 at most)', dealFromLobby, { style: 'primary', disabled: !ok, width: INNER })])
 	];
 }
 
@@ -784,7 +751,9 @@ function scriptAndNames(): Row[] {
 	rows.push(...customPicker(), blank());
 	rows.push(rubric('The Players'));
 	rows.push(...prose('One name per line, in seating order, clockwise. 5 to 15 players.', 'dim'));
-	rows.push({ segs: [], html: `<textarea id="names" rows="8" spellcheck="false" aria-label="Player names">${escapeHtml(ui.names)}</textarea>` });
+	const names = ui.names.split('\n').map((x) => x.trim()).filter(Boolean);
+	names.forEach((nm, i) => rows.push(listRow((i + 1) + '. ' + nm, undefined, [btn('x', () => { ui.names = names.filter((_, k) => k !== i).join('\n'); render(); }, { width: 6, style: 'quiet' })])));
+	rows.push(field('names', 'Add a player', '', (v) => { const add = v.split(',').map((x) => x.trim()).filter(Boolean); ui.names = [...names, ...add].join('\n'); render(); }, 14, 'tap to type a name'));
 	rows.push(...buttonRows([btn('Choose the characters', () => {
 		const names = ui.names.split('\n').map((x) => x.trim()).filter(Boolean);
 		act({ type: 'create', names, scriptId: ui.scriptId === 'custom' ? G.customScriptId(ui.customIds) : ui.scriptId });
@@ -808,12 +777,7 @@ function customPicker(): Row[] {
 }
 
 function art(): Row[] {
-	// The frontispiece: the clocktower as a miniature in a frame of gold leaf, and the book's name.
-	return [
-		{ segs: [], cls: hasOwn('tower') ? 'title-art own' : 'title-art', html: `<figure class="miniature"><div class="mini-in">${svg(sprite('tower') ?? [], 'title-tower')}</div></figure>` },
-		titleRow(),
-		{ segs: [], cls: 'subtitle', html: '<p class="ms-rub"><span class="ms-plain">Blood on the Clocktower</span><span class="ms-asc" data-asc="Blood on the Clocktower" data-face="small" data-ink="var(--verm)">Blood on the Clocktower</span></p><p class="ms-sub">a Storyteller\u2019s companion</p>' }
-	];
+	return [titleRow(), row(txt(center('Blood on the Clocktower', COLS), 'rubric')), row(txt(center('a Storyteller’s companion', COLS), 'dim'))];
 }
 
 function escapeHtml(s: string) {
@@ -1842,10 +1806,10 @@ function voteStage(): Row[] {
 		if (!s.alive) rows.push(...note('(spends their ghost vote)'));
 		const master = G.butlerMaster(state);
 		if (G.hasWorkingAbility(state, id, 'butler') && master !== null) rows.push(...note(`Butler: only if ${name(master)} votes`));
-		rows.push(endPanel(), { segs: [], cls: 'giants-row', custom: { html: '<div class="giants"><button class="giant up" data-act="0">Hand<br>raised</button><button class="giant down" data-act="1">No<br>hand</button></div>', acts: [() => answerVote(true), () => answerVote(false)] } });
+		rows.push(endPanel(), buttonBlock([btn('Hand raised', () => answerVote(true), { style: 'primary' }), btn('No hand', () => answerVote(false))], CARD_INNER));
 	} else {
 		rows.push(rubric('The count'), ...big(`${v.hands.length} hand${v.hands.length === 1 ? '' : 's'}`), endPanel(),
-			{ segs: [], cls: 'giants-row', custom: { html: '<div class="giants"><button class="giant up" data-act="0">Record<br>the vote</button></div>', acts: [recordVote] } });
+			buttonBlock([btn('Record the vote', recordVote, { style: 'primary' })], CARD_INNER));
 	}
 	rows.push(blank(), ...cardButtons([
 		btn('Back', () => { v.index = Math.max(0, v.index - 1); while (v.index > 0 && !G.canVote(state, v.order[v.index])) v.index--; save(); render(); }, { style: 'quiet', disabled: v.index === 0 }),
@@ -2516,10 +2480,7 @@ function phonesScreen(): Row[] {
 	const status = linkStatus === 'open' ? 'Open' : linkStatus === 'connecting' ? 'Opening...' : `Trouble: ${linkDetail || linkStatus}`;
 	rows.push(roomCodeRow(room), row(txt(center(status), linkStatus === 'open' ? 'good' : 'evil')));
 	rows.push(...prose('Players open this app, choose Join a game, and type the code. Or scan:', 'dim'), endPanel());
-	const qr = qrcode(0, 'M');
-	qr.addData(joinUrl(room));
-	qr.make();
-	rows.push({ segs: [], cls: 'qr-row', html: `<div class="qr">${qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true })}</div>` });
+	rows.push(row(txt(joinUrl(room).slice(0, INNER), 'gold')), ...prose(joinUrl(room).slice(INNER), 'gold'));
 	rows.push(rubric('The village'));
 	rows.push(...prose(village
 		? 'On: every seated phone walks the village, with voices by distance. The game sets the day, the night, and dusk at the market cross for nominations and votes; at night you go to whoever wakes.'
@@ -2570,13 +2531,13 @@ function circleRows(): Row[] {
 	const caption: string[] = [];
 	if (p.kind === 'night') {
 		const nextUp = step ? (step.seat === null ? '' : `Next: ${name(step.seat)}`) : 'Dawn is coming';
-		caption.push(`Night ${p.n}`, `${alive} alive`, escHtml(nextUp));
+		caption.push(`Night ${p.n}`, `${alive} alive`, nextUp);
 	} else if (p.kind === 'day') {
 		const day = state.day!;
 		const clock = openNomination() && flow().speech ? 'speech' : day.stage === 'discussion' ? 'day' : 'nom';
 		caption.push(`Day ${p.n}`, `${alive} alive \u00b7 ${Math.ceil(alive / 2)} to execute`,
-			escHtml(day.executed !== null ? `${name(day.executed)} executed` : day.block !== null ? `Block: ${name(day.block)} (${day.highest})` : 'Nobody on the block'),
-			`<span class="ring-clock" data-timer="${clock}"></span>`);
+			(day.executed !== null ? `${name(day.executed)} executed` : day.block !== null ? `Block: ${name(day.block)} (${day.highest})` : 'Nobody on the block'),
+			'@timer:' + clock);
 	} else if (p.kind === 'over') {
 		caption.push(p.winner === 'good' ? 'Good wins' : 'Evil wins');
 	}
@@ -2622,6 +2583,7 @@ function drawerScreen(): Row[] {
 			btn(ui.confirmNew ? 'Sure?' : 'New game', () => { if (ui.confirmNew) newGame(); else { ui.confirmNew = true; render(); } }, { style: ui.confirmNew ? 'danger' : 'quiet' }),
 			btn('Put away', () => { ui.drawer = null; render(); }, { style: 'quiet' })
 		], COLS, 0),
+		buttonBlock(DRAWER_TABS.map(([t, l]) => btn(l, () => { ui.drawer = t; ui.confirmNew = false; render(); }, { style: ui.drawer === t ? 'on' : 'quiet' })), COLS, 0),
 		blank()
 	];
 	const tab = ui.drawer ?? 'actions';
@@ -2635,28 +2597,7 @@ function drawerScreen(): Row[] {
 	return [...rows, ...circleRows(), ...messageRows(), ...inspectRows()];
 }
 
-/** The tabs on the drawer's edge: each pulls it out on that page; the open one puts it away. */
-const DRAWER_TABS: [DrawerTab, string, string][] = [['actions', '\u2726', 'Actions'], ['grimoire', '\u25CE', 'Grimoire'], ['log', '\u2261', 'Log'], ['phones', '\u260F\uFE0E', 'Phones'], ['options', '\u29D7', 'Clock'], ['ties', '\u2696\uFE0E', 'Ties']];
-const drawerTabs = document.createElement('nav');
-drawerTabs.id = 'drawer-tabs';
-drawerTabs.setAttribute('aria-label', 'The grimoire');
-document.body.appendChild(drawerTabs);
-drawerTabs.addEventListener('click', (ev) => {
-	const b = (ev.target as HTMLElement).closest<HTMLButtonElement>('button[data-tab]');
-	if (!b) return;
-	const t = b.dataset.tab as DrawerTab;
-	ui.drawer = ui.drawer === t ? null : t;
-	ui.confirmNew = false;
-	render();
-	if (ui.drawer) root.scrollTop = 0;
-});
-function paintDrawerTabs() {
-	drawerTabs.hidden = !villageGame();
-	if (drawerTabs.hidden) return;
-	const waiting = state.phase.kind === 'night' && !!G.nextStep(state);
-	const html = DRAWER_TABS.map(([t, ico, label]) => `<button data-tab="${t}" class="${ui.drawer === t ? 'on' : ''}" aria-pressed="${ui.drawer === t}"><span class="tab-ico" aria-hidden="true">${ico}</span><span>${label}${t === 'actions' && waiting ? '<span class="tab-dot"> •</span>' : ''}</span></button>`).join('');
-	if (drawerTabs.innerHTML !== html) drawerTabs.innerHTML = html;
-}
+const DRAWER_TABS: [DrawerTab, string][] = [['actions', 'Actions'], ['grimoire', 'Grimoire'], ['log', 'Log'], ['phones', 'Phones'], ['options', 'Clock'], ['ties', 'Ties']];
 
 /** Pull the drawer out on a page (from the village's bar: "Grimoire"). */
 function openDrawer(t: DrawerTab = 'actions') {
@@ -2665,35 +2606,30 @@ function openDrawer(t: DrawerTab = 'actions') {
 }
 
 const root = document.getElementById('app')!;
-const cardRoot = document.getElementById('card')!;
+const cardRoot = document.createElement('div');
 
 function render() {
+	// The script sets the look: Laissez un Faire is Victorian; the night is dark vellum, the day light.
+	const theme = themeOf(state.seats.length ? state.scriptId : ui.scriptId);
 	document.documentElement.dataset.phase = state.phase.kind === 'night' ? 'night' : 'day';
-	// The script sets the look: Laissez un Faire is occult (drowned greens, bone, brass, a Victorian face).
-	document.documentElement.dataset.theme = themeOf(state.seats.length ? state.scriptId : ui.scriptId);
+	document.documentElement.dataset.theme = theme;
+	setPalette(() => (theme === 'occult' ? 'victorian' : 'manuscript') + (state.phase.kind === 'night' || ui.page === 'home' ? '-night' : '-day'));
 	// A village game: the town is always there; the grimoire is a drawer over it.
 	const vg = villageGame();
-	// The game begins: put the drawer away and be in the town (the bar runs the night).
 	if (vg && lastKind === 'setup' && state.phase.kind !== 'setup') ui.drawer = null;
 	lastKind = state.phase.kind;
-	document.body.classList.toggle('village-game', vg);
-	document.body.classList.toggle('drawer-open', vg && !!ui.drawer);
 	if (vg && !villageShown) { villageShown = true; village!.open(); }
 	if (!vg && villageShown) { village?.close(); villageShown = false; }
 	if (ui.page === 'home') {
-		document.body.classList.remove('village-game', 'drawer-open');
 		paint(root, paneled(homeScreen()));
-		cardRoot.hidden = true;
-		drawerTabs.hidden = true;
+		paint(cardRoot, []);
 		return;
 	}
-	paint(root, paneled(vg ? drawerScreen() : screen()));
-	paintDrawerTabs();
+	// In the town the page layer is empty until the drawer is pulled out.
+	paint(root, vg && !ui.drawer ? [] : paneled(vg ? drawerScreen() : screen()));
 	const voting = state.phase.kind === 'day' && !!flow().vote && !!openNomination() && (villageGame() ? ui.voteBig : !ui.voteSmall);
 	const pages = ui.banner ? bannerRows() : voting ? voteStage() : ui.show ? showRows() : [];
-	cardRoot.hidden = !pages.length;
-	if (pages.length) paint(cardRoot, paneled(pages, CARD_COLS));
-	cardRoot.classList.toggle('announce', !!ui.banner);
+	paint(cardRoot, pages.length ? paneled(pages, CARD_COLS) : [], CARD_COLS);
 	updatePhones();
 	syncVillage();
 	tick();
@@ -2703,35 +2639,27 @@ function render() {
 const buzzed = new Set<string>();
 function tick() {
 	const now = Date.now();
-	for (const el of document.querySelectorAll<HTMLElement>('[data-timer]')) {
-		const key = el.dataset.timer as 'day' | 'nom' | 'speech';
+	let running = false;
+	for (const key of ['day', 'nom', 'speech'] as const) {
 		const t = timerOf(key);
 		if (!t) continue;
+		running = true;
 		const left = T.remaining(t, now);
-		el.textContent = T.clock(left);
-		el.classList.toggle('expired', left === 0);
-		el.classList.toggle('paused', !T.running(t) && left > 0);
-		const id = `${key}:${flow().dayN}:${state.day?.nominations.length ?? 0}`;
+		const id = key + ':' + flow().dayN + ':' + (state.day?.nominations.length ?? 0);
 		if (left === 0 && T.running(t) && !buzzed.has(id)) {
 			buzzed.add(id);
 			try { navigator.vibrate?.([200, 100, 200]); } catch { /* not supported */ }
 		}
 	}
+	if (running) redraw();
 }
+/** The clocks, drawn into the cells as they are laid out. */
+const dynamicText = (d: Record<string, string>): string | null => {
+	const t = d.timer ? timerOf(d.timer as 'day' | 'nom' | 'speech') : null;
+	return t ? T.clock(T.remaining(t, Date.now())) : null;
+};
+setDynamic(dynamicText);
 setInterval(tick, 250);
-
-// The pixel inks, as CSS, once.
-const inks = document.createElement('style');
-inks.textContent = paletteCss();
-document.head.appendChild(inks);
-
-root.addEventListener('input', (ev) => {
-	const t = ev.target as HTMLTextAreaElement;
-	if (t.id === 'names') ui.names = t.value;
-	if (t.id === 'extra-names') ui.extraNames = t.value;
-});
-
-startBackdrop();
 
 // A player's phone (#join=CODE, or "Join a game") runs the player app instead.
 const joining = location.hash.match(/^#join(?:=([A-Za-z]{4}))?/);

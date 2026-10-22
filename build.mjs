@@ -9,7 +9,6 @@ import * as esbuild from 'esbuild';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
 import { dirname } from 'node:path';
-import { readArt } from './tools/art.mjs';
 import { fileURLToPath } from 'node:url';
 
 process.chdir(dirname(fileURLToPath(import.meta.url)));
@@ -23,9 +22,7 @@ const inline = {
 		build.onEnd((result) => {
 			if (result.errors.length) return;
 			const js = result.outputFiles.find((f) => f.path.endsWith('.js')).text;
-			const css = readFileSync('src/ui/style.css', 'utf8');
 			const html = readFileSync('src/ui/index.html', 'utf8')
-				.replace('/*CSS*/', () => css)
 				.replace('/*JS*/', () => js.replace(/<\/script/gi, '<\/script'));
 			writeFileSync('dist/grimoire.html', html);
 			writeFileSync('dist/index.html', html);
@@ -35,21 +32,7 @@ const inline = {
 	}
 };
 
-// ---- your own pictures: art/*.png, read afresh on every build (and whenever art/ changes) ----
-const ownArt = {
-	name: 'own-art',
-	setup(build) {
-		build.onResolve({ filter: /^art:own$/ }, () => ({ path: 'own', namespace: 'art' }));
-		build.onLoad({ filter: /.*/, namespace: 'art' }, () => {
-			mkdirSync('art', { recursive: true });
-			return { contents: JSON.stringify(readArt()), loader: 'json', watchDirs: ['art'] };
-		});
-	}
-};
-
 // ---- the installable app ------------------------------------------------------------
-
-const { DEFAULTS, INKS } = await import('./src/ui/pixel.ts');
 
 /** A PNG from RGBA bytes: just enough of the format for an icon. */
 function png(w, h, rgba) {
@@ -76,23 +59,20 @@ function png(w, h, rgba) {
 	return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
 }
 
-/** The logo (art/logo.png if you drew one, else the clocktower) on dark vellum, as a square icon. */
+/** The icon: a rubric G, an illuminated capital, on dark vellum in a gold square. */
+const G = ['.####', '#....', '#.###', '#...#', '.###.'];
 function icon(size) {
-	const own = readArt();
-	const sprite = own.images.logo ?? DEFAULTS.tower;
-	const colour = { ...Object.fromEntries(INKS.map((i) => [i.key, i.day])), ...own.palette };
-	const bg = [0x16, 0x11, 0x0c, 255];
+	const bg = [0x16, 0x11, 0x0c, 255], gold = [0xd4, 0xa7, 0x3a, 255], ink = [0xc8, 0x41, 0x2f, 255], leaf = [0x22, 0x1a, 0x12, 255];
 	const rgba = Buffer.alloc(size * size * 4);
 	for (let i = 0; i < size * size; i++) rgba.set(bg, i * 4);
-	const sh = sprite.length, sw = Math.max(...sprite.map((r) => r.length));
-	const k = Math.max(1, Math.floor((size * 0.72) / Math.max(sh, sw)));
-	const ox = Math.floor((size - sw * k) / 2), oy = Math.floor((size - sh * k) / 2);
-	sprite.forEach((line, y) => [...line].forEach((ch, x) => {
-		if (ch === '.') return;
-		const hex = colour[ch];
-		if (!hex) return;
-		const c = [1, 3, 5].map((p) => parseInt(hex.slice(p, p + 2), 16)).concat(255);
-		for (let dy = 0; dy < k; dy++) for (let dx = 0; dx < k; dx++) rgba.set(c, ((oy + y * k + dy) * size + ox + x * k + dx) * 4);
+	const sq = Math.floor(size * 0.72), x0 = Math.floor((size - sq) / 2);
+	const k = Math.floor(sq / 7);
+	const put = (x, y, c) => rgba.set(c, (y * size + x) * 4);
+	for (let y = 0; y < sq; y++) for (let x = 0; x < sq; x++) put(x0 + x, x0 + y, x < 4 || y < 4 || x >= sq - 4 || y >= sq - 4 ? gold : leaf);
+	const gx = x0 + Math.floor((sq - 5 * k) / 2), gy = x0 + Math.floor((sq - 5 * k) / 2);
+	G.forEach((line, y) => [...line].forEach((ch, x) => {
+		if (ch !== '#') return;
+		for (let dy = 0; dy < k; dy++) for (let dx = 0; dx < k; dx++) put(gx + x * k + dx, gy + y * k + dy, ink);
 	}));
 	return png(size, size, rgba);
 }
@@ -148,7 +128,7 @@ const options = {
 	write: false,
 	outdir: 'dist/.js',
 	loader: { '.tbp': 'text' },
-	plugins: [ownArt, inline],
+	plugins: [inline],
 	logLevel: 'warning'
 };
 
