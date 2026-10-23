@@ -80,11 +80,18 @@ for (const x of [54, 55, 56]) put(x, K.y1, 'D');
 fill(62, K.y0 + 1, 62, K.y1 - 1, '#'); put(62, 14, 'D');
 put(66, 10, 'B'); put(68, 10, 'E'); put(66, 19, 'S'); put(68, 19, 'k'); // the lord's chamber
 label(62, K.y0, 'Lord’s Chamber');
+// Cells are twice as tall as they are wide, so a table that looks round is twice as wide as it is deep.
 const rt = { x: 51.5, y: 14.5 };
-for (let y = K.y0 + 2; y <= K.y1 - 2; y++) for (let x = K.x0 + 2; x <= 60; x++) {
-	const d = Math.hypot(x - rt.x, (y - rt.y) * 1.25);
-	if (d <= 2.6) put(x, y, 'U'); // the round table
-	else if (d <= 3.9 && d > 3.0 && (x + y) % 1 === 0) put(x, y, 'h');
+for (let y = K.y0 + 1; y <= K.y1 - 1; y++) for (let x = K.x0 + 2; x <= 60; x++) {
+	const d = Math.hypot((x - rt.x) / 2, y - rt.y);
+	if (d <= 2.2) put(x, y, 'U'); // the round table
+}
+// A chair at every place round it: each cell beside the table (corners too) seats one.
+for (let y = K.y0 + 1; y <= K.y1 - 1; y++) for (let x = K.x0 + 2; x <= 60; x++) {
+	if (get(x, y) === 'U') continue;
+	let beside = false;
+	for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (get(x + dx, y + dy) === 'U') beside = true;
+	if (beside) put(x, y, 'h');
 }
 put(43, 10, 'k'); put(43, 19, 'k'); put(60, 10, 'i'); put(60, 19, 'i'); // hearths and candles
 for (const x of [44, 48, 52, 56]) { put(x, K.y0, 'w'); }

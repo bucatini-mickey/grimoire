@@ -379,7 +379,9 @@ function setPhase(phase: Phase) {
 		S.nightLocks.clear();
 	}
 	if (phase === 'night') sendEveryoneHome(t);
-	if (phase === 'dusk' && S.game) gatherAtCross(t);
+	// The bell: everyone walks to their seat. When the council sits, anyone still on the way is seated.
+	if (phase === 'circle' && t.council) gatherAtCross(t);
+	else if (phase === 'dusk' && S.game && !t.council) gatherAtCross(t);
 	for (const id of S.hostWire?.peers() ?? []) sendTo(id, { t: 'phase', phase });
 	announcePhase();
 }
@@ -409,19 +411,25 @@ function sendHome(t: Town, q: Person, taken: Set<number>) {
 	sendTo(q.id, { t: 'place', x: bed.x, y: bed.y });
 }
 
-/** Where seat `i` sits round the market cross: the game's seats spread evenly round it, the first at the top. */
+/** Where the town sits together: the council round the great hall's table, or else the ring of seats in the square. */
+function gathering(t: Town): { seats: P[]; at: P } | null {
+	return t.council ?? (t.meeting && t.seats.length ? { seats: t.seats, at: t.meeting.at } : null);
+}
+
+/** Where seat `i` sits at the gathering: the game's seats spread evenly round it, the first at the top. */
 function seatCell(t: Town, i: number): P | null {
-	const L = t.seats.length;
-	if (!L || !t.meeting) return null;
+	const gp = gathering(t);
+	if (!gp) return null;
+	const L = gp.seats.length;
 	const n = S.ring.length || [...S.people.values()].filter((q) => !q.st).length;
-	const m = t.meeting.at;
+	const m = gp.at;
 	let top = 0, best = Infinity;
-	t.seats.forEach((c, k) => {
+	gp.seats.forEach((c, k) => {
 		const a = Math.abs(Math.atan2(c.y - m.y, c.x - m.x) + Math.PI / 2);
 		if (a < best) { best = a; top = k; }
 	});
 	const step = n > 0 && n <= L && i < n ? L / n : 1;
-	return t.seats[(top + Math.round(i * step)) % L];
+	return gp.seats[(top + Math.round(i * step)) % L];
 }
 
 /** Dusk in a game: everyone to their seat round the market cross, the Storyteller to the cross. */
@@ -438,8 +446,9 @@ function gatherAtCross(t: Town) {
 		sendTo(q.id, { t: 'place', x: c.x, y: c.y });
 	}
 	const st = [...S.people.values()].find((q) => q.st);
-	if (st && t.meeting) {
-		const m = t.meeting.at;
+	const gp = gathering(t);
+	if (st && gp) {
+		const m = gp.at;
 		st.x = Math.round(m.x);
 		st.y = Math.round(m.y);
 		if (st.id === S.me) { S.route = []; cam.ready = false; }
@@ -593,7 +602,8 @@ function loadTown(text: string) {
 	S.dirty = true;
 }
 
-const canWalk = () => S.phase !== 'circle' && !!me() && !(S.game && S.phase === 'dusk' && !me()!.st);
+/** In a game the town walks to the council itself at the bell; in a town with no council it is seated at once. */
+const canWalk = () => S.phase !== 'circle' && !!me() && !(S.game && S.phase === 'dusk' && !me()!.st && !S.town?.council);
 
 function step(dx: number, dy: number) {
 	const p = me();
@@ -676,7 +686,7 @@ const VSHEET = {};
 let shown = false;
 let banner: { title: string; line: string; until: number } | null = null;
 let toastMsg: { text: string; until: number } | null = null;
-setExtra(villageCells);
+setExtra(villageCells, () => shown);
 function touchesRoom(t: Town, x: number, y: number, rooms: number[]): boolean {
 	for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
 		const nx = x + dx, ny = y + dy;
@@ -711,17 +721,18 @@ function tickMap() {
 	const relight = !dyn || lamps !== litFor || now - lightAt > 260;
 	litFor = lamps;
 	if (!cam.ready) Object.assign(cam, { x: p.x, y: p.y, ready: true });
-	const settled = Math.abs(cam.x - p.x) < 0.01 && Math.abs(cam.y - p.y) < 0.01;
+	const aim = S.phase === 'circle' && t.council ? t.council.at : p;
+	const settled = Math.abs(cam.x - aim.x) < 0.01 && Math.abs(cam.y - aim.y) < 0.01;
 	if (!relight && !S.dirty && settled && !animating && S.phase !== 'circle' && now - drawnAt < 250) return;
 	const dt = Math.min(100, Math.max(1, now - drawnAt));
 	animating = false;
 	for (const q of S.people.values()) glide(q.id, q.x, q.y, dt);
 	for (const id of [...shownAt.keys()]) if (!S.people.has(id)) shownAt.delete(id);
-	const me0 = shownAt.get(p.id) ?? p;
+	const me0 = S.phase === 'circle' && t.council ? t.council.at : shownAt.get(p.id) ?? p;
 	const k = 1 - Math.exp(-dt / 45);
 	cam.x += (me0.x - cam.x) * k;
 	cam.y += (me0.y - cam.y) * k;
-	if (Math.abs(cam.x - p.x) < 0.02 && Math.abs(cam.y - p.y) < 0.02) Object.assign(cam, { x: p.x, y: p.y });
+	if (Math.abs(cam.x - me0.x) < 0.02 && Math.abs(cam.y - me0.y) < 0.02) Object.assign(cam, { x: me0.x, y: me0.y });
 	S.dirty = false;
 	drawnAt = now;
 	if (relight) {
@@ -747,7 +758,7 @@ function toolButtons(): Button[] {
 	} else if (S.voiceBusy) bs.push(btn('Starting...', () => {}, { disabled: true }));
 	else { bs.push(btn('Talk', () => act('voice-mic'), { style: 'primary' })); later.push(btn('Listen only', () => act('voice-listen'))); }
 	for (const e of S.extra()) (e.primary ? bs : later).push(btn(e.label, e.act, { style: e.primary ? 'primary' : undefined }));
-	if (S.phase === 'dusk' && !S.game && p && !p.st && S.town?.seats.length) bs.push(btn('My seat', () => act('seat'), { style: 'primary' }));
+	if (S.phase === 'dusk' && (!S.game || S.town?.council) && p && !p.st && S.town && gathering(S.town)) bs.push(btn('My seat', () => act('seat'), { style: 'primary' }));
 	const door = doorBeside();
 	if (door !== null) bs.push(btn(S.town!.locked.has(door) ? 'Unlock' : 'Lock', () => act('door')));
 	if (S.host) bs.push(btn('Menu', () => act('st-toggle'), { style: S.stOpen ? 'on' : undefined }));
@@ -798,8 +809,12 @@ function villageCells(g: Grid): boolean {
 	const top = PHASE_NAME[S.phase] + '  ' + S.room + (S.status === 'open' ? '' : '  ' + (S.status === 'error' ? S.statusDetail : 'connecting...')) + (c ? '  ' + Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0') : '');
 	g.fill({ x: 0, y: 0, w: g.cols, h: 1 }, ' ', 5, 1);
 	g.text(1, 0, top.slice(0, g.cols - 2), 5, 1);
-	if (S.phase === 'circle') circleCells(g, mapY, mapH);
-	else mapCells(g, mapY, mapH, p, t, now);
+	// The council sits in the great hall itself; a town without one shows the old ethereal ring.
+	if (S.phase === 'circle' && !t.council) circleCells(g, mapY, mapH);
+	else {
+		mapCells(g, mapY, mapH, p, t, now);
+		if (S.phase === 'circle') councilCells(g, mapY, mapH, t);
+	}
 	// The line of what you can hear, and the passing notice.
 	const where = p.with ? 'Private with ' + nameOf(p.with) + ': nobody else hears you'
 		: S.phase === 'night' ? (p.st ? 'Night: whoever is in this room hears you' : 'Night: at home. Only the Storyteller may visit')
@@ -865,7 +880,8 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 	// The mist rolls slowly: move it on in steps, so a still screen stays still.
 	const fogMs = Math.floor(now / 250) * 250;
 	const sk = sky(t), day = sunlight(S.phase);
-	const seatSet = new Set(t.seats.map((q) => q.x + q.y * t.w));
+	const seatSet = new Set((gathering(t)?.seats ?? []).map((q) => q.x + q.y * t.w));
+	const mySeat = !p.st && S.phase === 'dusk' ? seatCell(t, p.seat) : null;
 	const lit = new Map<number, Rgb>();
 	const ground = new Map<number, number>();
 	for (let sy = 0; sy < mapH; sy++) {
@@ -919,7 +935,7 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 			const fgi = quant(fg);
 			// The ground keeps its own colour, in the shades of its ink, so a lit square glows and the dark falls away.
 			// At dusk the seats are picked out in gold.
-			const bgi = S.phase === 'dusk' && seatSet.has(i) ? shade(6, 1) : shown && luma(bg) > 9 ? quant(bg) : 0;
+			const bgi = mySeat && mySeat.x === x && mySeat.y === y ? 8 : S.phase === 'dusk' && seatSet.has(i) ? shade(6, 1) : shown && luma(bg) > 9 ? quant(bg) : 0;
 			ground.set(i, bgi);
 			g.set(sx, mapY + sy, ch, fgi, bgi);
 		}
@@ -953,7 +969,7 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 		g.set(sx, mapY + sy, q.st ? '☼' : glyphOf(q), mineQ ? 0 : talk ? 0 : fg, mineQ ? lit : talk ? 6 : bg);
 		if (mineQ) { g.set(sx - 1, mapY + sy, '[', lit); g.set(sx + 1, mapY + sy, ']', lit); }
 	}
-	if (S.game && S.phase === 'dusk' && t.meeting) {
+	if (S.game && (S.phase === 'dusk' || S.phase === 'circle') && gathering(t)) {
 		for (const r of S.ring) {
 			if ([...S.people.values()].some((q) => !q.st && q.seat === r.seat)) continue;
 			const cell = seatCell(t, r.seat);
@@ -972,6 +988,44 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 const WALL_SINGLE = [' ', '│', '─', '└', '│', '│', '┌', '├', '─', '┘', '─', '┴', '┐', '┤', '┬', '┼'];
 const WALL_DOUBLE = [' ', '║', '═', '╚', '║', '║', '╔', '╠', '═', '╝', '═', '╩', '╗', '╣', '╦', '╬'];
 
+
+/**
+ * The council in the great hall, drawn over the map: each seat's name beside it, the
+ * nominee on a red plate, raised hands green, counted ones gold, and the day's business
+ * on a scroll at the top.
+ */
+function councilCells(g: Grid, mapY: number, mapH: number, t: Town) {
+	const c = t.council!;
+	const ring = S.ring.length ? S.ring : [...S.people.values()].filter((q) => !q.st).map((q) => ({ seat: q.seat, name: q.name, dead: !!q.dead }));
+	// Screen cell of a town cell: x - view.x0, y - view.y0 (see mapCells).
+	const x0 = view.x0, y0 = view.y0;
+	const v = S.vote;
+	for (const r of ring) {
+		const cell = seatCell(t, r.seat);
+		if (!cell) continue;
+		const sx = cell.x - x0, sy = cell.y - y0;
+		const here = g.get(sx, sy);
+		if (!here || sy < mapY || sy >= mapY + mapH) continue;
+		if (v?.nominee === r.seat) { here.fg = 0; here.bg = 8; }
+		else if (v?.raised.includes(r.seat)) { here.fg = 0; here.bg = 10; }
+		else if (v?.counted.includes(r.seat)) { here.fg = 0; here.bg = 6; }
+		if (v?.at === r.seat) { g.set(sx - 1, sy, '>', 6); }
+		// The name, out from the table along the seat's own direction, so the ring of names never crowds the ring of seats.
+		const dx = cell.x - c.at.x, dy = (cell.y - c.at.y) * 2, d = Math.hypot(dx, dy) || 1;
+		const ux = dx / d, uy = dy / d;
+		const label = (r.dead ? '+' : '') + r.name.slice(0, 7);
+		const ax = sx + Math.round(ux * 3), ay = sy + Math.round(uy * 1.6);
+		const lx = Math.abs(ux) < 0.4 ? ax - Math.floor(label.length / 2) : ux < 0 ? ax - label.length + 1 : ax;
+		g.text(lx, ay, label, r.dead ? 3 : v?.nominee === r.seat ? 8 : 5, 0);
+	}
+	if (S.caption.length) {
+		const w = Math.min(g.cols - 2, Math.max(...S.caption.map((l) => l.length)) + 4);
+		const bx = Math.floor((g.cols - w) / 2);
+		g.fill({ x: bx, y: mapY, w, h: S.caption.length + 2 }, ' ', 5, 1);
+		g.box({ x: bx, y: mapY, w, h: S.caption.length + 2 }, 6, 1, '', 6, 'double');
+		S.caption.forEach((l, i) => g.text(bx + Math.floor((w - l.length) / 2), mapY + 1 + i, l, i === 0 ? 8 : 4, 1));
+	}
+}
 
 /** The circle: everyone on one ring, the vote's hands raised. */
 function circleCells(g: Grid, y0: number, h: number) {
@@ -1059,8 +1113,8 @@ function drawChrome() {
 
 const BANNERS: Record<Phase, { title: string; line: string }> = {
 	day: { title: 'Dawn', line: 'Day. Wander, talk, conspire.' },
-	dusk: { title: 'The bell tolls', line: 'Dusk. The town gathers round the market cross.' },
-	circle: { title: 'The circle', line: 'The town gathers. Everyone sees and hears everyone.' },
+	dusk: { title: 'The bell tolls', line: 'Dusk. Walk to the great hall and take your seat at the round table (My seat shows the way).' },
+	circle: { title: 'The council sits', line: 'The town sits at the round table in the great hall. Everyone there hears everyone.' },
 	night: { title: 'Night falls', line: 'You are at home and the doors are locked. The Storyteller may visit.' }
 };
 
@@ -1078,7 +1132,9 @@ function toast(text: string) {
 
 function announcePhase() {
 	document.documentElement.dataset.phase = S.phase === 'night' ? 'night' : 'day';
-	const b = BANNERS[S.phase];
+	// A town with no council gathers in the square, in the old way.
+	const b = !S.town?.council && S.phase === 'dusk' ? { title: 'The bell tolls', line: 'Dusk. The town gathers round the market cross.' }
+		: !S.town?.council && S.phase === 'circle' ? { title: 'The circle', line: 'The town gathers. Everyone sees and hears everyone.' } : BANNERS[S.phase];
 	// The Storyteller is not sent home: they go where they like.
 	showBanner(b.title, me()?.st && S.phase === 'night' ? 'The town sleeps behind locked doors. Walk through walls; People, then Visit, takes you to anyone.' : b.line);
 	if (S.phase === 'dusk' && soundOn()) {
@@ -1409,8 +1465,8 @@ function syncSeats(list: GameSeat[]) {
 		q.seat = e.seat;
 		q.dead = e.dead;
 	}
-	// Joining (or back) while the town is gathered: straight to their seat round the cross.
-	if (S.game && S.phase === 'dusk') {
+	// Joining (or back) while the town is gathered: straight to their seat (in a town with a council, once it sits).
+	if (S.game && (t.council ? S.phase === 'circle' : S.phase === 'dusk')) {
 		for (const q of fresh) {
 			const c = seatCell(t, q.seat);
 			if (c) { q.x = c.x; q.y = c.y; sendTo(q.id, { t: 'place', x: c.x, y: c.y }); }

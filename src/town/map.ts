@@ -46,6 +46,11 @@ export interface Town {
 	seats: P[];
 	/** The middle of the seats and how far the ring reaches. */
 	meeting: { at: P; reach: number } | null;
+	/**
+	 * The council: the chairs round a table indoors (the castle's great hall), where the
+	 * town sits for nominations and votes, in order clockwise from the top. Null if none.
+	 */
+	council: { seats: P[]; at: P; room: number } | null;
 	lights: P[];
 	/** Rooms with a bed: homes for the night. */
 	homes: number[];
@@ -134,7 +139,7 @@ export function doorsOf(t: Town, room: number): number[] {
 export function makeTown(bp: Blueprint): Town {
 	const { w, h } = bp;
 	const cells = Array.from({ length: w * h }, (_, i) => bp.cells[i] ?? GRASS);
-	const t: Town = { name: bp.name, w, h, cells, room: new Int32Array(w * h).fill(-1), doorRooms: new Map(), outdoors: 0, seats: [], meeting: null, lights: [], homes: [], locked: new Set(), labels: [...(bp.labels ?? [])] };
+	const t: Town = { name: bp.name, w, h, cells, room: new Int32Array(w * h).fill(-1), doorRooms: new Map(), outdoors: 0, seats: [], meeting: null, council: null, lights: [], homes: [], locked: new Set(), labels: [...(bp.labels ?? [])] };
 	// Rooms: flood fill everything that is not wall or doorway.
 	let next = 0;
 	const sizes: number[] = [];
@@ -184,6 +189,21 @@ export function makeTown(bp: Blueprint): Town {
 		if (cells[i].things.includes('chair') && t.room[i] === t.outdoors) chairs.push({ x, y });
 	}
 	t.homes = [...homes];
+	// The council: the room with the most chairs drawn up to a table.
+	const byRoom = new Map<number, P[]>();
+	for (let i = 0; i < w * h; i++) {
+		const x = i % w, y = (i - x) / w, r = t.room[i];
+		if (r < 0 || r === t.outdoors || !cells[i].things.includes('chair')) continue;
+		let byTable = false;
+		for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (cells[x + dx + (y + dy) * w]?.things.includes('table')) byTable = true;
+		if (byTable) byRoom.set(r, [...(byRoom.get(r) ?? []), { x, y }]);
+	}
+	const [room, round] = [...byRoom].sort((a, b) => b[1].length - a[1].length)[0] ?? [-1, []];
+	if (round.length >= 5) {
+		const at = { x: round.reduce((s, p) => s + p.x, 0) / round.length, y: round.reduce((s, p) => s + p.y, 0) / round.length };
+		const turn = (p: P) => (Math.atan2(p.x - at.x, -(p.y - at.y)) + 2 * Math.PI) % (2 * Math.PI);
+		t.council = { seats: round.sort((a, b) => turn(a) - turn(b)), at, room };
+	}
 	// The seats: the chairs in the open, round their middle (the demo puts a market cross there).
 	if (chairs.length) {
 		let cx = chairs.reduce((s, p) => s + p.x, 0) / chairs.length;

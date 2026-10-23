@@ -18,7 +18,8 @@ import type { SeatId } from '../core/index.ts';
 import { CARD_COLS, CARD_INNER, big, cardButtons, nextPage, note, wakeRows } from './wakepages.ts';
 import type { Page } from './wakepages.ts';
 import * as T from './timer.ts';
-import { INKS, villageOnPhone } from '../town/village.ts';
+import { villageOnPhone } from '../town/village.ts';
+import { LobbyVoice } from '../town/lobbyvoice.ts';
 import type { Extra } from '../town/village.ts';
 
 const CLIENT_KEY = 'grimoire.client';
@@ -164,6 +165,7 @@ function receive(msg: HostMsg) {
 		case 'lobby':
 			P.lobby = msg.names;
 			P.lobbyYou = msg.you;
+			lobbyVoice.setPeers(msg.peers ?? []);
 			break;
 		case 'denied':
 			P.message = msg.reason;
@@ -253,9 +255,13 @@ function lobbyScreen(): Row[] {
 		rubric('Players - ' + P.lobby.length),
 		...(P.lobby.length ? P.lobby.map((n, i) => row(txt((i === P.lobbyYou ? '> ' : '  ') + n + (i === P.lobbyYou ? ' (you)' : ''), i === P.lobbyYou ? 'gold' : undefined))) : [row(txt('Just you so far...', 'dim'))]),
 		endPanel(),
-		buttonBlock([btn('Change my name', () => { P.link?.close(); P.status = 'closed'; render(); })])
+		rubric('Voice'), ...wrap(lobbyVoice.line(), INNER).map((l) => row(txt(l, 'dim'))), buttonBlock(lobbyVoice.buttons()), endPanel(),
+		buttonBlock([btn('Change my name', () => { lobbyVoice.stop(); P.link?.close(); P.status = 'closed'; render(); })])
 	];
 }
+
+/** Talking in the lobby until the game begins (then the village's voice takes over). */
+const lobbyVoice = new LobbyVoice(() => P.link?.peer ?? null, () => render());
 
 function seatScreen(): Row[] {
 	return [
@@ -399,11 +405,14 @@ function overlay(): Row[] {
 }
 
 function render() {
+	// The game has begun: the village's own voice takes over.
+	if (lobbyVoice.voice && P.view && P.view.phase !== 'setup') lobbyVoice.stop();
 	const theme = P.view?.script === 'laissez-un-faire' ? 'victorian' : 'manuscript';
 	document.documentElement.dataset.phase = P.view?.phase === 'night' ? 'night' : 'day';
 	document.documentElement.dataset.theme = P.view?.script === 'laissez-un-faire' ? 'occult' : '';
 	setPalette(() => theme + (P.view?.phase === 'night' || !P.view ? '-night' : '-day'));
-	paint(root, paneled(screen()));
+	// In the village the town is the screen; the player's pages come up over it as cards (My character, a wake).
+	paint(root, village && P.view && P.view.phase !== 'setup' ? [] : paneled(screen()));
 	const pages = overlay();
 	paint(cardRoot, pages.length ? paneled(pages, CARD_COLS) : [], CARD_COLS);
 	tick();

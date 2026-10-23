@@ -58,7 +58,7 @@ export type HostMsg =
 	/** Mode 2 inside the game: the village (see src/town/village.ts). */
 	| { t: 'village'; m: VillageDown }
 	/** Who is in the room so far, in seating order; `you` is this phone's place in it. */
-	| { t: 'lobby'; names: string[]; you: number | null };
+	| { t: 'lobby'; names: string[]; you: number | null; peers?: string[] };
 
 export type PlayerMsg =
 	/** First words, with an id kept on the phone so a reconnect finds its seat again. */

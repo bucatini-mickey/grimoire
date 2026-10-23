@@ -192,15 +192,16 @@ export function cardFor(state: GameState, seat: SeatId): CharacterCard | null {
 function evilKnowledge(state: GameState, kind: string, seat: SeatId | null): Section[] {
 	const demon = state.seats.filter((x) => G.teamOf(state, x.character) === 'demon');
 	const minions = state.seats.filter((x) => G.teamOf(state, x.character) === 'minion');
+	// The Demon alone knows the Marionette; the other Minions do not, and the Marionette itself thinks it is good.
 	if (kind === G.DEMON_INFO) {
 		return [
-			{ title: 'Your Minions', lines: minions.map((m) => m.name), style: 'big' },
+			{ title: 'Your Minions', lines: minions.map((m) => m.name + (m.character === 'marionette' ? ' (the Marionette)' : '')), style: 'big' },
 			{ title: 'Not in play', lines: state.bluffs.map((b) => charName(state, b)), style: 'big' }
 		];
 	}
 	const learn = state.night?.n === 1 && G.evilLearnEachOther(state.seats.length);
-	if (!learn || seat === null || G.teamOf(state, state.seats[seat].character) !== 'minion') return [];
-	const others = minions.filter((m) => m.id !== seat);
+	if (!learn || seat === null || G.teamOf(state, state.seats[seat].character) !== 'minion' || state.seats[seat].character === 'marionette') return [];
+	const others = minions.filter((m) => m.id !== seat && m.character !== 'marionette');
 	return [
 		{ title: 'Your Demon', lines: demon.map((d) => d.name), style: 'big' },
 		...(others.length ? [{ title: 'Fellow Minions', lines: others.map((m) => m.name), style: 'big' as const }] : [])
@@ -237,6 +238,7 @@ function grimoire(state: GameState): Wake['grimoire'] {
 		if (!s.alive) flags.push(s.ghostVote ? '†' : '×');
 		if (G.isPoisoned(state, id)) flags.push('P');
 		if (s.character === 'drunk') flags.push('D');
+		if (s.character === 'marionette') flags.push('M');
 		if (state.redHerring === id) flags.push('R');
 		const notes: string[] = [];
 		if (s.character !== s.believes) notes.push(`thinks: ${charName(state, s.believes)}`);

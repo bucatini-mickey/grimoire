@@ -9,7 +9,7 @@ export type { FabledDef } from './scripts/fabled.ts';
 export type { NightStep, StepAction } from './night.ts';
 export * from './rules.ts';
 export * from './script.ts';
-export { randomDeal, rng } from './deal.ts';
+export { randomDeal, rng, seatMarionette } from './deal.ts';
 export { interactions } from './graph.ts';
 export type { Edge, EdgeKind } from './graph.ts';
 export { suggestInfo } from './suggest.ts';

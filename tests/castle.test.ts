@@ -34,4 +34,8 @@ test('every door can be reached from the square; so can the mine and the great h
 	// The round table sits in the great hall, chairs round it.
 	const tables = things('table').map(xy).filter((p) => p.y < 22 && p.x < 61);
 	assert.ok(tables.length >= 10);
+	// The council: the town sits round it for nominations, a chair for each of fifteen players and more.
+	assert.ok(town.council && town.council.seats.length >= 15, `${town.council?.seats.length} council seats`);
+	assert.ok(town.council!.seats.every((p) => p.y < 22 && p.x < 61), 'all in the great hall');
+	assert.ok(path(town, from, town.council!.seats[0]).length > 0, 'the square to the round table');
 });

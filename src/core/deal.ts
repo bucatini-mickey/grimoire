@@ -30,6 +30,23 @@ function shuffle<T>(xs: T[], rand: () => number): T[] {
 	return a;
 }
 
+/**
+ * The Marionette sits beside the Demon: if it does not, swap it onto a seat next to the
+ * Demon (`order` is the seating). Returns the placing unchanged when there is nothing to do.
+ */
+export function seatMarionette<C extends CharacterId | null>(placed: C[], order: SeatId[], isDemon: (c: C) => boolean): C[] {
+	const m = placed.indexOf('marionette' as C);
+	const dm = placed.findIndex((c) => c !== null && isDemon(c));
+	if (m < 0 || dm < 0) return placed;
+	const n = order.length, at = order.indexOf(dm);
+	const beside = [order[(at + 1) % n], order[(at + n - 1) % n]];
+	if (beside.includes(m)) return placed;
+	const to = beside[0];
+	const out = [...placed];
+	[out[m], out[to]] = [out[to], out[m]];
+	return out;
+}
+
 export function randomDeal(script: Script, players: number, seed: number): Extract<Command, { type: 'assign' }> {
 	const rand = rng(seed);
 	const ids = (team: Team) => shuffle(charactersOfTeam(script, team).map((c) => c.id), rand);
@@ -49,26 +66,27 @@ export function randomDeal(script: Script, players: number, seed: number): Extra
 	if (comp.outsider < 0) { comp.townsfolk += comp.outsider; comp.outsider = 0; }
 	const outsiders = ids('outsider').slice(0, comp.outsider);
 	const townsfolk = ids('townsfolk').slice(0, comp.townsfolk);
-	const characters = shuffle([...demon, ...minions, ...outsiders, ...townsfolk], rand);
+	const characters = seatMarionette(shuffle([...demon, ...minions, ...outsiders, ...townsfolk], rand), Array.from({ length: players }, (_, i) => i), (c) => charDef(script, c).team === 'demon');
 
 	const inPlay = new Set(characters);
 	const spareTownsfolk = ids('townsfolk').filter((c) => !inPlay.has(c));
 	const drunkBelieves = inPlay.has('drunk') ? spareTownsfolk[0] : undefined;
+	const marionetteBelieves = inPlay.has('marionette') ? [...spareTownsfolk.slice(1), ...ids('outsider').filter((c) => !inPlay.has(c))][0] : undefined;
 
 	const goodSeats: SeatId[] = characters
 		.map((c, i) => (teamAlignment(charDef(script, c).team) === 'good' ? i : -1))
 		.filter((i) => i >= 0);
-	const believesFT = characters.includes('fortune-teller') || drunkBelieves === 'fortune-teller';
+	const believesFT = characters.includes('fortune-teller') || drunkBelieves === 'fortune-teller' || marionetteBelieves === 'fortune-teller';
 	const redHerring = believesFT ? shuffle(goodSeats, rand)[0] : null;
 
 	const bluffPool: CharacterId[] = shuffle(
 		// Any good character not in play, the Drunk included.
-		script.characters.filter((c) => teamAlignment(c.team) === 'good' && !inPlay.has(c.id) && c.id !== drunkBelieves).map((c) => c.id),
+		script.characters.filter((c) => teamAlignment(c.team) === 'good' && !inPlay.has(c.id) && c.id !== drunkBelieves && c.id !== marionetteBelieves).map((c) => c.id),
 		rand
 	);
 	const bluffs = evilLearnEachOther(players) ? bluffPool.slice(0, 3) : [];
 
 	// The Evil Twin's good twin: a good player.
 	const evilTwin = characters.includes('evil-twin') ? shuffle(goodSeats, rand)[0] : undefined;
-	return { type: 'assign', characters, drunkBelieves, redHerring, bluffs, ...(evilTwin !== undefined ? { evilTwin } : {}) };
+	return { type: 'assign', characters, drunkBelieves, redHerring, bluffs, ...(evilTwin !== undefined ? { evilTwin } : {}), ...(marionetteBelieves ? { marionetteBelieves } : {}) };
 }

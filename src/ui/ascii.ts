@@ -277,7 +277,8 @@ let extra: ((g: Grid) => boolean) | null = null;
 
 export const setDynamic = (f: typeof dynamic) => { dynamic = f; };
 export const setPalette = (f: () => string) => { paletteKey = f; };
-export const setExtra = (f: typeof extra) => { extra = f; };
+export const setExtra = (f: typeof extra, shown: () => boolean = () => true) => { extra = f; extraShown = shown; };
+let extraShown: () => boolean = () => false;
 export const redraw = () => term?.draw();
 
 let parsed: { pal: Palette; rgb: number[][]; memo: Int16Array } | null = null;
@@ -383,11 +384,12 @@ export function letteredRow(word: string, width: number): Row | null {
 
 /** The head of the home page: the logo, and the book's name lettered under it. Small screens get the logo at half size. */
 export function titleRow(word = 'Grimoire'): Row {
-	const big = (term?.rows ?? 0) >= 60;
-	const h = (big ? 17 : 9) + 6;
+	const big = (term?.rows ?? 0) >= 60, none = (term?.rows ?? 99) < 36;
+	const h = none ? 6 : (big ? 17 : 9) + 6;
 	return blockRow(h, (c) => {
 		let y = c.y;
-		if (big) {
+		if (none) { /* a short screen: the lettered name alone */ }
+		else if (big) {
 			const lx = c.x + Math.floor((c.w - 32) / 2);
 			LOGO.forEach((ln, j) => [...ln].forEach((k, i) => {
 				const [rgb, gl] = LOGO_INK[k];
@@ -465,12 +467,14 @@ function drawRow(g: Grid, r: Row, x0: number, y: number, width: number, h: numbe
 		return;
 	}
 	let x = x0;
+	// Words beside buttons sit on the buttons' middle line, level with their labels.
+	const ty = h === 3 ? y + 1 : y;
 	for (const s of r.segs) {
 		const w = segWidth(s);
 		if (isButton(s)) drawButton(ctx, x, y, w, s);
 		else {
 			const text = s.data ? dynamic(s.data) ?? s.t : s.t;
-			g.text(x, y, text, ink(s.tone));
+			g.text(x, ty, text, ink(s.tone));
 		}
 		x += w;
 	}
@@ -560,6 +564,45 @@ export function listRow(text: string, tone: Tone | undefined, buttons: Button[],
 	});
 }
 
+export interface Tab { label: string; on: boolean; act: () => void }
+
+/**
+ * A strip of book tabs standing on the page's edge, three rows tall so a
+ * thumb finds them. The open tab is a rubric plate in a gold rule whose foot
+ * opens into the page; the others are vellum, their first letters in red.
+ */
+export function tabStrip(tabs: Tab[], width = COLS): Row {
+	return blockRow(3, (c) => {
+		const g = c.g;
+		const w = Math.min(width, c.w);
+		const x0 = c.x + Math.floor((c.w - w) / 2);
+		// The spare columns are shared out, so every label sits in the middle of its tab.
+		const bare = tabs.reduce((k, t) => k + [...t.label].length + 2, 0);
+		const padn = Math.max(0, Math.min(4, Math.floor((w - bare) / tabs.length / 2) * 2));
+		const gap = tabs.length > 1 && w - bare - padn * tabs.length >= tabs.length - 1 ? 1 : 0;
+		const used = bare + padn * tabs.length + gap * (tabs.length - 1);
+		// The page's edge the tabs stand on.
+		for (let x = x0; x < x0 + w; x++) g.set(x, c.y + 2, '═', 6, 0);
+		let x = x0 + Math.max(0, Math.floor((w - used) / 2));
+		for (const t of tabs) {
+			const tw = [...t.label].length + padn + 2;
+			const [fg, bg, edge] = t.on ? [0, 8, 6] : [5, 1, 2];
+			g.fill({ x, y: c.y, w: tw, h: 2 }, ' ', fg, bg);
+			g.set(x, c.y, t.on ? '╔' : '┌', edge, 0); g.set(x + tw - 1, c.y, t.on ? '╗' : '┐', edge, 0);
+			for (let i = 1; i < tw - 1; i++) g.set(x + i, c.y, t.on ? '═' : '─', edge, 0);
+			g.set(x, c.y + 1, t.on ? '║' : '│', edge, bg); g.set(x + tw - 1, c.y + 1, t.on ? '║' : '│', edge, bg);
+			const lx = x + 1 + padn / 2;
+			g.text(lx, c.y + 1, t.label, fg, bg);
+			if (!t.on && /\p{L}/u.test(t.label[0])) g.set(lx, c.y + 1, t.label[0], 8, bg);
+			// The open tab has no foot: it runs into the page below.
+			if (t.on) { g.set(x, c.y + 2, '╝', 6, 0); g.set(x + tw - 1, c.y + 2, '╚', 6, 0); for (let i = 1; i < tw - 1; i++) g.set(x + i, c.y + 2, ' ', 0, 0); }
+			else { g.set(x, c.y + 2, '╧', 2, 0); g.set(x + tw - 1, c.y + 2, '╧', 2, 0); }
+			c.hit({ x, y: c.y, w: tw, h: 3 }, t.act);
+			x += tw + gap;
+		}
+	});
+}
+
 /** A run of buttons as one block row (wraps like buttonRows). */
 export function buttonBlock(buttons: Button[], width = INNER, gap = 1): Row {
 	const lines = buttonRows(buttons, width, gap);
@@ -613,7 +656,8 @@ function ground(g: Grid, width: number) {
 }
 
 function frame(g: Grid) {
-	const key = paletteKey();
+	// The town is lit for the dark: over it, the pages take their night inks.
+	const key = extra && extraShown() ? paletteKey().replace('-day', '-night') : paletteKey();
 	term!.palette = PALETTES[key] ?? PALETTES['manuscript-night'];
 	document.body.style.background = term!.palette[0];
 	document.documentElement.style.background = term!.palette[0];
@@ -642,6 +686,8 @@ function ensureTerm(): Term {
 	term = new Term(host, {
 		cols: COLS,
 		maxFont: 22,
+		// Enough rows that a page holds a whole screen of the grimoire on a desktop too.
+		rows: 40,
 		onDraw: (t) => frame(t),
 		onKey: (k) => {
 			for (let i = order.length - 1; i >= 0; i--) {

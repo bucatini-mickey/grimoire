@@ -33,6 +33,8 @@ export type Command =
 			characters: CharacterId[];
 			/** Only for the Drunk: the Townsfolk they are told they are. */
 			drunkBelieves?: CharacterId;
+			/** Only for the Marionette: the good character they are told they are (they sit next to the Demon). */
+			marionetteBelieves?: CharacterId;
 			/** Only for the Lunatic: the Demon they are told they are (default: the Demon in play). */
 			lunaticBelieves?: CharacterId;
 			/** Only for the Evil Twin: the good player who is their twin. */
@@ -352,6 +354,21 @@ function assign(tx: Tx, cmd: Extract<Command, { type: 'assign' }>) {
 		believes[drunkSeat] = b!;
 	} else if (cmd.drunkBelieves) {
 		refuse('There is no Drunk in play.');
+	}
+	// The Marionette thinks they are a good character not in play, and sits beside the Demon.
+	const marionetteSeat = chars.indexOf('marionette');
+	if (marionetteSeat >= 0) {
+		const b = cmd.marionetteBelieves;
+		if (!b) refuse('Choose the good character the Marionette thinks they are.', 'marionetteBelieves');
+		if (teamAlignment(charDef(script, b!).team) !== 'good' || charDef(script, b!).team === 'traveller') refuse('The Marionette must think they are a Townsfolk or an Outsider.');
+		if (!notInPlay(b!) || b === cmd.drunkBelieves) refuse('The Marionette must think they are a character that is not in play.');
+		const order = s.order.length === chars.length ? s.order : chars.map((_, i) => i);
+		const at = order.indexOf(marionetteSeat), n = order.length;
+		const beside = [order[(at + 1) % n], order[(at + n - 1) % n]];
+		if (!beside.some((id) => charDef(script, chars[id]).team === 'demon')) refuse('The Marionette must sit next to the Demon.');
+		believes[marionetteSeat] = b!;
+	} else if (cmd.marionetteBelieves) {
+		refuse('There is no Marionette in play.');
 	}
 	const lunaticSeat = chars.indexOf('lunatic');
 	if (lunaticSeat >= 0) {
@@ -694,6 +711,8 @@ function choose(tx: Tx, kind: string, by: SeatId, cmd: Extract<Command, { type: 
 			// Good: a Townsfolk ability; evil: a Minion ability (we model it as becoming that character; still a Traveller).
 			const want = s.seats[by].alignment === 'good' ? 'townsfolk' : 'minion';
 			if (teamOf(s, cmd.character!) !== want) refuse(`The ${s.seats[by].alignment} Apprentice gains a ${want === 'townsfolk' ? 'Townsfolk' : 'Minion'} ability.`);
+			// The Marionette has no ability of its own to gain: it is a seat's hidden part, set up at the start.
+			if (cmd.character === 'marionette') refuse('The Marionette has no ability for the Apprentice to gain.');
 			emit(tx, { type: 'ability-spent', seat: by, ability: 'first-night' });
 			changeCharacter(tx, by, cmd.character!, 'apprentice');
 			return;

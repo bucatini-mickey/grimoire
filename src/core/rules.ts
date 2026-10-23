@@ -71,7 +71,9 @@ export function keepsAbility(state: GameState, id: SeatId): boolean {
 }
 
 function drunkAt(state: GameState, id: SeatId, depth: number): boolean {
-	return seat(state, id).character === 'drunk' || state.effects.some((e) => e.kind === 'drunk' && e.target === id && inForce(state, e, depth));
+	// The Drunk and the Marionette have no ability of their own: the good one they think they have never works.
+	const c = seat(state, id).character;
+	return c === 'drunk' || c === 'marionette' || state.effects.some((e) => e.kind === 'drunk' && e.target === id && inForce(state, e, depth));
 }
 
 function droisonedAt(state: GameState, id: SeatId, depth: number): boolean {

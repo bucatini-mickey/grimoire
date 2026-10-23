@@ -17,6 +17,9 @@
  */
 import * as G from '../core/index.ts';
 import type { Candidate, CharacterId, Command, GameEvent, GameState, Info, SeatId, Script, Lean } from '../core/index.ts';
+import { tabStrip } from './ascii.ts';
+import { LobbyVoice } from '../town/lobbyvoice.ts';
+import type { Tab as TabSpec } from './ascii.ts';
 import { COLS, INNER, Canvas, letteredRow, shade, titleRow, blank, blockRow, boxRow, btn, buttonBlock, buttonRows, center, endPanel, field, frameBottom, frameTop, listRow, paint, paneled, pad, redraw, row, rubric, rule, segWidth, setDynamic, setExtra, setPalette, txt, wrap } from './ascii.ts';
 import type { Button, Row, Seg, Tone } from './ascii.ts';
 import * as T from './timer.ts';
@@ -61,6 +64,8 @@ interface Draft {
 	selected: CharacterId[];
 	placed: (CharacterId | null)[];
 	drunkBelieves: CharacterId | null;
+	/** The good character the Marionette is told they are. */
+	marionetteBelieves?: CharacterId | null;
 	/** The Demon the Lunatic is told they are. */
 	lunaticBelieves?: CharacterId | null;
 	/** The Evil Twin's good twin. */
@@ -136,6 +141,10 @@ const ui = {
 	inspect: null as SeatId | null,
 	/** A player being moved: the next seat tapped changes places with them. */
 	moving: null as SeatId | null,
+	/** The day whose bell has been rung (the town is walking to the council). */
+	bellRung: -1,
+	/** Rearranging the circle: taps pick a player and swap them along; the arrows walk them round. */
+	rearrange: false,
 	/** Choosing a new token for the inspected seat: first the character, then (Drunk) what they believe. */
 	retoken: null as null | 'character' | 'believes',
 	retokenTo: null as CharacterId | null,
@@ -159,7 +168,7 @@ const ui = {
 	/** Which page: the home page, or the app itself (a grimoire, a hosted game). */
 	page: 'app' as 'home' | 'app',
 	/** Second taps that confirm ending a game (home: host anew, play in person, end it). */
-	confirm: '' as '' | 'host' | 'grimoire' | 'end',
+	confirm: '' as '' | 'host' | 'grimoire' | 'table' | 'end',
 	showQr: false,
 	copied: false,
 	/** A wake sent to a player's phone and not yet finished. */
@@ -192,6 +201,8 @@ const ui = {
 	scriptId: 'trouble-brewing',
 	/** The characters of a custom script being built. */
 	customIds: [] as CharacterId[],
+	/** The team the custom-script picker is showing. */
+	customTeam: 'townsfolk' as G.Team,
 	nonstandard: false
 };
 
@@ -487,16 +498,19 @@ function grimoireLook(id: SeatId): SeatLook {
 	if (!s.alive) flags.push(txt(s.ghostVote ? '†' : '×', 'dim'));
 	if (G.isPoisoned(state, id)) flags.push(txt('P', 'poison'));
 	if (s.character === 'drunk') flags.push(txt('D', 'drunk'));
+	if (s.character === 'marionette') flags.push(txt('M', 'evil'));
 	if (state.redHerring === id) flags.push(txt('R', 'gold'));
-	// The Drunk shows as the Townsfolk they think they are, marked D.
-	const shown = s.character === 'drunk' ? s.believes : s.character;
+	// The Drunk shows as the Townsfolk they think they are, marked D; the Marionette as the good character they think they are, marked M.
+	const overlay = s.character === 'drunk' || s.character === 'marionette';
+	const shown = overlay ? s.believes : s.character;
 	// Reminders, as a Storyteller would lay small tokens beside the seat.
 	const reminders: string[] = [];
 	if (G.isPoisoned(state, id)) reminders.push('poisoned');
 	if (s.character === 'drunk') reminders.push('drunk');
+	if (s.character === 'marionette') reminders.push('marionette');
 	reminders.push(...G.reminders(state, id));
 	if (!s.alive && !s.ghostVote) reminders.push('no vote');
-	return { flags, role: charName(shown), roleTone: !s.alive ? 'dim' : s.character === 'drunk' ? 'drunk' : toneFor(s.character), reminders };
+	return { flags, role: charName(shown), roleTone: !s.alive ? 'dim' : s.character === 'drunk' ? 'drunk' : s.character === 'marionette' ? 'evil' : toneFor(s.character), reminders };
 }
 
 function legend(): Row[] {
@@ -504,7 +518,7 @@ function legend(): Row[] {
 		rubric('Key'),
 		row(txt('†', 'dim'), txt(' dead      '), txt('×', 'dim'), txt(' vote spent  '), txt('P', 'poison'), txt(' poisoned')),
 		row(txt('D', 'drunk'), txt(' the Drunk (shows who they think)')),
-		row(txt('R', 'gold'), txt(' the red herring')),
+		row(txt('R', 'gold'), txt(' the red herring   '), txt('M', 'evil'), txt(' the Marionette')),
 		endPanel()
 	];
 }
@@ -529,6 +543,11 @@ function pickLimit(): number {
 }
 
 function tapSeat(id: SeatId) {
+	if (ui.rearrange) {
+		// Tap a player, then where they go: they change places, and stay picked to move on.
+		if (ui.moving === null || ui.moving === id) { ui.moving = ui.moving === id ? null : id; return render(); }
+		return void act({ type: 'swap-seats', a: ui.moving, b: id });
+	}
 	if (ui.moving !== null) {
 		const from = ui.moving;
 		ui.moving = null;
@@ -579,16 +598,16 @@ function header(): Row[] {
 		p.kind === 'setup' ? 'Setting the Table' :
 		p.kind === 'night' ? `Night ${p.n}` :
 		p.kind === 'day' ? `Day ${p.n}` : 'Game over';
-	const tab = (t: Tab, label: string) => btn(label, () => { ui.tab = t; render(); }, { style: ui.tab === t ? 'on' : undefined });
+	const tab = (t: Tab, label: string): TabSpec => ({ label, on: ui.tab === t, act: () => { ui.tab = t; render(); } });
 	return [
-		row(txt(center('Grimoire - ' + phase), 'rubric')),
-		...buttonRows([
-			btn('Home', () => go(''), { style: 'quiet' }), tab('grimoire', 'Grim'), tab('log', 'Log'), tab('ties', 'Ties'), tab('options', 'Clock'), tab('phones', link ? 'Phones*' : 'Phones'),
-			...(village ? [btn('Village', () => village?.open(), { style: 'primary' })] : []),
+		listRow('Grimoire · ' + phase, 'rubric', [
 			btn('Undo', undo, { disabled: !saved.marks.length, style: 'quiet' }),
 			btn(ui.confirmNew ? 'Sure?' : 'New', () => { if (ui.confirmNew) newGame(); else { ui.confirmNew = true; render(); } }, { style: ui.confirmNew ? 'danger' : 'quiet' })
-		], COLS, 0),
-		blank()
+		], COLS),
+		tabStrip([
+			{ label: '⌂', on: false, act: () => go('') }, tab('grimoire', 'Grim'), tab('log', 'Log'), tab('ties', 'Ties'), tab('options', 'Clock'), tab('phones', link ? 'Phones*' : 'Phones'),
+			...(village ? [{ label: 'Town', on: false, act: () => village?.open() }] : [])
+		])
 	];
 }
 
@@ -650,6 +669,15 @@ function endSaved() {
 	render();
 }
 
+/** An in-person game where each player's own phone is linked: a room, then the grimoire. */
+function hostTable() {
+	link?.close();
+	saved = { events: [], marks: [], settings: saved.settings, flow: freshFlow(saved.settings), net: { room: newRoomCode(), claims: {}, village: false } };
+	state = G.replay([]);
+	save();
+	go('#grimoire');
+}
+
 /** A new online game: a fresh room and its lobby. */
 function hostNew() {
 	link?.close();
@@ -673,16 +701,22 @@ function homeScreen(): Row[] {
 	}
 	const mine = (() => { try { return { room: localStorage.getItem('grimoire.room') ?? '', name: localStorage.getItem('grimoire.name') ?? '' }; } catch { return { room: '', name: '' }; } })();
 	if (mine.room && mine.name) resume('Rejoin room ' + mine.room, 'as ' + mine.name, btn('Rejoin', () => go('#join=' + mine.room), { style: 'primary' }));
-	const ending = busy && saved.net?.village;
-	const card = (title: string, sub: string, act: () => void, style?: Button['style']) => rows.push(buttonBlock([btn(title, act, { style, width: INNER })]), row(txt(center(sub, INNER), 'dim')));
-	card(ui.confirm === 'host' ? 'Start a new game?' : 'Host a game', ui.confirm === 'host' ? 'Your current game will end. Tap again.' : 'Everyone on their own phone, in the village.', () => { if (ending && ui.confirm !== 'host') { ui.confirm = 'host'; render(); } else hostNew(); }, 'primary');
-	card('Join a game', 'Type the code from the Storyteller.', () => go('#join'));
-	card(ui.confirm === 'grimoire' ? 'Play in person?' : 'Grimoire', ui.confirm === 'grimoire' ? 'Your online game will end. Tap again.' : 'One device: run an in-person game.', () => {
-		if (ending && ui.confirm !== 'grimoire') { ui.confirm = 'grimoire'; render(); return; }
-		if (ending) endSaved();
-		go('#grimoire');
-	});
-	card('Walk the village', 'Explore the town. No game.', () => go('#village'));
+	// The three ways to run a game, each on a card of its own; a game in progress asks before it is ended.
+	const mode = (key: typeof ui.confirm, title: string, sub: string, start: () => void, style?: Button['style']) => {
+		const sure = ui.confirm === key;
+		rows.push(buttonBlock([btn(sure ? 'End the game here and start?' : title, () => {
+			if (busy && !sure) { ui.confirm = key; render(); return; }
+			if (busy) endSaved();
+			start();
+		}, { style: sure ? 'danger' : style, width: INNER })]), ...prose(sure ? 'Your current game will end. Tap again.' : sub, 'dim'));
+	};
+	rows.push(rubric('Storytellers: choose your table'));
+	mode('grimoire', 'I. The Grimoire', 'One phone, in person. You keep it; players come to you at night.', () => go('#grimoire'), 'primary');
+	mode('table', 'II. Phones at the table', 'In person. Each player is woken on their own phone; no phone is passed round.', hostTable);
+	mode('host', 'III. The village', 'Online. Everyone walks a little town on their phone, talks by voice, and gathers in the castle hall.', hostNew);
+	rows.push(endPanel(), rubric('Players'));
+	rows.push(buttonBlock([btn('Join a game', () => go('#join'), { style: 'primary', width: INNER })]), ...prose('Type the four letters the Storyteller gives you.', 'dim'), endPanel());
+	rows.push(buttonBlock([btn('Walk the village alone (no game)', () => go('#village'), { style: 'quiet', width: INNER })]));
 	return rows;
 }
 
@@ -733,6 +767,7 @@ function hostLobbyPage(): Row[] {
 	const rows: Row[] = [...pageHead('Lobby'), rubric('Room code'), roomCodeRow(net.room), row(txt(center(status, INNER), linkStatus === 'open' ? 'good' : 'evil')),
 		...prose('Players open this app, tap Join a game, and type the code and their name.', 'dim'),
 		buttonBlock([btn(ui.copied ? 'Link copied' : 'Invite link', copyInvite)]), endPanel(),
+		rubric('Voice'), ...prose(lobbyVoice.line(), 'dim'), buttonBlock(lobbyVoice.buttons()), endPanel(),
 		rubric('Players - ' + list.length), ...prose('5 to 15 to play. Seats go in this order.', 'dim')];
 	if (!list.length) rows.push(row(txt('Waiting for players to join...', 'dim')));
 	list.forEach((e, i) => {
@@ -747,7 +782,7 @@ function hostLobbyPage(): Row[] {
 		rubric('The Script'),
 		tagsRow('tags', [
 			...Object.values(G.SCRIPTS).map((sc) => ({ label: sc.name, on: ui.scriptId === sc.id, act: () => { ui.scriptId = sc.id; render(); } })),
-			{ label: 'Custom', on: ui.scriptId === 'custom', act: () => { ui.scriptId = 'custom'; render(); } }
+			{ label: 'Custom', on: ui.scriptId === 'custom', act: startCustom }
 		]),
 		...customPicker(),
 		endPanel(),
@@ -761,7 +796,7 @@ function scriptAndNames(): Row[] {
 	rows.push(rubric('The Script'));
 	rows.push(tagsRow('tags', [
 		...Object.values(G.SCRIPTS).map((sc) => ({ label: sc.name, on: ui.scriptId === sc.id, act: () => { ui.scriptId = sc.id; render(); } })),
-		{ label: 'Custom', on: ui.scriptId === 'custom', act: () => { ui.scriptId = 'custom'; render(); } }
+		{ label: 'Custom', on: ui.scriptId === 'custom', act: startCustom }
 	]));
 	rows.push(...customPicker(), blank());
 	rows.push(rubric('The Players'));
@@ -776,18 +811,39 @@ function scriptAndNames(): Row[] {
 	return rows;
 }
 
-/** Building a custom script: any characters the app knows. Gold ones the app runs; the rest you resolve by hand. */
+/** Custom: it starts as a copy of the script that was chosen, to change from there. */
+function startCustom() {
+	const from = G.SCRIPTS[ui.scriptId];
+	if (!ui.customIds.length && from) ui.customIds = from.characters.map((c) => c.id);
+	ui.scriptId = 'custom';
+	render();
+}
+
+/**
+ * Building a custom script: start from one of the standard scripts (or nothing), then
+ * take characters off and put others on, a team at a time. Gold ones the app runs;
+ * the rest you resolve by hand.
+ */
 function customPicker(): Row[] {
 	if (ui.scriptId !== 'custom') return [];
-	const rows: Row[] = [...prose(`${ui.customIds.length} characters. Gold ones have their rules built in; the others wake at their place and you resolve them by hand.`, 'dim')];
 	const teams: [string, G.Team][] = [['Townsfolk', 'townsfolk'], ['Outsiders', 'outsider'], ['Minions', 'minion'], ['Demons', 'demon']];
-	for (const [label, team] of teams) {
-		rows.push(row(txt(label, 'dim')));
-		rows.push(...buttonRows(G.CATALOG.filter((c) => c.team === team).map((c) => btn(c.name, () => {
-			ui.customIds = ui.customIds.includes(c.id) ? ui.customIds.filter((x) => x !== c.id) : [...ui.customIds, c.id];
-			render();
-		}, { style: ui.customIds.includes(c.id) ? 'on' : G.isModelled(c.id) ? 'primary' : undefined }))));
-	}
+	const on = new Set(ui.customIds);
+	const toggle = (id: CharacterId) => { ui.customIds = on.has(id) ? ui.customIds.filter((x) => x !== id) : [...ui.customIds, id]; render(); };
+	const rows: Row[] = [rubric('Custom script'), ...prose('Start from a script, then change it.', 'dim'),
+		buttonBlock([...Object.values(G.SCRIPTS).map((sc) => btn(sc.name, () => { ui.customIds = sc.characters.map((c) => c.id); render(); })),
+			btn('Empty', () => { ui.customIds = []; render(); }, { style: 'quiet' })])];
+	const count = (t: G.Team) => ui.customIds.filter((id) => G.CATALOG.find((c) => c.id === id)?.team === t).length;
+	rows.push(...prose(`${ui.customIds.length} characters: ${teams.map(([l, t]) => `${count(t)} ${l}`).join(', ')}. Gold ones have their rules built in.`, 'dim'));
+	// One team at a time: what is on the script (tap to take off), then what could be added.
+	const team = ui.customTeam;
+	rows.push(endPanel(), tabStrip(teams.map(([l, t]) => ({ label: `${l.slice(0, 5)} ${count(t)}`, on: team === t, act: () => { ui.customTeam = t; render(); } }))));
+	const of = G.CATALOG.filter((c) => c.team === team);
+	rows.push(rubric('On the script: tap to take off'));
+	const mine = of.filter((c) => on.has(c.id));
+	rows.push(...(mine.length ? [buttonBlock(mine.map((c) => btn(c.name, () => toggle(c.id), { style: 'on' })))] : prose('None yet.', 'dim')));
+	rows.push(rubric('Add'));
+	rows.push(buttonBlock(of.filter((c) => !on.has(c.id)).map((c) => btn(c.name, () => toggle(c.id), { style: G.isModelled(c.id) ? 'primary' : undefined }))));
+	rows.push(endPanel());
 	return rows;
 }
 
@@ -809,12 +865,19 @@ function draftCounts(d: Draft) {
 	return { want, have };
 }
 
+/** The Marionette always sits beside the Demon: whatever moves, it follows. */
+function keepMarionette(d: Draft) {
+	const sc = script();
+	d.placed = G.seatMarionette(d.placed, state.order.length ? state.order : state.seats.map((x) => x.id), (c) => G.charDef(sc, c!).team === 'demon');
+}
+
 function tapDraftSeat(id: SeatId) {
 	const d = flow().draft!;
 	if (ui.picks.length === 1 && ui.picks[0] !== id) {
 		// Two seats: swap their tokens.
 		const a = ui.picks[0];
 		[d.placed[a], d.placed[id]] = [d.placed[id], d.placed[a]];
+		keepMarionette(d);
 		ui.picks = [];
 	} else {
 		ui.picks = ui.picks[0] === id ? [] : [id];
@@ -842,7 +905,9 @@ function tapDraftCharacter(c: CharacterId) {
 	}
 	if (!d.selected.includes('drunk')) d.drunkBelieves = null;
 	if (d.drunkBelieves && d.selected.includes(d.drunkBelieves)) d.drunkBelieves = null;
+	if (!d.selected.includes('marionette') || (d.marionetteBelieves && d.selected.includes(d.marionetteBelieves))) d.marionetteBelieves = null;
 	d.bluffs = d.bluffs.filter((b) => !d.selected.includes(b));
+	keepMarionette(d);
 	save();
 	render();
 }
@@ -853,6 +918,7 @@ function randomDraft() {
 		selected: [...deal.characters],
 		placed: [...deal.characters],
 		drunkBelieves: deal.drunkBelieves ?? null,
+		marionetteBelieves: deal.marionetteBelieves ?? null,
 		evilTwin: deal.evilTwin ?? null,
 		redHerring: deal.redHerring ?? null,
 		bluffs: [...deal.bluffs]
@@ -871,6 +937,7 @@ function shuffleDraft() {
 		[a[i], a[j]] = [a[j], a[i]];
 	}
 	d.placed = state.seats.map((_, i) => a[i] ?? null);
+	keepMarionette(d);
 	d.redHerring = null;
 	save();
 	render();
@@ -913,9 +980,10 @@ function draftScreen(): Row[] {
 		const c = d.placed[id];
 		const flags: Seg[] = [];
 		if (c === 'drunk') flags.push(txt('D', 'drunk'));
+		if (c === 'marionette') flags.push(txt('M', 'evil'));
 		if (d.redHerring === id) flags.push(txt('R', 'gold'));
-		const shown = c === 'drunk' ? d.drunkBelieves ?? 'drunk' : c;
-		return { flags, role: c ? charName(shown) : '?', roleTone: c === 'drunk' ? 'drunk' : toneFor(c), style: ui.picks.includes(id) ? 'on' : undefined };
+		const shown = c === 'drunk' ? d.drunkBelieves ?? 'drunk' : c === 'marionette' ? d.marionetteBelieves ?? 'marionette' : c;
+		return { flags, role: c ? charName(shown) : '?', roleTone: c === 'drunk' ? 'drunk' : c === 'marionette' ? 'evil' : toneFor(c), style: ui.picks.includes(id) ? 'on' : undefined };
 	}, [], 'The Seats'));
 	rows.push(rubric('Placing'));
 	rows.push(...prose(ui.picks.length ? `${name(ui.picks[0])}: tap a character above to seat it here, or another seat to swap.` : 'Tap a seat, then a character, to place it. Tap two seats to swap.', 'dim'));
@@ -928,6 +996,12 @@ function draftScreen(): Row[] {
 		rows.push(...buttonRows(G.charactersOfTeam(sc, 'townsfolk').filter((c) => !d.selected.includes(c.id)).map((c) =>
 			btn(c.name, () => { d.drunkBelieves = c.id; save(); render(); }, { style: d.drunkBelieves === c.id ? 'on' : undefined }))));
 	}
+	if (d.selected.includes('marionette')) {
+		rows.push(blank(), rubric('The Marionette Thinks They Are'));
+		rows.push(...prose('They sit beside the Demon, and wake as this good character, whose ability never works. The Demon learns who they are.', 'dim'));
+		rows.push(...buttonRows(sc.characters.filter((c) => (c.team === 'townsfolk' || c.team === 'outsider') && !d.selected.includes(c.id) && c.id !== d.drunkBelieves).map((c) =>
+			btn(c.name, () => { d.marionetteBelieves = c.id; save(); render(); }, { style: d.marionetteBelieves === c.id ? 'on' : undefined }))));
+	}
 	if (d.selected.includes('evil-twin')) {
 		rows.push(blank(), rubric('The Evil Twin\u2019s Twin'));
 		const good = state.seats.filter((x) => d.placed[x.id] && G.teamAlignment(G.charDef(sc, d.placed[x.id]!).team) === 'good');
@@ -938,7 +1012,7 @@ function draftScreen(): Row[] {
 		rows.push(...buttonRows(G.charactersOfTeam(sc, 'demon').map((c) =>
 			btn(c.name, () => { d.lunaticBelieves = c.id; save(); render(); }, { style: (d.lunaticBelieves ?? d.selected.find((x) => G.charDef(sc, x).team === 'demon')) === c.id ? 'on' : undefined }))));
 	}
-	if (d.selected.includes('fortune-teller') || d.drunkBelieves === 'fortune-teller') {
+	if (d.selected.includes('fortune-teller') || d.drunkBelieves === 'fortune-teller' || d.marionetteBelieves === 'fortune-teller') {
 		rows.push(blank(), rubric('Red Herring'));
 		const good = state.seats.filter((s) => d.placed[s.id] && G.teamAlignment(G.charDef(sc, d.placed[s.id]!).team) === 'good');
 		rows.push(...buttonRows(good.map((s) =>
@@ -967,7 +1041,7 @@ function draftScreen(): Row[] {
 		}, { style: d.bluffs.includes(c.id) ? 'on' : undefined }))));
 		rows.push(...buttonRows([btn('Random bluffs', () => {
 			const rand = G.rng(++ui.seed);
-			const p = pool.map((c) => c.id).filter((c) => c !== d.drunkBelieves);
+			const p = pool.map((c) => c.id).filter((c) => c !== d.drunkBelieves && c !== d.marionetteBelieves);
 			d.bluffs = p.sort(() => rand() - 0.5).slice(0, 3);
 			save();
 			render();
@@ -979,6 +1053,7 @@ function draftScreen(): Row[] {
 		type: 'assign',
 		characters: d.placed.map((c) => c ?? ''),
 		drunkBelieves: d.drunkBelieves ?? undefined,
+		marionetteBelieves: d.selected.includes('marionette') ? d.marionetteBelieves ?? undefined : undefined,
 		lunaticBelieves: d.selected.includes('lunatic') ? d.lunaticBelieves ?? undefined : undefined,
 		evilTwin: d.selected.includes('evil-twin') ? d.evilTwin ?? undefined : undefined,
 		...(d.fabled?.length ? { fabled: d.fabled } : {}),
@@ -1876,7 +1951,7 @@ function inspectRows(): Row[] {
 			btn(state.redHerring === id ? 'Not herring' : 'Red herring', () => edit({ type: 'set-red-herring', seat: state.redHerring === id ? null : id })),
 			...(!s.alive ? [btn(s.ghostVote ? 'Spend vote' : 'Give vote', () => edit({ type: 'adjust', seat: id, ghostVote: !s.ghostVote }))] : []),
 			btn('New token', () => { ui.retoken = 'character'; render(); }),
-			btn('Move seat', () => { ui.moving = id; ui.inspect = null; render(); })
+			btn('Move seat', () => { ui.rearrange = true; ui.moving = id; ui.inspect = null; render(); })
 		]));
 	}
 	rows.push(...buttonRows([btn('Close', () => { ui.inspect = null; ui.retoken = null; render(); }, { style: 'quiet' })]), endPanel());
@@ -2156,7 +2231,11 @@ function villageActions(): StActions | null {
 			...(link ? [{ label: autoCount ? 'Stop counting' : 'Count by phones', act: countByPhones }] : []),
 			{ label: 'Full count', act: () => { ui.voteSmall = false; ui.voteBig = true; render(); } }] };
 	}
-	if (day.stage === 'discussion') return { text: 'Discussion.', buttons: [{ label: 'Open nominations', primary: true, act: openNominations }, grim] };
+	// The bell calls the town to the round table in the great hall; nominations open once they are seated.
+	if (day.stage === 'discussion') {
+		const bell: Extra = { label: 'Ring the bell', act: () => { ui.bellRung = state.day?.n ?? 0; village?.phase('dusk'); render(); } };
+		return { text: ui.bellRung === state.day?.n ? 'Bell rung: all walk to the great hall.' : 'Discussion.', buttons: [...(ui.bellRung === state.day?.n ? [] : [bell]), { label: 'Open nominations', primary: true, act: openNominations }, grim] };
+	}
 	const ask = validAsks()[0];
 	if (ask) return { text: `${name(ask.by)} nominates ${name(ask.nominee)}.`, buttons: [{ label: 'Accept', primary: true, act: () => acceptNomination(ask) }, { label: 'Not now', act: () => declineNomination(ask) }] };
 	const block = day.executed !== null ? `${name(day.executed)} was executed.` : day.block !== null ? `On the block: ${name(day.block)} (${day.highest}).` : 'Nobody is on the block.';
@@ -2226,7 +2305,8 @@ function welcome(peer: string) {
 	const client = phones.get(peer)!;
 	const order = state.seats.length ? state.order.map((id) => state.seats[id].name) : lobby().map((e) => e.name);
 	const mine = state.seats.length ? (seatOfClient(client) === null ? null : state.order.indexOf(seatOfClient(client)!)) : lobby().findIndex((e) => e.client === client);
-	sendTo(peer, { t: 'lobby', names: order, you: mine === -1 ? null : mine });
+	// Everyone's phone (and this one), so the lobby can talk before the game.
+	sendTo(peer, { t: 'lobby', names: order, you: mine === -1 ? null : mine, peers: [link!.peer.id, ...phones.keys()] });
 	const taken = new Set(Object.entries(claims()).filter(([c]) => c !== client).map(([, seat]) => seat));
 	sendTo(peer, { t: 'welcome', room: link!.room, seats: state.order.map((id) => ({ id, name: state.seats[id].name, taken: taken.has(id) })), you: seatOfClient(client) });
 	lastSent.delete(peer);
@@ -2561,11 +2641,23 @@ function circleRows(): Row[] {
 	}
 	rows.push(...table((id) => ({
 		...grimoireLook(id),
-		style: ui.picks.includes(id) ? 'on' : step?.seat === id ? 'primary' : voteLook(id)
+		style: ui.picks.includes(id) || (ui.rearrange && ui.moving === id) ? 'on' : step?.seat === id ? 'primary' : voteLook(id)
 	}), caption));
-	if (ui.moving !== null) {
+	if (ui.rearrange) {
+		const m = ui.moving;
+		// One place round the circle: change places with the neighbour that way.
+		const step = (dir: 1 | -1) => () => {
+			if (m === null) return;
+			const o = state.order, at = o.indexOf(m);
+			void act({ type: 'swap-seats', a: m, b: o[(at + dir + o.length) % o.length] });
+		};
+		rows.push(rubric('Rearranging the circle'), ...prose(m === null ? 'Tap a player, then the seat they go to: the two change places.' : `${name(m)}: tap where they go, or walk them round.`, 'gold'),
+			buttonBlock([btn('◄ Back one', step(-1), { disabled: m === null }), btn('On one ►', step(1), { disabled: m === null }), btn('Done', () => { ui.rearrange = false; ui.moving = null; render(); }, { style: 'primary' })]), endPanel());
+	} else if (ui.moving !== null) {
 		rows.push(rubric('Moving'), ...prose(`Tap the seat ${name(ui.moving)} moves to. The two players change places.`, 'gold'),
 			...buttonRows([btn('Cancel', () => { ui.moving = null; render(); }, { style: 'quiet' })]), endPanel());
+	} else if (state.phase.kind !== 'over') {
+		rows.push(buttonBlock([btn('Rearrange seats', () => { ui.rearrange = true; ui.inspect = null; render(); }, { style: 'quiet' })]));
 	}
 	rows.push(blank(), ...legend(), blank());
 	return rows;
@@ -2595,14 +2687,12 @@ function drawerScreen(): Row[] {
 	const p = state.phase;
 	const phase = p.kind === 'setup' ? 'Setting the Table' : p.kind === 'night' ? `Night ${p.n}` : p.kind === 'day' ? `Day ${p.n}` : 'Game over';
 	const rows: Row[] = [
-		row(txt(center(phase), 'rubric', 'heading')),
-		...buttonRows([
+		listRow(phase, 'rubric', [
 			btn('Undo', undo, { disabled: !saved.marks.length, style: 'quiet' }),
-			btn(ui.confirmNew ? 'Sure?' : 'New game', () => { if (ui.confirmNew) newGame(); else { ui.confirmNew = true; render(); } }, { style: ui.confirmNew ? 'danger' : 'quiet' }),
-			btn('Put away', () => { ui.drawer = null; render(); }, { style: 'quiet' })
-		], COLS, 0),
-		buttonBlock(DRAWER_TABS.map(([t, l]) => btn(l, () => { ui.drawer = t; ui.confirmNew = false; render(); }, { style: ui.drawer === t ? 'on' : 'quiet' })), COLS, 0),
-		blank()
+			btn(ui.confirmNew ? 'Sure?' : 'New', () => { if (ui.confirmNew) newGame(); else { ui.confirmNew = true; render(); } }, { style: ui.confirmNew ? 'danger' : 'quiet' }),
+			btn('To town', () => { ui.drawer = null; render(); }, { style: 'primary' })
+		], COLS),
+		tabStrip(DRAWER_TABS.map(([t, l]) => ({ label: l, on: ui.drawer === t, act: () => { ui.drawer = t; ui.confirmNew = false; render(); } })))
 	];
 	const tab = ui.drawer ?? 'actions';
 	if (tab === 'log') return [...rows, ...logScreen()];
@@ -2615,7 +2705,7 @@ function drawerScreen(): Row[] {
 	return [...rows, ...circleRows(), ...messageRows(), ...inspectRows()];
 }
 
-const DRAWER_TABS: [DrawerTab, string][] = [['actions', 'Actions'], ['grimoire', 'Grimoire'], ['log', 'Log'], ['phones', 'Phones'], ['options', 'Clock'], ['ties', 'Ties']];
+const DRAWER_TABS: [DrawerTab, string][] = [['actions', 'Acts'], ['grimoire', 'Grim'], ['log', 'Log'], ['phones', 'Phones'], ['options', 'Clock'], ['ties', 'Ties']];
 
 /** Pull the drawer out on a page (from the village's bar: "Grimoire"). */
 function openDrawer(t: DrawerTab = 'actions') {
@@ -2626,7 +2716,14 @@ function openDrawer(t: DrawerTab = 'actions') {
 const root = document.getElementById('app')!;
 const cardRoot = document.createElement('div');
 
+/** Talking in the lobby: everyone in the room hears everyone, until the game begins. */
+const lobbyVoice = new LobbyVoice(() => link?.peer ?? null, () => render());
+
 function render() {
+	if (lobbyVoice.voice) {
+		if (state.phase.kind !== 'setup' || !link) lobbyVoice.stop();
+		else lobbyVoice.setPeers([...phones.keys()]);
+	}
 	// The script sets the look: Laissez un Faire is Victorian; the night is dark vellum, the day light.
 	const theme = themeOf(state.seats.length ? state.scriptId : ui.scriptId);
 	document.documentElement.dataset.phase = state.phase.kind === 'night' ? 'night' : 'day';

@@ -18,7 +18,7 @@
  */
 import { readFileSync } from 'node:fs';
 import {
-	emptyState, perform, reduce, replay, nextStep, nightSteps, stepAction, getScript, randomDeal, rng, pickSpec,
+	emptyState, perform, reduce, replay, nextStep, nightSteps, stepAction, getScript, customScriptId, randomDeal, rng, pickSpec,
 	living, infoCandidates, teamAlignment, charDef, canRegisterAsTeam, NEW_DEMON
 } from '../../src/core/index.ts';
 import type { Command, GameEvent, GameState, Info, SeatId, Script } from '../../src/core/index.ts';
@@ -27,8 +27,10 @@ import { publicView, cardFor } from '../../src/net/views.ts';
 const NAMES = 'Ada Bram Cael Dorn Esme Fenn Gwen Hal Isolde Jory Kit Lior Maud Ned Orla'.split(' ');
 /** A game that has not ended after this many commands is called a draw (and counted). */
 const MAX_COMMANDS = 1500;
+/** Trouble Brewing with the Marionette among its Minions: the robots play it too. */
+const TB_MARIONETTE = customScriptId([...getScript('trouble-brewing').characters.map((c) => c.id), 'marionette']);
 /** The scripts the robots play, by name. */
-export const SIM_SCRIPTS = ['trouble-brewing', 'bad-moon-rising', 'sects-and-violets'];
+export const SIM_SCRIPTS = ['trouble-brewing', 'bad-moon-rising', 'sects-and-violets', TB_MARIONETTE];
 
 export interface Violation {
 	rule: string;
@@ -180,7 +182,9 @@ function proposeDay(s: GameState, r: Rand): Command {
 	if (s.fabled?.some((f) => f.id === 'doomsayer') && chance(0.03, r)) return { type: 'doomsayer', by: pick(seats(s), r), victim: pick(seats(s), r) };
 	if (s.fabled?.some((f) => f.id === 'ferryman') && chance(0.03, r)) return { type: 'ferryman' };
 	// Travellers: one joins now and then; the group calls for an exile; the Gunslinger shoots; the Judge rules.
-	const unused = (scriptOf(s).travellers ?? []).filter((t) => !s.seats.some((x) => x.character === t.id));
+	// A custom script may call on every edition's Travellers; the robots keep Trouble Brewing + Marionette to Trouble Brewing's own.
+	const own = s.scriptId === TB_MARIONETTE ? getScript('trouble-brewing').travellers ?? [] : scriptOf(s).travellers ?? [];
+	const unused = own.filter((t) => !s.seats.some((x) => x.character === t.id));
 	if (chance(0.03, r) && unused.length && s.seats.length < 20) {
 		return { type: 'traveller-joins', name: `T${s.seats.length}`, character: pick(unused, r).id, alignment: chance(0.5, r) ? 'good' : 'evil', after: pick(seats(s), r) };
 	}
@@ -278,7 +282,8 @@ const demonsAlive = (s: GameState) => s.seats.filter((x) => (x.alive || x.undead
 function dp(s: GameState, id: SeatId, depth = 0): boolean {
 	// The Barista's choice: sober and healthy, whatever else (while the Barista has the ability).
 	if (s.effects.some((e) => e.kind === 'sober' && e.target === id && e.by !== null && reallyAlive(s, e.by) && (depth > 3 || !dp(s, e.by, depth + 1)))) return false;
-	if (s.seats[id].character === 'drunk') return true;
+	// The Drunk and the Marionette: the ability they think they have is not theirs.
+	if (s.seats[id].character === 'drunk' || s.seats[id].character === 'marionette') return true;
 	if (depth <= 3 && noDashiiNext(s, id, depth)) return true;
 	return s.effects.some((e) => (e.kind === 'poisoned' || e.kind === 'drunk') && e.target === id && (
 		!e.whileSourceWorks || e.by === null || ((reallyAlive(s, e.by) || s.effects.some((k) => k.kind === 'keeps-ability' && k.target === e.by)) && (depth > 3 || !dp(s, e.by, depth + 1)))
@@ -575,6 +580,9 @@ export class Checker {
 		this.grandmothersDue = [];
 		this.due = prev.phase.kind === 'night' ? nextStep(prev) : null;
 		const d = this.due;
+		for (const e of events) {
+			if (e.type === 'evil-info-shown' && prev.seats[e.to]?.character === 'marionette') this.fail('marionette-not-told', `${prev.seats[e.to].name} the Marionette was shown the evil team`);
+		}
 		const nightCommand = ['acknowledge', 'choose', 'tell', 'skip'].includes(cmd.type);
 		if (d && d.seat !== null && nightCommand && !prev.seats[d.seat].alive && !prev.seats[d.seat].undead && !['ravenkeeper', 'moonchild', 'reveal', 'sage', 'sweetheart', 'barber'].includes(d.kind) && !keeps(prev, d.seat)) {
 			this.fail('dead-do-not-wake', `${prev.seats[d.seat].name} (dead) woke as ${d.kind}`);
@@ -1033,10 +1041,20 @@ export class Checker {
 			if (x.alive && !x.ghostVote) this.fail('ghost-vote-only-dead', `${x.name} is alive with their ghost vote spent`);
 			if (this.dead.has(x.id) && x.alive) this.fail('dead-stay-dead', `${x.name} came back to life`);
 			if (!x.alive) this.dead.add(x.id);
-			const misled = x.character === 'drunk' || x.character === 'lunatic';
+			const misled = x.character === 'drunk' || x.character === 'lunatic' || x.character === 'marionette';
 			if (x.believes !== x.character && !misled) this.fail('only-the-drunk-is-misled', `${x.name} is ${x.character} but believes ${x.believes}`);
 			if (x.character === 'drunk' && teamIn(s, x.believes) !== 'townsfolk') this.fail('drunk-believes-townsfolk', `${x.name} the Drunk believes ${x.believes}`);
 			if (x.character === 'lunatic' && teamIn(s, x.believes) !== 'demon') this.fail('lunatic-believes-demon', `${x.name} the Lunatic believes ${x.believes}`);
+			if (x.character === 'marionette' && !['townsfolk', 'outsider'].includes(teamIn(s, x.believes))) this.fail('marionette-believes-good', `${x.name} the Marionette believes ${x.believes}`);
+		}
+		// When the characters are first dealt, the Marionette sits beside the Demon (seating is s.order).
+		if (!prev.seats.some((x) => x.character) && s.seats.some((x) => x.character)) {
+			const m = s.seats.find((x) => x.character === 'marionette');
+			if (m) {
+				const at = s.order.indexOf(m.id), n = s.order.length;
+				const sides = [s.order[(at + 1) % n], s.order[(at + n - 1) % n]];
+				if (!sides.some((id) => teamIn(s, s.seats[id].character) === 'demon')) this.fail('marionette-beside-demon', `${m.name} the Marionette sits between ${sides.map((id) => s.seats[id].character).join(' and ')}`);
+			}
 		}
 		if ((s.phase.kind === 'night' || s.phase.kind === 'day') && !s.mastermind) {
 			if (demonsAlive(s) < 1 && !twinsHold(s)) this.fail('one-demon', 'no living Demon and the game goes on');
