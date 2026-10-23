@@ -147,7 +147,8 @@ const S = {
 	phase: 'day' as Phase,
 	me: '',
 	people: new Map<string, Person>(),
-	route: [] as P[],
+	/** Steps still to take; each may name its level (the route can go by a stair). */
+	route: [] as (P & { z?: number })[],
 	seen: null as Uint8Array | null,
 	voice: null as Voice | null,
 	voiceBusy: false,
@@ -623,13 +624,14 @@ function climb(p: Person) {
 	const t = lvl(p);
 	const key = `${p.z ?? 0}:${p.x},${p.y}`;
 	if (stairFrom.get(p.id) === key) return;
+	// Passing over a stair on the way somewhere on this level: stay on this level.
+	if (p.id === S.me && S.route.length && (S.route[0].z ?? p.z ?? 0) === (p.z ?? 0)) return;
 	stairFrom.delete(p.id);
 	const go = stairGoes(at(t, p.x, p.y));
 	const to = t.levels[(p.z ?? 0) + go];
 	if (!go || !to || !walkable(to, p.x, p.y, p.st)) return;
 	p.z = (p.z ?? 0) + go;
 	stairFrom.set(p.id, `${p.z}:${p.x},${p.y}`);
-	S.route = p.id === S.me ? [] : S.route;
 	if (p.id === S.me) toast(go > 0 ? 'Up the stairs.' : 'Down the stairs.');
 }
 const stairFrom = new Map<string, string>();
@@ -654,6 +656,13 @@ function walkTo(goal: P) {
 	const t = p && S.town ? lvl(p) : null;
 	if (!p || !t || !canWalk()) return;
 	let g = goal;
+	const pz = p.z ?? 0;
+	// Tapped the level below, through open air: go there, by a stair down.
+	const below = pz > 0 ? t.levels[pz - 1] : null;
+	if (below && isAir(at(t, g.x, g.y)) && walkable(below, g.x, g.y, p.st)) {
+		S.route = byStairs(p, t, below, g);
+		return;
+	}
 	if (!walkable(t, g.x, g.y, p.st)) {
 		// Tapped a wall or a table: go to the nearest place beside it.
 		const near = [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [-1, 1], [1, -1], [-1, -1]]
@@ -666,13 +675,40 @@ function walkTo(goal: P) {
 	S.route = path(t, p, g, p.st);
 }
 
+/** The way to `goal` on another level: to the nearest stair that goes there, onto it, then on from its foot. */
+function byStairs(p: Person, from: Town, to: Town, goal: P): (P & { z?: number })[] {
+	const dir = to.z - from.z;
+	let best: (P & { z?: number })[] = [];
+	for (let i = 0; i < from.w * from.h; i++) {
+		if (stairGoes(from.cells[i]) !== dir) continue;
+		const st = { x: i % from.w, y: Math.floor(i / from.w) };
+		if (!walkable(to, st.x, st.y, p.st)) continue;
+		const a = st.x === p.x && st.y === p.y ? [] : path(from, p, st, p.st);
+		if (!a.length && !(st.x === p.x && st.y === p.y)) continue;
+		const b = path(to, st, goal, p.st);
+		if (!b.length && !(st.x === goal.x && st.y === goal.y)) continue;
+		const r = [...a.map((q) => ({ ...q, z: from.z })), ...b.map((q) => ({ ...q, z: to.z }))];
+		if (!best.length || r.length < best.length) best = r;
+	}
+	return best;
+}
+
 setInterval(() => {
 	const p = me();
 	if (!p || !S.town || !S.route.length) return;
-	const t = lvl(p);
+	// The next step is on another level and you stand on the stair there: take it first.
+	const nz = S.route[0].z;
+	if (nz !== undefined && nz !== (p.z ?? 0) && stairGoes(at(lvl(p), p.x, p.y)) === Math.sign(nz - (p.z ?? 0))) {
+		stairFrom.delete(p.id);
+		climb(p);
+		sendPos(p);
+		S.dirty = true;
+		return;
+	}
 	const next = S.route.shift()!;
-	// A door shut in your face: stop.
-	if (!walkable(t, next.x, next.y, p.st)) { S.route = []; return; }
+	const t = lvl(next.z === undefined ? p : next);
+	// A door shut in your face: stop. (A step on another level waits for the stair to take you there.)
+	if ((next.z ?? p.z ?? 0) !== (p.z ?? 0) || !walkable(t, next.x, next.y, p.st)) { S.route = []; return; }
 	lastAt = { x: p.x, y: p.y };
 	p.x = next.x; p.y = next.y;
 	climb(p);
@@ -762,11 +798,11 @@ function tickMap() {
 	animating = false;
 	for (const q of S.people.values()) glide(q.id, q.x, q.y, dt);
 	for (const id of [...shownAt.keys()]) if (!S.people.has(id)) shownAt.delete(id);
-	const me0 = S.phase === 'circle' && t.council ? t.council.at : shownAt.get(p.id) ?? p;
-	const k = 1 - Math.exp(-dt / 45);
-	cam.x += (me0.x - cam.x) * k;
-	cam.y += (me0.y - cam.y) * k;
-	if (Math.abs(cam.x - me0.x) < 0.02 && Math.abs(cam.y - me0.y) < 0.02) Object.assign(cam, { x: me0.x, y: me0.y });
+	// On a grid of cells a glide only blurs the step: you stay fixed in the middle and the town
+	// moves under you a whole cell at a time, in the same frame as your step (no lag, no wobble).
+	const me0 = S.phase === 'circle' && t.council ? t.council.at : p;
+	shownAt.set(p.id, { x: p.x, y: p.y });
+	Object.assign(cam, { x: me0.x, y: me0.y });
 	S.dirty = false;
 	drawnAt = now;
 	if (relight) {
@@ -816,7 +852,9 @@ function barButtons(cols: number): { bar: Button[]; more: Button[] } {
 function stampButtons(g: Grid, x: number, y: number, w: number, bs: Button[]): number {
 	const lines = buttonRows(bs, w, 0);
 	lines.forEach((r, i) => {
-		let bx = x;
+		// Each row of buttons in the middle of the bar.
+		const used = r.segs.reduce((k, sg) => k + segWidth(sg), 0);
+		let bx = x + Math.max(0, Math.floor((w - used) / 2));
 		for (const s of r.segs) {
 			if (isButton(s)) drawButton({ g, x, y, w, ink: () => 4, hit: (rc, fn) => g.hit(rc, fn) }, bx, y + i * 3, segWidth(s), s);
 			bx += segWidth(s);
@@ -891,13 +929,29 @@ function looksFor(t: Town, locks: string) {
 /** Tap to walk: the cell under a tap in the map. */
 let view = { x0: 0, y0: 0 };
 
+/**
+ * A town cell is two columns wide, so it is square on screen and square buildings look
+ * square: the glyph, then a second column that carries a wall's line on, or a little texture.
+ */
+const CW = 2;
+/** The second column of a cell. */
+function filler(ch: string, wall: { mask: number; style: string } | undefined, x: number, y: number): string {
+	if (wall) return wall.mask & 2 ? (wall.style === 'double' ? '═' : '─') : ' ';
+	if (ch === '~' || ch === '▒' || ch === '=' || ch === '-') return ch;
+	return ch !== ' ' && (hash2(x * 3 + 1, y) & 3) === 0 ? ch : ' ';
+}
+
 function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: number) {
 	const cols = g.cols;
-	const x0 = Math.round(cam.x) - Math.floor(cols / 2), y0 = Math.round(cam.y) - Math.floor(mapH / 2);
+	const x0 = Math.round(cam.x) - Math.floor(cols / CW / 2), y0 = Math.round(cam.y) - Math.floor(mapH / 2);
 	view = { x0, y0: y0 - mapY };
+	/** The screen column of a town column. */
+	const scr = (cx: number) => (cx - x0) * CW;
 	g.hit({ x: 0, y: mapY, w: cols, h: mapH }, (sx, sy) => {
 		audio();
-		const cell = { x: x0 + sx, y: y0 + (sy - mapY) };
+		const cell = { x: x0 + Math.floor(sx / CW), y: y0 + (sy - mapY) };
+		// Tapping the stair you stand on takes it.
+		if (cell.x === p.x && cell.y === p.y && stairGoes(at(t, p.x, p.y))) { stairFrom.delete(p.id); climb(p); sendPos(p); S.dirty = true; return; }
 		const i = cell.x + cell.y * t.w;
 		if (t.locked.has(i) && mayWorkDoor(t, p, i)) { workDoor(i); return; }
 		walkTo(cell);
@@ -929,8 +983,8 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 	const lit = new Map<number, Rgb>();
 	const ground = new Map<number, number>();
 	for (let sy = 0; sy < mapH; sy++) {
-		for (let sx = 0; sx < cols; sx++) {
-			const x = x0 + sx, y = y0 + sy;
+		for (let cx = 0; cx * CW < cols; cx++) {
+			const x = x0 + cx, y = y0 + sy, sx = cx * CW;
 			if (x < 0 || y < 0 || x >= t.w || y >= t.h) continue;
 			const i = x + y * t.w;
 			const shown = vis.has(i);
@@ -945,7 +999,9 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 			if (below && memoBelow && isAir(t.cells[i])) {
 				const lb = memoBelow[i] ?? (memoBelow[i] = lookAt(below, x, y, 0));
 				const ch = lb.wall ? (lb.wall.style === 'double' ? WALL_DOUBLE : WALL_SINGLE)[lb.wall.mask] : fold(lb.ch);
-				g.set(sx, mapY + sy, ch === ' ' ? '.' : ch, quant(mul(lb.fg, [0.32, 0.32, 0.38])), 0);
+				const dim = quant(mul(lb.fg, [0.32, 0.32, 0.38]));
+				g.set(sx, mapY + sy, ch === ' ' ? '.' : ch, dim, 0);
+				g.set(sx + 1, mapY + sy, filler(ch, lb.wall, x, y), dim, 0);
 				continue;
 			}
 			let look = memo[i];
@@ -989,17 +1045,19 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 			const bgi = mySeat && mySeat.x === x && mySeat.y === y ? 8 : S.phase === 'dusk' && seatSet.has(i) ? shade(6, 1) : shown && luma(bg) > 9 ? quant(bg) : 0;
 			ground.set(i, bgi);
 			g.set(sx, mapY + sy, ch, fgi, bgi);
+			g.set(sx + 1, mapY + sy, look.glass ? '▒' : bare || look.wall ? filler(ch, look.wall, x, y) : ' ', fgi, bgi);
 		}
 	}
 	for (const l of t.labels) {
 		const i = l.x + l.y * t.w;
 		if (!S.seen![i] && !p.st) continue;
 		if ((inside || inCave) && !vis.has(i)) continue;
-		const sx = l.x - x0, sy = l.y - y0 - 1;
+		const sx = scr(l.x), sy = l.y - y0 - 1;
 		if (sy < 0 || sy >= mapH) continue;
+		// The name whole, in faded ink on the ground beneath it (cells are two columns, so it seldom covers much).
 		for (let k = 0; k < l.text.length; k++) {
 			const cell = g.get(sx + k, mapY + sy);
-			if (cell && cell.ch === ' ') g.set(sx + k, mapY + sy, l.text[k], 3, 0);
+			if (cell) { cell.ch = l.text[k]; cell.fg = 4; }
 		}
 	}
 	const people = [...S.people.values()].filter((q) => {
@@ -1011,28 +1069,32 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 	});
 	for (const q of people) {
 		const d = shownAt.get(q.id) ?? q;
-		const sx = Math.round(d.x) - x0, sy = Math.round(d.y) - y0;
+		const sx = scr(Math.round(d.x)), sy = Math.round(d.y) - y0;
 		if (sy < 0 || sy >= mapH) continue;
 		const [fg, bg] = markOf(q);
 		const mineQ = q.id === S.me;
 		const talk = talking(q) > 0.15;
 		// You are drawn reversed out of your ink; someone talking gets a gold plate.
 		const lit = bg ? bg : fg;
-		g.set(sx, mapY + sy, q.st ? '☼' : glyphOf(q), mineQ ? 0 : talk ? 0 : fg, mineQ ? lit : talk ? 6 : bg);
-		if (mineQ) { g.set(sx - 1, mapY + sy, '[', lit); g.set(sx + 1, mapY + sy, ']', lit); }
+		// A square plate: the letter and its second column share the ground.
+		const pf = mineQ ? 0 : talk ? 0 : fg, pb = mineQ ? lit : talk ? 6 : bg;
+		g.set(sx, mapY + sy, q.st ? '☼' : glyphOf(q), pf, pb);
+		g.set(sx + 1, mapY + sy, ' ', pf, pb || (g.get(sx + 1, mapY + sy)?.bg ?? 0));
 	}
 	if (S.game && (S.phase === 'dusk' || S.phase === 'circle') && gathering(t)) {
 		for (const r of S.ring) {
 			if ([...S.people.values()].some((q) => !q.st && q.seat === r.seat)) continue;
 			const cell = seatCell(t, r.seat);
 			if (!cell) continue;
-			g.set(cell.x - x0, mapY + cell.y - y0, r.name[0]?.toUpperCase() ?? '?', r.dead ? 3 : personInk(r.seat)[0] || 4, r.dead ? 0 : personInk(r.seat)[1]);
+			g.set(scr(cell.x), mapY + cell.y - y0, r.name[0]?.toUpperCase() ?? '?', r.dead ? 3 : personInk(r.seat)[0] || 4, r.dead ? 0 : personInk(r.seat)[1]);
 		}
 	}
 	if (S.route.length) {
 		const goal = S.route[S.route.length - 1];
-		const cell = g.get(goal.x - x0, mapY + goal.y - y0);
-		if (cell) cell.bg = 6, cell.fg = 0;
+		for (let k = 0; k < CW; k++) {
+			const cell = g.get(scr(goal.x) + k, mapY + goal.y - y0);
+			if (cell) cell.bg = 6, cell.fg = 0;
+		}
 	}
 }
 
@@ -1055,18 +1117,17 @@ function councilCells(g: Grid, mapY: number, mapH: number, t: Town) {
 	for (const r of ring) {
 		const cell = seatCell(t, r.seat);
 		if (!cell) continue;
-		const sx = cell.x - x0, sy = cell.y - y0;
-		const here = g.get(sx, sy);
+		const sx = (cell.x - x0) * CW, sy = cell.y - y0;
+		const here = g.get(sx, sy), next = g.get(sx + 1, sy);
 		if (!here || sy < mapY || sy >= mapY + mapH) continue;
-		if (v?.nominee === r.seat) { here.fg = 0; here.bg = 8; }
-		else if (v?.raised.includes(r.seat)) { here.fg = 0; here.bg = 10; }
-		else if (v?.counted.includes(r.seat)) { here.fg = 0; here.bg = 6; }
+		const plate = v?.nominee === r.seat ? 8 : v?.raised.includes(r.seat) ? 10 : v?.counted.includes(r.seat) ? 6 : -1;
+		if (plate >= 0) for (const c of [here, next]) if (c) { c.fg = 0; c.bg = plate; }
 		if (v?.at === r.seat) { g.set(sx - 1, sy, '>', 6); }
 		// The name, out from the table along the seat's own direction, so the ring of names never crowds the ring of seats.
 		const dx = cell.x - c.at.x, dy = (cell.y - c.at.y) * 2, d = Math.hypot(dx, dy) || 1;
 		const ux = dx / d, uy = dy / d;
 		const label = (r.dead ? '+' : '') + r.name.slice(0, 7);
-		const ax = sx + Math.round(ux * 3), ay = sy + Math.round(uy * 1.6);
+		const ax = sx + (ux > 0 ? 1 : 0) + Math.round(ux * 4), ay = sy + Math.round(uy * 1.6);
 		const lx = Math.abs(ux) < 0.4 ? ax - Math.floor(label.length / 2) : ux < 0 ? ax - label.length + 1 : ax;
 		g.text(lx, ay, label, r.dead ? 3 : v?.nominee === r.seat ? 8 : 5, 0);
 	}

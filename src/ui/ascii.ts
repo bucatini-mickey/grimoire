@@ -329,7 +329,7 @@ export function drawButton(c: Ctx, x: number, y: number, w: number, b: Button) {
 	const label = [...b.label].slice(0, room).join('');
 	const lx = x + 2 + Math.floor((room - [...label].length) / 2);
 	g.text(lx, y + 1, label, fg, bg);
-	if (label && /\p{L}/u.test(label[0])) g.set(lx, y + 1, label[0], cap, bg);
+	if (label && /\p{L}/u.test(label[0])) { if (st === 'normal') initial(g, lx, y + 1, label[0]); else g.set(lx, y + 1, label[0], cap, bg); }
 	if (!b.disabled) c.hit({ x, y, w, h: 3 }, b.act);
 }
 
@@ -429,6 +429,20 @@ export function field(id: string, label: string, value: string, set: (v: string)
 }
 let fieldId = '';
 
+/**
+ * The corners of a panel: small gilt bosses, as on the corners of a bound book,
+ * in place of the plain joins.
+ */
+function cornerBosses(g: Grid, x0: number, y: number, width: number) {
+	g.set(x0, y, '◘', 6, 0);
+	g.set(x0 + width - 1, y, '◘', 6, 0);
+}
+
+/** A rubricated initial: the letter in the page's ground on a plate of red, so it stands out on light or dark. */
+export function initial(g: Grid, x: number, y: number, ch: string) {
+	g.set(x, y, ch, 0, 8);
+}
+
 /** Stamp one row at (x, y); returns nothing. */
 function drawRow(g: Grid, r: Row, x0: number, y: number, width: number, h: number, ink: (t: Tone | undefined) => number) {
 	const ctx: Ctx = { g, x: x0, y, w: width, ink, hit: (rc, fn) => g.hit(rc, fn) };
@@ -437,13 +451,14 @@ function drawRow(g: Grid, r: Row, x0: number, y: number, width: number, h: numbe
 		g.set(x0, y, '╔', 6, 0);
 		for (let i = 1; i < width - 1; i++) g.set(x0 + i, y, '═', 6, 0);
 		g.set(x0 + width - 1, y, '╗', 6, 0);
+		cornerBosses(g, x0, y, width);
 		const t = r.segs[0] && !isButton(r.segs[0]) ? r.segs[0].t : '';
 		if (t) {
 			const tx = x0 + 2;
-			g.text(tx, y, '♦ ', 8, 0);
+			g.text(tx, y, '╡ ', 6, 0);
 			g.text(tx + 2, y, t, 5, 0);
-			g.set(tx + 2, y, [...t][0], 8, 0);
-			g.text(tx + 2 + [...t].length, y, ' ♦', 8, 0);
+			initial(g, tx + 2, y, [...t][0]);
+			g.text(tx + 2 + [...t].length, y, ' ╞', 6, 0);
 		}
 		return;
 	}
@@ -451,9 +466,7 @@ function drawRow(g: Grid, r: Row, x0: number, y: number, width: number, h: numbe
 		g.set(x0, y, '╚', 6, 0);
 		for (let i = 1; i < width - 1; i++) g.set(x0 + i, y, '═', 6, 0);
 		g.set(x0 + width - 1, y, '╝', 6, 0);
-		const mid = x0 + Math.floor(width / 2);
-		g.text(mid - 2, y, '═╡♣╞═', 6, 0);
-		g.set(mid, y, '♣', 10, 0);
+		cornerBosses(g, x0, y, width);
 		return;
 	}
 	const inPanel = !!r.cls?.includes('frame-mid');
@@ -593,7 +606,7 @@ export function tabStrip(tabs: Tab[], width = COLS): Row {
 			g.set(x, c.y + 1, t.on ? '║' : '│', edge, bg); g.set(x + tw - 1, c.y + 1, t.on ? '║' : '│', edge, bg);
 			const lx = x + 1 + padn / 2;
 			g.text(lx, c.y + 1, t.label, fg, bg);
-			if (!t.on && /\p{L}/u.test(t.label[0])) g.set(lx, c.y + 1, t.label[0], 8, bg);
+			if (!t.on && /\p{L}/u.test(t.label[0])) initial(g, lx, c.y + 1, t.label[0]);
 			// The open tab has no foot: it runs into the page below.
 			if (t.on) { g.set(x, c.y + 2, '╝', 6, 0); g.set(x + tw - 1, c.y + 2, '╚', 6, 0); for (let i = 1; i < tw - 1; i++) g.set(x + i, c.y + 2, ' ', 0, 0); }
 			else { g.set(x, c.y + 2, '╧', 2, 0); g.set(x + tw - 1, c.y + 2, '╧', 2, 0); }
@@ -635,7 +648,15 @@ const cellHash = (x: number, y: number) => {
  * screen is wider than the page, illuminated margins: a gold double rule
  * with vine leaves and red lozenges climbing it.
  */
+const BACK = String.fromCharCode(92);
 function ground(g: Grid, width: number) {
+	// A faint diaper of lozenges, as tooled into a binding, with the grain over it.
+	for (let y = 0; y < g.rows; y++) for (let x = 0; x < g.cols; x++) {
+		const a = (x + 2 * y) % 12 === 0, b = (x - 2 * y + 1200) % 12 === 0;
+		if (a && b) g.set(x, y, '+', 2, 0);
+		else if (a) g.set(x, y, '/', 1, 0);
+		else if (b) g.set(x, y, BACK, 1, 0);
+	}
 	for (let y = 0; y < g.rows; y++) for (let x = 0; x < g.cols; x++) {
 		const h = cellHash(x, y);
 		if (h < 70) g.set(x, y, h < 20 ? "'" : h < 45 ? '.' : '`', 1, 0);
