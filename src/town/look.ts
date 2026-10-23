@@ -276,7 +276,9 @@ export function lookAt(t: Town, x: number, y: number, ms = 0): Look {
 		const r = Math.floor(ms / 700 + hash(x, y, 9) % 7);
 		return { ch: m.floors[(hash(x, y, 7) + r) % m.floors.length], fg: lerp(m.fg, m.bg, (r % 3) * 0.2), bg: m.bg, emissive: false };
 	}
-	if (c.tile === 'stair-up') return { ch: '<', fg: lerp(m.fg, [255, 255, 255], 0.4), bg: m.bg, emissive: false };
+	// Stairs as Tachyon draws them: < goes up, > goes down.
+	if (c.tile === 'stair-up') return { ch: '<', fg: lerp(m.fg, [255, 255, 255], 0.5), bg: m.bg, emissive: false };
+	if (c.tile === 'stair-down') return { ch: '>', fg: lerp(m.fg, [255, 255, 255], 0.5), bg: m.bg, emissive: false };
 	// Laid floors (paving, boards) are a faint texture, so what stands on them reads first.
 	const laid = !!m.style;
 	return { ch: m.floors[hash(x, y, 7) % m.floors.length], fg: laid ? lerp(m.fg, m.bg, 0.72) : m.fg, bg: m.bg, emissive: false };

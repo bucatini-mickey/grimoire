@@ -2,8 +2,12 @@ tachyon-blueprint 1
 # The castle town for Grimoire's village games: a castle on a wooded hill above its town.
 # Made by town/make-castle.mjs; edit that and run it again. `label x y Name` names a place.
 name castle
-size 112 94 1
+size 112 94 2
 key , floor grass
+key < stair-up wood
+key > stair-down wood
+key { stair-up stone block
+key } stair-down stone block
 key T wall leaves
 key . floor gravel
 key _ floor stone block
@@ -65,7 +69,7 @@ TTTTTTTT,~~,,,,,,,,,,,,,,,,,,,,,#######..#______hhhhhhhh______#______#..#######,
 TTTTTTTT~~,,,,,,,,,,,,,,,T,f,f,,#........#_____hhUUUUUUhh_____#______#........#,,,,,,,f,,f,,,,,,,f,,,,ffTTTTTTTT
 TTTTTTTT~~,,,f,,,,,,,,,,,,,,,,,,#........#_____hUUUUUUUUh_____D______#........#,,,ff,,,,,,,,,,,,,,,,,,,,TTTTTTTT
 TTTTTTTT~~,,,,,,,,,,,,T,,f,f,,,,#........#_____hUUUUUUUUh_____#______#........#,,,,,T,,T,,,,f,,,,,,,,T,TTTTTTTTT
-TTTTTTT~~T,,,,,,,,,,,,,,f,,,,,,,#........#_____hhUUUUUUhh_____#______#........#,,,,T,,,,,,,,,,f,,,,,,,,TTTTTTTTT
+TTTTTTT~~T,,,,,,,,,,,,,,f,,,,,,,#........#_____hhUUUUUUhh_____#_{____#........#,,,,T,,,,,,,,,,f,,,,,,,,TTTTTTTTT
 TTTTTT~~T,f,,,f,,,,,,,,,,f,f,,,,#........#______hhhhhhhh______#______#........#,,,,,,,,,,,,,f,,,,,,,,,,,TTTTTTTT
 TTTTTT~~T,,,,,,,,,,,,,f,,,,T,,f,#........#____________________#______#........#f,,,,f,,f,,,f,,,,,,,,,,,,TTTTTTTT
 TTTTTT~~TT,,,,,,,,,,,,,,f,,,,,,,#........#_k________________i_#___S_k#........#,,,,,,,,,,,,,f,,,,,,,,,,TTTTTTTTT
@@ -89,7 +93,7 @@ TTTTTT~~TTT,,,,,,,,,,,,,,f,f,,,,,,,fT,,,,,f,,,,,,,,###___###f,,,,,,,,f,,,,,,,,,,
 TTTTTT~~T,f,ffWWWWWWW,,WwWWWWW,,,,,,,,,,,,,,,,,,,,f,,T,..,,,,,,,,,,,,,,,,ff,,,,,,,WWWWWWW,,WwWWRRRRRRRRRRRTTTTTT
 TTTTTT~~,,,,,,WbngggW,fWb+++VW,,,,,,f,,,,,,,,,,,,,,,f!,..,!,,,,,,,,,,,,,,,,,,,,,,fWb+++yW,,Wb+++RRRRRRRRRRTTTTTT
 TTTTTT~~,,f,,,WgggggW,,W+++++W,,,,,,,,,,,,,,,,f,,,,,,,,..,,,,,,,,,,,,,,,,,,,,,,,,,W+++++Wf,W++++RRRRRRRRRRTTTTTT
-TTTTTT~~,,,f,,WegkggWf,We++t+W,,,,,,,,,,,,,,,,,,,T,,,,,..,,,,,,,,,,,,,,,,,,,,,,,,,We+++yW,,We++J+RRRRRRRRRTTTTTT
+TTTTTT~~,,,f,,Wegg<gWf,We++t+W,,,,,,,,,,,,,,,,,,,T,,,,,..,,,,,,,,,,,,,,,,,,,,,,,,,We+++yW,,We<+J+RRRRRRRRRTTTTTT
 TTTTTT~~,,,,,,WWWdWWWf,WWWdWWW,,,,,,,,,,,,f,,,f,,,,,,,,..,,,,,,,,,,,,,T,f,,,,,,,,,WWWdWWW,,WWWdWWRRRRRRRRRTTTTTT
 TTTTTT,~~,f,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,f,,T,,,,,,,,,,..,,,,,,,,,T,,,,,,,,,,,,,,,,,,,,,,,,,,,g,,RRRRRRRRRTTTTTT
 TTTTTTT~~,,,,T,,,,,,,,,,,,,,,,!,f,,,,,,,,f,,,fT,,,,,,ff..,,,,,,,,,,,,,,,,,,,,,!,,,,,,g,,,,,,,,,,,,RRRRRRRRTTTTTT
@@ -100,7 +104,7 @@ TTTTTTT~~,,,,,,,,,,,,,,,,,,,,,,,,f,,,,,,,,ggWWWWWWW,,,,..T,,,,,,!g,,,T,,,,,,,,,,
 TTTTTTTT~~T,,,,,,,,,####w#####w###w####,,,ggWb+++rWf,,T..,,,,,,,gg,,,,,,,,T,,,,,,,,,,,,,gWwWWWWW,,,RRRGGGRTTTTTT
 TTTTTTTTT~~,ff,,,f,,#_________________#,,,ggd+++++W,,,f..,,,,,,,gg,,,,,,,,,,,,,,,,,T,,,,gWb+++rW,,,RRRRGRRTTTTTT
 TTTTTTTT~~,,,,,######i____p__p__p__p__#,,,ggWe+++rW,,,,..,,,,,,,gg,,WWWWWWWWWWWWWWWWWWW,gd+++++W,,RRRRRGRRTTTTTT
-TTTTTTTT~~,,,,,#___##_____p__p__p__p__#,,,ggWWWWWWW,,,,..,,,,,,,gg,,WrrrrrrrK++W+e+++bW,gWe++r+W,,RRRRRGRRTTTTTT
+TTTTTTTT~~,,,,,#___##_____p__p__p__p__#,,,ggWWWWWWW,,,,..,,,,,,,gg,,WrrrrrrrK++W+e+++bW,gW<++r+W,,RRRRRGRRTTTTTT
 TTTTTTTT~~T,,,,#_L____a_______________D,g,gg,,,,,,,,,,,..f,,,,,,gg,,W++++++++++W++++++W,gWWWWWWW,,RRRRRGRRTTTTTT
 TTTTTTTT~~T,,,,#___##_a_______________D,,,gg,,,,,,_________..,,,g,f,W++++++++++W++++++W,gg,,f,,,,,RRRRGGGRTTTTTT
 TTTTTTTT~~,,,,,######_____p__p__p__p__#,f,gg,,,,,____________.,,,,,,W+ctc+ctc++W++++K+Wfgg,,,,,,,RRRRGGGGGTTTTTT
@@ -110,7 +114,7 @@ TTTTTTT~~,,,,,,,,,,,#_________________#,,,gg,,k____h____________.,,,W++++++++++W
 TTTTTTT~~,,,,,,,,,,f####w#####w###w####,,fgg,,.______________h___,,,W+ctc+ctc++W+e+W+eW,gg,T,,,!RRRRRjGGGGTTTTTT
 TTTTTTT~~T,,,,,,,,,,,,,,,,f,,,,,,,,,,,,,,,gg,_____h____QQ________.,,W++c+++c+++W+++W++Wfgg,,,,,,RRRRRRGGGRTTTTTT
 TTTTTT~~,,,,,,,,,,,WWWWWWWWWWWWWWWWWWWW,,,!g,,.___h____QQ_____h__,,,W++++++++++W+++W++W,!gf,,,,,RRRRRRGRRRTTTTTT
-TTTTTT~~T,,,,,f,,,,WggggggggggggggggggW,f,gg,,_______________h__.,,,W++++++++++Wb++Wb+W,gg,,,,,,RRRRRRGRRRTTTTTT
+TTTTTT~~T,,,,,f,,,,WggggggggggggggggggW,f,gg,,_______________h__.,,,W++++<+++++Wb++Wb+W,gg,,,,,,RRRRRRGRRRTTTTTT
 TTTTTT~~,,f,,,,,,,,WggmggmggmggmggmggmW,,,gg,,.____h___________.k,,,WWWWwWWWwWWWWWWWWWW,gWwWWWWW,RRRRRGRRRTTTTTT
 TTTTTT~~T,,,,,,,,,,WggggggggggggggggggW,,,gg,,,_.____h______h__.,,,,,,,,,,,,,,,,,,,,,,,,gWb+++SW,,RRRRGRRRTTTTTT
 TTTTTT~~,T,,,,,,,,,Wgmggmggmggmggmggmgg,,,ggWWWWWWW____h_h___.,,,,,,,,,,,f,,,,,,,,,,,,,,gd+++++W,,RRRRGRRRTTTTTT
@@ -126,7 +130,7 @@ TTTTTTTBBT,,gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 TTTTTT,BB,,,ggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggRRRRRRRRTTTTTT
 TTTTTT~~,,,f,,,,T,,,f,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,g,ff,,,f,,,,,,,,,,,,,,,f,,,gff,,,,,,,,,,,,,RRRRRRRRRRTTTTTT
 TTTTTT~~,,,,,,WWWdWWW,,WWWdWWW,,WWWdWWW,,WWWdWWW,,WWWdWWW,,WWWdWWW,fWWWdWWW,,WWWdWWW,,,,,,,,,,,,RRRRRRRRRRTTTTTT
-TTTTTT~~T,,,f,Wb+++tW,,Wb+++tW,,Wb+++YW,,Wb+++KW,,Wb+++tW,,Wb+++yW,,WbgggmWT,Wb+++KW,,,,,,,,,f,fRRRRRRRRRRTTTTTT
+TTTTTT~~T,,,f,Wb+++tW,,Wb++<tW,,Wb+++YW,,Wb+++KW,,Wb++<tW,,Wb+++yW,,WbgggmWT,Wb++<KW,,,,,,,,,f,fRRRRRRRRRRTTTTTT
 TTTTTTT~~,f,f,W+++++W,,W+++++W,,W+++++W,,W+++++W,,W+++++W,,W+++++W,,WgggggW,,W+++++W,,,,T,,,,,,,RRRRRRRRRRTTTTTT
 TTTTTTT~~,,,,,We++t+W,,We++c+W,,We++t+Wf,We++r+W,,We++r+W,,We++y+W,,WeggtgW,,We++S+W,,,,,,,,,,,,RRRRRRRRRRTTTTTT
 TTTTTTT~~,,,,,WWWWWWW,,WWWWWWW,fWWWWWwW,,WWWWWwW,,WWWWWwW,,WWWWWWW,,WWWWWwW,,WWWWWWW,,,,,,,,,,,,RRRRRRRRRRTTTTTT
@@ -143,6 +147,101 @@ TTTTTTTT~~TTT,TTTTTTTTTTTTTTTTTTTT,TT,TTTTTTTTTTTTTTTTT,TT,TTTTTTTTTTTTTTTTT,,,T
 TTTTTTTTT~~TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
 TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
 TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+level 1
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                              ########                                          
+                                                              #______#                                          
+                                                              #____B_#                                          
+                                                              #____E_#                                          
+                                                              #______#                                          
+                                                              #______w                                          
+                                                              #______#                                          
+                                                              #______#                                          
+                                                              #_}____#                                          
+                                                              #______#                                          
+                                                              #_____i#                                          
+                                                              #______#                                          
+                                                              #______#                                          
+                                                              ###w####                                          
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+              WWWWWWW                                                                      WWWWWWW              
+              Wb++++W                                                                      Wb++++W              
+              W+++++W                                                                      W+++++W              
+              W+++>+W                                                                      W+>+++W              
+              WWWWWWW                                                                      WWWWWWW              
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                         WWWWWWW                
+                                                                                         Wb++++W                
+                                                                    WWWWWWWWWWWW         W+++++W                
+                                                                    Wb++eWWb++eW         W>++++W                
+                                                                    W++++WW++++W         WWWWWWW                
+                                                                    W++++WW++++W                                
+                                                                    W++++WW++++W                                
+                                                                    WWWdWWWWWdWW                                
+                                                                    W++K+++++++W                                
+                                                                    W++++++++++W                                
+                                                                    Wb++++++++bW                                
+                                                                    W++++++++++W                                
+                                                                    W++++++++++W                                
+                                                                    W++++>+++++W                                
+                                                                    WWWWWWWWWWWW                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                       WWWWWWW                    WWWWWWW                    WWWWWWW                            
+                       Wb++>+W                    Wb++>+W                    Wb++>+W                            
+                       W+++++W                    W+++++W                    W+++++W                            
+                       W+++++W                    W+++++W                    W+++++W                            
+                       WWWWWWW                    WWWWWWW                    WWWWWWW                            
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
+                                                                                                                
 label 32 6 Captain’s Tower
 label 72 6 Steward’s Tower
 label 32 29 Armoury

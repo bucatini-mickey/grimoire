@@ -22,14 +22,14 @@
  * is talking privately and which doors are locked; each phone moves its own
  * walker and asks the host for the rest.
  */
-import { INNER, btn, buttonBlock, buttonRows, drawButton, endPanel, field, isButton, listRow, paint, quant, redraw, shade, theTerm, paneled, rubric, row, segWidth, setExtra, txt, wrap, center } from '../ui/ascii.ts';
+import { INNER, btn, buttonBlock, buttonRows, drawButton, endPanel, field, isButton, listRow, paint, quant, redraw, shade, theTerm, paneled, setPalette, rubric, row, segWidth, setExtra, txt, wrap, center } from '../ui/ascii.ts';
 import type { Button, Row } from '../ui/ascii.ts';
 import type { Grid } from '../term/pterm.ts';
 import { hostRoom, joinRoom, newRoomCode } from '../net/link.ts';
 import type { LinkStatus } from '../net/link.ts';
 import type { Peer } from 'peerjs';
 import { parseBlueprint } from './blueprint.ts';
-import { at, atSpeakingPlace, canWorkDoor, DOOR_REACH, doorLeaves, doorStepIn, doorsOf, inMeeting, loudness, makeTown, path, roomsAt, sameRoom, visibleCells, walkable } from './map.ts';
+import { at, atSpeakingPlace, canWorkDoor, DOOR_REACH, doorLeaves, doorStepIn, doorsOf, inMeeting, isAir, loudness, makeWorld, path, roomsAt, sameRoom, stairGoes, visibleCells, walkable } from './map.ts';
 import type { P, Phase, Town } from './map.ts';
 import { css, FOG, fogAt, LANTERN, sunlight, lerp, level, lightMap, lookAt, luma, mul, noise, remembered, sky, sources } from './look.ts';
 import type { Rgb } from './look.ts';
@@ -49,6 +49,8 @@ export interface Person {
 	ink: number;
 	x: number;
 	y: number;
+	/** The level they are on (0 or missing: the ground). Stairs move them up and down. */
+	z?: number;
 	voice: boolean;
 	/** Test villagers hum this note instead of talking. */
 	hum?: number;
@@ -95,13 +97,13 @@ type Down =
 	| { t: 'off' }
 	| { t: 'phase'; phase: Phase }
 	/** Move your walker here (sent home at night). */
-	| { t: 'place'; x: number; y: number }
+	| { t: 'place'; x: number; y: number; z?: number }
 	/** Someone asks you for a private word. */
 	| { t: 'asked'; from: string }
 	| { t: 'notice'; text: string };
 type Up =
 	| { t: 'hello'; name: string; clientId: string }
-	| { t: 'at'; x: number; y: number }
+	| { t: 'at'; x: number; y: number; z?: number }
 	| { t: 'voice'; on: boolean }
 	| { t: 'ask'; to: string }
 	| { t: 'reply'; to: string; yes: boolean }
@@ -174,6 +176,8 @@ const store = {
 const soundOn = () => store.get('grimoire.sound') === 'on';
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 const me = () => S.people.get(S.me);
+/** The level someone is on, as a town of its own (the ground holds them all). */
+const lvl = (q: { z?: number }): Town => S.town!.levels[q.z ?? 0] ?? S.town!;
 const nameOf = (id: string | null | undefined) => (id && S.people.get(id)?.name) || 'someone';
 /**
  * Each walker's mark on the map: a strong ink of their own, as [glyph ink, ground]. The first
@@ -236,7 +240,8 @@ function onUp(from: string, msg: Up) {
 	const p = S.people.get(from);
 	if (!p) return;
 	if (msg.t === 'at') {
-		if (walkable(t, msg.x, msg.y, p.st)) { p.x = msg.x; p.y = msg.y; }
+		if (walkable(lvl(msg), msg.x, msg.y, p.st)) { p.x = msg.x; p.y = msg.y; p.z = msg.z ?? 0; }
+		void t;
 	} else if (msg.t === 'voice') p.voice = msg.on;
 	else if (msg.t === 'ask') {
 		const q = S.people.get(msg.to);
@@ -406,9 +411,10 @@ function sendHome(t: Town, q: Person, taken: Set<number>) {
 	taken.add(bed.x + bed.y * t.w);
 	q.x = bed.x;
 	q.y = bed.y;
+	q.z = 0;
 	const b = S.bots.get(q.id);
 	if (b) b.route = [];
-	sendTo(q.id, { t: 'place', x: bed.x, y: bed.y });
+	sendTo(q.id, { t: 'place', x: bed.x, y: bed.y, z: 0 });
 }
 
 /** Where the town sits together: the council round the great hall's table, or else the ring of seats in the square. */
@@ -441,9 +447,10 @@ function gatherAtCross(t: Town) {
 		endPrivate(q);
 		q.x = c.x;
 		q.y = c.y;
+		q.z = 0;
 		const b = S.bots.get(q.id);
 		if (b) b.route = [];
-		sendTo(q.id, { t: 'place', x: c.x, y: c.y });
+		sendTo(q.id, { t: 'place', x: c.x, y: c.y, z: 0 });
 	}
 	const st = [...S.people.values()].find((q) => q.st);
 	const gp = gathering(t);
@@ -451,6 +458,7 @@ function gatherAtCross(t: Town) {
 		const m = gp.at;
 		st.x = Math.round(m.x);
 		st.y = Math.round(m.y);
+		st.z = 0;
 		if (st.id === S.me) { S.route = []; cam.ready = false; }
 	}
 	S.dirty = true;
@@ -471,8 +479,10 @@ const occupied = () => new Set([...S.people.values()].map((q) => q.x + q.y * S.t
 
 /** The Storyteller steps into someone's room, beside them. */
 function visit(id: string) {
-	const t = S.town!, st = me(), q = S.people.get(id);
+	const st = me(), q = S.people.get(id);
 	if (!st || !q) return;
+	const t = lvl(q);
+	st.z = q.z ?? 0;
 	const spots = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]]
 		.map(([dx, dy]) => ({ x: q.x + dx, y: q.y + dy }))
 		.filter((c) => walkable(t, c.x, c.y, true) && sameRoom(t, c, q) && ![...S.people.values()].some((o) => o.x === c.x && o.y === c.y));
@@ -529,7 +539,7 @@ function up(msg: Up): boolean {
 function onDown(msg: Down) {
 	if (msg.t === 'place') {
 		const p = me();
-		if (p) { p.x = msg.x; p.y = msg.y; }
+		if (p) { p.x = msg.x; p.y = msg.y; p.z = msg.z ?? 0; }
 		S.route = [];
 		cam.ready = false;
 	} else if (msg.t === 'asked') {
@@ -575,7 +585,7 @@ function onPlayerDown(msg: Down) {
 		const mine = me();
 		S.people = new Map(msg.people.map((p) => [p.id, p]));
 		// Our own walker is ours: the host's copy may be a step behind.
-		if (mine && S.people.has(S.me)) Object.assign(S.people.get(S.me)!, { x: mine.x, y: mine.y });
+		if (mine && S.people.has(S.me)) Object.assign(S.people.get(S.me)!, { x: mine.x, y: mine.y, z: mine.z });
 		if (S.town) S.town.locked = new Set(msg.locked);
 		S.caption = msg.caption ?? [];
 		S.vote = msg.vote ?? null;
@@ -590,13 +600,13 @@ function onPlayerDown(msg: Down) {
 }
 
 function sendPos(p: Person) {
-	if (!S.host) S.playerWire?.send({ t: 'at', x: p.x, y: p.y });
+	if (!S.host) S.playerWire?.send({ t: 'at', x: p.x, y: p.y, z: p.z ?? 0 });
 }
 
 // ---- the town and moving round it ----------------------------------------------------------------
 
 function loadTown(text: string) {
-	S.town = makeTown(parseBlueprint(text));
+	S.town = makeWorld(parseBlueprint(text));
 	// Villagers know their own town: all of it is on the map, dim, until they can see it.
 	S.seen = new Uint8Array(S.town.w * S.town.h).fill(1);
 	S.dirty = true;
@@ -605,9 +615,28 @@ function loadTown(text: string) {
 /** In a game the town walks to the council itself at the bell; in a town with no council it is seated at once. */
 const canWalk = () => S.phase !== 'circle' && !!me() && !(S.game && S.phase === 'dusk' && !me()!.st && !S.town?.council);
 
+/**
+ * Stairs: stepping onto one takes you to the level above (or below), onto the same spot there.
+ * Arriving on a stair that way does not take you straight back: you must step off it first.
+ */
+function climb(p: Person) {
+	const t = lvl(p);
+	const key = `${p.z ?? 0}:${p.x},${p.y}`;
+	if (stairFrom.get(p.id) === key) return;
+	stairFrom.delete(p.id);
+	const go = stairGoes(at(t, p.x, p.y));
+	const to = t.levels[(p.z ?? 0) + go];
+	if (!go || !to || !walkable(to, p.x, p.y, p.st)) return;
+	p.z = (p.z ?? 0) + go;
+	stairFrom.set(p.id, `${p.z}:${p.x},${p.y}`);
+	S.route = p.id === S.me ? [] : S.route;
+	if (p.id === S.me) toast(go > 0 ? 'Up the stairs.' : 'Down the stairs.');
+}
+const stairFrom = new Map<string, string>();
+
 function step(dx: number, dy: number) {
 	const p = me();
-	const t = S.town;
+	const t = p && S.town ? lvl(p) : null;
 	if (!p || !t || !canWalk()) return;
 	S.route = [];
 	const nx = p.x + dx, ny = p.y + dy;
@@ -615,13 +644,14 @@ function step(dx: number, dy: number) {
 	if (dx && dy && (!walkable(t, p.x + dx, p.y, p.st) || !walkable(t, p.x, p.y + dy, p.st))) return;
 	lastAt = { x: p.x, y: p.y };
 	p.x = nx; p.y = ny;
+	climb(p);
 	sendPos(p);
 	S.dirty = true;
 }
 
 function walkTo(goal: P) {
 	const p = me();
-	const t = S.town;
+	const t = p && S.town ? lvl(p) : null;
 	if (!p || !t || !canWalk()) return;
 	let g = goal;
 	if (!walkable(t, g.x, g.y, p.st)) {
@@ -637,13 +667,15 @@ function walkTo(goal: P) {
 }
 
 setInterval(() => {
-	const p = me(), t = S.town;
-	if (!p || !t || !S.route.length) return;
+	const p = me();
+	if (!p || !S.town || !S.route.length) return;
+	const t = lvl(p);
 	const next = S.route.shift()!;
 	// A door shut in your face: stop.
 	if (!walkable(t, next.x, next.y, p.st)) { S.route = []; return; }
 	lastAt = { x: p.x, y: p.y };
 	p.x = next.x; p.y = next.y;
+	climb(p);
 	sendPos(p);
 	S.dirty = true;
 	drawChromeIfChanged();
@@ -652,7 +684,8 @@ setInterval(() => {
 /** The nearest door you could work from here (standing in it, or within two steps inside), if any. */
 function doorBeside(): number | null {
 	const t = S.town, p = me();
-	if (!t || !p) return null;
+	// Doors lock on the ground only; upstairs they stand open.
+	if (!t || !p || p.z) return null;
 	let best: number | null = null, bestD = Infinity;
 	for (let dy = -DOOR_REACH; dy <= DOOR_REACH; dy++) for (let dx = -DOOR_REACH; dx <= DOOR_REACH; dx++) {
 		const x = p.x + dx, y = p.y + dy, d = Math.hypot(dx, dy);
@@ -717,7 +750,8 @@ function tickMap() {
 	if (!shown || !t || !p) return;
 	const now = performance.now();
 	// Relight when someone carrying a lantern moved, else only now and then for the flicker of the flames.
-	const lamps = S.phase === 'day' ? '' : [...S.people.values()].map((q) => q.x + ',' + q.y).join(';');
+	const lt = lvl(p);
+	const lamps = (p.z ?? 0) + '|' + (S.phase === 'day' ? '' : [...S.people.values()].map((q) => q.x + ',' + q.y + ',' + (q.z ?? 0)).join(';'));
 	const relight = !dyn || lamps !== litFor || now - lightAt > 260;
 	litFor = lamps;
 	if (!cam.ready) Object.assign(cam, { x: p.x, y: p.y, ready: true });
@@ -737,9 +771,10 @@ function tickMap() {
 	drawnAt = now;
 	if (relight) {
 		lightAt = now;
-		const srcs = sources(t, ++lightTick);
-		if (S.phase !== 'day') for (const q of S.people.values()) srcs.push({ x: q.x, y: q.y, c: q.id === S.me ? LANTERN : (LANTERN.map((v) => v * 0.75) as Rgb) });
-		dyn = lightMap(t, srcs);
+		// The light of the level you are on: its own lamps, and the lanterns of those on it.
+		const srcs = sources(lt, ++lightTick);
+		if (S.phase !== 'day') for (const q of S.people.values()) if ((q.z ?? 0) === (p.z ?? 0)) srcs.push({ x: q.x, y: q.y, c: q.id === S.me ? LANTERN : (LANTERN.map((v) => v * 0.75) as Rgb) });
+		dyn = lightMap(lt, srcs);
 	}
 	redraw();
 }
@@ -812,7 +847,7 @@ function villageCells(g: Grid): boolean {
 	// The council sits in the great hall itself; a town without one shows the old ethereal ring.
 	if (S.phase === 'circle' && !t.council) circleCells(g, mapY, mapH);
 	else {
-		mapCells(g, mapY, mapH, p, t, now);
+		mapCells(g, mapY, mapH, p, lvl(p), now);
 		if (S.phase === 'circle') councilCells(g, mapY, mapH, t);
 	}
 	// The line of what you can hear, and the passing notice.
@@ -820,6 +855,7 @@ function villageCells(g: Grid): boolean {
 		: S.phase === 'night' ? (p.st ? 'Night: whoever is in this room hears you' : 'Night: at home. Only the Storyteller may visit')
 		: inMeeting(t, p, S.phase) ? 'In the ring of seats: all in it hear you'
 		: atSpeakingPlace(t, p) ? 'At the market cross: the whole town hears you'
+		: p.z ? `Upstairs (level ${p.z}): only those up here hear you`
 		: t.room[p.x + p.y * t.w] === t.outdoors ? 'Outdoors: voices carry' : 'Indoors: voices carry through open doors';
 	const near = hearList().filter((h) => h.loud > 0).sort((a, b) => b.loud - a.loud).slice(0, 3).map((h) => (h.q.st ? 'Storyteller' : h.q.name) + ' ' + Math.round(h.loud * 100) + '%').join('  ');
 	const iy = mapY + mapH;
@@ -844,7 +880,13 @@ function villageCells(g: Grid): boolean {
 }
 
 const visMemo: { key: string; town: Town | null; vis: Set<number>; all: Set<number> | null } = { key: '', town: null, vis: new Set(), all: null };
-const lookMemo: { town: Town | null; locks: string; looks: (ReturnType<typeof lookAt> | undefined)[] } = { town: null, locks: '', looks: [] };
+/** Each level's cell looks, kept until a door changes (running water is looked at afresh). */
+const lookMemos = new WeakMap<Town, { locks: string; looks: (ReturnType<typeof lookAt> | undefined)[] }>();
+function looksFor(t: Town, locks: string) {
+	let m = lookMemos.get(t);
+	if (!m || m.locks !== locks) { m = { locks, looks: new Array(t.w * t.h) }; lookMemos.set(t, m); }
+	return m.looks;
+}
 
 /** Tap to walk: the cell under a tap in the map. */
 let view = { x0: 0, y0: 0 };
@@ -876,7 +918,9 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 		Object.assign(visMemo, { key: visKey, town: t });
 	}
 	const vis = visMemo.vis;
-	if (lookMemo.town !== t || lookMemo.locks !== lockKey) Object.assign(lookMemo, { town: t, locks: lockKey, looks: new Array(t.w * t.h) });
+	const memo = looksFor(t, lockKey);
+	const below = t.z > 0 ? t.levels[t.z - 1] : null;
+	const memoBelow = below ? looksFor(below, '') : null;
 	// The mist rolls slowly: move it on in steps, so a still screen stays still.
 	const fogMs = Math.floor(now / 250) * 250;
 	const sk = sky(t), day = sunlight(S.phase);
@@ -897,10 +941,17 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 			const rock = t.cells[i].mat === 'granite';
 			if (inCave && !shown && !rock) continue;
 			// A cell's look is fixed but for running water; the rest is kept until a door changes.
-			let look = lookMemo.looks[i];
+			// Open air above the ground: the level below shows through, dim and far.
+			if (below && memoBelow && isAir(t.cells[i])) {
+				const lb = memoBelow[i] ?? (memoBelow[i] = lookAt(below, x, y, 0));
+				const ch = lb.wall ? (lb.wall.style === 'double' ? WALL_DOUBLE : WALL_SINGLE)[lb.wall.mask] : fold(lb.ch);
+				g.set(sx, mapY + sy, ch === ' ' ? '.' : ch, quant(mul(lb.fg, [0.32, 0.32, 0.38])), 0);
+				continue;
+			}
+			let look = memo[i];
 			if (!look) {
 				look = lookAt(t, x, y, now);
-				if (t.cells[i].mat !== 'water' && !t.cells[i].things.includes('waterfall')) lookMemo.looks[i] = look;
+				if (t.cells[i].mat !== 'water' && !t.cells[i].things.includes('waterfall')) memo[i] = look;
 			}
 			let fg: Rgb, bg: Rgb;
 			if (shown) {
@@ -953,6 +1004,7 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 	}
 	const people = [...S.people.values()].filter((q) => {
 		if (q.id === S.me) return true;
+		if ((q.z ?? 0) !== (p.z ?? 0)) return false;
 		if (q.st && S.phase === 'night' && !p.st && !sameRoom(t, p, q)) return false;
 		const l = lit.get(q.x + q.y * t.w);
 		return !!l && (luma(l.map((v) => v * 255) as Rgb) > 30 || Math.hypot(q.x - p.x, q.y - p.y) < 2);
@@ -1051,7 +1103,7 @@ function circleCells(g: Grid, y0: number, h: number) {
 function hearList() {
 	const t = S.town, p = me();
 	if (!t || !p) return [];
-	return [...S.people.values()].filter((q) => q.id !== S.me && q.voice).map((q) => ({ q, loud: loudness(t, p, q, S.phase) }));
+	return [...S.people.values()].filter((q) => q.id !== S.me && q.voice).map((q) => ({ q, loud: loudness(lvl(p), p, q, S.phase) }));
 }
 
 let chromeKey = '';
@@ -1305,6 +1357,8 @@ function wire() {
 
 /** The demo: #village. */
 export function startVillage(_appRoot: HTMLElement, code: string) {
+	// Walking the town alone: Saltgrave in its Victorian inks, the castle town in the manuscript's.
+	setPalette(() => (S.townText === SALTGRAVE ? 'victorian-night' : 'manuscript-night'));
 	document.body.classList.add('in-village');
 	wire();
 	inLobby = true;
@@ -1469,7 +1523,7 @@ function syncSeats(list: GameSeat[]) {
 	if (S.game && (t.council ? S.phase === 'circle' : S.phase === 'dusk')) {
 		for (const q of fresh) {
 			const c = seatCell(t, q.seat);
-			if (c) { q.x = c.x; q.y = c.y; sendTo(q.id, { t: 'place', x: c.x, y: c.y }); }
+			if (c) { q.x = c.x; q.y = c.y; q.z = 0; sendTo(q.id, { t: 'place', x: c.x, y: c.y, z: 0 }); }
 		}
 	}
 	for (const id of [...S.welcomed]) if (!peers.has(id)) { S.welcomed.delete(id); S.hostWire?.send(id, { t: 'off' }); }

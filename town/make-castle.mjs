@@ -6,7 +6,8 @@
  * oak in the square (stand under it and the whole town hears you; fifteen
  * benches round it), the church and graveyard, the inn, and the homes and
  * workshops of the town's trades. In the eastern hillside, the old mine.
- * One level, no stairs.
+ * Two levels: the lord's solar above his chamber, the inn's upper rooms, and
+ * a few homes with a loft. Stairs (< up, > down) join them: walk onto one.
  *
  *   node town/make-castle.mjs
  */
@@ -179,7 +180,7 @@ const home = (x0, y0, side) => {
 	const door = side === 's' ? [x0 + 3, y1] : side === 'n' ? [x0 + 3, y0] : side === 'e' ? [x1, y0 + 2] : [x0, y0 + 2];
 	put(door[0], door[1], 'd');
 	if (rnd() < 0.5) put(side === 'n' ? x0 + 5 : x0 + 1, side === 'n' ? y1 : y0, 'w');
-	homes.push({ name, x0, y0, x1, y1, door });
+	homes.push({ name, x0, y0, x1, y1, door, side, fl });
 	label(x0, y0, name);
 };
 // North of Castle Lane, under the walls.
@@ -254,7 +255,39 @@ for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
 	else if (c === 'r2') g[y][x] = 'X';
 }
 
+// ---- the upper floor: rooms above, joined to the ground by stairs (< on the ground, > above) ----
+const U = Array.from({ length: H }, () => Array(W).fill(' '));
+const up = (x, y, ch) => { if (x >= 0 && y >= 0 && x < W && y < H) U[y][x] = ch; };
+const upRoom = (x0, y0, x1, y1, wall, floor) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) up(x, y, y === y0 || y === y1 || x === x0 || x === x1 ? wall : floor); };
+/** A stair between the levels: up on the ground, down above, at the same spot. */
+const stair = (x, y, stone) => { put(x, y, stone ? '{' : '<'); up(x, y, stone ? '}' : '>'); };
+// The lord's solar, above his chamber: a bed, a chest, a window on the bailey.
+upRoom(62, 8, 69, 21, '#', '_');
+stair(64, 16, true);
+up(67, 10, 'B'); up(67, 11, 'E'); up(68, 18, 'i'); up(65, 21, 'w'); up(69, 13, 'w');
+// The inn's upper floor: a landing and four rooms to let.
+upRoom(68, 50, 79, 62, 'W', '+');
+stair(73, 61, false);
+for (const [x0, y0] of [[68, 50], [74, 50]]) { upRoom(x0, y0, x0 + 5, y0 + 5, 'W', '+'); up(x0 + 1, y0 + 1, 'b'); up(x0 + 4, y0 + 1, 'e'); up(x0 + 3, y0 + 5, 'd'); }
+up(69, 58, 'b'); up(78, 58, 'b'); up(71, 56, 'K');
+// Lofts over a few homes.
+for (const h of homes.filter((_, k) => k % 3 === 0)) {
+	upRoom(h.x0, h.y0, h.x1, h.y1, 'W', '+');
+	// Just inside the door, kept clear; the stair beside it.
+	const [ix, iy] = h.side === 's' ? [h.door[0], h.y1 - 1] : h.side === 'n' ? [h.door[0], h.y0 + 1] : h.side === 'e' ? [h.x1 - 1, h.door[1]] : [h.x0 + 1, h.door[1]];
+	put(ix, iy, h.fl);
+	// Beside it, on bare floor (never over the tools of the trade).
+	const spots = h.side === 's' || h.side === 'n' ? [[ix + 1, iy], [ix - 1, iy], [ix + 2, iy], [ix - 2, iy]] : [[ix, iy + 1], [ix, iy - 1]];
+	const [sx2, sy2] = spots.find(([x, y]) => get(x, y) === h.fl) ?? spots[0];
+	stair(sx2, sy2, false);
+	up(h.x0 + 1, h.y0 + 1, 'b');
+}
+
 const keys = `key , floor grass
+key < stair-up wood
+key > stair-down wood
+key { stair-up stone block
+key } stair-down stone block
 key T wall leaves
 key . floor gravel
 key _ floor stone block
@@ -306,10 +339,12 @@ const out = [
 	'# The castle town for Grimoire\'s village games: a castle on a wooded hill above its town.',
 	'# Made by town/make-castle.mjs; edit that and run it again. `label x y Name` names a place.',
 	'name castle',
-	`size ${W} ${H} 1`,
+	`size ${W} ${H} 2`,
 	keys,
 	'level 0',
 	...g.map((r) => r.join('')),
+	'level 1',
+	...U.map((r) => r.join('')),
 	...labels.map(([x, y, n]) => `label ${x} ${y} ${n}`),
 	'end',
 	''

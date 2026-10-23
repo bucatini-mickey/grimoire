@@ -18,10 +18,13 @@ import type { Blueprint, BpCell } from './blueprint.ts';
 
 export interface P { x: number; y: number; }
 
+/** Someone or something on a level: z is the level (0 the ground; missing means 0). */
+export interface PZ extends P { z?: number; }
+
 export type Phase = 'day' | 'dusk' | 'circle' | 'night';
 
 /** Someone in the town, as far as hearing goes. */
-export interface Walker extends P {
+export interface Walker extends PZ {
 	id?: string;
 	/** The Storyteller: hears and is heard at night, in the room they visit. */
 	st?: boolean;
@@ -35,6 +38,9 @@ export interface Town {
 	name: string;
 	w: number;
 	h: number;
+	/** Which level this is (0 the ground), and every level of the town, ground first. */
+	z: number;
+	levels: Town[];
 	cells: BpCell[];
 	/** Room number of each cell; -1 for walls, -2 for doorways. */
 	room: Int32Array;
@@ -61,6 +67,11 @@ export interface Town {
 }
 
 const GRASS: BpCell = { tile: 'floor', mat: 'grass', things: [] };
+/** Above the ground, a cell the blueprint leaves empty is open air: you see the level below through it. */
+export const AIR: BpCell = { tile: 'open', mat: '', things: [] };
+export const isAir = (c: BpCell | null | undefined) => !!c && c.tile === 'open' && !c.mat;
+/** Stairs: step onto one and you are on the level above (or below). */
+export const stairGoes = (c: BpCell | null | undefined): -1 | 0 | 1 => (c?.tile === 'stair-up' ? 1 : c?.tile === 'stair-down' ? -1 : 0);
 const BLOCKING = new Set(['well', 'brazier', 'altar', 'statue', 'anvil', 'barrel', 'bookshelf', 'coffin', 'table', 'waterfall', 'bell', 'clock', 'oak', 'loom', 'oven', 'cart', 'gas lamp']);
 /** Deep water: you cannot walk it, but you see and hear across it. A plank bridge crosses. */
 const isWater = (c: BpCell) => c.mat === 'water' && !c.things.includes('plank bridge');
@@ -75,7 +86,7 @@ export const isWindow = (c: BpCell | null | undefined) => !!c && c.tile === 'wal
 /** `ghost`: the Storyteller, who goes anywhere in the town, walls and all. */
 export function walkable(t: Town, x: number, y: number, ghost = false): boolean {
 	const c = at(t, x, y);
-	if (!c) return false;
+	if (!c || isAir(c)) return false;
 	if (ghost) return true;
 	if (c.tile === 'wall' || isWater(c) || c.things.some((k) => BLOCKING.has(k))) return false;
 	return !t.locked.has(x + y * t.w);
@@ -136,10 +147,19 @@ export function doorsOf(t: Town, room: number): number[] {
 	return [...t.doorRooms].filter(([, rooms]) => rooms.includes(room)).map(([i]) => i);
 }
 
-export function makeTown(bp: Blueprint): Town {
+/** Every level of a blueprint as a town of its own, linked: returns the ground, whose `levels` holds them all. */
+export function makeWorld(bp: Blueprint): Town {
+	const levels: Town[] = [];
+	for (let z = 0; z < Math.max(1, bp.d); z++) levels.push(makeTown(bp, z));
+	for (const t of levels) t.levels = levels;
+	return levels[0];
+}
+
+export function makeTown(bp: Blueprint, z = 0): Town {
 	const { w, h } = bp;
-	const cells = Array.from({ length: w * h }, (_, i) => bp.cells[i] ?? GRASS);
-	const t: Town = { name: bp.name, w, h, cells, room: new Int32Array(w * h).fill(-1), doorRooms: new Map(), outdoors: 0, seats: [], meeting: null, council: null, lights: [], homes: [], locked: new Set(), labels: [...(bp.labels ?? [])] };
+	const cells = Array.from({ length: w * h }, (_, i) => bp.cells[i + z * w * h] ?? (z ? AIR : GRASS));
+	const t: Town = { name: bp.name, w, h, z, levels: [], cells, room: new Int32Array(w * h).fill(-1), doorRooms: new Map(), outdoors: 0, seats: [], meeting: null, council: null, lights: [], homes: [], locked: new Set(), labels: z ? [] : [...(bp.labels ?? [])] };
+	t.levels = [t];
 	// Rooms: flood fill everything that is not wall or doorway.
 	let next = 0;
 	const sizes: number[] = [];
@@ -381,8 +401,10 @@ export function loudness(t: Town, a: Walker, b: Walker, phase: Phase): number {
 	if (a.with || b.with) return a.with === b.id && b.with === a.id ? 1 : 0;
 	if (phase === 'circle') return 1;
 	// Night: the town sleeps; only the Storyteller talks, to whoever is in the room they visit.
-	if (phase === 'night') return (a.st || b.st) && sameRoom(t, a, b) ? 1 : 0;
+	if (phase === 'night') return (a.st || b.st) && (a.z ?? 0) === (b.z ?? 0) && sameRoom(t, a, b) ? 1 : 0;
 	if ((a.st && a.ears) || (b.st && b.ears)) return 1;
+	// Floors and ceilings stop voices: only those on the same level hear each other.
+	if ((a.z ?? 0) !== (b.z ?? 0)) return 0;
 	if (atSpeakingPlace(t, b)) return 1;
 	if (inMeeting(t, a, phase) && inMeeting(t, b, phase)) return 1;
 	const d = soundSteps(t, a)[b.x + b.y * t.w];
