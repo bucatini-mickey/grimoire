@@ -5,12 +5,13 @@
  * wake arrives on the player's phone: who you are, then whom you choose,
  * then what you learn, then (for the Spy) the grimoire, then a last page.
  */
-import { blank, btn, buttonRows, center, endPanel, pad, row, rubric, txt, wrap } from './ascii.ts';
+import { COLS, blank, btn, buttonRows, center, endPanel, letteredRow, pad, row, rubric, txt, wrap } from './ascii.ts';
 import type { Button, Row } from './ascii.ts';
 import type { SeatId } from '../core/index.ts';
 import type { Section, Wake } from '../net/views.ts';
 
-export const CARD_COLS = 26;
+/** Cards are as wide as the page, so what a player is told is large and plain. */
+export const CARD_COLS = COLS;
 export const CARD_INNER = CARD_COLS - 4;
 
 export type Page = 'who' | 'pick' | 'wait' | 'info' | 'grimoire' | 'done';
@@ -43,7 +44,11 @@ export function sectionRows(sections: Section[]): Row[] {
 	for (const s of sections) {
 		if (s.title) rows.push(rubric(s.title));
 		for (const l of s.lines) {
-			if (s.style === 'big') rows.push(...big(l));
+			// Who you are, lettered large when the name is short enough: "the" small above it.
+			const name = l.replace(/^the /i, '');
+			const lettered = s.style === 'big' && s.title === 'You are' ? letteredRow(name, CARD_INNER) : null;
+			if (lettered) rows.push(...(name !== l ? note(l.slice(0, l.length - name.length).trim()) : []), lettered);
+			else if (s.style === 'big') rows.push(...big(l));
 			else if (s.style === 'note') rows.push(...note(l));
 			else rows.push(...wrap(l, CARD_INNER).map((w) => row(txt(w))));
 		}

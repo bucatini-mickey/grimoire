@@ -17,7 +17,7 @@
  */
 import * as G from '../core/index.ts';
 import type { Candidate, CharacterId, Command, GameEvent, GameState, Info, SeatId, Script, Lean } from '../core/index.ts';
-import { COLS, INNER, Canvas, titleRow, blank, blockRow, boxRow, btn, buttonBlock, buttonRows, center, endPanel, field, frameBottom, frameTop, listRow, paint, paneled, pad, redraw, row, rubric, rule, segWidth, setDynamic, setExtra, setPalette, txt, wrap } from './ascii.ts';
+import { COLS, INNER, Canvas, letteredRow, shade, titleRow, blank, blockRow, boxRow, btn, buttonBlock, buttonRows, center, endPanel, field, frameBottom, frameTop, listRow, paint, paneled, pad, redraw, row, rubric, rule, segWidth, setDynamic, setExtra, setPalette, txt, wrap } from './ascii.ts';
 import type { Button, Row, Seg, Tone } from './ascii.ts';
 import * as T from './timer.ts';
 import * as V from '../net/views.ts';
@@ -435,11 +435,18 @@ function table(look: (id: SeatId) => SeatLook, centre: string[] = [], title = 'T
 	const n = order.length;
 	const rx = 16, ry = Math.max(6, Math.min(10, 3 + n / 2));
 	const h = Math.ceil(2 * ry) + 4;
-	const tw = Math.max(5, Math.min(9, Math.floor((2 * rx * Math.sin(Math.PI / Math.max(n, 2))) - 0.5)));
+	const tw = Math.max(6, Math.min(10, Math.floor((2 * rx * Math.sin(Math.PI / Math.max(n, 2))) - 0.5)));
 	return [
 		...frameTop(title),
 		{ ...blockRow(h, (c) => {
 			const cx = c.x + Math.floor(c.w / 2), cy = c.y + Math.floor(h / 2);
+			// The round table the tokens sit about: a ring of gilt dots.
+			const tx = rx - tw / 2 - 2.5, ty = ry - 2.5;
+			for (let k = 0; k < 64; k++) {
+				const a = (2 * Math.PI * k) / 64;
+				const x = Math.round(cx + tx * Math.sin(a)), y = Math.round(cy - ty * Math.cos(a));
+				if (c.g.get(x, y)?.ch === ' ') c.g.set(x, y, k % 8 ? '·' : '+', shade(6, 1));
+			}
 			centre.forEach((line, i) => {
 				const text = line.startsWith('@timer:') ? (dynamicText({ timer: line.slice(7) }) ?? '') : line;
 				c.g.text(cx - Math.floor(text.length / 2), cy - Math.floor(centre.length / 2) + i, text, i === 0 ? 8 : 3);
@@ -450,14 +457,22 @@ function table(look: (id: SeatId) => SeatLook, centre: string[] = [], title = 'T
 				const a = (2 * Math.PI * i) / n;
 				const x = Math.round(cx + rx * Math.sin(a) - tw / 2), y = Math.round(cy - ry * Math.cos(a) - 1);
 				const on = l.style === 'on', lit = l.style === 'primary';
-				const bg = on ? 6 : lit ? 1 : 0;
-				const fg = on ? 0 : s.alive ? 4 : 3;
-				c.g.fill({ x, y, w: tw, h: 3 }, ' ', fg, bg);
-				const cut = (t: string) => [...t].slice(0, tw).join('');
-				const flags = (l.flags.filter((f) => 't' in f) as { t: string; tone?: Tone }[]).map((f) => f.t).join('');
-				c.g.text(x, y, cut((s.alive ? '☺' : '†') + s.name), on ? 0 : lit ? 6 : fg, bg);
-				c.g.text(x, y + 1, cut(l.role), on ? 0 : c.ink(l.roleTone), bg);
-				c.g.text(x, y + 2, cut(flags || (l.reminders?.[0] ?? '')), on ? 0 : 3, bg);
+				// A token: the name over it, the character in a ring of the team's ink, the reminders under it.
+				const rim = on ? 0 : !s.alive ? 3 : lit ? 6 : c.ink(l.roleTone);
+				const disc = on ? 6 : 0;
+				const cut = (t: string, w: number) => [...t].slice(0, w).join('');
+				const mid = (t: string, w: number) => x + Math.max(0, Math.floor((w - [...t].length) / 2));
+				const nm = cut((s.alive ? '' : '†') + s.name, tw);
+				c.g.text(mid(nm, tw), y, nm, on ? 6 : s.alive ? (lit ? 6 : 5) : 3);
+				c.g.fill({ x, y: y + 1, w: tw, h: 1 }, ' ', 4, disc);
+				c.g.set(x, y + 1, lit ? '»' : '(', rim, disc);
+				c.g.set(x + tw - 1, y + 1, lit ? '«' : ')', rim, disc);
+				const role = cut(l.role, tw - 2);
+				c.g.text(x + 1 + Math.floor((tw - 2 - [...role].length) / 2), y + 1, role, on ? 0 : c.ink(l.roleTone), disc);
+				const flags = l.flags.filter((f) => 't' in f) as { t: string; tone?: Tone }[];
+				let fx = x + Math.max(0, Math.floor((tw - flags.reduce((k, f) => k + f.t.length + 1, -1)) / 2));
+				if (flags.length) for (const f of flags) { c.g.text(fx, y + 2, f.t, c.ink(f.tone)); fx += f.t.length + 1; }
+				else if (l.reminders?.[0]) { const r = cut(l.reminders[0], tw); c.g.text(mid(r, tw), y + 2, r, 3); }
 				c.hit({ x, y, w: tw, h: 3 }, () => tapSeat(id));
 			});
 		}), cls: 'frame-mid' },
@@ -1789,24 +1804,27 @@ function voteStage(): Row[] {
 	const nom = openNomination()!;
 	const needed = Math.ceil(G.living(state).length / 2);
 	const highest = state.day!.highest;
-	const rows: Row[] = [rubric(`${name(nom.nominator)} nominates`), ...big(name(nom.nominee)),
+	// Names lettered large where they fit, so the table can read them from across the room.
+	const large = (n: string) => { const l = letteredRow(n, CARD_INNER); return l ? [l] : big(n); };
+	const rows: Row[] = [rubric(`${name(nom.nominator)} nominates`), ...large(name(nom.nominee)),
 		...note(`${needed} needed${highest ? `, and more than ${highest}` : ''}`),
 		row(txt(center(`${v.hands.length} raised`, CARD_INNER), 'gold', 'heading'))];
 	const marks = v.order.map((id, i) => {
 		const mark = !G.canVote(state, id) ? '-' : v.hands.includes(id) ? '+' : i < v.index ? '.' : i === v.index ? '?' : ' ';
 		return [txt(mark, mark === '+' ? 'good' : mark === '?' ? 'gold' : 'dim'), txt(pad(state.seats[id].name.slice(0, 4), 5), state.seats[id].alive ? undefined : 'dim')];
 	});
-	for (let i = 0; i < marks.length; i += 3) rows.push(row(...marks.slice(i, i + 3).flat()));
+	for (let i = 0; i < marks.length; i += 6) rows.push(row(...marks.slice(i, i + 6).flat(), txt(' ')));
 	if (v.index < v.order.length) {
 		const id = v.order[v.index];
 		const s = state.seats[id];
-		rows.push(rubric('Now'), ...big(s.name));
+		rows.push(rubric('Now'), ...large(s.name));
 		const hand = phoneHand(id);
 		if (hand !== null) rows.push(...note(hand ? 'Hand UP on their phone' : 'Hand down on their phone'));
 		if (!s.alive) rows.push(...note('(spends their ghost vote)'));
 		const master = G.butlerMaster(state);
 		if (G.hasWorkingAbility(state, id, 'butler') && master !== null) rows.push(...note(`Butler: only if ${name(master)} votes`));
-		rows.push(endPanel(), buttonBlock([btn('Hand raised', () => answerVote(true), { style: 'primary' }), btn('No hand', () => answerVote(false))], CARD_INNER));
+		const half = Math.floor((CARD_INNER - 1) / 2);
+		rows.push(endPanel(), buttonBlock([btn('Hand raised', () => answerVote(true), { style: 'primary', width: half }), btn('No hand', () => answerVote(false), { width: half })], CARD_INNER));
 	} else {
 		rows.push(rubric('The count'), ...big(`${v.hands.length} hand${v.hands.length === 1 ? '' : 's'}`), endPanel(),
 			buttonBlock([btn('Record the vote', recordVote, { style: 'primary' })], CARD_INNER));

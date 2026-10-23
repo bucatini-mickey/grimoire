@@ -10,7 +10,7 @@
  * Nothing here knows about the game.
  */
 
-import { Term } from '../term/pterm.ts';
+import { Term, shade } from '../term/pterm.ts';
 import type { Grid, Palette, Rect } from '../term/pterm.ts';
 
 export const COLS = 44;
@@ -280,61 +280,132 @@ export const setPalette = (f: () => string) => { paletteKey = f; };
 export const setExtra = (f: typeof extra) => { extra = f; };
 export const redraw = () => term?.draw();
 
-let parsed: { pal: Palette; rgb: number[][] } | null = null;
-/** The palette slot nearest to an [r, g, b] colour (0-255), for drawing the town in the page's inks. */
+let parsed: { pal: Palette; rgb: number[][]; memo: Int16Array } | null = null;
+/**
+ * The palette entry nearest to an [r, g, b] colour (0-255), for drawing the town in the page's inks:
+ * the 16 inks and their shade steps, so a light fading out stays its own hue. Memoised at 6 bits a channel.
+ */
 export function quant(c: number[]): number {
 	const pal = term?.palette ?? PALETTES['manuscript-night'];
-	if (!parsed || parsed.pal !== pal) parsed = { pal, rgb: pal.map((h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]) };
+	if (!parsed || parsed.pal !== pal) parsed = { pal, rgb: pal.map((h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]), memo: new Int16Array(1 << 18).fill(-1) };
+	const r = Math.max(0, Math.min(255, c[0])) >> 2, g = Math.max(0, Math.min(255, c[1])) >> 2, b = Math.max(0, Math.min(255, c[2])) >> 2;
+	const key = (r << 12) | (g << 6) | b;
+	const hit = parsed.memo[key];
+	if (hit >= 0) return hit;
+	const [cr, cg, cb] = [r * 4 + 2, g * 4 + 2, b * 4 + 2];
 	let best = 0, bd = Infinity;
 	parsed.rgb.forEach((p, i) => {
-		const d = 2 * (p[0] - c[0]) ** 2 + 4 * (p[1] - c[1]) ** 2 + 3 * (p[2] - c[2]) ** 2;
+		const d = 2 * (p[0] - cr) ** 2 + 4 * (p[1] - cg) ** 2 + 3 * (p[2] - cb) ** 2;
 		if (d < bd) { bd = d; best = i; }
 	});
+	parsed.memo[key] = best;
 	return best;
 }
+export { shade };
 export const theTerm = () => term;
 
 const lineH = (r: Row) => (r.block ? r.block.h : r.segs.some(isButton) ? 3 : 1);
 
-/** Draw a button: a box three lines tall, filled by its style. */
+/**
+ * Draw a button: a ruled cartouche three lines tall. The main action is a
+ * rubric plate in a gold double rule; an ordinary one is vellum in a gold
+ * rule with its first letter in red, as a scribe would letter it.
+ */
 export function drawButton(c: Ctx, x: number, y: number, w: number, b: Button) {
 	const g = c.g;
 	const st = b.disabled ? 'off' : b.style ?? 'normal';
-	const [fg, bg, edge] = st === 'primary' ? [0, 8, 8] : st === 'on' ? [0, 6, 6] : st === 'danger' ? [8, 1, 8] : st === 'quiet' ? [3, 0, 2] : st === 'off' ? [2, 0, 1] : [4, 1, 3];
+	// label ink, ground, rule, initial, rule style
+	const [fg, bg, edge, cap, line]: [number, number, number, number, 'single' | 'double'] =
+		st === 'primary' ? [0, 8, 6, 0, 'double']
+		: st === 'on' ? [0, 6, 9, 9, 'double']
+		: st === 'danger' ? [8, 1, 8, 8, 'single']
+		: st === 'quiet' ? [3, 1, 2, 3, 'single']
+		: st === 'off' ? [2, 1, 2, 2, 'single']
+		: [5, 1, 6, 8, 'single'];
 	g.fill({ x, y, w, h: 3 }, ' ', fg, bg);
-	g.box({ x, y, w, h: 3 }, edge, bg, '', edge, 'single');
+	g.box({ x, y, w, h: 3 }, edge, bg, '', edge, line);
 	const room = Math.max(1, w - 4);
 	const label = [...b.label].slice(0, room).join('');
-	g.text(x + 2 + Math.floor((room - [...label].length) / 2), y + 1, label, fg, bg);
+	const lx = x + 2 + Math.floor((room - [...label].length) / 2);
+	g.text(lx, y + 1, label, fg, bg);
+	if (label && /\p{L}/u.test(label[0])) g.set(lx, y + 1, label[0], cap, bg);
 	if (!b.disabled) c.hit({ x, y, w, h: 3 }, b.act);
 }
 
-/** An illuminated capital: a 5x5 letter in rubric on a gold-edged square. */
-const CAPS: Record<string, string[]> = {
-	A: ['.###.', '#...#', '#####', '#...#', '#...#'], B: ['####.', '#...#', '####.', '#...#', '####.'], C: ['.####', '#....', '#....', '#....', '.####'],
-	D: ['####.', '#...#', '#...#', '#...#', '####.'], E: ['#####', '#....', '###..', '#....', '#####'], F: ['#####', '#....', '###..', '#....', '#....'],
-	G: ['.####', '#....', '#.###', '#...#', '.###.'], H: ['#...#', '#...#', '#####', '#...#', '#...#'], I: ['#####', '..#..', '..#..', '..#..', '#####'],
-	J: ['..###', '...#.', '...#.', '#..#.', '.##..'], K: ['#...#', '#..#.', '###..', '#..#.', '#...#'], L: ['#....', '#....', '#....', '#....', '#####'],
-	M: ['#...#', '##.##', '#.#.#', '#...#', '#...#'], N: ['#...#', '##..#', '#.#.#', '#..##', '#...#'], O: ['.###.', '#...#', '#...#', '#...#', '.###.'],
-	P: ['####.', '#...#', '####.', '#....', '#....'], Q: ['.###.', '#...#', '#.#.#', '#..#.', '.##.#'], R: ['####.', '#...#', '####.', '#..#.', '#...#'],
-	S: ['.####', '#....', '.###.', '....#', '####.'], T: ['#####', '..#..', '..#..', '..#..', '..#..'], U: ['#...#', '#...#', '#...#', '#...#', '.###.'],
-	V: ['#...#', '#...#', '#...#', '.#.#.', '..#..'], W: ['#...#', '#...#', '#.#.#', '##.##', '#...#'], X: ['#...#', '.#.#.', '..#..', '.#.#.', '#...#'],
-	Y: ['#...#', '.#.#.', '..#..', '..#..', '..#..'], Z: ['#####', '...#.', '..#..', '.#...', '#####']
+/**
+ * The logo (art/logo.png, 16 x 16): a bleeding clock on boards. Each pixel
+ * is two cells, so it is square; each colour is a ground with its own glyph,
+ * as the logo was drawn.
+ */
+const LOGO = [
+	'aaaaaaaaaaaaaaaa', 'abcccbbbbbbcccba', 'accbbddddddbbcca', 'accbdeeeeeedbcca',
+	'acbdeefgffeedbca', 'abbdeffgfffedbba', 'abcdeffgfffedcba', 'accdeffgggfedccb',
+	'abbdeffffffedbbb', 'abcdeeffffeedcba', 'abbcdheeeehdcbbb', 'abbbbhhhhhdbbbba',
+	'abbbbichhhcbbbba', 'accbbbchbibbbcca', 'acccbbbibcbbccca', 'accccaaabaacccca'
+];
+/** Logo colour -> [ground rgb, glyph]. */
+const LOGO_INK: Record<string, [number[], string]> = {
+	a: [[170, 151, 110], '+'], b: [[128, 89, 45], '='], c: [[83, 50, 13], '-'], d: [[242, 194, 58], '*'], e: [[18, 13, 8], '#'],
+	f: [[251, 243, 207], ' '], g: [[194, 134, 26], '|'], h: [[227, 38, 28], '~'], i: [[125, 15, 10], ':']
 };
 
-/** The book's name at the head of the page, its first letter an illuminated capital. */
+/** Lettering for the name, five rows tall, in the logo's manner: each stroke a coloured cell with its glyph. */
+const LETTERS: Record<string, string[]> = {
+	G: ['.###', '#...', '#.##', '#..#', '.###'], R: ['###.', '#..#', '###.', '#.#.', '#..#'], I: ['###', '.#.', '.#.', '.#.', '###'],
+	M: ['#...#', '##.##', '#.#.#', '#...#', '#...#'], O: ['.##.', '#..#', '#..#', '#..#', '.##.'], E: ['####', '#...', '###.', '#...', '####'],
+	A: ['.##.', '#..#', '####', '#..#', '#..#'], S: ['.###', '#...', '.##.', '...#', '###.'], L: ['#...', '#...', '#...', '#...', '####'],
+	T: ['###', '.#.', '.#.', '.#.', '.#.'], V: ['#...#', '#...#', '.#.#.', '.#.#.', '..#..'], N: ['#..#', '##.#', '#.##', '#..#', '#..#'],
+	B: ['###.', '#..#', '###.', '#..#', '###.'], C: ['.###', '#...', '#...', '#...', '.###'], D: ['###.', '#..#', '#..#', '#..#', '###.'],
+	F: ['####', '#...', '###.', '#...', '#...'], H: ['#..#', '#..#', '####', '#..#', '#..#'], J: ['..##', '...#', '...#', '#..#', '.##.'],
+	K: ['#..#', '#.#.', '##..', '#.#.', '#..#'], P: ['###.', '#..#', '###.', '#...', '#...'], Q: ['.##.', '#..#', '#..#', '#.##', '.###'],
+	U: ['#..#', '#..#', '#..#', '#..#', '.##.'], W: ['#...#', '#...#', '#.#.#', '##.##', '#...#'], X: ['#..#', '#..#', '.##.', '#..#', '#..#'],
+	Y: ['#.#', '#.#', '.#.', '.#.', '.#.'], Z: ['####', '..#.', '.#..', '#...', '####']
+};
+
+function lettering(g: Grid, x0: number, y: number, word: string) {
+	let x = x0;
+	[...word.toUpperCase()].forEach((ch, k) => {
+		const art = LETTERS[ch];
+		if (!art) { x += 3; return; }
+		// The first letter is rubricated, the rest in ink; each stroke a filled cell with its own glyph.
+		const [bg, fg, gl] = k === 0 ? [8, 9, '%'] : [4, 3, ':'];
+		art.forEach((ln, j) => [...ln].forEach((p, i) => { if (p === '#') g.set(x + i, y + j, gl, fg, bg); }));
+		x += art[0].length + 1;
+	});
+}
+export const letteringWidth = (word: string) => [...word.toUpperCase()].reduce((a, ch) => a + (LETTERS[ch]?.[0].length ?? 2) + 1, -1);
+
+/** A word lettered large (five rows), centred; null when it will not fit in `width` or has letters the face lacks. */
+export function letteredRow(word: string, width: number): Row | null {
+	if (!/^[A-Za-z ]+$/.test(word) || letteringWidth(word) > width) return null;
+	return blockRow(5, (c) => lettering(c.g, c.x + Math.floor((c.w - letteringWidth(word)) / 2), c.y, word));
+}
+
+/** The head of the home page: the logo, and the book's name lettered under it. Small screens get the logo at half size. */
 export function titleRow(word = 'Grimoire'): Row {
-	const [first, ...rest] = [...word];
-	const art = CAPS[first.toUpperCase()] ?? CAPS.G;
-	return blockRow(7, (c) => {
-		const x0 = c.x + Math.floor((c.w - (9 + 1 + rest.length * 2)) / 2);
-		c.g.fill({ x: x0, y: c.y, w: 9, h: 7 }, ' ', 5, 6);
-		c.g.box({ x: x0, y: c.y, w: 9, h: 7 }, 9, 6, '', 9, 'double');
-		art.forEach((ln, j) => [...ln].forEach((k, i) => c.g.set(x0 + 2 + i, c.y + 1 + j, k === '#' ? '#' : '.', k === '#' ? 8 : 6, k === '#' ? 1 : 6)));
-		rest.forEach((ch, i) => c.g.set(x0 + 10 + i * 2 + 1, c.y + 5, ch, 8, 0));
-		c.g.text(x0 + 10, c.y + 1, '~ ~ ~', 6, 0);
+	const big = (term?.rows ?? 0) >= 60;
+	const h = (big ? 17 : 9) + 6;
+	return blockRow(h, (c) => {
+		let y = c.y;
+		if (big) {
+			const lx = c.x + Math.floor((c.w - 32) / 2);
+			LOGO.forEach((ln, j) => [...ln].forEach((k, i) => {
+				const [rgb, gl] = LOGO_INK[k];
+				const bg = quant(rgb), fg = quant(rgb.map((v) => (v > 128 ? v * 0.7 : v * 1.6 + 20)));
+				c.g.set(lx + i * 2, y + j, gl, fg, bg);
+				c.g.set(lx + i * 2 + 1, y + j, gl, fg, bg);
+			}));
+			y += 17;
+		} else {
+			// Half size: two pixels a cell, the upper one the glyph's ink, the lower its ground.
+			const lx = c.x + Math.floor((c.w - 16) / 2);
+			for (let j = 0; j < 8; j++) for (let i = 0; i < 16; i++) c.g.set(lx + i, y + j, '▀', quant(LOGO_INK[LOGO[j * 2][i]][0]), quant(LOGO_INK[LOGO[j * 2 + 1][i]][0]));
+			y += 9;
+		}
+		lettering(c.g, c.x + Math.floor((c.w - letteringWidth(word)) / 2), y, word);
 	}, 'title');
 }
+
 
 /** A text field: tap it to type; the hidden input echoes into these cells. */
 export function field(id: string, label: string, value: string, set: (v: string) => void, max = 14, placeholder = ''): Row {
@@ -359,21 +430,33 @@ let fieldId = '';
 /** Stamp one row at (x, y); returns nothing. */
 function drawRow(g: Grid, r: Row, x0: number, y: number, width: number, h: number, ink: (t: Tone | undefined) => number) {
 	const ctx: Ctx = { g, x: x0, y, w: width, ink, hit: (rc, fn) => g.hit(rc, fn) };
+	// A panel is a leaf of vellum in a gold double rule, its title rubricated on the rule between two lozenges.
 	if (r.cls === 'frame-top') {
-		g.set(x0, y, '╔', 2);
-		for (let i = 1; i < width - 1; i++) g.set(x0 + i, y, '═', 2);
-		g.set(x0 + width - 1, y, '╗', 2);
+		g.set(x0, y, '╔', 6, 0);
+		for (let i = 1; i < width - 1; i++) g.set(x0 + i, y, '═', 6, 0);
+		g.set(x0 + width - 1, y, '╗', 6, 0);
 		const t = r.segs[0] && !isButton(r.segs[0]) ? r.segs[0].t : '';
-		g.text(x0 + 2, y, ` ${t} `, 8);
+		if (t) {
+			const tx = x0 + 2;
+			g.text(tx, y, '♦ ', 8, 0);
+			g.text(tx + 2, y, t, 5, 0);
+			g.set(tx + 2, y, [...t][0], 8, 0);
+			g.text(tx + 2 + [...t].length, y, ' ♦', 8, 0);
+		}
 		return;
 	}
 	if (r.cls === 'frame-bot') {
-		g.set(x0, y, '╚', 2);
-		for (let i = 1; i < width - 1; i++) g.set(x0 + i, y, '═', 2);
-		g.set(x0 + width - 1, y, '╝', 2);
+		g.set(x0, y, '╚', 6, 0);
+		for (let i = 1; i < width - 1; i++) g.set(x0 + i, y, '═', 6, 0);
+		g.set(x0 + width - 1, y, '╝', 6, 0);
+		const mid = x0 + Math.floor(width / 2);
+		g.text(mid - 2, y, '═╡♣╞═', 6, 0);
+		g.set(mid, y, '♣', 10, 0);
 		return;
 	}
-	const sides = () => { if (r.cls?.includes('frame-mid')) for (let j = 0; j < h; j++) { g.set(x0, y + j, '║', 2); g.set(x0 + width - 1, y + j, '║', 2); } };
+	const inPanel = !!r.cls?.includes('frame-mid');
+	if (inPanel) g.fill({ x: x0 + 1, y, w: width - 2, h }, ' ', 4, 1);
+	const sides = () => { if (inPanel) for (let j = 0; j < h; j++) { g.set(x0, y + j, '║', 6, 0); g.set(x0 + width - 1, y + j, '║', 6, 0); } };
 	if (r.block) {
 		// A block inside a frame sits within the side rules.
 		const inFrame = r.cls?.includes('frame-mid');
@@ -394,22 +477,29 @@ function drawRow(g: Grid, r: Row, x0: number, y: number, width: number, h: numbe
 	sides();
 }
 
-/** Split lines into pages, keeping a frame together when it fits one page. */
+const inFrame = (r: Row | undefined) => !!r?.cls?.includes('frame-mid');
+
+/**
+ * Split lines into pages. A panel that fits on a page is kept together;
+ * a long one runs on to the next page, closed by a rule at the foot of one
+ * and reopened at the head of the next, so no page is left half empty.
+ */
 function paginate(rows: Row[], avail: number): { from: number; to: number }[] {
 	const pages: { from: number; to: number }[] = [];
 	let from = 0, used = 0;
 	for (let i = 0; i < rows.length; i++) {
-		const h = lineH(rows[i]);
-		let need = h;
-		if (rows[i].cls === 'frame-top') {
-			need = 0;
-			for (let j = i; j < rows.length; j++) { need += lineH(rows[j]); if (rows[j].cls === 'frame-bot') break; }
-			if (need > avail || avail - used >= 10) need = h;
+		const r = rows[i], h = lineH(r);
+		let need = h + (inFrame(r) ? 1 : 0);
+		if (r.cls === 'frame-top') {
+			let whole = 0;
+			for (let j = i; j < rows.length; j++) { whole += lineH(rows[j]); if (rows[j].cls === 'frame-bot') break; }
+			// Keep it whole if it fits on a page and would not leave much of this one empty; else start it here if a row of it fits.
+			need = whole <= avail && avail - used < 8 ? whole : h + lineH(rows[i + 1] ?? r) + 1;
 		}
 		if (used > 0 && used + need > avail) {
 			pages.push({ from, to: i });
 			from = i;
-			used = 0;
+			used = inFrame(r) ? 1 : 0;
 		}
 		used += h;
 	}
@@ -417,7 +507,7 @@ function paginate(rows: Row[], avail: number): { from: number; to: number }[] {
 	return pages;
 }
 
-function drawLayer(g: Grid, key: unknown, ink: (t: Tone | undefined) => number) {
+function drawLayer(g: Grid, key: unknown, ink: (t: Tone | undefined) => number, sheet = false) {
 	const L = layers.get(key)!;
 	const total = L.rows.reduce((a, r) => a + lineH(r), 0);
 	const barH = 3;
@@ -427,11 +517,25 @@ function drawLayer(g: Grid, key: unknown, ink: (t: Tone | undefined) => number) 
 	const x0 = Math.max(0, Math.floor((g.cols - L.width) / 2));
 	let y = 0;
 	const p = pages[L.page];
+	if (sheet) {
+		let h = 0;
+		for (let i = p.from; i < p.to; i++) h += lineH(L.rows[i]);
+		g.fill({ x: Math.max(0, x0 - 1), y: 0, w: Math.min(g.cols, L.width + 2), h: Math.min(g.rows, h + 2) }, ' ', 4, 0);
+		if (pages.length > 1) g.fill({ x: 0, y: g.rows - barH, w: g.cols, h: barH }, ' ', 4, 0);
+	}
+	// A panel carried over from the page before: its rule again, its title marked as continued.
+	if (inFrame(L.rows[p.from])) {
+		let k = p.from;
+		while (k > 0 && L.rows[k].cls !== 'frame-top') k--;
+		const t = L.rows[k].segs[0] && !isButton(L.rows[k].segs[0]) ? (L.rows[k].segs[0] as Text).t : '';
+		drawRow(g, { segs: [txt(t ? t + ' (cont.)' : '')], cls: 'frame-top' }, x0, y++, L.width, 1, ink);
+	}
 	for (let i = p.from; i < p.to; i++) {
 		const h = lineH(L.rows[i]);
 		drawRow(g, L.rows[i], x0, y, L.width, h, ink);
 		y += h;
 	}
+	if (inFrame(L.rows[p.to - 1])) drawRow(g, { segs: [], cls: 'frame-bot' }, x0, y, L.width, 1, ink);
 	if (pages.length > 1) {
 		const by = g.rows - barH;
 		const w = Math.min(g.cols, Math.max(L.width, 30));
@@ -476,18 +580,59 @@ export function boxRow(lines: string[], tone: Tone = 'gold', width = INNER): Row
 	});
 }
 
+/** A small, steady hash of a cell, for textures that do not shimmer between frames. */
+const cellHash = (x: number, y: number) => {
+	let h = Math.imul(x * 374761393 + y * 668265263, 1274126177);
+	h ^= h >>> 13;
+	return (Math.imul(h, 1103515245) >>> 16) & 1023;
+};
+
+/**
+ * The ground under every page: vellum with a faint grain, and, where the
+ * screen is wider than the page, illuminated margins: a gold double rule
+ * with vine leaves and red lozenges climbing it.
+ */
+function ground(g: Grid, width: number) {
+	for (let y = 0; y < g.rows; y++) for (let x = 0; x < g.cols; x++) {
+		const h = cellHash(x, y);
+		if (h < 70) g.set(x, y, h < 20 ? "'" : h < 45 ? '.' : '`', 1, 0);
+		else if (h < 76) g.set(x, y, ',', shade(15, 2), 0);
+	}
+	const spare = g.cols - width;
+	if (spare < 8) return;
+	const x0 = Math.floor(spare / 2);
+	for (const mx of [x0 - 3, x0 + width + 2]) {
+		for (let y = 0; y < g.rows; y++) {
+			g.set(mx, y, '║', shade(6, 2), 0);
+			const k = (y + (mx > x0 ? 3 : 0)) % 6;
+			if (k === 0) g.set(mx, y, '♦', 8, 0);
+			else if (k === 3) { g.set(mx - 1, y, '♣', 11, 0); g.set(mx + 1, y, '♣', 10, 0); }
+			else if (k === 2 || k === 4) { g.set(mx - 1, y, k === 2 ? '/' : '\\', shade(10, 2), 0); g.set(mx + 1, y, k === 2 ? '\\' : '/', shade(10, 2), 0); }
+		}
+	}
+}
+
 function frame(g: Grid) {
 	const key = paletteKey();
 	term!.palette = PALETTES[key] ?? PALETTES['manuscript-night'];
 	document.body.style.background = term!.palette[0];
 	document.documentElement.style.background = term!.palette[0];
 	g.clear(4, 0);
+	const top = [...order].reverse().map((k) => layers.get(k)).find((L) => L && L.rows.length);
+	if (top) ground(g, top.width);
 	const ink = (t: Tone | undefined) => TONE[t ?? 'plain'];
-	if (extra?.(g)) { /* the village is under the pages */ }
-	// The topmost layer with rows is shown alone, as a page of its own.
+	const under = !!extra?.(g);
+	// The topmost layer with rows is shown alone, as a page of its own. Over the town it is a
+	// sheet: the town fades to a ghost behind it and the sheet gets a ground of its own.
 	for (let i = order.length - 1; i >= 0; i--) {
 		const L = layers.get(order[i]);
-		if (L && L.rows.length) { drawLayer(g, order[i], ink); return; }
+		if (!L || !L.rows.length) continue;
+		if (under) {
+			for (const c of g.cells) { c.fg = 1; c.bg = 0; }
+			g.hits.length = 0;
+		}
+		drawLayer(g, order[i], ink, under);
+		return;
 	}
 }
 
@@ -510,6 +655,8 @@ function ensureTerm(): Term {
 			}
 		}
 	});
+	// For measuring in the browser console: __term.stats has the last frame's timings.
+	(globalThis as { __term?: Term }).__term = term;
 	return term;
 }
 

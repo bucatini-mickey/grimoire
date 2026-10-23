@@ -22,7 +22,7 @@
  * is talking privately and which doors are locked; each phone moves its own
  * walker and asks the host for the rest.
  */
-import { INNER, btn, buttonBlock, buttonRows, drawButton, endPanel, field, isButton, listRow, paint, quant, redraw, rubric, row, segWidth, setExtra, txt, wrap, center } from '../ui/ascii.ts';
+import { INNER, btn, buttonBlock, buttonRows, drawButton, endPanel, field, isButton, listRow, paint, quant, redraw, shade, theTerm, paneled, rubric, row, segWidth, setExtra, txt, wrap, center } from '../ui/ascii.ts';
 import type { Button, Row } from '../ui/ascii.ts';
 import type { Grid } from '../term/pterm.ts';
 import { hostRoom, joinRoom, newRoomCode } from '../net/link.ts';
@@ -152,7 +152,7 @@ const S = {
 	cell: 20,
 	dirty: true,
 	stOpen: false,
-	sheet: null as null | 'people',
+	sheet: null as null | 'people' | 'more',
 	/** Requests for a private word, waiting for an answer. */
 	asks: [] as string[],
 	// host only
@@ -175,7 +175,14 @@ const soundOn = () => store.get('grimoire.sound') === 'on';
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 const me = () => S.people.get(S.me);
 const nameOf = (id: string | null | undefined) => (id && S.people.get(id)?.name) || 'someone';
-const inkOf = (q: Person) => (q.st ? ST_INK : INKS[q.ink % INKS.length]);
+/**
+ * Each walker's mark on the map: a strong ink of their own, as [glyph ink, ground]. The first
+ * seven are bright letters on the dark; the rest are dark letters on a plate of colour, so
+ * fifteen people never share a look.
+ */
+const PERSON: [number, number][] = [[8, 0], [12, 0], [10, 0], [14, 0], [6, 0], [7, 0], [5, 0], [0, 8], [0, 12], [0, 10], [0, 14], [0, 7], [0, 5], [0, 4], [4, 0]];
+const personInk = (k: number): [number, number] => PERSON[((k % PERSON.length) + PERSON.length) % PERSON.length];
+const markOf = (q: Person): [number, number] => (q.st ? [6, 0] : personInk(q.ink));
 const glyphOf = (q: Person) => (q.st ? '✦' : q.name[0]?.toUpperCase() ?? '?');
 const privateAllowed = (from: Person) => S.phase === 'day' || S.phase === 'dusk' || (!!from.st && S.phase === 'night');
 
@@ -630,7 +637,7 @@ setInterval(() => {
 	sendPos(p);
 	S.dirty = true;
 	drawChromeIfChanged();
-}, 140);
+}, 80);
 
 /** The nearest door you could work from here (standing in it, or within two steps inside), if any. */
 function doorBeside(): number | null {
@@ -647,7 +654,7 @@ function doorBeside(): number | null {
 // ---- drawing: Tachyon's look (look.ts) --------------------------------------------------------------
 
 let dyn: Uint8ClampedArray | null = null;
-let lightAt = 0, lightTick = 0, drawnAt = 0;
+let lightAt = 0, lightTick = 0, drawnAt = 0, litFor = '';
 /** Where each person is drawn: gliding after where they are, so steps slide instead of jump. */
 const shownAt = new Map<string, { x: number; y: number }>();
 /** Something is still gliding: draw the next frame too. */
@@ -656,7 +663,7 @@ function glide(id: string, x: number, y: number, dt: number) {
 	let d = shownAt.get(id);
 	// Far (a teleport: home at night, to a seat, a visit): there at once.
 	if (!d || Math.hypot(d.x - x, d.y - y) > 3) { d = { x, y }; shownAt.set(id, d); return d; }
-	const k = 1 - Math.exp(-dt / 55);
+	const k = 1 - Math.exp(-dt / 30);
 	d.x += (x - d.x) * k;
 	d.y += (y - d.y) * k;
 	if (Math.abs(d.x - x) < 0.01 && Math.abs(d.y - y) < 0.01) { d.x = x; d.y = y; } else animating = true;
@@ -682,9 +689,15 @@ const prose = (text: string, tone?: 'dim'): Row[] => wrap(text, INNER).map((l) =
 
 const talking = (q: Person) => (q.id === S.me ? S.voice?.myLevel() ?? 0 : S.voice?.level(q.id) ?? 0);
 
+const hash2 = (x: number, y: number) => (Math.imul(x * 73856093 ^ y * 19349663, 0x27d4eb2d) >>> 15);
+
 const fold = (ch: string) => {
 	if (ch.charCodeAt(0) < 128) return ch;
-	const m: Record<string, string> = { '·': '.', '♣': '&', '♠': '&', '▒': '%', '▓': '#', '█': '#', '░': ':', '≈': '~', '∼': '~', '▲': '^', '↑': '^', '○': 'o', '•': '.', '✶': '*', '✦': '*' };
+	const m: Record<string, string> = {
+		'·': '.', '∙': '.', '•': '.', '♣': '&', '♠': '%', '▒': '%', '▓': '#', '█': '#', '░': ':', '≈': '~', '∼': '~', '▲': '^', '↑': '^', '○': 'o',
+		'✶': '*', '✦': '*', '❀': '*', '≡': '=', 'π': 'n', '╥': 'h', 'Θ': '0', '■': '#', 'ö': 'o', '¡': '!', 'Ω': 'U', '╤': 'T', '═': '=', '▬': '=',
+		'†': '+', '¬': '-', '¶': 'P', '╫': 'H', '◙': '0', '⌐': 'r', '¦': '|', '‡': '!', '◘': '#'
+	};
 	return m[ch] ?? '*';
 };
 
@@ -693,7 +706,10 @@ function tickMap() {
 	const t = S.town, p = me();
 	if (!shown || !t || !p) return;
 	const now = performance.now();
-	const relight = !dyn || now - lightAt > 120;
+	// Relight when someone carrying a lantern moved, else only now and then for the flicker of the flames.
+	const lamps = S.phase === 'day' ? '' : [...S.people.values()].map((q) => q.x + ',' + q.y).join(';');
+	const relight = !dyn || lamps !== litFor || now - lightAt > 260;
+	litFor = lamps;
 	if (!cam.ready) Object.assign(cam, { x: p.x, y: p.y, ready: true });
 	const settled = Math.abs(cam.x - p.x) < 0.01 && Math.abs(cam.y - p.y) < 0.01;
 	if (!relight && !S.dirty && settled && !animating && S.phase !== 'circle' && now - drawnAt < 250) return;
@@ -702,7 +718,7 @@ function tickMap() {
 	for (const q of S.people.values()) glide(q.id, q.x, q.y, dt);
 	for (const id of [...shownAt.keys()]) if (!S.people.has(id)) shownAt.delete(id);
 	const me0 = shownAt.get(p.id) ?? p;
-	const k = 1 - Math.exp(-dt / 80);
+	const k = 1 - Math.exp(-dt / 45);
 	cam.x += (me0.x - cam.x) * k;
 	cam.y += (me0.y - cam.y) * k;
 	if (Math.abs(cam.x - p.x) < 0.02 && Math.abs(cam.y - p.y) < 0.02) Object.assign(cam, { x: p.x, y: p.y });
@@ -717,26 +733,37 @@ function tickMap() {
 	redraw();
 }
 
-/** The buttons of the bottom bar. */
+/** Everything the bottom bar could offer, most wanted first. */
 function toolButtons(): Button[] {
 	const p = me();
 	if (S.asks.some((id) => S.people.has(id))) return [btn('Talk', () => act('accept'), { style: 'primary' }), btn('Not now', () => act('decline'))];
 	const bs: Button[] = [];
 	if (p?.with) bs.push(btn('End', () => act('end')));
 	const v = S.voice;
+	const later: Button[] = [];
 	if (v) {
-		if (v.mode === 'listen') bs.push(btn('Talk', () => act('voice-talk'), { style: 'primary' }), btn('Listening', () => act('voice-stop'), { style: 'on' }));
+		if (v.mode === 'listen') { bs.push(btn('Talk', () => act('voice-talk'), { style: 'primary' })); later.push(btn('Stop listening', () => act('voice-stop'), { style: 'on' })); }
 		else bs.push(btn(v.muted ? 'Unmute' : 'Mute', () => act('mute'), { style: v.muted ? 'on' : 'primary' }));
 	} else if (S.voiceBusy) bs.push(btn('Starting...', () => {}, { disabled: true }));
-	else bs.push(btn('Talk', () => act('voice-mic'), { style: 'primary' }), btn('Listen', () => act('voice-listen')));
-	for (const e of S.extra()) bs.push(btn(e.label, e.act, { style: e.primary ? 'primary' : undefined }));
-	bs.push(btn('People', () => act('people')));
-	const door = doorBeside();
-	if (door !== null) bs.push(btn(S.town!.locked.has(door) ? 'Unlock door' : 'Lock door', () => act('door')));
+	else { bs.push(btn('Talk', () => act('voice-mic'), { style: 'primary' })); later.push(btn('Listen only', () => act('voice-listen'))); }
+	for (const e of S.extra()) (e.primary ? bs : later).push(btn(e.label, e.act, { style: e.primary ? 'primary' : undefined }));
 	if (S.phase === 'dusk' && !S.game && p && !p.st && S.town?.seats.length) bs.push(btn('My seat', () => act('seat'), { style: 'primary' }));
-	bs.push(btn(soundOn() ? 'Bell on' : 'Bell off', () => act('sound'), { style: 'quiet' }));
-	if (S.host) bs.push(btn('Menu', () => act('st-toggle'), { style: S.stOpen ? 'on' : 'quiet' }));
-	return bs;
+	const door = doorBeside();
+	if (door !== null) bs.push(btn(S.town!.locked.has(door) ? 'Unlock' : 'Lock', () => act('door')));
+	if (S.host) bs.push(btn('Menu', () => act('st-toggle'), { style: S.stOpen ? 'on' : undefined }));
+	bs.push(btn('People', () => act('people')));
+	return [...bs, ...later, btn(soundOn() ? 'Bell: on' : 'Bell: off', () => act('sound'), { style: 'quiet' })];
+}
+
+/** The bar: one row of the most wanted buttons that fit, the rest behind More. */
+function barButtons(cols: number): { bar: Button[]; more: Button[] } {
+	const all = toolButtons();
+	const fits = (bs: Button[]) => bs.reduce((k, b) => k + segWidth(b), 0) <= cols;
+	if (fits(all)) return { bar: all, more: [] };
+	const more = btn('More', () => act('more'), { style: S.sheet === 'more' ? 'on' : 'quiet' });
+	const bar: Button[] = [];
+	for (const b of all) if (fits([...bar, b, more])) bar.push(b); else break;
+	return { bar: [...bar, more], more: all.slice(bar.length) };
 }
 
 /** Stamp wrapped buttons at (x, y) in `w` columns; returns the height used. */
@@ -760,7 +787,7 @@ function villageCells(g: Grid): boolean {
 	if (!dyn) return false;
 	const now = performance.now();
 	const stbar = S.host ? S.stActions : null;
-	const tools = toolButtons();
+	const tools = barButtons(g.cols).bar;
 	const toolH = buttonRows(tools, g.cols, 0).length * 3;
 	const stBs = stbar ? stbar.buttons.map((b) => btn(b.label, b.act, { style: b.primary ? 'primary' : undefined })) : [];
 	const stH = stbar ? 1 + buttonRows(stBs, g.cols, 0).length * 3 : 0;
@@ -801,6 +828,9 @@ function villageCells(g: Grid): boolean {
 	return true;
 }
 
+const visMemo: { key: string; town: Town | null; vis: Set<number>; all: Set<number> | null } = { key: '', town: null, vis: new Set(), all: null };
+const lookMemo: { town: Town | null; locks: string; looks: (ReturnType<typeof lookAt> | undefined)[] } = { town: null, locks: '', looks: [] };
+
 /** Tap to walk: the cell under a tap in the map. */
 let view = { x0: 0, y0: 0 };
 
@@ -821,8 +851,19 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 	const here = at(t, p.x, p.y);
 	const inCave = !p.st && !inside && here?.tile !== 'wall' && here?.mat === 'granite';
 	const fogBase = FOG[S.phase];
-	const vis = p.st ? new Set(t.cells.map((_, i) => i)) : visibleCells(t, p, 'day');
-	for (const i of vis) S.seen![i] = 1;
+	// What you can see changes only when you move or a door does: keep it till then.
+	const lockKey = [...t.locked].join(',');
+	const visKey = `${p.st}|${p.x},${p.y}|${lockKey}`;
+	if (visMemo.key !== visKey || visMemo.town !== t) {
+		visMemo.vis = p.st ? (visMemo.town === t && visMemo.all ? visMemo.all : new Set(t.cells.map((_, i) => i))) : visibleCells(t, p, 'day');
+		if (p.st) visMemo.all = visMemo.vis;
+		for (const i of visMemo.vis) S.seen![i] = 1;
+		Object.assign(visMemo, { key: visKey, town: t });
+	}
+	const vis = visMemo.vis;
+	if (lookMemo.town !== t || lookMemo.locks !== lockKey) Object.assign(lookMemo, { town: t, locks: lockKey, looks: new Array(t.w * t.h) });
+	// The mist rolls slowly: move it on in steps, so a still screen stays still.
+	const fogMs = Math.floor(now / 250) * 250;
 	const sk = sky(t), day = sunlight(S.phase);
 	const seatSet = new Set(t.seats.map((q) => q.x + q.y * t.w));
 	const lit = new Map<number, Rgb>();
@@ -839,7 +880,12 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 			if (inside && !shown && !t.locked.has(i) && !(r >= 0 ? mine.includes(r) : touchesRoom(t, x, y, mine))) continue;
 			const rock = t.cells[i].mat === 'granite';
 			if (inCave && !shown && !rock) continue;
-			const look = lookAt(t, x, y, now);
+			// A cell's look is fixed but for running water; the rest is kept until a door changes.
+			let look = lookMemo.looks[i];
+			if (!look) {
+				look = lookAt(t, x, y, now);
+				if (t.cells[i].mat !== 'water' && !t.cells[i].things.includes('waterfall')) lookMemo.looks[i] = look;
+			}
 			let fg: Rgb, bg: Rgb;
 			if (shown) {
 				const l = level(t, sk, dyn!, day, x, y);
@@ -852,8 +898,8 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 				if (t.locked.has(i)) [fg, bg] = [look.fg, mul(look.bg, [0.6, 0.6, 0.6])];
 			}
 			const f = indoors ? (shown ? 0 : 0.2)
-				: inCave && rock ? fogAt(t, x, y, cam, S.phase, now) * 0.25 * (shown ? 1 : 0.6) + (shown ? 0 : 0.35)
-				: fogAt(t, x, y, cam, S.phase, now) * (p.st ? 0.6 : 1) * (shown ? 1 : 0.6) + (shown ? 0 : 0.35) + (inCave ? 0.25 : 0);
+				: inCave && rock ? fogAt(t, x, y, cam, S.phase, fogMs) * 0.25 * (shown ? 1 : 0.6) + (shown ? 0 : 0.35)
+				: fogAt(t, x, y, cam, S.phase, fogMs) * (p.st ? 0.6 : 1) * (shown ? 1 : 0.6) + (shown ? 0 : 0.35) + (inCave ? 0.25 : 0);
 			if (f > 0.01) fg = lerp(fg, fogBase, Math.min(1, f * 1.05));
 			let ch = fold(look.ch);
 			if (look.wall) {
@@ -863,9 +909,17 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 			else if (look.icon === 'bell') ch = '♪';
 			else if (look.icon === 'clock') ch = '☼';
 			else if (ch === ' ' && luma(bg) > 14) { ch = '.'; fg = lerp(bg, [255, 255, 255], 0.28); }
+			// Open ground thins out as the light goes: full texture where lit, a dot in the dusk, bare in the dark.
+			const bare = !look.wall && !look.glass && !look.icon && t.cells[i].tile !== 'wall' && !t.cells[i].things.length;
+			if (bare) {
+				const lf = luma(fg);
+				if (lf < 16) ch = ' ';
+				else if (lf < 34 && ch !== '~') ch = hash2(x, y) & 1 ? '.' : ' ';
+			}
 			const fgi = quant(fg);
-			// Backgrounds carry meaning only: seats at dusk, and the page elsewhere.
-			const bgi = S.phase === 'dusk' && seatSet.has(i) ? 1 : 0;
+			// The ground keeps its own colour, in the shades of its ink, so a lit square glows and the dark falls away.
+			// At dusk the seats are picked out in gold.
+			const bgi = S.phase === 'dusk' && seatSet.has(i) ? shade(6, 1) : shown && luma(bg) > 9 ? quant(bg) : 0;
 			ground.set(i, bgi);
 			g.set(sx, mapY + sy, ch, fgi, bgi);
 		}
@@ -891,17 +945,20 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 		const d = shownAt.get(q.id) ?? q;
 		const sx = Math.round(d.x) - x0, sy = Math.round(d.y) - y0;
 		if (sy < 0 || sy >= mapH) continue;
-		const ink = q.st ? 6 : quant(hexRgb(inkOf(q)));
+		const [fg, bg] = markOf(q);
 		const mineQ = q.id === S.me;
 		const talk = talking(q) > 0.15;
-		g.set(sx, mapY + sy, q.st ? '☼' : glyphOf(q), mineQ ? 0 : ink, mineQ ? ink : talk ? 1 : 0);
+		// You are drawn reversed out of your ink; someone talking gets a gold plate.
+		const lit = bg ? bg : fg;
+		g.set(sx, mapY + sy, q.st ? '☼' : glyphOf(q), mineQ ? 0 : talk ? 0 : fg, mineQ ? lit : talk ? 6 : bg);
+		if (mineQ) { g.set(sx - 1, mapY + sy, '[', lit); g.set(sx + 1, mapY + sy, ']', lit); }
 	}
 	if (S.game && S.phase === 'dusk' && t.meeting) {
 		for (const r of S.ring) {
 			if ([...S.people.values()].some((q) => !q.st && q.seat === r.seat)) continue;
 			const cell = seatCell(t, r.seat);
 			if (!cell) continue;
-			g.set(cell.x - x0, mapY + cell.y - y0, r.name[0]?.toUpperCase() ?? '?', r.dead ? 3 : quant(hexRgb(INKS[r.seat % INKS.length])), 0);
+			g.set(cell.x - x0, mapY + cell.y - y0, r.name[0]?.toUpperCase() ?? '?', r.dead ? 3 : personInk(r.seat)[0] || 4, r.dead ? 0 : personInk(r.seat)[1]);
 		}
 	}
 	if (S.route.length) {
@@ -915,7 +972,6 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 const WALL_SINGLE = [' ', '│', '─', '└', '│', '│', '┌', '├', '─', '┘', '─', '┴', '┐', '┤', '┬', '┼'];
 const WALL_DOUBLE = [' ', '║', '═', '╚', '║', '║', '╔', '╠', '═', '╝', '═', '╩', '╗', '╣', '╦', '╬'];
 
-const hexRgb = (h: string): Rgb => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
 
 /** The circle: everyone on one ring, the vote's hands raised. */
 function circleCells(g: Grid, y0: number, h: number) {
@@ -929,7 +985,8 @@ function circleCells(g: Grid, y0: number, h: number) {
 		const a = (2 * Math.PI * i) / n;
 		const x = Math.round(cx + rx * Math.sin(a)), y = Math.round(cy - ry * Math.cos(a));
 		const person = [...S.people.values()].find((q) => !q.st && q.seat === r.seat);
-		const ink = r.dead ? 3 : person ? quant(hexRgb(inkOf(person))) : 3;
+		const [pf, pb] = person ? markOf(person) : [3, 0];
+		const ink = r.dead ? 3 : pf || pb;
 		const hand = v?.raised.includes(r.seat) ? '▲' : v?.counted.includes(r.seat) ? '•' : ' ';
 		const label = (hand + (r.dead ? '†' : '☺') + r.name).slice(0, 10);
 		const nominee = v?.nominee === r.seat;
@@ -961,6 +1018,11 @@ function sheetRows(): Row[] {
 	if (S.choice) {
 		return [rubric(S.choice.title), ...S.choice.options.map((o) => buttonBlock([btn(o.label, () => act('choice', o.id), { width: INNER })])), endPanel(), close('choice-close')];
 	}
+	if (S.sheet === 'more') {
+		const more = barButtons(theTerm()?.cols ?? 44).more;
+		// Each choice closes the page as it is made.
+		return [rubric('More'), ...more.map((b) => buttonBlock([btn(b.label, () => { S.sheet = null; b.act(); drawChrome(); }, { style: b.style, width: INNER })])), endPanel(), close('sheet-close')];
+	}
 	if (S.sheet === 'people') {
 		const others = [...S.people.values()].filter((q) => q.id !== S.me).sort((a, b) => Number(!!b.st) - Number(!!a.st) || a.name.localeCompare(b.name));
 		const can = p && privateAllowed(p) && !p.with;
@@ -991,7 +1053,7 @@ function drawChrome() {
 	const p = me();
 	const near = doorBeside();
 	chromeKey = `${near}|${near !== null && S.town!.locked.has(near)}|${S.town?.locked.size}|${p?.with}|${S.phase}`;
-	paint(VSHEET, sheetRows());
+	paint(VSHEET, paneled(sheetRows()));
 	redraw();
 }
 
@@ -1131,6 +1193,7 @@ function act(a: string, id = '') {
 			break;
 		}
 		case 'people': S.sheet = S.sheet === 'people' ? null : 'people'; S.stOpen = false; drawChrome(); break;
+		case 'more': S.sheet = S.sheet === 'more' ? null : 'more'; S.stOpen = false; drawChrome(); break;
 		case 'sheet-close': S.sheet = null; drawChrome(); break;
 		case 'ask': up({ t: 'ask', to: id }); S.sheet = null; drawChrome(); break;
 		case 'visit': visit(id); break;
