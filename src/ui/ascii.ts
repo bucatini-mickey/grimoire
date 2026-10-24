@@ -262,6 +262,8 @@ const PALETTES: Record<string, Palette> = {
 	// The home page is the book's cover: brown calf, blind-tooled, gilt lettering and brass.
 	// The book's first page, opened: clean vellum, dark ink, red and brass.
 	folio: ['#e4dccb', '#d6ccb8', '#9c8f7a', '#706556', '#241c17', '#100b08', '#7d6232', '#c2522e', '#8c2a22', '#6a1d17', '#56603f', '#dcb38c', '#3a5576', '#7c9fc2', '#6a4a72', '#f8f4ec'],
+	// The same leaf read by candlelight: the vellum in shadow, the ink pale, the gold and colours kept.
+	'folio-night': ['#2a2119', '#352a20', '#5c4c3a', '#9a8a72', '#e2d4b8', '#f4e8cf', '#c69a45', '#c8573a', '#c0453a', '#7a2a22', '#7f8a62', '#c9a383', '#6f87a6', '#86a8c8', '#8a6a90', '#efe6d6'],
 	cover: ['#2b1810', '#3a2216', '#5e3a26', '#a3825e', '#e3cfa8', '#f3e3c0', '#c69a45', '#b06a35', '#b8382c', '#6a1c14', '#7f8a62', '#3b3a26', '#6f87a6', '#26344a', '#8a6a90', '#4f3a2a'],
 	leather: ['#2b1810', '#3a2216', '#5e3a26', '#a3825e', '#e3cfa8', '#f3e3c0', '#c69a45', '#b06a35', '#b8382c', '#6a1c14', '#7f8a62', '#3b3a26', '#6f87a6', '#26344a', '#8a6a90', '#4f3a2a'],
 	'manuscript-day': ['#e4dccb', '#d6ccb8', '#9c8f7a', '#706556', '#241c17', '#100b08', '#7d6232', '#93532a', '#8c2a22', '#6a1d17', '#56603f', '#b2b59a', '#3a5576', '#bcc4cf', '#6a4a72', '#ad9e86'],
@@ -280,6 +282,11 @@ let paletteKey: () => string = () => 'manuscript-night';
 /** Anything drawn after the page layers (the village, set by main). */
 let extra: ((g: Grid) => boolean) | null = null;
 
+/** A leaf of the book (by day, or by candlelight at night): written on, not boxed. Over the town map
+ * the pages are sheets laid on the dark streets instead, boxed as they always were. */
+export const isBook = () => paletteKey().startsWith('folio') && !(extra && extraShown());
+/** The town map of a game kept in the book is showing: what lies on it is parchment. */
+export const onMap = () => paletteKey().startsWith('folio') && !!extra && extraShown();
 export const setDynamic = (f: typeof dynamic) => { dynamic = f; };
 export const setPalette = (f: () => string) => { paletteKey = f; };
 export const setExtra = (f: typeof extra, shown: () => boolean = () => true) => { extra = f; extraShown = shown; };
@@ -323,13 +330,15 @@ export function drawButton(c: Ctx, x: number, y: number, w: number, b: Button) {
 	// On a leaf of the book a button is an entry written on the page: its words in ink (the main one
 	// in red), its numeral or first letter on a red plate, a flourish at each end and a dotted rule
 	// under it, so it reads as writing and still shows where to tap.
-	if (paletteKey() === 'folio') {
-		const ink = st === 'primary' ? 8 : st === 'quiet' || st === 'off' ? 3 : 5;
+	if (isBook()) {
+		const ink = st === 'primary' || st === 'danger' ? 8 : st === 'quiet' || st === 'off' ? 3 : 5;
 		const label = [...b.label].slice(0, Math.max(1, w - 4)).join('');
 		const lx = x + 2;
-		g.text(lx, y + 1, label, ink);
+		// One that is chosen (a character in play, a seat picked) is written on a plate of gold.
+		if (st === 'on') g.text(lx - 1, y + 1, ' ' + label + ' ', 0, 6);
+		else g.text(lx, y + 1, label, ink);
 		const numeral = label.match(/^[IVXLC]+(?=\.)/)?.[0];
-		if (st !== 'off') for (let k = 0; k < (numeral?.length ?? (/\p{L}/u.test(label[0]) ? 1 : 0)); k++) g.set(lx + k, y + 1, label[k], 0, 8);
+		if (st !== 'off' && st !== 'on') for (let k = 0; k < (numeral?.length ?? (/\p{L}/u.test(label[0]) ? 1 : 0)); k++) g.set(lx + k, y + 1, label[k], 0, 8);
 		if (st !== 'quiet' && st !== 'off') g.text(x, y + 1, '~', 6);
 		for (let i = x + 2; i < x + 2 + [...label].length + 2; i += 2) g.set(i, y + 2, '.', st === 'primary' ? 8 : 2);
 		if (!b.disabled) c.hit({ x, y, w, h: 3 }, b.act);
@@ -337,7 +346,14 @@ export function drawButton(c: Ctx, x: number, y: number, w: number, b: Button) {
 	}
 	// label ink, ground, rule, initial, rule style
 	const [fg, bg, edge, cap, line]: [number, number, number, number, 'single' | 'double'] =
-		st === 'primary' ? [0, 8, 6, 0, 'double']
+		// Over the town in a game kept in the book, buttons are labels of parchment laid on the map.
+		onMap() ? (st === 'primary' ? [4, 8, 6, 4, 'double']
+			: st === 'on' ? [0, 6, 15, 9, 'double']
+			: st === 'danger' ? [8, 4, 8, 8, 'single']
+			: st === 'quiet' ? [0, 3, 2, 0, 'single']
+			: st === 'off' ? [2, 1, 2, 2, 'single']
+			: [0, 4, 15, 8, 'single'])
+		: st === 'primary' ? [0, 8, 6, 0, 'double']
 		: st === 'on' ? [0, 6, 9, 9, 'double']
 		: st === 'danger' ? [8, 1, 8, 8, 'single']
 		: st === 'quiet' ? [3, 1, 2, 3, 'single']
@@ -567,7 +583,7 @@ function drawRow(g: Grid, r: Row, x0: number, y: number, width: number, h: numbe
 	const ctx: Ctx = { g, x: x0, y, w: width, ink, hit: (rc, fn) => g.hit(rc, fn) };
 	// On a leaf of the book there are no boxes: a heading is written in red, centred, with a
 	// flourish each side, and the words below it stand on the page.
-	const book = paletteKey() === 'folio';
+	const book = isBook();
 	if (book && (r.cls === 'frame-top' || r.cls === 'frame-bot')) {
 		const t = r.cls === 'frame-top' && r.segs[0] && !isButton(r.segs[0]) ? r.segs[0].t : '';
 		if (t) {
@@ -659,11 +675,15 @@ function drawLayer(g: Grid, key: unknown, ink: (t: Tone | undefined) => number, 
 	const L = layers.get(key)!;
 	const total = L.rows.reduce((a, r) => a + lineH(r), 0);
 	const barH = 3;
-	let pages = paginate(L.rows, g.rows);
-	if (total > g.rows) pages = paginate(L.rows, g.rows - barH);
+	// On a leaf of the book the writing starts a line down, under the gold rule round the text.
+	const top = isBook() && !sheet ? 1 : 0;
+	// ...and its page-turns stand clear of the rule at the foot.
+	const foot = isBook() && !sheet ? 2 : 0;
+	let pages = paginate(L.rows, g.rows - top);
+	if (total > g.rows - top) pages = paginate(L.rows, g.rows - top - barH - foot);
 	L.page = Math.max(0, Math.min(L.page, pages.length - 1));
 	const x0 = Math.max(0, Math.floor((g.cols - L.width) / 2));
-	let y = 0;
+	let y = top;
 	const p = pages[L.page];
 	if (sheet) {
 		let h = 0;
@@ -685,7 +705,7 @@ function drawLayer(g: Grid, key: unknown, ink: (t: Tone | undefined) => number, 
 	}
 	if (inFrame(L.rows[p.to - 1])) drawRow(g, { segs: [], cls: 'frame-bot' }, x0, y, L.width, 1, ink);
 	if (pages.length > 1) {
-		const by = g.rows - barH;
+		const by = g.rows - barH - foot;
 		const w = Math.min(g.cols, Math.max(L.width, 30));
 		const bx = Math.floor((g.cols - w) / 2);
 		const ctx: Ctx = { g, x: bx, y: by, w, ink, hit: (r, fn) => g.hit(r, fn) };
@@ -725,9 +745,30 @@ export function tabStrip(tabs: Tab[], width = COLS): Row {
 		const padn = Math.max(0, Math.min(4, Math.floor((w - bare) / tabs.length / 2) * 2));
 		const gap = tabs.length > 1 && w - bare - padn * tabs.length >= tabs.length - 1 ? 1 : 0;
 		const used = bare + padn * tabs.length + gap * (tabs.length - 1);
-		// The page's edge the tabs stand on.
-		for (let x = x0; x < x0 + w; x++) g.set(x, c.y + 2, '═', 6, 0);
 		let x = x0 + Math.max(0, Math.floor((w - used) / 2));
+		if (isBook()) {
+			// In the book the tabs are words above a gold rule, the open one a red silk ribbon, the
+			// kind sewn in as a bookmark, hanging down over the rule.
+			for (let xx = x0; xx < x0 + w; xx++) g.set(xx, c.y + 2, '─', 6, 0);
+			for (const t of tabs) {
+				const tw = [...t.label].length + padn + 2;
+				const lx = x + 1 + padn / 2;
+				if (t.on) {
+					g.fill({ x, y: c.y, w: tw, h: 2 }, ' ', 0, 8);
+					g.text(lx, c.y + 1, t.label, 0, 8);
+					// Its end cut in a swallowtail: the two edges run on, the middle stops half a line short.
+					for (let i = 0; i < tw; i++) { if (i === 0 || i === tw - 1) g.set(x + i, c.y + 2, ' ', 0, 8); else g.set(x + i, c.y + 2, '▀', 8, 0); }
+				} else {
+					g.text(lx, c.y + 1, t.label, 4);
+					if (/\p{L}/u.test(t.label[0])) initial(g, lx, c.y + 1, t.label[0]);
+				}
+				c.hit({ x, y: c.y, w: tw, h: 3 }, t.act);
+				x += tw + gap;
+			}
+			return;
+		}
+		// The page's edge the tabs stand on.
+		for (let xx = x0; xx < x0 + w; xx++) g.set(xx, c.y + 2, '═', 6, 0);
 		for (const t of tabs) {
 			const tw = [...t.label].length + padn + 2;
 			const [fg, bg, edge] = t.on ? [0, 8, 6] : [5, 1, 2];
@@ -789,10 +830,10 @@ const cellHash = (x: number, y: number) => {
  * nothing is written, a pentacle in its circle so faint you half see it. On a wide
  * screen the margins have a plain rule with a cross now and then.
  */
-function ground(g: Grid, width: number, used = g.rows) {
+function ground(g: Grid, width: number, used = g.rows, reserve = 0) {
 	if (paletteKey() === 'cover') return; // the cover paints itself, every pixel (coverRow)
 	if (paletteKey() === 'leather') return cover(g);
-	if (paletteKey() === 'folio') return folio(g, width, used);
+	if (isBook()) return folio(g, width, used, reserve);
 	const night = !paletteKey().endsWith('-day');
 	for (let y = 0; y < g.rows; y++) for (let x = 0; x < g.cols; x++) {
 		const h = cellHash(x, y);
@@ -856,15 +897,19 @@ let folioMemo: { key: string; px: Int16Array } | null = null;
  * of gold, in the margins a painted vine with leaves and flowers, and below the writing, where the
  * page is empty, a few devils of the kind scribes drew. The words are written over all of it.
  */
-function folio(g: Grid, width: number, used: number) {
+function folio(g: Grid, width: number, used: number, reserve = 0) {
 	const W = g.cols, H = g.rows * 2;
 	const x0 = Math.floor((W - width) / 2), x1 = x0 + width - 1;
-	const yTop = 2, yBot = H - 3;
-	const key = `${W}x${H}:${width}:${used}:${term?.palette.length}`;
+	const yTop = 1, yBot = H - 3;
+	const key = `${W}x${H}:${width}:${used}:${reserve}:${paletteKey()}`;
+	// By candlelight the vellum and its edges go to shadow; the gold, the vine and its flowers keep their colour.
+	const C = paletteKey() === 'folio-night'
+		? { vellum: [46, 37, 28], fox: [70, 52, 36], stitch: [18, 12, 8], edge: [70, 58, 44], edge2: [58, 48, 36] }
+		: { vellum: [232, 221, 198], fox: [176, 140, 100], stitch: [70, 48, 30], edge: [180, 160, 128], edge2: [205, 190, 160] };
 	if (!folioMemo || folioMemo.key !== key) {
 		const px = new Int16Array(W * H).fill(-1);
 		const set = (x: number, y: number, rgb: number[]) => { if (x >= 0 && y >= 0 && x < W && y < H) px[x + y * W] = quant(rgb); };
-		const VELLUM = [232, 221, 198];
+		const VELLUM = C.vellum;
 		for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
 			// Mottling, foxing, a darker rim; the gutter's shadow; the stain.
 			const m = vnoise(x / 9, y / 7, 1) * 0.6 + vnoise(x / 3, y / 3, 2) * 0.4;
@@ -872,18 +917,19 @@ function folio(g: Grid, width: number, used: number) {
 			const gutter = x < 6 ? (6 - x) / 6 : 0;
 			// Inside the gold rule the vellum is kept clean for the writing; outside it is worn.
 			const inText = x >= x0 && x <= x1 && y > yTop && y < yBot;
-			let k = 0.95 + (m - 0.5) * (inText ? 0.03 : 0.1) - (1 - rim) * 0.18 - gutter * 0.35;
+			// (one even tone under the writing: a mottle finer than an ink step only stripes the rows)
+			let k = inText ? 0.99 : 0.95 + (m - 0.5) * 0.1 - (1 - rim) * 0.18 - gutter * 0.35;
 			const sx = x - W * 0.78, sy = (y - H * 0.18) * 1.2, sd = Math.hypot(sx, sy);
 			// The stain stays in the margin: the writing was kept clear of it.
 			if (!inText) { if (Math.abs(sd - 9) < 0.9) k -= 0.1; else if (sd < 9) k -= 0.03; }
 			let rgb = VELLUM.map((v, i) => v * k - (i === 2 ? (1 - k) * 30 : 0));
-			if ((cellHash(x * 3, y * 5) & 1023) < (inText ? 0 : 6)) rgb = [176, 140, 100]; // foxing, never on the writing
+			if ((cellHash(x * 3, y * 5) & 1023) < (inText ? 0 : 6)) rgb = C.fox; // foxing, never on the writing
 			set(x, y, rgb);
 		}
 		// Sewing: stitches down the gutter; the edges of the leaves beneath at the fore-edge and foot.
-		for (let y = 6; y < H - 6; y += 7) set(1, y, [70, 48, 30]);
-		for (let y = 0; y < H; y++) for (const d of [1, 2]) set(W - d, y, d === 1 ? [180, 160, 128] : [205, 190, 160]);
-		for (let x = 0; x < W; x++) set(x, H - 1, [180, 160, 128]);
+		for (let y = 6; y < H - 6; y += 7) set(1, y, C.stitch);
+		for (let y = 0; y < H; y++) for (const d of [1, 2]) set(W - d, y, d === 1 ? C.edge : C.edge2);
+		for (let x = 0; x < W; x++) set(x, H - 1, C.edge);
 		// The text's frame: a ruled line of gold.
 		const gold = [176, 136, 62];
 		for (let x = x0 - 1; x <= x1 + 1; x++) { set(x, yTop, gold); set(x, yBot, gold); }
@@ -906,7 +952,9 @@ function folio(g: Grid, width: number, used: number) {
 		}
 		// Devils at the foot of the page, if the writing leaves room for them.
 		const M = typeof __MARGINS__ !== 'undefined' && __MARGINS__ ? Object.values(__MARGINS__) : [];
-		const free = yBot - (used * 2 + 2);
+		// (above the page-turns, if the page has them)
+		const foot = yBot - reserve * 2;
+		const free = foot - (used * 2 + 2);
 		if (M.length && free >= 14) {
 			// As many as fit across the text's width, tallest first.
 			const pick: typeof M = [];
@@ -915,12 +963,12 @@ function folio(g: Grid, width: number, used: number) {
 			const span = pick.reduce((k, m) => k + m.w, 0);
 			let x = x0 + Math.max(0, Math.floor((width - span - (pick.length - 1) * 2) / 2));
 			for (const m of pick) {
-				const top = yBot - 2 - m.h;
+				const top = foot - 2 - m.h;
 				m.px.forEach((row, j) => row.forEach((c, i) => { if (c) set(x + i, top + j, [1, 3, 5].map((k) => parseInt(c.slice(k, k + 2), 16))); }));
 				x += m.w + 2;
 			}
 			// The ground they stand on: a tendril of the vine.
-			for (let xx = x0 + 2; xx < x1 - 1; xx++) set(xx, yBot - 2 + Math.round(Math.sin(xx / 3) * 0.6), [90, 110, 60]);
+			for (let xx = x0 + 2; xx < x1 - 1; xx++) set(xx, foot - 2 + Math.round(Math.sin(xx / 3) * 0.6), [90, 110, 60]);
 		}
 		folioMemo = { key, px };
 	}
@@ -1080,16 +1128,29 @@ export function illuminatedRow(lines: { t: string; tone?: Tone }[]): Row {
 
 function frame(g: Grid) {
 	// The town is lit for the dark: over it, the pages take their night inks.
-	const key = extra && extraShown() ? paletteKey().replace('-day', '-night') : paletteKey();
+	const key = extra && extraShown() ? (paletteKey().startsWith('folio') ? 'manuscript-night' : paletteKey().replace('-day', '-night')) : paletteKey();
 	term!.palette = PALETTES[key] ?? PALETTES['manuscript-night'];
 	// The cover wants a margin of leather round its page: a few more columns (a touch smaller type).
 	// The cover is a picture, drawn fine: many more columns (small cells, two pixels each).
-	term!.setCols(key === 'cover' ? 84 : key === 'folio' ? COLS + 12 : key === 'leather' ? COLS + 6 : COLS);
+	term!.setCols(key === 'cover' ? 84 : key.startsWith('folio') ? COLS + 12 : key === 'leather' ? COLS + 6 : COLS);
 	document.body.style.background = term!.palette[0];
 	document.documentElement.style.background = term!.palette[0];
 	g.clear(4, 0);
 	const top = [...order].reverse().map((k) => layers.get(k)).find((L) => L && L.rows.length);
-	if (top) ground(g, top.width, Math.min(g.rows, top.rows.reduce((k, r) => k + lineH(r), 0)));
+	if (top) {
+		// How much of the screen the page shown takes, and what its page-turns keep at the foot: the
+		// book's margins draw their pictures only where nothing is written.
+		const off = isBook() ? 1 : 0, total = top.rows.reduce((k, r) => k + lineH(r), 0);
+		let used = Math.min(g.rows, total + off), reserve = 0;
+		if (total > g.rows - off) {
+			const pages = paginate(top.rows, g.rows - off - 3 - (isBook() ? 2 : 0));
+			const p = pages[Math.max(0, Math.min(top.page, pages.length - 1))];
+			used = off + (inFrame(top.rows[p.from]) ? 1 : 0);
+			for (let i = p.from; i < p.to; i++) used += lineH(top.rows[i]);
+			reserve = 3 + (isBook() ? 2 : 0);
+		}
+		ground(g, top.width, used, reserve);
+	}
 	const ink = (t: Tone | undefined) => TONE[t ?? 'plain'];
 	const under = !!extra?.(g);
 	// The topmost layer with rows is shown alone, as a page of its own. Over the town it is a

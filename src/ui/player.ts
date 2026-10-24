@@ -281,8 +281,8 @@ function ring(): Row[] {
 	const caption: string[] = [];
 	if (v.phase === 'night') caption.push('Night ' + v.n, alive + ' alive', 'Eyes closed');
 	else if (v.phase === 'day') {
-		caption.push('Day ' + v.n, alive + ' alive - ' + Math.ceil(alive / 2) + ' to execute',
-			v.executed !== null ? nameOf(v.executed) + ' executed' : v.block ? 'Block: ' + nameOf(v.block.seat) + ' (' + v.block.votes + ')' : 'Nobody on the block');
+		caption.push('Day ' + v.n, alive + ' alive', Math.ceil(alive / 2) + ' to execute',
+			v.executed !== null ? nameOf(v.executed) + ' executed' : v.block ? 'Block: ' + nameOf(v.block.seat) + ' (' + v.block.votes + ')' : '');
 		if (P.clock) caption.push('@clock');
 	} else if (v.phase === 'over') caption.push(v.winner === 'good' ? 'Good wins' : 'Evil wins');
 	else caption.push('Waiting', 'for the Storyteller');
@@ -325,8 +325,8 @@ function mainScreen(): Row[] {
 	if (!P.card) rows.push(...wrap('Your character will appear here once the Storyteller deals.', INNER).map((l) => row(txt(l, 'dim'))));
 	else if (!P.showCard) rows.push(...buttonRows([btn('Show my character', () => { P.showCard = true; render(); }, { style: 'primary' })]), ...wrap('Hidden, in case someone is looking over your shoulder.', INNER).map((l) => row(txt(l, 'dim'))));
 	else {
-		rows.push(row(txt(center(P.card.name, INNER), P.card.team === 'evil' ? 'evil' : 'good', 'heading')));
-		rows.push(row(txt(center(P.card.team === 'evil' ? 'Evil' : 'Good', INNER), 'dim')));
+		rows.push(row(txt('  ' + P.card.name, P.card.team === 'evil' ? 'evil' : 'good', 'heading')));
+		rows.push(row(txt('  ' + P.card.team === 'evil' ? 'Evil' : 'Good', 'dim')));
 		rows.push(...wrap(P.card.ability, INNER).map((l) => row(txt(l))));
 		rows.push(...buttonRows([btn('Hide', () => { P.showCard = false; render(); }, { style: 'quiet' })]));
 	}
@@ -364,17 +364,17 @@ function overlay(): Row[] {
 		const rows: Row[] = [blank()];
 		for (const a of P.announce) {
 			rows.push(rubric(a.title));
-			for (const l of a.lines) rows.push(...wrap(l, CARD_INNER).map((w) => row(txt(center(w, CARD_INNER), 'gold', 'heading'))));
+			for (const l of a.lines) rows.push(...wrap(l, CARD_INNER - 2).map((w) => row(txt('  ' + w, 'gold', 'heading'))));
 		}
 		rows.push(endPanel(), blank(), ...cardButtons([btn('Done', () => { P.announce = null; render(); }, { style: 'primary' })]));
 		return rows;
 	}
 	if (P.cardOpen && !P.wake) {
 		const rows: Row[] = [blank(), rubric('Your character')];
-		if (!P.card) rows.push(...wrap('It will appear here once the Storyteller deals.', CARD_INNER).map((l) => row(txt(center(l, CARD_INNER), 'dim'))));
+		if (!P.card) rows.push(...wrap('It will appear here once the Storyteller deals.', CARD_INNER - 2).map((l) => row(txt('  ' + l, 'dim'))));
 		else {
-			rows.push(row(txt(center(P.card.name, CARD_INNER), P.card.team === 'evil' ? 'evil' : 'good', 'heading')));
-			rows.push(row(txt(center(P.card.team === 'evil' ? 'Evil' : 'Good', CARD_INNER), 'dim')));
+			rows.push(row(txt('  ' + P.card.name, P.card.team === 'evil' ? 'evil' : 'good', 'heading')));
+			rows.push(row(txt('  ' + P.card.team === 'evil' ? 'Evil' : 'Good', 'dim')));
 			rows.push(...wrap(P.card.ability, CARD_INNER).map((l) => row(txt(l))));
 		}
 		rows.push(endPanel(), blank(), ...cardButtons([btn('Hide', () => { P.cardOpen = false; render(); }, { style: 'primary' })]));
@@ -408,10 +408,10 @@ function overlay(): Row[] {
 function render() {
 	// The game has begun: the village's own voice takes over.
 	if (lobbyVoice.voice && P.view && P.view.phase !== 'setup') lobbyVoice.stop();
-	const theme = P.view?.script === 'laissez-un-faire' ? 'victorian' : 'manuscript';
+	const theme = P.view?.script === 'laissez-un-faire' ? 'victorian' : 'folio';
 	document.documentElement.dataset.phase = P.view?.phase === 'night' ? 'night' : 'day';
 	document.documentElement.dataset.theme = P.view?.script === 'laissez-un-faire' ? 'occult' : '';
-	setPalette(() => theme + (P.view?.phase === 'night' || !P.view ? '-night' : '-day'));
+	setPalette(() => theme + (P.view?.phase === 'night' || !P.view ? '-night' : theme === 'folio' ? '' : '-day'));
 	// In the village the town is the screen; the player's pages come up over it as cards (My character, a wake).
 	// The way back is always the first thing on the page, above even the book's name.
 	const rows = screen();

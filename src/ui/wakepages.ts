@@ -30,8 +30,9 @@ export interface PageHandlers {
 	deadAtDusk(id: SeatId): boolean;
 }
 
-export const big = (...lines: string[]): Row[] => lines.map((l) => row(txt(center(l, CARD_INNER), 'gold', 'heading')));
-export const note = (text: string): Row[] => wrap(text, CARD_INNER).map((l) => row(txt(center(l, CARD_INNER), 'dim')));
+// Set at the left under their headings, as a book is written; the answer in gold.
+export const big = (...lines: string[]): Row[] => lines.map((l) => row(txt('  ' + l, 'gold', 'heading')));
+export const note = (text: string): Row[] => wrap(text, CARD_INNER - 2).map((l) => row(txt('  ' + l, 'dim')));
 export const cardButtons = (buttons: Button[]): Row[] => buttonRows(buttons, CARD_COLS);
 
 /** Room above the first panel for the character's picture, if one has been drawn. */

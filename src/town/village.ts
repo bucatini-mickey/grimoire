@@ -22,7 +22,7 @@
  * is talking privately and which doors are locked; each phone moves its own
  * walker and asks the host for the rest.
  */
-import { INNER, btn, buttonBlock, buttonRows, drawButton, endPanel, field, isButton, listRow, paint, quant, redraw, shade, theTerm, paneled, setPalette, navRow, rubric, row, segWidth, setExtra, txt, wrap, center } from '../ui/ascii.ts';
+import { INNER, onMap, btn, buttonBlock, buttonRows, drawButton, endPanel, field, isButton, listRow, paint, quant, redraw, shade, theTerm, paneled, setPalette, navRow, rubric, row, segWidth, setExtra, txt, wrap, center } from '../ui/ascii.ts';
 import type { Button, Row } from '../ui/ascii.ts';
 import type { Grid } from '../term/pterm.ts';
 import { hostRoom, joinRoom, newRoomCode } from '../net/link.ts';
@@ -911,10 +911,12 @@ function villageCells(g: Grid): boolean {
 		const w = Math.min(g.cols - 2, Math.max(banner.title.length, banner.line.length) + 4);
 		const lines = wrap(banner.line, w - 4);
 		const bx = Math.floor((g.cols - w) / 2);
-		g.fill({ x: bx, y: mapY + 1, w, h: lines.length + 4 }, ' ', 5, 0);
-		g.box({ x: bx, y: mapY + 1, w, h: lines.length + 4 }, 6, 0, '', 6, 'double');
-		g.text(bx + Math.floor((w - banner.title.length) / 2), mapY + 2, banner.title, 8, 0);
-		lines.forEach((l, i) => g.text(bx + 2, mapY + 4 + i, l, 4, 0));
+		// In the book's game the notice is a slip of parchment pinned over the town.
+		const [ink, ground, rule] = onMap() ? [0, 4, 15] : [4, 0, 6];
+		g.fill({ x: bx, y: mapY + 1, w, h: lines.length + 4 }, ' ', 5, ground);
+		g.box({ x: bx, y: mapY + 1, w, h: lines.length + 4 }, rule, ground, '', rule, 'double');
+		g.text(bx + Math.floor((w - banner.title.length) / 2), mapY + 2, banner.title, onMap() ? 9 : 8, ground);
+		lines.forEach((l, i) => g.text(bx + 2, mapY + 4 + i, l, ink, ground));
 	}
 	return true;
 }
@@ -1136,9 +1138,10 @@ function councilCells(g: Grid, mapY: number, mapH: number, t: Town) {
 	if (S.caption.length) {
 		const w = Math.min(g.cols - 2, Math.max(...S.caption.map((l) => l.length)) + 4);
 		const bx = Math.floor((g.cols - w) / 2);
-		g.fill({ x: bx, y: mapY, w, h: S.caption.length + 2 }, ' ', 5, 1);
-		g.box({ x: bx, y: mapY, w, h: S.caption.length + 2 }, 6, 1, '', 6, 'double');
-		S.caption.forEach((l, i) => g.text(bx + Math.floor((w - l.length) / 2), mapY + 1 + i, l, i === 0 ? 8 : 4, 1));
+		const [ink, ground, rule] = onMap() ? [0, 4, 15] : [4, 1, 6];
+		g.fill({ x: bx, y: mapY, w, h: S.caption.length + 2 }, ' ', 5, ground);
+		g.box({ x: bx, y: mapY, w, h: S.caption.length + 2 }, rule, ground, '', rule, 'double');
+		S.caption.forEach((l, i) => g.text(bx + Math.floor((w - l.length) / 2), mapY + 1 + i, l, i === 0 ? (onMap() ? 9 : 8) : ink, ground));
 	}
 }
 
@@ -1420,8 +1423,9 @@ function wire() {
 
 /** The demo: #village. */
 export function startVillage(_appRoot: HTMLElement, code: string) {
-	// Walking the town alone: Saltgrave in its Victorian inks, the castle town in the manuscript's.
-	setPalette(() => (S.townText === SALTGRAVE ? 'victorian-night' : 'manuscript-night'));
+	// Walking the town alone: Saltgrave in its Victorian inks, the castle town's lobby a leaf of the
+	// book by candlelight (the map itself is drawn in the manuscript's night inks).
+	setPalette(() => (S.townText === SALTGRAVE ? 'victorian-night' : 'folio-night'));
 	document.body.classList.add('in-village');
 	wire();
 	inLobby = true;

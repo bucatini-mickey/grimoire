@@ -310,7 +310,7 @@ function bannerRows(): Row[] {
 	const rows: Row[] = [blank()];
 	for (const b of ui.banner!) {
 		rows.push(rubric(b.title));
-		for (const l of b.lines) rows.push(...wrap(l, CARD_INNER).map((w) => row(txt(center(w, CARD_INNER), 'gold', 'heading'))));
+		for (const l of b.lines) rows.push(...wrap(l, CARD_INNER - 2).map((w) => row(txt('  ' + w, 'gold', 'heading'))));
 	}
 	rows.push(endPanel(), blank(), ...cardButtons([btn('Done', () => { ui.banner = null; render(); }, { style: 'primary' })]));
 	return rows;
@@ -1521,7 +1521,7 @@ function dayPanel(): Row[] {
 	const blockText = day.executed !== null
 		? `${name(day.executed)} has been executed.`
 		: day.block !== null ? `On the block: ${name(day.block)}, ${day.highest} votes` : 'Nobody is on the block.';
-	rows.push(rubric('The block'), row(txt(center(blockText, INNER), day.block !== null || day.executed !== null ? 'evil' : 'dim')));
+	rows.push(rubric('The block'), row(txt('  ' + blockText, day.block !== null || day.executed !== null ? 'evil' : 'dim')));
 
 	const nom = openNomination();
 	if (nom && f.speech) {
@@ -1820,7 +1820,7 @@ function voteRows(nominee: SeatId, needed: number): Row[] {
 		return [txt(mark, mark === '+' ? 'good' : mark === '?' ? 'gold' : 'dim'), txt(pad(s.name.slice(0, 3), 4), s.alive ? undefined : 'dim')];
 	});
 	for (let i = 0; i < marks.length; i += 8) rows.push(row(...marks.slice(i, i + 8).flat()));
-	rows.push(row(txt(center(`${v.hands.length} hand${v.hands.length === 1 ? '' : 's'} up`), 'gold')));
+	rows.push(row(txt(`  ${v.hands.length} hand${v.hands.length === 1 ? '' : 's'} up`, 'gold')));
 	rows.push(blank());
 	if (v.index < v.order.length) {
 		const id = v.order[v.index];
@@ -1889,7 +1889,7 @@ function voteStage(): Row[] {
 	const large = (n: string) => { const l = letteredRow(n, CARD_INNER); return l ? [l] : big(n); };
 	const rows: Row[] = [rubric(`${name(nom.nominator)} nominates`), ...large(name(nom.nominee)),
 		...note(`${needed} needed${highest ? `, and more than ${highest}` : ''}`),
-		row(txt(center(`${v.hands.length} raised`, CARD_INNER), 'gold', 'heading'))];
+		row(txt(`  ${v.hands.length} raised`, 'gold', 'heading'))];
 	const marks = v.order.map((id, i) => {
 		const mark = !G.canVote(state, id) ? '-' : v.hands.includes(id) ? '+' : i < v.index ? '.' : i === v.index ? '?' : ' ';
 		return [txt(mark, mark === '+' ? 'good' : mark === '?' ? 'gold' : 'dim'), txt(pad(state.seats[id].name.slice(0, 4), 5), state.seats[id].alive ? undefined : 'dim')];
@@ -2639,8 +2639,9 @@ function circleRows(): Row[] {
 	} else if (p.kind === 'day') {
 		const day = state.day!;
 		const clock = openNomination() && flow().speech ? 'speech' : day.stage === 'discussion' ? 'day' : 'nom';
-		caption.push(`Day ${p.n}`, `${alive} alive \u00b7 ${Math.ceil(alive / 2)} to execute`,
-			(day.executed !== null ? `${name(day.executed)} executed` : day.block !== null ? `Block: ${name(day.block)} (${day.highest})` : 'Nobody on the block'),
+		// Short lines: the middle of the circle is narrow on a phone.
+		caption.push(`Day ${p.n}`, `${alive} alive`, `${Math.ceil(alive / 2)} to execute`,
+			(day.executed !== null ? `${name(day.executed)} executed` : day.block !== null ? `Block: ${name(day.block)} (${day.highest})` : ''),
 			'@timer:' + clock);
 	} else if (p.kind === 'over') {
 		caption.push(p.winner === 'good' ? 'Good wins' : 'Evil wins');
@@ -2735,7 +2736,7 @@ function render() {
 	document.documentElement.dataset.phase = state.phase.kind === 'night' ? 'night' : 'day';
 	document.documentElement.dataset.theme = theme;
 	// The home page is the book shut, its leather cover; inside, the pages by night or day.
-	setPalette(() => (ui.page === 'home' ? (ui.coverOpen ? 'folio' : 'cover') : (theme === 'occult' ? 'victorian' : 'manuscript') + (state.phase.kind === 'night' ? '-night' : '-day')));
+	setPalette(() => (ui.page === 'home' ? (ui.coverOpen ? 'folio' : 'cover') : (theme === 'occult' ? 'victorian' : 'folio') + (state.phase.kind === 'night' ? '-night' : theme === 'occult' ? '-day' : '')));
 	// A village game: the town is always there; the grimoire is a drawer over it.
 	const vg = villageGame();
 	if (vg && lastKind === 'setup' && state.phase.kind !== 'setup') ui.drawer = null;
