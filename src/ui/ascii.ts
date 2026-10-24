@@ -261,7 +261,7 @@ const PALETTES: Record<string, Palette> = {
 	'manuscript-night': ['#110e0d', '#1d1816', '#4e4238', '#857868', '#d4c9b4', '#ece2cc', '#b08d55', '#a8683a', '#b0362c', '#6e1f1a', '#7f8a62', '#343a2a', '#6f87a6', '#26344a', '#8a6a90', '#4f3a2a'],
 	// The home page is the book's cover: brown calf, blind-tooled, gilt lettering and brass.
 	// The book's first page, opened: clean vellum, dark ink, red and brass.
-	folio: ['#e4dccb', '#d6ccb8', '#9c8f7a', '#706556', '#241c17', '#100b08', '#7d6232', '#93532a', '#8c2a22', '#6a1d17', '#56603f', '#b2b59a', '#3a5576', '#bcc4cf', '#6a4a72', '#ad9e86'],
+	folio: ['#e4dccb', '#d6ccb8', '#9c8f7a', '#706556', '#241c17', '#100b08', '#7d6232', '#c2522e', '#8c2a22', '#6a1d17', '#56603f', '#dcb38c', '#3a5576', '#7c9fc2', '#6a4a72', '#f8f4ec'],
 	cover: ['#2b1810', '#3a2216', '#5e3a26', '#a3825e', '#e3cfa8', '#f3e3c0', '#c69a45', '#b06a35', '#b8382c', '#6a1c14', '#7f8a62', '#3b3a26', '#6f87a6', '#26344a', '#8a6a90', '#4f3a2a'],
 	leather: ['#2b1810', '#3a2216', '#5e3a26', '#a3825e', '#e3cfa8', '#f3e3c0', '#c69a45', '#b06a35', '#b8382c', '#6a1c14', '#7f8a62', '#3b3a26', '#6f87a6', '#26344a', '#8a6a90', '#4f3a2a'],
 	'manuscript-day': ['#e4dccb', '#d6ccb8', '#9c8f7a', '#706556', '#241c17', '#100b08', '#7d6232', '#93532a', '#8c2a22', '#6a1d17', '#56603f', '#b2b59a', '#3a5576', '#bcc4cf', '#6a4a72', '#ad9e86'],
@@ -911,13 +911,13 @@ function folio(g: Grid, width: number, used: number) {
 			// As many as fit across the text's width, tallest first.
 			const pick: typeof M = [];
 			let used2 = 0;
-			for (const m of [...M].sort((a, b) => b.h - a.h)) if (m.h <= free - 2 && used2 + m.w + (pick.length ? 4 : 0) <= width) { pick.push(m); used2 += m.w + (pick.length > 1 ? 4 : 0); }
+			for (const m of [...M].sort((a, b) => b.h - a.h)) if (m.h <= free && used2 + m.w + (pick.length ? 2 : 0) <= width) { pick.push(m); used2 += m.w + (pick.length > 1 ? 2 : 0); }
 			const span = pick.reduce((k, m) => k + m.w, 0);
-			let x = x0 + Math.max(0, Math.floor((width - span - (pick.length - 1) * 4) / 2));
+			let x = x0 + Math.max(0, Math.floor((width - span - (pick.length - 1) * 2) / 2));
 			for (const m of pick) {
 				const top = yBot - 2 - m.h;
 				m.px.forEach((row, j) => row.forEach((c, i) => { if (c) set(x + i, top + j, [1, 3, 5].map((k) => parseInt(c.slice(k, k + 2), 16))); }));
-				x += m.w + 4;
+				x += m.w + 2;
 			}
 			// The ground they stand on: a tendril of the vine.
 			for (let xx = x0 + 2; xx < x1 - 1; xx++) set(xx, yBot - 2 + Math.round(Math.sin(xx / 3) * 0.6), [90, 110, 60]);
@@ -1020,8 +1020,23 @@ export function coverRow(open: () => void): Row {
  * The opening of the page: the G of the title as an illuminated initial (red on a blue field
  * pricked with white, in a square of gold), and the first words written beside it.
  */
+/** "rimoire" in a small textura, one pixel a '#', to follow the illuminated G. */
+const RIMOIRE = [
+	'....#.............#..........',
+	'.............................',
+	'#.#.#..#.#.#..##..#..#.#..##.',
+	'###.#..#####.#..#.#..###.#..#',
+	'#...#..#.#.#.#..#.#..#...#..#',
+	'#...#..#.#.#.#..#.#..#...#.#.',
+	'#...#..#.#.#.#..#.#..#...##..',
+	'#...#..#.#.#.#..#.#..#...#...',
+	'#...#..#.#.#.#..#.#..#...#...',
+	'#...#..#.#.#.#..#.#..#...#..#',
+	'##..##.#.#.#..##..##.##...##.'
+];
+
 export function illuminatedRow(lines: { t: string; tone?: Tone }[]): Row {
-	const BOX = 22, ROWS = 11;
+	const BOX = 21, ROWS = 11;
 	return blockRow(Math.max(ROWS, lines.length), (c) => {
 		const g = c.g, T = typeof __TITLE__ !== 'undefined' && __TITLE__ ? __TITLE__ : null;
 		const px: (number | null)[][] = Array.from({ length: ROWS * 2 }, () => Array(BOX).fill(null));
@@ -1045,30 +1060,20 @@ export function illuminatedRow(lines: { t: string; tone?: Tone }[]): Row {
 			const t = px[y][x]!, b = px[y + 1][x]!;
 			g.set(c.x + x, c.y + y / 2, t === b ? ' ' : '▀', t, b);
 		}
-		// The rest of the word beside the initial, in the title's own black-letter, gilt, drawn down
-		// to fit (each cell's two pixels averaged from the title's), then the words under it.
+		// The rest of the word beside the initial: a small black-letter cut pixel by pixel (the title
+		// shrunk to this size blurs), gilt with a carved shadow under it, then the words below.
 		let ty = c.y;
-		if (T) {
-			let gw = 0, least = Infinity;
-			for (let x = 12; x < Math.min(T.w, 26); x++) { const ink = T.a.reduce((k, r) => k + r[x], 0); if (ink < least) { least = ink; gw = x; } }
-			const avail = c.w - BOX - 2, srcW = T.w - gw, scale = Math.max(1, srcW / avail);
-			const ow = Math.floor(srcW / scale), oh = Math.floor(T.h / scale);
-			const at = (px: number, py: number) => {
-				let a = 0, n = 0;
-				for (let y = Math.floor(py * scale); y < Math.floor((py + 1) * scale); y++) for (let x = Math.floor(px * scale); x < Math.floor((px + 1) * scale); x++) { a += T.a[y]?.[gw + x] ?? 0; n++; }
-				const v = n ? a / n : 0;
-				return v > 150 ? quant([120, 80, 28]) : v > 70 ? quant([176, 136, 62]) : null;
-			};
-			for (let py = 0; py < oh; py += 2) for (let px = 0; px < ow; px++) {
-				const t = at(px, py), b = at(px, py + 1);
-				if (t === null && b === null) continue;
-				const cell = g.get(c.x + BOX + 2 + px, ty + py / 2);
-				const ground = cell ? cell.bg : 0;
-				if (t === b) g.set(c.x + BOX + 2 + px, ty + py / 2, ' ', 4, t!);
-				else g.set(c.x + BOX + 2 + px, ty + py / 2, '▀', t ?? ground, b ?? ground);
-			}
-			ty += Math.ceil(oh / 2) + 1;
+		const ox = c.x + BOX + 1, h = RIMOIRE.length;
+		const gilt = 6, cut = 3; // the page's gold, and a cut shadow under it
+		const ink = (x: number, y: number) => RIMOIRE[y]?.[x] === '#' ? gilt : RIMOIRE[y - 1]?.[x - 1] === '#' ? cut : null;
+		for (let py = 0; py < h + 1; py += 2) for (let px = 0; px < Math.min(RIMOIRE[0].length + 1, c.w - BOX - 1); px++) {
+			const t = ink(px, py), b = ink(px, py + 1);
+			if (t === null && b === null) continue;
+			const ground = g.get(ox + px, ty + py / 2)?.bg ?? 0;
+			if (t === b) g.set(ox + px, ty + py / 2, ' ', 4, t!);
+			else g.set(ox + px, ty + py / 2, '▀', t ?? ground, b ?? ground);
 		}
+		ty += Math.ceil((h + 1) / 2) + 1;
 		lines.forEach((l, j) => g.text(c.x + BOX + 2, ty + j, l.t, c.ink(l.tone)));
 	});
 }

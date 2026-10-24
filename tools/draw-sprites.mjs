@@ -8,77 +8,119 @@ import { writeFileSync } from 'node:fs';
 import { deflateSync, crc32 } from 'node:zlib';
 
 const INK = {
-	K: '#2a1810', // outline
-	R: '#8c2a22', r: '#5e1a14', // red body, its shade (the page's own rubric)
-	B: '#3a5576', b: '#26344a', // blue body, its shade (the page's lapis)
-	W: '#efe6cf', // eyes, teeth
-	Y: '#c69a45', y: '#8a6a2a', // gold: the trident, horns
-	G: '#5a8040' // a leaf of the vine he stands on
+	K: '#1e1410', // the ink line round everything
+	F: '#e6cfae', f: '#c4a582', // flesh, its shade
+	W: '#f2ede2', w: '#a9a296', // white hair and beard, its strokes
+	R: '#d0502a', r: '#9c3519', // vermilion, its shade
+	B: '#7aa3c8', b: '#4a6e93', N: '#2c4b7a', // azure, its shade, lapis
+	Y: '#c39a45' // gold
 };
 
-/** A red imp, grinning, wings spread, a gold trident in his hand. */
-const IMP = [
-	'..............Y.Y.Y',
-	'..y.......y...Y.Y.Y',
-	'..yK.....Ky...YYYYY',
-	'...KKKKKKK......Y..',
-	'..KRRRRRRRK.....Y..',
-	'..KRWKRKWRK.....Y..',
-	'..KRRRRRRRK.....Y..',
-	'..KRKWWWKRK.....Y..',
-	'...KRRRRRK......Y..',
-	'.K..KRRRK..K....Y..',
-	'KrK.KRRRK.KrK..KY..',
-	'KrrKRRRRRKKrrKKRY..',
-	'KrrRRRRRRRRrrRRRY..',
-	'.KrKRRRRRRKrK..KY..',
-	'..K.KRRRRK.K....Y..',
-	'....KRRRRK......Y..',
-	'....KRKKRK......Y..',
-	'....KRK.KRK.....Y..',
-	'...KRK...KRK....Y..',
-	'...KK.....KK.K..Y..',
-	'.............KR.Y..',
-	'.GG.GG..GG.GG.KRK..',
-	'GG.GG.GG.GG.GG.KK..'
+/** After the drollery in the margin of a Book of Hours: a bearded man with a beast's ears, a lion's
+ * face for a belly and blue legs, one arm thrown up, one reaching out, dancing on a knot. */
+const DROLLERY = [
+	'..........K........K..........',
+	'.........KfK......KfK.........',
+	'.........KffK....KffK.........',
+	'.........KfFK....KfFK.........',
+	'.........KFfFKKKKFfFK.........',
+	'..........KFWWwWWwWFK.........',
+	'..........KWWwWWwWFFFK........',
+	'..........KWwWWwFKKKFFK.......',
+	'..........KWWWwFFFWWKFK.......',
+	'.....KFK..KWWwWFFFFFFFFFK.....',
+	'....KFFFK.KWwWFFFFFFFFFFFK....',
+	'....KFFK..KWWwFFFFFFFFFFKK....',
+	'...KRRK...KWWwWFFFFFKrrK......',
+	'..KRRK.....KWwWWWwWWKKKK......',
+	'..KRRRK..KKKKWwWWWwWKKK.......',
+	'...KRRRKKRRRRKWWwWwKRRRKK.....',
+	'....KRRRRRRRRRKWwWKRRRRRRRKKK.',
+	'.....KRRRRRrRRRKKRRRRRRRRRRRKK',
+	'......KRRRRRrRRRRRRRRRKKKKKFFK',
+	'......KRRRRRRrRRRRRRRK...KFFK.',
+	'......KRRRRRRRRRRRRRRK....KK..',
+	'.......KRRRRRRRRRRRK..........',
+	'......KWKWKRRRRRRRRK..........',
+	'...KK.KWKWWKWKKKKKK...........',
+	'..KfKWWwWWwWWWKfK.............',
+	'..KKWWWWWWWWWWWKKBK...........',
+	'...KWKKWWWWWKKWKKBBK..........',
+	'...KWWKWWWWWKWWWKBBBK.........',
+	'...KwWWWWKKWWWWwKBBBBK........',
+	'...KWwWWKRRKWWwWKBBBBBK.......',
+	'....KwWWKRWRKWWwKbBBBBBK......',
+	'....KWwWWKKKWWwKbbBBKBBBK.....',
+	'......KKWwWwKKbbBBK..KBBK.....',
+	'........KKKKbbbBBK..KBBK......',
+	'.........KbbbKBBK...KBBK......',
+	'........KbbK.KBBK..KBBK.......',
+	'.......KbbK..KBBK..KBBBK......',
+	'......KbbK...KBBK...KBBK......',
+	'......KbK....KBBK....KKK......',
+	'.....KbbK...KBBBK.............',
+	'....KbbbK..KBBBBK.............',
+	'...KKKKKK..KKKKKK.............',
+	'..KKKKKKKKKKKKKKKKKK..........',
+	'.KYRNRYRNRYRNRYRNRYK..........',
+	'..KKKKKKKKKKKKKKKKKK..........'
 ];
 
-/** A blue imp crouched, claws out, a long tail curling behind. */
+/** The blue devil of the Avarice page: horned and grinning, a bat's wing, claws out, on a ledge. */
 const BLUE = [
-	'.y.......y.......',
-	'.yK.....Ky.......',
-	'..KKKKKKK........',
-	'.KBBBBBBBK.......',
-	'.KBWKBWKBK.......',
-	'.KBBBBBBBK.......',
-	'.KBKYYYKBK.......',
-	'..KBBBBBK........',
-	'.KBBBBBBBK.......',
-	'KBBKBBBKBBK......',
-	'KWK.KBBK.KWK.....',
-	'....KBBBK........',
-	'...KBBKBBK.....K.',
-	'..KbBK.KBbK...KB.',
-	'..KBK...KBK..KBK.',
-	'.KBK.....KBKKBK..',
-	'.KK.......KKKK...',
-	'GG.GG.GG.GG.GG.GG'
+	'..........K....K....',
+	'.........KbK..KbK...',
+	'........KbK..KbK....',
+	'.......KbK..KbK.....',
+	'....KKKbKKKKbK......',
+	'...KBBBBBBBBBBK.....',
+	'..KBBWWKBBBBBBBK....',
+	'..KBBWKKBBBBBBBKK...',
+	'.KBBBBBBBBBBBBKbK...',
+	'KBBBBBBBBBBBBBKbK...',
+	'KBBKKBBBBBBBBK.K....',
+	'.KK.KBBBBBBBBK......',
+	'...KWKWKWKBBBK......',
+	'...KKKKKKKBBK.......',
+	'.....KbKBBBK........',
+	'......K.KBBK........',
+	'......KKBBBBKK...KK.',
+	'....KKBBBBBBBBKKNNK.',
+	'...KBBBKBBBBBBBKNNNK',
+	'..KBBK.KBBBbBBBKNKNK',
+	'.KBK...KBBBbBBBKK.K.',
+	'KWKWK..KBBBBbBBK....',
+	'.......KBBBBbBBK....',
+	'.......KBBBBBBK.....',
+	'.......KbBBBBBK..KK.',
+	'......KbbBKBBBK.KBK.',
+	'......KbBK.KBBKKBK..',
+	'.....KbBK..KBBBBK...',
+	'.....KbBK...KBBK....',
+	'....KbBK....KBBK....',
+	'....KbBK....KBBK....',
+	'...KbBK......KBBK...',
+	'..KbBBK......KBBBK..',
+	'.KWKWK......KWKWK...',
+	'KRRRRRRRRRRRRRRRRRK.',
+	'KrrrrrrrrrrrrrrrrrK.',
+	'.KKKKKKKKKKKKKKKKK..'
 ];
 
 const chunk = (k, d) => { const l = Buffer.alloc(4); l.writeUInt32BE(d.length); const b = Buffer.concat([Buffer.from(k, 'latin1'), d]); const c = Buffer.alloc(4); c.writeUInt32BE(crc32(b) >>> 0); return Buffer.concat([l, b, c]); };
-function png(name, grid) {
-	const h = grid.length, w = Math.max(...grid.map((r) => r.length));
+function png(name, grid, k = 1, path = `art/margin-${name}.png`) {
+	const h = grid.length * k, w = Math.max(...grid.map((r) => r.length)) * k;
 	const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 6;
 	const raw = Buffer.alloc((w * 4 + 1) * h);
-	grid.forEach((row, y) => [...row].forEach((ch, x) => {
-		const hex = INK[ch];
-		if (!hex) return;
+	for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+		const hex = INK[grid[Math.floor(y / k)][Math.floor(x / k)]] ?? (k > 1 ? '#e4dccb' : null);
+		if (!hex) continue;
 		const o = y * (w * 4 + 1) + 1 + x * 4;
-		[1, 3, 5].forEach((k, i) => { raw[o + i] = parseInt(hex.slice(k, k + 2), 16); });
+		[1, 3, 5].forEach((j, i) => { raw[o + i] = parseInt(hex.slice(j, j + 2), 16); });
 		raw[o + 3] = 255;
-	}));
-	writeFileSync(`art/margin-${name}.png`, Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]));
-	console.log(`art/margin-${name}.png ${w}x${h}`);
+	}
+	writeFileSync(path, Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]));
+	console.log(`${path} ${w}x${h}`);
 }
-png('imp', IMP);
+png('drollery', DROLLERY);
 png('blue', BLUE);
