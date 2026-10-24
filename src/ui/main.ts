@@ -694,9 +694,8 @@ function homeScreen(): Row[] {
 	const busy = saved.events.length > 0 || (saved.net?.lobby?.length ?? 0) > 0;
 	// Shut: the cover alone. Open: the first page, a drollery at its head.
 	if (!ui.coverOpen) return [coverRow(() => { ui.coverOpen = true; render(); })];
-	const rows: Row[] = [illuminatedRow([
-		{ t: 'rimoire:', tone: 'rubric' }, { t: 'the book of the' }, { t: 'Storyteller, for' }, { t: 'Blood on the' }, { t: 'Clocktower.' },
-		{ t: '' }, { t: 'Herein the game is', tone: 'dim' }, { t: 'kept, its nights and', tone: 'dim' }, { t: 'its dead.', tone: 'dim' }
+	const rows: Row[] = [navRow('Close the book', () => { ui.coverOpen = false; render(); }), illuminatedRow([
+		{ t: 'the book of the Storyteller' }, { t: 'for Blood on the Clocktower,' }, { t: 'wherein the game is kept,', tone: 'dim' }, { t: 'its nights and its dead.', tone: 'dim' }
 	]), blank()];
 	const resume = (label: string, sub: string, ...bs: Button[]) => rows.push(rubric(label), ...prose(sub, 'dim'), buttonBlock(bs), endPanel());
 	if (saved.net && busy) {

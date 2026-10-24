@@ -325,13 +325,13 @@ export function drawButton(c: Ctx, x: number, y: number, w: number, b: Button) {
 	// under it, so it reads as writing and still shows where to tap.
 	if (paletteKey() === 'folio') {
 		const ink = st === 'primary' ? 8 : st === 'quiet' || st === 'off' ? 3 : 5;
-		const label = [...b.label].slice(0, Math.max(1, w - 6)).join('');
-		const lx = x + Math.floor((w - [...label].length) / 2);
+		const label = [...b.label].slice(0, Math.max(1, w - 4)).join('');
+		const lx = x + 2;
 		g.text(lx, y + 1, label, ink);
 		const numeral = label.match(/^[IVXLC]+(?=\.)/)?.[0];
 		if (st !== 'off') for (let k = 0; k < (numeral?.length ?? (/\p{L}/u.test(label[0]) ? 1 : 0)); k++) g.set(lx + k, y + 1, label[k], 0, 8);
-		if (st !== 'quiet' && st !== 'off') { g.text(x + 1, y + 1, '~', 6); g.text(x + w - 2, y + 1, '~', 6); }
-		for (let i = x + 2; i < x + w - 2; i += 2) g.set(i, y + 2, '.', st === 'primary' ? 8 : 2);
+		if (st !== 'quiet' && st !== 'off') g.text(x, y + 1, '~', 6);
+		for (let i = x + 2; i < x + 2 + [...label].length + 2; i += 2) g.set(i, y + 2, '.', st === 'primary' ? 8 : 2);
 		if (!b.disabled) c.hit({ x, y, w, h: 3 }, b.act);
 		return;
 	}
@@ -571,10 +571,9 @@ function drawRow(g: Grid, r: Row, x0: number, y: number, width: number, h: numbe
 	if (book && (r.cls === 'frame-top' || r.cls === 'frame-bot')) {
 		const t = r.cls === 'frame-top' && r.segs[0] && !isButton(r.segs[0]) ? r.segs[0].t : '';
 		if (t) {
-			const tx = x0 + Math.floor((width - [...t].length) / 2);
-			g.text(tx - 4, y, '~~ ', 6);
-			g.text(tx, y, t, 8);
-			g.text(tx + [...t].length + 1, y, '~~', 6);
+			// A rubric, set at the left of the text like a heading in a book, a flourish after it.
+			g.text(x0, y, t, 8);
+			g.text(x0 + [...t].length + 1, y, '~~', 6);
 		}
 		return;
 	}
@@ -753,7 +752,8 @@ export function tabStrip(tabs: Tab[], width = COLS): Row {
  * the page, so a thumb finds it in one place on every screen.
  */
 export function navRow(label: string, act: () => void): Row {
-	return { ...buttonBlock([btn('‹ ' + label.replace(/^[<‹]s*/, ''), act, { style: 'quiet', width: 12 })]), cls: 'nav' };
+	const text = '‹ ' + label.replace(/^[<‹]s*/, '');
+	return { ...buttonBlock([btn(text, act, { style: 'quiet', width: Math.max(12, [...text].length + 4) })]), cls: 'nav' };
 }
 
 /** A run of buttons as one block row (wraps like buttonRows). */
@@ -874,7 +874,8 @@ function folio(g: Grid, width: number, used: number) {
 			const inText = x >= x0 && x <= x1 && y > yTop && y < yBot;
 			let k = 0.95 + (m - 0.5) * (inText ? 0.03 : 0.1) - (1 - rim) * 0.18 - gutter * 0.35;
 			const sx = x - W * 0.78, sy = (y - H * 0.18) * 1.2, sd = Math.hypot(sx, sy);
-			if (Math.abs(sd - 9) < 0.9) k -= 0.1; else if (sd < 9) k -= 0.03;
+			// The stain stays in the margin: the writing was kept clear of it.
+			if (!inText) { if (Math.abs(sd - 9) < 0.9) k -= 0.1; else if (sd < 9) k -= 0.03; }
 			let rgb = VELLUM.map((v, i) => v * k - (i === 2 ? (1 - k) * 30 : 0));
 			if ((cellHash(x * 3, y * 5) & 1023) < (inText ? 0 : 6)) rgb = [176, 140, 100]; // foxing, never on the writing
 			set(x, y, rgb);
@@ -1044,7 +1045,31 @@ export function illuminatedRow(lines: { t: string; tone?: Tone }[]): Row {
 			const t = px[y][x]!, b = px[y + 1][x]!;
 			g.set(c.x + x, c.y + y / 2, t === b ? ' ' : '▀', t, b);
 		}
-		lines.forEach((l, j) => g.text(c.x + BOX + 2, c.y + 1 + j, l.t, c.ink(l.tone)));
+		// The rest of the word beside the initial, in the title's own black-letter, gilt, drawn down
+		// to fit (each cell's two pixels averaged from the title's), then the words under it.
+		let ty = c.y;
+		if (T) {
+			let gw = 0, least = Infinity;
+			for (let x = 12; x < Math.min(T.w, 26); x++) { const ink = T.a.reduce((k, r) => k + r[x], 0); if (ink < least) { least = ink; gw = x; } }
+			const avail = c.w - BOX - 2, srcW = T.w - gw, scale = Math.max(1, srcW / avail);
+			const ow = Math.floor(srcW / scale), oh = Math.floor(T.h / scale);
+			const at = (px: number, py: number) => {
+				let a = 0, n = 0;
+				for (let y = Math.floor(py * scale); y < Math.floor((py + 1) * scale); y++) for (let x = Math.floor(px * scale); x < Math.floor((px + 1) * scale); x++) { a += T.a[y]?.[gw + x] ?? 0; n++; }
+				const v = n ? a / n : 0;
+				return v > 150 ? quant([120, 80, 28]) : v > 70 ? quant([176, 136, 62]) : null;
+			};
+			for (let py = 0; py < oh; py += 2) for (let px = 0; px < ow; px++) {
+				const t = at(px, py), b = at(px, py + 1);
+				if (t === null && b === null) continue;
+				const cell = g.get(c.x + BOX + 2 + px, ty + py / 2);
+				const ground = cell ? cell.bg : 0;
+				if (t === b) g.set(c.x + BOX + 2 + px, ty + py / 2, ' ', 4, t!);
+				else g.set(c.x + BOX + 2 + px, ty + py / 2, '▀', t ?? ground, b ?? ground);
+			}
+			ty += Math.ceil(oh / 2) + 1;
+		}
+		lines.forEach((l, j) => g.text(c.x + BOX + 2, ty + j, l.t, c.ink(l.tone)));
 	});
 }
 
