@@ -1,6 +1,6 @@
 # Your own pictures
 
-Draw in any pixel editor and save a **PNG** in this folder. The build reads every PNG here and uses it instead of the built-in picture of the same name. Your colours are kept exactly, and transparent pixels stay empty.
+Draw in any pixel editor and save a **PNG** in this folder. Since the move to the ASCII terminal only `logo.png` is read (see "The logo" below); the other pictures in the table are not drawn yet.
 
 | File | What it becomes |
 |---|---|
@@ -30,3 +30,7 @@ node tools/simplify.mjs art/originals/logo-32.png art/logo.png 2 48
 ```
 
 The `2` halves the size (3 makes it a third), and `48` is how close two colours must be to merge (higher means fewer colours). Keep the full-size drawings in `art/originals/`; the build only reads the PNGs directly in `art/`.
+
+## The logo
+
+`art/logo.png` is the logo at the head of the home page. Any size works (16 x 16 is the size it was drawn at; up to about 20 pixels wide fits a phone); transparent pixels stay empty. Each colour becomes a coloured cell with a glyph of its own (dark colours get #, light ones lighter marks). On a phone it is drawn at half height, two pixels to a cell. The build reads it once: after editing, run `npm run build`, or restart `npm run dev`.

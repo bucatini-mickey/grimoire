@@ -329,7 +329,16 @@ export function drawButton(c: Ctx, x: number, y: number, w: number, b: Button) {
 	const label = [...b.label].slice(0, room).join('');
 	const lx = x + 2 + Math.floor((room - [...label].length) / 2);
 	g.text(lx, y + 1, label, fg, bg);
-	if (label && /\p{L}/u.test(label[0])) { if (st === 'normal') initial(g, lx, y + 1, label[0]); else g.set(lx, y + 1, label[0], cap, bg); }
+	// A leading Roman numeral ("III. The village") is marked whole; otherwise the first letter.
+	const numeral = label.match(/^[IVXLC]+(?=\.)/)?.[0];
+	if (numeral) {
+		// On the red plate of a main button the numeral takes a brass plate instead.
+		for (let k = 0; k < numeral.length; k++) {
+			if (st === 'primary') g.set(lx + k, y + 1, numeral[k], 0, 6);
+			else if (st === 'normal') initial(g, lx + k, y + 1, numeral[k]);
+			else g.set(lx + k, y + 1, numeral[k], cap, bg);
+		}
+	} else if (label && /\p{L}/u.test(label[0])) { if (st === 'normal') initial(g, lx, y + 1, label[0]); else g.set(lx, y + 1, label[0], cap, bg); }
 	if (!b.disabled) c.hit({ x, y, w, h: 3 }, b.act);
 }
 
@@ -350,6 +359,31 @@ const LOGO_INK: Record<string, [number[], string]> = {
 	f: [[251, 243, 207], ' '], g: [[194, 134, 26], '|'], h: [[227, 38, 28], '~'], i: [[125, 15, 10], ':']
 };
 
+/**
+ * The logo as pixels: art/logo.png when the build found one (any size, any colours, transparent
+ * pixels left empty; edit it in any pixel editor), else the drawing above. Each colour gets a
+ * glyph of its own, from dark to light.
+ */
+declare const __LOGO__: { w: number; h: number; px: (string | null)[][] } | undefined;
+let logoMemo: { w: number; h: number; px: (number[] | null)[][]; glyph: (rgb: number[]) => string } | null = null;
+function logo() {
+	if (logoMemo) return logoMemo;
+	const hex = (s: string) => [1, 3, 5].map((k) => parseInt(s.slice(k, k + 2), 16));
+	const src = typeof __LOGO__ !== 'undefined' && __LOGO__ ? __LOGO__ : null;
+	const px: (number[] | null)[][] = src
+		? src.px.map((r) => r.map((c) => (c ? hex(c) : null)))
+		: LOGO.map((ln) => [...ln].map((k) => LOGO_INK[k][0]));
+	const colours = [...new Set(px.flat().filter(Boolean).map((c) => c!.join(',')))].sort((a, b) => {
+		const l = (s: string) => s.split(',').map(Number).reduce((k, v, i) => k + v * [0.3, 0.59, 0.11][i], 0);
+		return l(a) - l(b);
+	});
+	const GLYPHS = ['#', '-', '=', ':', '+', '~', '*', '|', '%', 'o', ' '];
+	const builtIn = !src ? new Map(Object.values(LOGO_INK).map(([rgb, gl]) => [rgb.join(','), gl])) : null;
+	const glyph = (rgb: number[]) => builtIn?.get(rgb.join(',')) ?? GLYPHS[Math.min(GLYPHS.length - 1, colours.indexOf(rgb.join(',')))] ?? '+';
+	logoMemo = { w: src?.w ?? 16, h: src?.h ?? 16, px, glyph };
+	return logoMemo;
+}
+
 /** Lettering for the name, five rows tall, in the logo's manner: each stroke a coloured cell with its glyph. */
 const LETTERS: Record<string, string[]> = {
 	G: ['.###', '#...', '#.##', '#..#', '.###'], R: ['###.', '#..#', '###.', '#.#.', '#..#'], I: ['###', '.#.', '.#.', '.#.', '###'],
@@ -363,18 +397,32 @@ const LETTERS: Record<string, string[]> = {
 	Y: ['#.#', '#.#', '.#.', '.#.', '.#.'], Z: ['####', '..#.', '.#..', '#...', '####']
 };
 
-function lettering(g: Grid, x0: number, y: number, word: string) {
+/**
+ * The title's own face: narrow, single-stemmed letters with their corners cut on the slant,
+ * as a scribe's pen cuts them. # is a stroke; / and \\ are the cut corners.
+ */
+const TITLE_FACE: Record<string, string[]> = {
+	G: ['/###\\', '#....', '#..##', '#...#', '\\###/'], R: ['###\\.', '#..#.', '###/.', '#.\\..', '#..\\#'],
+	I: ['/#\\', '.#.', '.#.', '.#.', '\\#/'], M: ['#\\./#', '##.##', '#.#.#', '#...#', '#...#'],
+	O: ['/###\\', '#...#', '#...#', '#...#', '\\###/'], E: ['####', '#...', '###.', '#...', '####']
+};
+
+function lettering(g: Grid, x0: number, y: number, word: string, face = LETTERS) {
 	let x = x0;
 	[...word.toUpperCase()].forEach((ch, k) => {
-		const art = LETTERS[ch];
+		const art = face[ch] ?? LETTERS[ch];
 		if (!art) { x += 3; return; }
-		// The first letter is rubricated, the rest in ink; each stroke a filled cell with its own glyph.
+		// The first letter is rubricated, the rest in ink; each stroke a filled cell with its own glyph,
+		// a cut corner a stroke cell with the slant cut through it in the page's ground.
 		const [bg, fg, gl] = k === 0 ? [8, 9, '%'] : [4, 3, ':'];
-		art.forEach((ln, j) => [...ln].forEach((p, i) => { if (p === '#') g.set(x + i, y + j, gl, fg, bg); }));
+		art.forEach((ln, j) => [...ln].forEach((p, i) => {
+			if (p === '#') g.set(x + i, y + j, gl, fg, bg);
+			else if (p === '/' || p === '\\') g.set(x + i, y + j, p, 0, bg);
+		}));
 		x += art[0].length + 1;
 	});
 }
-export const letteringWidth = (word: string) => [...word.toUpperCase()].reduce((a, ch) => a + (LETTERS[ch]?.[0].length ?? 2) + 1, -1);
+export const letteringWidth = (word: string, face = LETTERS) => [...word.toUpperCase()].reduce((a, ch) => a + ((face[ch] ?? LETTERS[ch])?.[0].length ?? 2) + 1, -1);
 
 /** A word lettered large (five rows), centred; null when it will not fit in `width` or has letters the face lacks. */
 export function letteredRow(word: string, width: number): Row | null {
@@ -384,27 +432,33 @@ export function letteredRow(word: string, width: number): Row | null {
 
 /** The head of the home page: the logo, and the book's name lettered under it. Small screens get the logo at half size. */
 export function titleRow(word = 'Grimoire'): Row {
-	const big = (term?.rows ?? 0) >= 60, none = (term?.rows ?? 99) < 36;
-	const h = none ? 6 : (big ? 17 : 9) + 6;
+	const L = logo();
+	const big = (term?.rows ?? 0) >= 44 + L.h, none = (term?.rows ?? 99) < 36;
+	const h = none ? 6 : (big ? L.h + 1 : Math.ceil(L.h / 2) + 1) + 6;
 	return blockRow(h, (c) => {
 		let y = c.y;
 		if (none) { /* a short screen: the lettered name alone */ }
 		else if (big) {
-			const lx = c.x + Math.floor((c.w - 32) / 2);
-			LOGO.forEach((ln, j) => [...ln].forEach((k, i) => {
-				const [rgb, gl] = LOGO_INK[k];
-				const bg = quant(rgb), fg = quant(rgb.map((v) => (v > 128 ? v * 0.7 : v * 1.6 + 20)));
+			// Each pixel two cells wide, so it is square; each colour its ground and its own glyph.
+			const lx = c.x + Math.floor((c.w - L.w * 2) / 2);
+			for (let j = 0; j < L.h; j++) for (let i = 0; i < L.w; i++) {
+				const rgb = L.px[j][i];
+				if (!rgb) continue;
+				const bg = quant(rgb), fg = quant(rgb.map((v) => (v > 128 ? v * 0.7 : v * 1.6 + 20))), gl = L.glyph(rgb);
 				c.g.set(lx + i * 2, y + j, gl, fg, bg);
 				c.g.set(lx + i * 2 + 1, y + j, gl, fg, bg);
-			}));
-			y += 17;
+			}
+			y += L.h + 1;
 		} else {
 			// Half size: two pixels a cell, the upper one the glyph's ink, the lower its ground.
-			const lx = c.x + Math.floor((c.w - 16) / 2);
-			for (let j = 0; j < 8; j++) for (let i = 0; i < 16; i++) c.g.set(lx + i, y + j, '▀', quant(LOGO_INK[LOGO[j * 2][i]][0]), quant(LOGO_INK[LOGO[j * 2 + 1][i]][0]));
-			y += 9;
+			const lx = c.x + Math.floor((c.w - L.w) / 2);
+			for (let j = 0; j < L.h; j += 2) for (let i = 0; i < L.w; i++) {
+				const top = L.px[j][i], bot = L.px[j + 1]?.[i] ?? null;
+				if (top || bot) c.g.set(lx + i, y + j / 2, '▀', top ? quant(top) : 0, bot ? quant(bot) : 0);
+			}
+			y += Math.ceil(L.h / 2) + 1;
 		}
-		lettering(c.g, c.x + Math.floor((c.w - letteringWidth(word)) / 2), y, word);
+		lettering(c.g, c.x + Math.floor((c.w - letteringWidth(word, TITLE_FACE)) / 2), y, word, TITLE_FACE);
 	}, 'title');
 }
 

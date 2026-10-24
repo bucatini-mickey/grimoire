@@ -770,15 +770,17 @@ const talking = (q: Person) => (q.id === S.me ? S.voice?.myLevel() ?? 0 : S.voic
 
 const hash2 = (x: number, y: number) => (Math.imul(x * 73856093 ^ y * 19349663, 0x27d4eb2d) >>> 15);
 
+/**
+ * The glyphs the map draws as they are: the CP437 set the user chose (furniture, lights,
+ * plants, water, walls and shading, the sun, the bell, arches). Anything else outside ASCII
+ * is folded to a plain stand-in.
+ */
 const fold = (ch: string) => {
-	if (ch.charCodeAt(0) < 128) return ch;
-	const m: Record<string, string> = {
-		'·': '.', '∙': '.', '•': '.', '♣': '&', '♠': '%', '▒': '%', '▓': '#', '█': '#', '░': ':', '≈': '~', '∼': '~', '▲': '^', '↑': '^', '○': 'o',
-		'✶': '*', '✦': '*', '❀': '*', '≡': '=', 'π': 'n', '╥': 'h', 'Θ': '0', '■': '#', 'ö': 'o', '¡': '!', 'Ω': 'U', '╤': 'T', '═': '=', '▬': '=',
-		'†': '+', '¬': '-', '¶': 'P', '╫': 'H', '◙': '0', '⌐': 'r', '¦': '|', '‡': '!', '◘': '#'
-	};
+	if (ch.charCodeAt(0) < 128 || KEEP.has(ch)) return ch;
+	const m: Record<string, string> = { '·': '.', '∙': '.', '•': '.', '∼': '~', '○': 'o', '✶': '*', '✦': '*', '❀': '*', '↑': '^' };
 	return m[ch] ?? '*';
 };
+const KEEP = new Set([...'≈π╥Θ■ö¡Ω‡♠♣¶⌐◙╫≡═▬†¬╤▒▓░▲♪☼∩']);
 
 /** The map's frame: move people and the camera, light the town, and ask for a redraw only when something changed. */
 function tickMap() {
@@ -1000,8 +1002,8 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 				const lb = memoBelow[i] ?? (memoBelow[i] = lookAt(below, x, y, 0));
 				const ch = lb.wall ? (lb.wall.style === 'double' ? WALL_DOUBLE : WALL_SINGLE)[lb.wall.mask] : fold(lb.ch);
 				const dim = quant(mul(lb.fg, [0.32, 0.32, 0.38]));
-				g.set(sx, mapY + sy, ch === ' ' ? '.' : ch, dim, 0);
-				g.set(sx + 1, mapY + sy, filler(ch, lb.wall, x, y), dim, 0);
+				if (lb.wall) { g.set(sx, mapY + sy, ch, dim, 0); g.set(sx + 1, mapY + sy, filler(ch, lb.wall, x, y), dim, 0); }
+				else g.setWide(sx, mapY + sy, ch === ' ' ? '.' : ch, dim, 0);
 				continue;
 			}
 			let look = memo[i];
@@ -1044,8 +1046,9 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 			// At dusk the seats are picked out in gold.
 			const bgi = mySeat && mySeat.x === x && mySeat.y === y ? 8 : S.phase === 'dusk' && seatSet.has(i) ? shade(6, 1) : shown && luma(bg) > 9 ? quant(bg) : 0;
 			ground.set(i, bgi);
-			g.set(sx, mapY + sy, ch, fgi, bgi);
-			g.set(sx + 1, mapY + sy, look.glass ? '▒' : bare || look.wall ? filler(ch, look.wall, x, y) : ' ', fgi, bgi);
+			// A wall's line runs on through both columns; anything else sits in the middle of its square.
+			if (look.wall || look.glass) { g.set(sx, mapY + sy, ch, fgi, bgi); g.set(sx + 1, mapY + sy, look.glass ? '▒' : filler(ch, look.wall, x, y), fgi, bgi); }
+			else g.setWide(sx, mapY + sy, ch, fgi, bgi);
 		}
 	}
 	for (const l of t.labels) {
@@ -1057,7 +1060,7 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 		// The name whole, in faded ink on the ground beneath it (cells are two columns, so it seldom covers much).
 		for (let k = 0; k < l.text.length; k++) {
 			const cell = g.get(sx + k, mapY + sy);
-			if (cell) { cell.ch = l.text[k]; cell.fg = 4; }
+			if (cell) g.set(sx + k, mapY + sy, l.text[k], 4);
 		}
 	}
 	const people = [...S.people.values()].filter((q) => {
@@ -1078,15 +1081,14 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 		const lit = bg ? bg : fg;
 		// A square plate: the letter and its second column share the ground.
 		const pf = mineQ ? 0 : talk ? 0 : fg, pb = mineQ ? lit : talk ? 6 : bg;
-		g.set(sx, mapY + sy, q.st ? '☼' : glyphOf(q), pf, pb);
-		g.set(sx + 1, mapY + sy, ' ', pf, pb || (g.get(sx + 1, mapY + sy)?.bg ?? 0));
+		g.setWide(sx, mapY + sy, q.st ? '☼' : glyphOf(q), pf, pb || (g.get(sx, mapY + sy)?.bg ?? 0));
 	}
 	if (S.game && (S.phase === 'dusk' || S.phase === 'circle') && gathering(t)) {
 		for (const r of S.ring) {
 			if ([...S.people.values()].some((q) => !q.st && q.seat === r.seat)) continue;
 			const cell = seatCell(t, r.seat);
 			if (!cell) continue;
-			g.set(scr(cell.x), mapY + cell.y - y0, r.name[0]?.toUpperCase() ?? '?', r.dead ? 3 : personInk(r.seat)[0] || 4, r.dead ? 0 : personInk(r.seat)[1]);
+			g.setWide(scr(cell.x), mapY + cell.y - y0, r.name[0]?.toUpperCase() ?? '?', r.dead ? 3 : personInk(r.seat)[0] || 4, r.dead ? 0 : personInk(r.seat)[1]);
 		}
 	}
 	if (S.route.length) {

@@ -255,14 +255,14 @@ export function lookAt(t: Town, x: number, y: number, ms = 0): Look {
 	const thing = c.things.map((n) => [n, KINDS[n]] as const).filter(([, k]) => k).pop();
 	if (thing) {
 		const [name, k] = thing;
-		// A door stands open (') or is shut and locked, plain for everyone to see; shut, it carries the wall's line.
+		// A door stands open (an arch, ∩) or is shut and locked, plain for everyone to see; shut, it carries the wall's line.
 		if (name === 'door') {
 			const shut = t.locked.has(x + y * t.w);
 			const side = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => at(t, x + dx, y + dy)).find((n) => n?.tile === 'wall');
 			const style = (MATS[side?.mat ?? ''] ?? FALLBACK).style ?? 'single';
 			return shut
 				? { ch: '◘', fg: [235, 170, 90], bg: lerp(m.bg, [120, 50, 30], 0.6), emissive: false, wall: { mask: maskHere() & ((joins(1, 0) || joins(-1, 0)) ? 10 : 5), style } }
-				: { ch: "'", fg: k.fg, bg: m.bg, emissive: false };
+				: { ch: '∩', fg: k.fg, bg: m.bg, emissive: false };
 		}
 		if (name === 'bell' || name === 'clock') return { ch: ' ', fg: k.fg, bg: m.bg, emissive: false, icon: name };
 		if (name === 'flowers') return { ch: hash(x, y, 3) % 3 ? '*' : '\u2740', fg: FLOWERS[hash(x, y, 5) % FLOWERS.length], bg: m.bg, emissive: false };

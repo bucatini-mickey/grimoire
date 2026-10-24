@@ -10,6 +10,8 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { existsSync } from 'node:fs';
+import { decodePng } from './tools/art.mjs';
 
 process.chdir(dirname(fileURLToPath(import.meta.url)));
 
@@ -118,6 +120,25 @@ self.addEventListener('fetch', (e) => {
 `);
 }
 
+/**
+ * The logo: art/logo.png, read at build time and handed to the page as pixels (hex colours,
+ * null for transparent). Edit the PNG in any pixel editor; restart `npm run dev` to see it.
+ */
+function logoPixels() {
+	try {
+		if (!existsSync('art/logo.png')) return null;
+		const { w, h, rgba } = decodePng(readFileSync('art/logo.png'));
+		const px = Array.from({ length: h }, (_, y) => Array.from({ length: w }, (_, x) => {
+			const o = (y * w + x) * 4;
+			return rgba[o + 3] < 128 ? null : '#' + [rgba[o], rgba[o + 1], rgba[o + 2]].map((v) => v.toString(16).padStart(2, '0')).join('');
+		}));
+		return { w, h, px };
+	} catch (e) {
+		console.warn('art/logo.png could not be read; using the built-in logo:', e.message);
+		return null;
+	}
+}
+
 const options = {
 	absWorkingDir: process.cwd(),
 	entryPoints: ['src/ui/main.ts'],
@@ -128,6 +149,7 @@ const options = {
 	write: false,
 	outdir: 'dist/.js',
 	loader: { '.tbp': 'text' },
+	define: { __LOGO__: JSON.stringify(logoPixels()) },
 	plugins: [inline],
 	logLevel: 'warning'
 };
