@@ -258,8 +258,8 @@ export class Canvas {
  * the Victorian variant drowns it in greens and brass.
  */
 const PALETTES: Record<string, Palette> = {
-	'manuscript-night': ['#16110c', '#221a12', '#5a4a34', '#8f7d60', '#d9c9a3', '#f2e6c4', '#d4a73a', '#c9702a', '#c8412f', '#7a241b', '#7d9a52', '#3a4a26', '#5b84b8', '#27406b', '#9a6bb0', '#5c3f24'],
-	'manuscript-day': ['#eadfc2', '#ddd0ae', '#a39270', '#7a6c50', '#2a1f14', '#120c06', '#9a6e10', '#a8541a', '#a4271c', '#7a1a12', '#4d6a2a', '#a9b98a', '#2c5588', '#b8c6dc', '#6e3f86', '#b39b76'],
+	'manuscript-night': ['#110e0d', '#1d1816', '#4e4238', '#857868', '#d4c9b4', '#ece2cc', '#b08d55', '#a8683a', '#b0362c', '#6e1f1a', '#7f8a62', '#343a2a', '#6f87a6', '#26344a', '#8a6a90', '#4f3a2a'],
+	'manuscript-day': ['#e4dccb', '#d6ccb8', '#9c8f7a', '#706556', '#241c17', '#100b08', '#7d6232', '#93532a', '#8c2a22', '#6a1d17', '#56603f', '#b2b59a', '#3a5576', '#bcc4cf', '#6a4a72', '#ad9e86'],
 	'victorian-night': ['#0e1411', '#16201b', '#3f5648', '#7d9486', '#cfd6c0', '#ecebd2', '#c7a24a', '#b9792f', '#b5503c', '#6b2a22', '#8cb36a', '#2f4a2c', '#6f9aa8', '#20404a', '#8a6aa0', '#4a3a24'],
 	'victorian-day': ['#e2dcc0', '#d3cdae', '#8f9a82', '#66705e', '#1e2a22', '#0c150f', '#8a6a1a', '#9a5c20', '#8e2f24', '#6b1f18', '#3f5a28', '#a9b78e', '#2a5a66', '#b4c8c8', '#5e3f78', '#a89870']
 };
@@ -644,52 +644,33 @@ const cellHash = (x: number, y: number) => {
 };
 
 /**
- * The ground under every page: vellum with a faint grain, and, where the
- * screen is wider than the page, illuminated margins: a gold double rule
- * with vine leaves and red lozenges climbing it.
+ * The ground under every page: soot-dark (or bone, by day) with a little grain, small
+ * crosses set wide apart like nail-heads in a church door, and, low on the page where
+ * nothing is written, a pentacle in its circle so faint you half see it. On a wide
+ * screen the margins have a plain rule with a cross now and then.
  */
-/** One bay of the arcade behind the pages (it tiles across and down). */
-const ARCADE = [
-	String.raw`     ^     `,
-	String.raw`    / \    `,
-	String.raw`   / . \   `,
-	String.raw`  / / \ \  `,
-	String.raw` | /   \ | `,
-	String.raw` | | o | | `,
-	String.raw` | |   | | `,
-	String.raw` | |   | | `,
-	String.raw` | |   | | `,
-	String.raw` | |___| | `,
-	String.raw`_|_______|_`
-];
 function ground(g: Grid, width: number) {
-	// Behind every page, faint as a watermark: tiers of lancet windows, a gothic arcade in
-	// plain ASCII, the rose in each window a shade brighter. The grain falls over it, weathering it.
-	const ox = Math.floor((g.cols - width) / 2);
-	for (let y = 0; y < g.rows; y++) {
-		const row = ARCADE[y % ARCADE.length];
-		for (let x = 0; x < g.cols; x++) {
-			const ch = row[(((x - ox) % row.length) + row.length) % row.length];
-			if (ch !== ' ') g.set(x, y, ch, ch === 'o' ? 2 : 1, 0);
-		}
-	}
+	const night = !paletteKey().endsWith('-day');
 	for (let y = 0; y < g.rows; y++) for (let x = 0; x < g.cols; x++) {
 		const h = cellHash(x, y);
-		if (h < 70) g.set(x, y, h < 20 ? "'" : h < 45 ? '.' : '`', 1, 0);
-		else if (h < 76) g.set(x, y, ',', shade(15, 2), 0);
+		if (h < 40) g.set(x, y, h < 14 ? "'" : h < 30 ? '.' : '`', 1, 0);
+		else if (y % 4 === 1 && (x + (y % 8 === 1 ? 0 : 6)) % 12 === 3) g.set(x, y, '+', 1, 0);
+	}
+	// The sigil: a five-pointed star drawn point by point inside its circle.
+	const sig = night ? shade(9, 3) : 2;
+	const cx = g.cols / 2, cy = g.rows * 0.74, ry = Math.min(g.rows * 0.2, g.cols / 4.4), rx = ry * 2;
+	const dot = (x: number, y: number, ch: string) => { const c = g.get(Math.round(x), Math.round(y)); if (c) { c.ch = ch; c.fg = sig; } };
+	for (let k = 0; k < 160; k++) { const a = (k / 160) * Math.PI * 2; dot(cx + rx * Math.cos(a), cy + ry * Math.sin(a), '.'); }
+	const pts = Array.from({ length: 5 }, (_, k) => { const a = -Math.PI / 2 + (k * 2 * Math.PI) / 5; return [cx + rx * 0.95 * Math.cos(a), cy + ry * 0.95 * Math.sin(a)]; });
+	for (let k = 0; k < 5; k++) {
+		const [ax, ay] = pts[k], [bx, by] = pts[(k + 2) % 5];
+		const n = Math.ceil(Math.max(Math.abs(bx - ax), Math.abs(by - ay) * 2));
+		for (let t = 0; t <= n; t++) dot(ax + ((bx - ax) * t) / n, ay + ((by - ay) * t) / n, '.');
 	}
 	const spare = g.cols - width;
 	if (spare < 8) return;
 	const x0 = Math.floor(spare / 2);
-	for (const mx of [x0 - 3, x0 + width + 2]) {
-		for (let y = 0; y < g.rows; y++) {
-			g.set(mx, y, '║', shade(6, 2), 0);
-			const k = (y + (mx > x0 ? 3 : 0)) % 6;
-			if (k === 0) g.set(mx, y, '♦', 8, 0);
-			else if (k === 3) { g.set(mx - 1, y, '♣', 11, 0); g.set(mx + 1, y, '♣', 10, 0); }
-			else if (k === 2 || k === 4) { g.set(mx - 1, y, k === 2 ? '/' : '\\', shade(10, 2), 0); g.set(mx + 1, y, k === 2 ? '\\' : '/', shade(10, 2), 0); }
-		}
-	}
+	for (const mx of [x0 - 3, x0 + width + 2]) for (let y = 0; y < g.rows; y++) g.set(mx, y, y % 10 === 4 ? '+' : '|', 2, 0);
 }
 
 function frame(g: Grid) {
