@@ -17,8 +17,7 @@
  */
 import * as G from '../core/index.ts';
 import type { Candidate, CharacterId, Command, GameEvent, GameState, Info, SeatId, Script, Lean } from '../core/index.ts';
-import { coverRow, navRow, tabStrip } from './ascii.ts';
-import { HEADPIECE, TAILPIECE } from './art.ts';
+import { coverRow, illuminatedRow, navRow, tabStrip } from './ascii.ts';
 import { LobbyVoice } from '../town/lobbyvoice.ts';
 import type { Tab as TabSpec } from './ascii.ts';
 import { COLS, INNER, Canvas, letteredRow, shade, titleRow, blank, blockRow, boxRow, btn, buttonBlock, buttonRows, center, endPanel, field, frameBottom, frameTop, listRow, paint, paneled, pad, redraw, row, rubric, rule, segWidth, setDynamic, setExtra, setPalette, txt, wrap } from './ascii.ts';
@@ -695,7 +694,10 @@ function homeScreen(): Row[] {
 	const busy = saved.events.length > 0 || (saved.net?.lobby?.length ?? 0) > 0;
 	// Shut: the cover alone. Open: the first page, a drollery at its head.
 	if (!ui.coverOpen) return [coverRow(() => { ui.coverOpen = true; render(); })];
-	const rows: Row[] = [drollery(HEADPIECE), blank()];
+	const rows: Row[] = [illuminatedRow([
+		{ t: 'rimoire:', tone: 'rubric' }, { t: 'the book of the' }, { t: 'Storyteller, for' }, { t: 'Blood on the' }, { t: 'Clocktower.' },
+		{ t: '' }, { t: 'Herein the game is', tone: 'dim' }, { t: 'kept, its nights and', tone: 'dim' }, { t: 'its dead.', tone: 'dim' }
+	]), blank()];
 	const resume = (label: string, sub: string, ...bs: Button[]) => rows.push(rubric(label), ...prose(sub, 'dim'), buttonBlock(bs), endPanel());
 	if (saved.net && busy) {
 		resume((saved.net.village ? 'Your game' : 'Your grimoire') + ' - ' + saved.net.room, gameSummary(),
@@ -722,7 +724,6 @@ function homeScreen(): Row[] {
 	rows.push(endPanel(), rubric('Players'));
 	rows.push(buttonBlock([btn('Join a game', () => go('#join'), { style: 'primary', width: INNER })]), ...prose('Type the four letters the Storyteller gives you.', 'dim'), endPanel());
 	rows.push(buttonBlock([btn('Walk the village alone (no game)', () => go('#village'), { style: 'quiet', width: INNER })]));
-	rows.push(blank(), drollery(TAILPIECE));
 	return rows;
 }
 
@@ -851,18 +852,6 @@ function customPicker(): Row[] {
 	rows.push(buttonBlock(of.filter((c) => !on.has(c.id)).map((c) => btn(c.name, () => toggle(c.id), { style: G.isModelled(c.id) ? 'primary' : undefined }))));
 	rows.push(endPanel());
 	return rows;
-}
-
-/** A margin drawing: ink, its eyes (G) in brass and its mouth (R) in red. */
-function drollery(lines: string[]): Row {
-	const w = Math.max(...lines.map((l) => l.length));
-	return blockRow(lines.length, (c) => {
-		const x0 = c.x + Math.max(0, Math.floor((c.w - w) / 2));
-		lines.forEach((l, j) => [...l].forEach((ch, i) => {
-			if (ch === ' ') return;
-			c.g.set(x0 + i, c.y + j, ch === 'G' ? 'o' : ch === 'R' ? 'v' : ch, ch === 'G' ? 6 : ch === 'R' ? 8 : /[A-Za-z*']/.test(ch) ? 4 : 3);
-		}));
-	});
 }
 
 function art(): Row[] {

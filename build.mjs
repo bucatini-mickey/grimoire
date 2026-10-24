@@ -10,7 +10,7 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { decodePng } from './tools/art.mjs';
 
 process.chdir(dirname(fileURLToPath(import.meta.url)));
@@ -139,6 +139,21 @@ function logoPixels() {
 	}
 }
 
+/** The margin pictures: art/margin-*.png (drolleries; transparent where the page shows through). */
+function margins() {
+	const out = {};
+	for (const f of existsSync('art') ? readdirSync('art').filter((n) => /^margin-.*.png$/.test(n)) : []) {
+		try {
+			const { w, h, rgba } = decodePng(readFileSync('art/' + f));
+			out[f.slice(7, -4)] = { w, h, px: Array.from({ length: h }, (_, y) => Array.from({ length: w }, (_, x) => {
+				const o = (y * w + x) * 4;
+				return rgba[o + 3] < 128 ? null : '#' + [rgba[o], rgba[o + 1], rgba[o + 2]].map((v) => v.toString(16).padStart(2, '0')).join('');
+			})) };
+		} catch (e) { console.warn(`art/${f} could not be read:`, e.message); }
+	}
+	return out;
+}
+
 /** The title: art/title.png, its alpha (0-255) by pixel; the page gilds and stains it. */
 function titleAlpha() {
 	try {
@@ -161,7 +176,7 @@ const options = {
 	write: false,
 	outdir: 'dist/.js',
 	loader: { '.tbp': 'text' },
-	define: { __LOGO__: JSON.stringify(logoPixels()), __TITLE__: JSON.stringify(titleAlpha()) },
+	define: { __LOGO__: JSON.stringify(logoPixels()), __TITLE__: JSON.stringify(titleAlpha()), __MARGINS__: JSON.stringify(margins()) },
 	plugins: [inline],
 	logLevel: 'warning'
 };

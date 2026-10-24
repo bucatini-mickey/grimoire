@@ -320,6 +320,21 @@ const lineH = (r: Row) => (r.block ? r.block.h : r.segs.some(isButton) ? 3 : 1);
 export function drawButton(c: Ctx, x: number, y: number, w: number, b: Button) {
 	const g = c.g;
 	const st = b.disabled ? 'off' : b.style ?? 'normal';
+	// On a leaf of the book a button is an entry written on the page: its words in ink (the main one
+	// in red), its numeral or first letter on a red plate, a flourish at each end and a dotted rule
+	// under it, so it reads as writing and still shows where to tap.
+	if (paletteKey() === 'folio') {
+		const ink = st === 'primary' ? 8 : st === 'quiet' || st === 'off' ? 3 : 5;
+		const label = [...b.label].slice(0, Math.max(1, w - 6)).join('');
+		const lx = x + Math.floor((w - [...label].length) / 2);
+		g.text(lx, y + 1, label, ink);
+		const numeral = label.match(/^[IVXLC]+(?=\.)/)?.[0];
+		if (st !== 'off') for (let k = 0; k < (numeral?.length ?? (/\p{L}/u.test(label[0]) ? 1 : 0)); k++) g.set(lx + k, y + 1, label[k], 0, 8);
+		if (st !== 'quiet' && st !== 'off') { g.text(x + 1, y + 1, '~', 6); g.text(x + w - 2, y + 1, '~', 6); }
+		for (let i = x + 2; i < x + w - 2; i += 2) g.set(i, y + 2, '.', st === 'primary' ? 8 : 2);
+		if (!b.disabled) c.hit({ x, y, w, h: 3 }, b.act);
+		return;
+	}
 	// label ink, ground, rule, initial, rule style
 	const [fg, bg, edge, cap, line]: [number, number, number, number, 'single' | 'double'] =
 		st === 'primary' ? [0, 8, 6, 0, 'double']
@@ -550,6 +565,19 @@ export function initial(g: Grid, x: number, y: number, ch: string) {
 /** Stamp one row at (x, y); returns nothing. */
 function drawRow(g: Grid, r: Row, x0: number, y: number, width: number, h: number, ink: (t: Tone | undefined) => number) {
 	const ctx: Ctx = { g, x: x0, y, w: width, ink, hit: (rc, fn) => g.hit(rc, fn) };
+	// On a leaf of the book there are no boxes: a heading is written in red, centred, with a
+	// flourish each side, and the words below it stand on the page.
+	const book = paletteKey() === 'folio';
+	if (book && (r.cls === 'frame-top' || r.cls === 'frame-bot')) {
+		const t = r.cls === 'frame-top' && r.segs[0] && !isButton(r.segs[0]) ? r.segs[0].t : '';
+		if (t) {
+			const tx = x0 + Math.floor((width - [...t].length) / 2);
+			g.text(tx - 4, y, '~~ ', 6);
+			g.text(tx, y, t, 8);
+			g.text(tx + [...t].length + 1, y, '~~', 6);
+		}
+		return;
+	}
 	// A panel is a leaf of vellum in a gold double rule, its title rubricated on the rule between two lozenges.
 	if (r.cls === 'frame-top') {
 		g.set(x0, y, '╔', 6, 0);
@@ -573,7 +601,7 @@ function drawRow(g: Grid, r: Row, x0: number, y: number, width: number, h: numbe
 		cornerBosses(g, x0, y, width);
 		return;
 	}
-	const inPanel = !!r.cls?.includes('frame-mid');
+	const inPanel = !!r.cls?.includes('frame-mid') && !book;
 	if (inPanel) g.fill({ x: x0 + 1, y, w: width - 2, h }, ' ', 4, 1);
 	const sides = () => { if (inPanel) for (let j = 0; j < h; j++) { g.set(x0, y + j, '║', 6, 0); g.set(x0 + width - 1, y + j, '║', 6, 0); } };
 	if (r.block) {
@@ -761,9 +789,10 @@ const cellHash = (x: number, y: number) => {
  * nothing is written, a pentacle in its circle so faint you half see it. On a wide
  * screen the margins have a plain rule with a cross now and then.
  */
-function ground(g: Grid, width: number) {
-	if (paletteKey() === 'leather' || paletteKey() === 'cover') return cover(g);
-	if (paletteKey() === 'folio') return folio(g);
+function ground(g: Grid, width: number, used = g.rows) {
+	if (paletteKey() === 'cover') return; // the cover paints itself, every pixel (coverRow)
+	if (paletteKey() === 'leather') return cover(g);
+	if (paletteKey() === 'folio') return folio(g, width, used);
 	const night = !paletteKey().endsWith('-day');
 	for (let y = 0; y < g.rows; y++) for (let x = 0; x < g.cols; x++) {
 		const h = cellHash(x, y);
@@ -806,10 +835,99 @@ function cover(g: Grid) {
 }
 
 /** A page of the opened book: vellum, a fine grain, and nothing else behind the words. */
-function folio(g: Grid) {
-	for (let y = 0; y < g.rows; y++) for (let x = 0; x < g.cols; x++) {
-		const h = cellHash(x, y);
-		if (h < 30) g.set(x, y, h < 12 ? "'" : '.', 1, 0);
+declare const __MARGINS__: Record<string, { w: number; h: number; px: (string | null)[][] }> | undefined;
+
+/** A smooth value noise, 0-1, for the vellum's mottling. */
+function vnoise(x: number, y: number, seed: number): number {
+	const xi = Math.floor(x), yi = Math.floor(y), fx = x - xi, fy = y - yi;
+	const r = (a: number, b: number) => (cellHash(a * 7 + seed * 131, b * 13 + seed) & 1023) / 1023;
+	const sm = (t: number) => t * t * (3 - 2 * t);
+	const top = r(xi, yi) + (r(xi + 1, yi) - r(xi, yi)) * sm(fx);
+	const bot = r(xi, yi + 1) + (r(xi + 1, yi + 1) - r(xi, yi + 1)) * sm(fx);
+	return top + (bot - top) * sm(fy);
+}
+
+let folioMemo: { key: string; px: Int16Array } | null = null;
+
+/**
+ * A leaf of the opened book, drawn as pixels (two to a cell, top and bottom): vellum mottled and
+ * foxed, darker at its edges and in the gutter where it is sewn into the binding, the edges of
+ * the leaves beneath stacked at its fore-edge, an old water stain; round the text a ruled frame
+ * of gold, in the margins a painted vine with leaves and flowers, and below the writing, where the
+ * page is empty, a few devils of the kind scribes drew. The words are written over all of it.
+ */
+function folio(g: Grid, width: number, used: number) {
+	const W = g.cols, H = g.rows * 2;
+	const x0 = Math.floor((W - width) / 2), x1 = x0 + width - 1;
+	const yTop = 2, yBot = H - 3;
+	const key = `${W}x${H}:${width}:${used}:${term?.palette.length}`;
+	if (!folioMemo || folioMemo.key !== key) {
+		const px = new Int16Array(W * H).fill(-1);
+		const set = (x: number, y: number, rgb: number[]) => { if (x >= 0 && y >= 0 && x < W && y < H) px[x + y * W] = quant(rgb); };
+		const VELLUM = [232, 221, 198];
+		for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+			// Mottling, foxing, a darker rim; the gutter's shadow; the stain.
+			const m = vnoise(x / 9, y / 7, 1) * 0.6 + vnoise(x / 3, y / 3, 2) * 0.4;
+			const rim = Math.min(x / 6, (W - 1 - x) / 4, y / 6, (H - 1 - y) / 6, 1);
+			const gutter = x < 6 ? (6 - x) / 6 : 0;
+			// Inside the gold rule the vellum is kept clean for the writing; outside it is worn.
+			const inText = x >= x0 && x <= x1 && y > yTop && y < yBot;
+			let k = 0.95 + (m - 0.5) * (inText ? 0.03 : 0.1) - (1 - rim) * 0.18 - gutter * 0.35;
+			const sx = x - W * 0.78, sy = (y - H * 0.18) * 1.2, sd = Math.hypot(sx, sy);
+			if (Math.abs(sd - 9) < 0.9) k -= 0.1; else if (sd < 9) k -= 0.03;
+			let rgb = VELLUM.map((v, i) => v * k - (i === 2 ? (1 - k) * 30 : 0));
+			if ((cellHash(x * 3, y * 5) & 1023) < (inText ? 0 : 6)) rgb = [176, 140, 100]; // foxing, never on the writing
+			set(x, y, rgb);
+		}
+		// Sewing: stitches down the gutter; the edges of the leaves beneath at the fore-edge and foot.
+		for (let y = 6; y < H - 6; y += 7) set(1, y, [70, 48, 30]);
+		for (let y = 0; y < H; y++) for (const d of [1, 2]) set(W - d, y, d === 1 ? [180, 160, 128] : [205, 190, 160]);
+		for (let x = 0; x < W; x++) set(x, H - 1, [180, 160, 128]);
+		// The text's frame: a ruled line of gold.
+		const gold = [176, 136, 62];
+		for (let x = x0 - 1; x <= x1 + 1; x++) { set(x, yTop, gold); set(x, yBot, gold); }
+		for (let y = yTop; y <= yBot; y++) { set(x0 - 1, y, gold); set(x1 + 1, y, gold); }
+		// The vine in each side margin: a stem that sways, leaves on it, a flower every so often.
+		const FLOWERS = [[178, 52, 40], [104, 70, 120], [70, 96, 150]];
+		for (const side of [0, 1]) {
+			const mx = side ? x1 + 3 : 3;
+			if (side ? mx > W - 3 : mx > x0 - 2) continue;
+			for (let y = yTop + 2; y < yBot - 1; y++) {
+				const x = mx + Math.round(Math.sin(y / 5 + side) * 0.9);
+				set(x, y, [90, 110, 60]);
+				if (y % 6 === 0) set(x + (side ? -1 : 1), y - 1, [110, 140, 70]);
+				if (y % 6 === 3) set(x - (side ? -1 : 1), y - 1, [110, 140, 70]);
+				if (y % 23 === 11) {
+					const c = FLOWERS[(y + side) % FLOWERS.length];
+					for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) set(x + dx, y + dy, dx || dy ? c : [212, 170, 70]);
+				}
+			}
+		}
+		// Devils at the foot of the page, if the writing leaves room for them.
+		const M = typeof __MARGINS__ !== 'undefined' && __MARGINS__ ? Object.values(__MARGINS__) : [];
+		const free = yBot - (used * 2 + 2);
+		if (M.length && free >= 14) {
+			// As many as fit across the text's width, tallest first.
+			const pick: typeof M = [];
+			let used2 = 0;
+			for (const m of [...M].sort((a, b) => b.h - a.h)) if (m.h <= free - 2 && used2 + m.w + (pick.length ? 4 : 0) <= width) { pick.push(m); used2 += m.w + (pick.length > 1 ? 4 : 0); }
+			const span = pick.reduce((k, m) => k + m.w, 0);
+			let x = x0 + Math.max(0, Math.floor((width - span - (pick.length - 1) * 4) / 2));
+			for (const m of pick) {
+				const top = yBot - 2 - m.h;
+				m.px.forEach((row, j) => row.forEach((c, i) => { if (c) set(x + i, top + j, [1, 3, 5].map((k) => parseInt(c.slice(k, k + 2), 16))); }));
+				x += m.w + 4;
+			}
+			// The ground they stand on: a tendril of the vine.
+			for (let xx = x0 + 2; xx < x1 - 1; xx++) set(xx, yBot - 2 + Math.round(Math.sin(xx / 3) * 0.6), [90, 110, 60]);
+		}
+		folioMemo = { key, px };
+	}
+	const px = folioMemo.px;
+	for (let cy = 0; cy < g.rows; cy++) for (let x = 0; x < W; x++) {
+		const t = px[x + cy * 2 * W], b = px[x + (cy * 2 + 1) * W];
+		if (t === b) g.set(x, cy, ' ', 4, t);
+		else g.set(x, cy, '▀', t, b);
 	}
 }
 
@@ -843,20 +961,27 @@ export function coverRow(open: () => void): Row {
 		const T = typeof __TITLE__ !== 'undefined' && __TITLE__ ? __TITLE__ : null;
 		const tw = T?.w ?? 0, th = T?.h ?? 0;
 		// The logo as large as fits: S pixels to its pixel.
-		const S = Math.max(1, Math.min(5, Math.floor((W - 8) / L.w), Math.floor(((H - 8) * 2 - th - 10) / L.h)));
+		// The cover carries the title alone; the logo waits for a better place.
+		const S = 0;
 		const logoRows = Math.ceil((L.h * S) / 2), titleRows = Math.ceil((th + 6) / 2);
-		let y = Math.max(2, Math.floor((H - logoRows - titleRows - 4) / 2));
+		let y = Math.max(2, Math.floor((H - titleRows - 4) / 2) - 3);
 		const lx = Math.floor((W - L.w * S) / 2);
-		pixels(g, lx, y, L.w * S, L.h * S, (px, py) => { const rgb = L.px[Math.floor(py / S)][Math.floor(px / S)]; return rgb ? quant(rgb) : null; });
-		y += logoRows + 2;
-		// Old stains soaked into the calf: dark, uneven, near the foot of the cover.
-		for (const [sx, sy, r] of [[0.18, 0.86, 3.2], [0.8, 0.78, 2.4], [0.7, 0.92, 1.6]]) {
-			const cx = Math.floor(W * sx), cy = Math.floor(H * sy);
-			for (let dy = -2; dy <= 2; dy++) for (let dx = -Math.ceil(r * 2); dx <= Math.ceil(r * 2); dx++) {
-				const d = Math.hypot(dx / 2, dy) + (cellHash(cx + dx, cy + dy) & 7) / 10;
-				if (d < r && g.get(cx + dx, cy + dy)) g.set(cx + dx, cy + dy, d < r * 0.5 ? ':' : '.', shade(9, 2), d < r * 0.6 ? shade(9, 0) : 0);
-			}
-		}
+		void lx; void logoRows;
+		// The leather itself, pixel by pixel: mottled calf, rubbed paler at its edges, two rules
+		// blind-tooled into it, brass fittings at the corners, and old stains soaked in.
+		pixels(g, 0, 0, W, H * 2, (px, py) => {
+			const HH = H * 2;
+			const m = vnoise(px / 7, py / 5, 3) * 0.6 + vnoise(px / 2, py / 2, 4) * 0.4;
+			const edge = Math.min(px, W - 1 - px, py, HH - 1 - py);
+			let rgb = [74, 42, 27].map((v) => v * (0.9 + m * 0.18 + (edge < 3 ? 0.25 : 0)));
+			for (const ins of [5, 8]) if ((edge === ins) && !(px < 14 && py < 14) && !(px > W - 15 && py < 14) && !(px < 14 && py > HH - 15) && !(px > W - 15 && py > HH - 15)) rgb = [44, 24, 15];
+			const cx = Math.min(px, W - 1 - px), cy = Math.min(py, HH - 1 - py);
+			if (cx < 12 && cy < 12 && cx + cy < 16 && (cx < 3 || cy < 3 || cx + cy > 12)) rgb = (cx + cy) % 3 ? [176, 136, 62] : [120, 90, 40];
+			const st = vnoise(px / 6, py / 4, 9) + vnoise(px / 2, py / 2, 10) * 0.25;
+			if (py > HH * 0.6 && st > 0.95) rgb = [58, 18, 12];
+			else if (st > 1.16) rgb = [64, 30, 18];
+			return quant(rgb);
+		});
 		if (T) {
 			const tx = Math.floor((W - tw) / 2);
 			// Blood: on the strokes of some letters (a wash from the right), and drips from their feet.
@@ -890,18 +1015,51 @@ export function coverRow(open: () => void): Row {
 	});
 }
 
+/**
+ * The opening of the page: the G of the title as an illuminated initial (red on a blue field
+ * pricked with white, in a square of gold), and the first words written beside it.
+ */
+export function illuminatedRow(lines: { t: string; tone?: Tone }[]): Row {
+	const BOX = 22, ROWS = 11;
+	return blockRow(Math.max(ROWS, lines.length), (c) => {
+		const g = c.g, T = typeof __TITLE__ !== 'undefined' && __TITLE__ ? __TITLE__ : null;
+		const px: (number | null)[][] = Array.from({ length: ROWS * 2 }, () => Array(BOX).fill(null));
+		for (let y = 0; y < ROWS * 2; y++) for (let x = 0; x < BOX; x++) {
+			const edge = x < 2 || y < 2 || x >= BOX - 2 || y >= ROWS * 2 - 2;
+			px[y][x] = quant(edge ? [190, 150, 70] : (x + y * 3) % 7 === 0 ? [220, 225, 235] : [46, 66, 128]);
+		}
+		if (T) {
+			// The G: the first letter of the title's bitmap, from its left edge to the first empty column.
+			let gw = 0;
+			// The letters touch, so the G ends at the column with the least ink between its bowl and the r.
+			let least = Infinity;
+			for (let x = 12; x < Math.min(T.w, 26); x++) { const ink = T.a.reduce((k, r) => k + r[x], 0); if (ink < least) { least = ink; gw = x; } }
+			const ox = Math.floor((BOX - gw) / 2), oy = Math.floor((ROWS * 2 - T.h) / 2);
+			for (let y = 0; y < T.h; y++) for (let x = 0; x < gw; x++) {
+				const a = T.a[y][x];
+				if (a > 70 && px[oy + y]) px[oy + y][ox + x] = quant(a > 180 ? [168, 40, 52] : [210, 120, 110]);
+			}
+		}
+		for (let y = 0; y < ROWS * 2; y += 2) for (let x = 0; x < BOX; x++) {
+			const t = px[y][x]!, b = px[y + 1][x]!;
+			g.set(c.x + x, c.y + y / 2, t === b ? ' ' : '▀', t, b);
+		}
+		lines.forEach((l, j) => g.text(c.x + BOX + 2, c.y + 1 + j, l.t, c.ink(l.tone)));
+	});
+}
+
 function frame(g: Grid) {
 	// The town is lit for the dark: over it, the pages take their night inks.
 	const key = extra && extraShown() ? paletteKey().replace('-day', '-night') : paletteKey();
 	term!.palette = PALETTES[key] ?? PALETTES['manuscript-night'];
 	// The cover wants a margin of leather round its page: a few more columns (a touch smaller type).
 	// The cover is a picture, drawn fine: many more columns (small cells, two pixels each).
-	term!.setCols(key === 'cover' ? 84 : key === 'leather' ? COLS + 6 : COLS);
+	term!.setCols(key === 'cover' ? 84 : key === 'folio' ? COLS + 12 : key === 'leather' ? COLS + 6 : COLS);
 	document.body.style.background = term!.palette[0];
 	document.documentElement.style.background = term!.palette[0];
 	g.clear(4, 0);
 	const top = [...order].reverse().map((k) => layers.get(k)).find((L) => L && L.rows.length);
-	if (top) ground(g, top.width);
+	if (top) ground(g, top.width, Math.min(g.rows, top.rows.reduce((k, r) => k + lineH(r), 0)));
 	const ink = (t: Tone | undefined) => TONE[t ?? 'plain'];
 	const under = !!extra?.(g);
 	// The topmost layer with rows is shown alone, as a page of its own. Over the town it is a
