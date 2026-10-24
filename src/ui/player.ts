@@ -9,7 +9,7 @@
  * except what views.ts says is yours.
  */
 import { navRow } from './ascii.ts';
-import { COLS, INNER, titleRow, blank, blockRow, boxRow, btn, buttonBlock, buttonRows, center, endPanel, field, frameBottom, frameTop, listRow, paint, paneled, pad, redraw, row, rubric, setDynamic, setPalette, txt, wrap } from './ascii.ts';
+import { COLS, INNER, illuminatedRow, blank, blockRow, boxRow, btn, buttonBlock, buttonRows, center, endPanel, field, frameBottom, frameTop, listRow, paint, paneled, pad, redraw, row, rubric, setDynamic, setPalette, txt, wrap } from './ascii.ts';
 import type { Row } from './ascii.ts';
 import { joinRoom } from '../net/link.ts';
 import type { LinkStatus, PlayerLink } from '../net/link.ts';
@@ -204,8 +204,9 @@ function receive(msg: HostMsg) {
 
 // ---- screens ------------------------------------------------------------------------
 
+/** The head of a player's page: the book's illuminated G and its name, as on the Storyteller's first leaf. */
 function header(): Row[] {
-	return [titleRow()];
+	return [illuminatedRow([{ t: 'a leaf for a player' }, { t: 'at the Storyteller’s table,' }, { t: 'for Blood on the Clocktower.', tone: 'dim' }]), blank()];
 }
 
 const esc = (x: string) => x.replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);
