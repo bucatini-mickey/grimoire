@@ -465,13 +465,17 @@ export function titleRow(word = 'Grimoire'): Row {
 	}, 'title');
 }
 
-/** A lowercase script hand, four rows to a letter, its strokes drawn with the pen's own marks. */
+/**
+ * A lowercase hand, five rows: a row above for the dot of the i, four for the letters. Strokes
+ * are filled cells like the capitals, so it reads at a phone's size; the slant is added as it
+ * is drawn.
+ */
 const SCRIPT: Record<string, string[]> = {
-	r: ['     ', ' _ _ ', "| '_|", '|_|  '],
-	i: [' _ ', '(_)', '| |', '|_|'],
-	m: ['       ', ' _ __  ', "| '  \\ ", '|_|_|_|'],
-	o: ['      ', '  ___ ', ' / _ \\', ' \\___/'],
-	e: ['      ', '  ___ ', ' / -_)', ' \\___|']
+	r: ['....', '#.##', '##..', '#...', '#...'],
+	i: ['.#.', '...', '##.', '.#.', '.##'],
+	m: ['.....', '##.#.', '#.#.#', '#.#.#', '#.#.#'],
+	o: ['....', '.##.', '#..#', '#..#', '.##.'],
+	e: ['....', '.##.', '####', '#...', '.###']
 };
 
 /**
@@ -480,7 +484,10 @@ const SCRIPT: Record<string, string[]> = {
  */
 function scriptTitle(g: Grid, x0: number, w: number, y: number) {
 	const rest = [...'rimoire'];
-	const restW = rest.reduce((k, ch) => k + SCRIPT[ch][0].length, 0);
+	// The hand leans a little: its upper half sits one column to the right of its foot.
+	const SLANT = 1;
+	const lean = (j: number) => (j <= 2 ? SLANT : 0);
+	const restW = rest.reduce((k, ch) => k + SCRIPT[ch][0].length + 1, -1) + SLANT;
 	const capW = 9, total = capW + 1 + restW;
 	const x = x0 + Math.max(0, Math.floor((w - total) / 2));
 	// The capital: a plate of red in a brass double rule, the letter in bone with its corners cut.
@@ -490,12 +497,13 @@ function scriptTitle(g: Grid, x0: number, w: number, y: number) {
 		if (p === '#') g.set(x + 2 + i, y + 1 + j, '%', 5, 4);
 		else if (p === '/' || p === '\\') g.set(x + 2 + i, y + 1 + j, p, 8, 4);
 	}));
-	// The hand, its foot on the capital's last line of text.
+	// The hand, standing on the capital's foot, in bone with the grain of the ink in it.
 	let sx = x + capW + 1;
 	for (const ch of rest) {
-		SCRIPT[ch].forEach((ln, j) => [...ln].forEach((p, i) => { if (p !== ' ') g.set(sx + i, y + 2 + j, p, 5); }));
-		sx += SCRIPT[ch][0].length;
+		SCRIPT[ch].forEach((ln, j) => [...ln].forEach((p, i) => { if (p === '#') g.set(sx + i + lean(j), y + 1 + j, ':', 3, 4); }));
+		sx += SCRIPT[ch][0].length + 1;
 	}
+	sx += SLANT - 1;
 	// A hairline flourish under the word, ending in a small lozenge.
 	for (let k = x + capW + 1; k < sx - 1; k++) g.set(k, y + 6, '~', 6);
 	g.set(sx - 1, y + 6, '♦', 8);
