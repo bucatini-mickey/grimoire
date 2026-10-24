@@ -22,7 +22,7 @@
  * is talking privately and which doors are locked; each phone moves its own
  * walker and asks the host for the rest.
  */
-import { INNER, btn, buttonBlock, buttonRows, drawButton, endPanel, field, isButton, listRow, paint, quant, redraw, shade, theTerm, paneled, setPalette, rubric, row, segWidth, setExtra, txt, wrap, center } from '../ui/ascii.ts';
+import { INNER, btn, buttonBlock, buttonRows, drawButton, endPanel, field, isButton, listRow, paint, quant, redraw, shade, theTerm, paneled, setPalette, navRow, rubric, row, segWidth, setExtra, txt, wrap, center } from '../ui/ascii.ts';
 import type { Button, Row } from '../ui/ascii.ts';
 import type { Grid } from '../term/pterm.ts';
 import { hostRoom, joinRoom, newRoomCode } from '../net/link.ts';
@@ -1183,14 +1183,14 @@ function sheetRows(): Row[] {
 	const p = me();
 	if (inLobby) return lobbyRows();
 	if (!shown) return [];
-	const close = (a: string) => buttonBlock([btn('Close', () => act(a), { style: 'quiet' })]);
+	const close = (a: string) => navRow('Close', () => act(a));
 	if (S.choice) {
-		return [rubric(S.choice.title), ...S.choice.options.map((o) => buttonBlock([btn(o.label, () => act('choice', o.id), { width: INNER })])), endPanel(), close('choice-close')];
+		return [close('choice-close'), rubric(S.choice.title), ...S.choice.options.map((o) => buttonBlock([btn(o.label, () => act('choice', o.id), { width: INNER })])), endPanel()];
 	}
 	if (S.sheet === 'more') {
 		const more = barButtons(theTerm()?.cols ?? 44).more;
 		// Each choice closes the page as it is made.
-		return [rubric('More'), ...more.map((b) => buttonBlock([btn(b.label, () => { S.sheet = null; b.act(); drawChrome(); }, { style: b.style, width: INNER })])), endPanel(), close('sheet-close')];
+		return [close('sheet-close'), rubric('More'), ...more.map((b) => buttonBlock([btn(b.label, () => { S.sheet = null; b.act(); drawChrome(); }, { style: b.style, width: INNER })])), endPanel()];
 	}
 	if (S.sheet === 'people') {
 		const others = [...S.people.values()].filter((q) => q.id !== S.me).sort((a, b) => Number(!!b.st) - Number(!!a.st) || a.name.localeCompare(b.name));
@@ -1203,7 +1203,7 @@ function sheetRows(): Row[] {
 			if (can && !q.with && (q.st || p?.st)) bs.push(btn('Ask', () => act('ask', q.id), { width: 7 }));
 			rows.push(listRow((q.st ? 'Storyteller' : q.name) + (q.dead ? ' (dead)' : '') + (q.with ? ' (talking)' : ''), q.dead ? 'dim' : undefined, bs));
 		}
-		return [...rows, endPanel(), close('sheet-close')];
+		return [close('sheet-close'), ...rows, endPanel()];
 	}
 	if (S.host && S.stOpen) {
 		const ph = (k: Phase, label: string) => btn(label, () => act('phase-' + k), { style: S.phase === k ? 'on' : undefined });
@@ -1213,7 +1213,7 @@ function sheetRows(): Row[] {
 		if (S.game) rows.push(buttonBlock([btn('Open the grimoire', () => act('back-game'), { style: 'primary', width: INNER })]));
 		else rows.push(...prose('Players open ' + location.origin + location.pathname + '#village=' + S.room, 'dim'));
 		if (store.get('grimoire.town')) rows.push(buttonBlock([btn('Use the demo village', () => act('town-reset'))]));
-		return [...rows, endPanel(), close('st-toggle')];
+		return [close('st-toggle'), ...rows, endPanel()];
 	}
 	return [];
 }
@@ -1318,7 +1318,7 @@ let looping = false;
 // ---- the lobby ------------------------------------------------------------------------------------
 
 function lobbyRows(): Row[] {
-	const rows: Row[] = [rubric('The Village'), ...prose('Walk the town on your own phone. Talk to whoever is near you: voices fade with distance and stop at walls.', 'dim')];
+	const rows: Row[] = [navRow('Home', () => act('back')), rubric('The Village'), ...prose('Walk the town on your own phone. Talk to whoever is near you: voices fade with distance and stop at walls.', 'dim')];
 	if (!lobbyCode) {
 		rows.push(buttonBlock([btn('Open the castle town', () => { audio(); openVillage(); }, { style: 'primary', width: INNER })]),
 			buttonBlock([btn('Open Saltgrave (Victorian)', () => { audio(); openVillage('laissez-un-faire'); }, { width: INNER })]),
@@ -1327,7 +1327,7 @@ function lobbyRows(): Row[] {
 	rows.push(field('v-name', 'Your name', lobbyName, (v) => { lobbyName = v.trim(); store.set('grimoire.villageName', lobbyName); drawChrome(); }, 14, 'tap to type'),
 		field('v-code', 'Village code', lobbyCodeIn, (v) => { lobbyCodeIn = v.trim().toUpperCase(); drawChrome(); }, 4, 'four letters'));
 	if (lobbyMsg) rows.push(row(txt(lobbyMsg, 'rubric')));
-	rows.push(buttonBlock([btn('Join', () => act('join'), { style: lobbyCode ? 'primary' : undefined })]), buttonBlock([btn('Back to the grimoire', () => act('back'), { style: 'quiet' })]));
+	rows.push(buttonBlock([btn('Join', () => act('join'), { style: lobbyCode ? 'primary' : undefined })]));
 	return rows;
 }
 let inLobby = false, lobbyCode = '', lobbyName = '', lobbyCodeIn = '', lobbyMsg = '';

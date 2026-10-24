@@ -17,7 +17,7 @@
  */
 import * as G from '../core/index.ts';
 import type { Candidate, CharacterId, Command, GameEvent, GameState, Info, SeatId, Script, Lean } from '../core/index.ts';
-import { tabStrip } from './ascii.ts';
+import { navRow, tabStrip } from './ascii.ts';
 import { LobbyVoice } from '../town/lobbyvoice.ts';
 import type { Tab as TabSpec } from './ascii.ts';
 import { COLS, INNER, Canvas, letteredRow, shade, titleRow, blank, blockRow, boxRow, btn, buttonBlock, buttonRows, center, endPanel, field, frameBottom, frameTop, listRow, paint, paneled, pad, redraw, row, rubric, rule, segWidth, setDynamic, setExtra, setPalette, txt, wrap } from './ascii.ts';
@@ -645,7 +645,7 @@ function go(hash: string) {
 
 /** A page's head: back to the home page, and the page's name. */
 function pageHead(title: string, back: [string, () => void] = ['< Home', () => go('')]): Row[] {
-	return [buttonBlock([btn(back[0], back[1], { style: 'quiet' })]), rubric(title)];
+	return [navRow(back[0], back[1]), rubric(title)];
 }
 
 const esc = (x: string) => x.replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);
@@ -2728,7 +2728,8 @@ function render() {
 	const theme = themeOf(state.seats.length ? state.scriptId : ui.scriptId);
 	document.documentElement.dataset.phase = state.phase.kind === 'night' ? 'night' : 'day';
 	document.documentElement.dataset.theme = theme;
-	setPalette(() => (theme === 'occult' ? 'victorian' : 'manuscript') + (state.phase.kind === 'night' || ui.page === 'home' ? '-night' : '-day'));
+	// The home page is the book shut, its leather cover; inside, the pages by night or day.
+	setPalette(() => (ui.page === 'home' ? 'leather' : (theme === 'occult' ? 'victorian' : 'manuscript') + (state.phase.kind === 'night' ? '-night' : '-day')));
 	// A village game: the town is always there; the grimoire is a drawer over it.
 	const vg = villageGame();
 	if (vg && lastKind === 'setup' && state.phase.kind !== 'setup') ui.drawer = null;

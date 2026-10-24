@@ -13,7 +13,7 @@
 import { Term, shade } from '../term/pterm.ts';
 import type { Grid, Palette, Rect } from '../term/pterm.ts';
 
-export const COLS = 44;
+export const COLS = 52;
 /** The width inside a panel's frame: a border and a space each side. */
 export const INNER = COLS - 4;
 
@@ -259,6 +259,8 @@ export class Canvas {
  */
 const PALETTES: Record<string, Palette> = {
 	'manuscript-night': ['#110e0d', '#1d1816', '#4e4238', '#857868', '#d4c9b4', '#ece2cc', '#b08d55', '#a8683a', '#b0362c', '#6e1f1a', '#7f8a62', '#343a2a', '#6f87a6', '#26344a', '#8a6a90', '#4f3a2a'],
+	// The home page is the book's cover: brown calf, blind-tooled, gilt lettering and brass.
+	leather: ['#2b1810', '#3a2216', '#5e3a26', '#a3825e', '#e3cfa8', '#f3e3c0', '#c69a45', '#b06a35', '#b8382c', '#6a1c14', '#7f8a62', '#3b3a26', '#6f87a6', '#26344a', '#8a6a90', '#4f3a2a'],
 	'manuscript-day': ['#e4dccb', '#d6ccb8', '#9c8f7a', '#706556', '#241c17', '#100b08', '#7d6232', '#93532a', '#8c2a22', '#6a1d17', '#56603f', '#b2b59a', '#3a5576', '#bcc4cf', '#6a4a72', '#ad9e86'],
 	'victorian-night': ['#0e1411', '#16201b', '#3f5648', '#7d9486', '#cfd6c0', '#ecebd2', '#c7a24a', '#b9792f', '#b5503c', '#6b2a22', '#8cb36a', '#2f4a2c', '#6f9aa8', '#20404a', '#8a6aa0', '#4a3a24'],
 	'victorian-day': ['#e2dcc0', '#d3cdae', '#8f9a82', '#66705e', '#1e2a22', '#0c150f', '#8a6a1a', '#9a5c20', '#8e2f24', '#6b1f18', '#3f5a28', '#a9b78e', '#2a5a66', '#b4c8c8', '#5e3f78', '#a89870']
@@ -434,7 +436,7 @@ export function letteredRow(word: string, width: number): Row | null {
 export function titleRow(word = 'Grimoire'): Row {
 	const L = logo();
 	const big = (term?.rows ?? 0) >= 44 + L.h, none = (term?.rows ?? 99) < 36;
-	const h = none ? 6 : (big ? L.h + 1 : Math.ceil(L.h / 2) + 1) + 6;
+	const h = none ? 7 : (big ? L.h + 1 : Math.ceil(L.h / 2) + 1) + 7;
 	return blockRow(h, (c) => {
 		let y = c.y;
 		if (none) { /* a short screen: the lettered name alone */ }
@@ -458,8 +460,45 @@ export function titleRow(word = 'Grimoire'): Row {
 			}
 			y += Math.ceil(L.h / 2) + 1;
 		}
-		lettering(c.g, c.x + Math.floor((c.w - letteringWidth(word, TITLE_FACE)) / 2), y, word, TITLE_FACE);
+		if (word === 'Grimoire') scriptTitle(c.g, c.x, c.w, y);
+		else lettering(c.g, c.x + Math.floor((c.w - letteringWidth(word, TITLE_FACE)) / 2), y, word, TITLE_FACE);
 	}, 'title');
+}
+
+/** A lowercase script hand, four rows to a letter, its strokes drawn with the pen's own marks. */
+const SCRIPT: Record<string, string[]> = {
+	r: ['     ', ' _ _ ', "| '_|", '|_|  '],
+	i: [' _ ', '(_)', '| |', '|_|'],
+	m: ['       ', ' _ __  ', "| '  \\ ", '|_|_|_|'],
+	o: ['      ', '  ___ ', ' / _ \\', ' \\___/'],
+	e: ['      ', '  ___ ', ' / -_)', ' \\___|']
+};
+
+/**
+ * The book's name as a scribe would head a page: an illuminated capital G, rubricated in its
+ * brass frame, and the rest of the word running on beside it in a lowercase hand.
+ */
+function scriptTitle(g: Grid, x0: number, w: number, y: number) {
+	const rest = [...'rimoire'];
+	const restW = rest.reduce((k, ch) => k + SCRIPT[ch][0].length, 0);
+	const capW = 9, total = capW + 1 + restW;
+	const x = x0 + Math.max(0, Math.floor((w - total) / 2));
+	// The capital: a plate of red in a brass double rule, the letter in bone with its corners cut.
+	g.fill({ x, y, w: capW, h: 7 }, ' ', 4, 8);
+	g.box({ x, y, w: capW, h: 7 }, 6, 8, '', 6, 'double');
+	TITLE_FACE.G.forEach((ln, j) => [...ln].forEach((p, i) => {
+		if (p === '#') g.set(x + 2 + i, y + 1 + j, '%', 5, 4);
+		else if (p === '/' || p === '\\') g.set(x + 2 + i, y + 1 + j, p, 8, 4);
+	}));
+	// The hand, its foot on the capital's last line of text.
+	let sx = x + capW + 1;
+	for (const ch of rest) {
+		SCRIPT[ch].forEach((ln, j) => [...ln].forEach((p, i) => { if (p !== ' ') g.set(sx + i, y + 2 + j, p, 5); }));
+		sx += SCRIPT[ch][0].length;
+	}
+	// A hairline flourish under the word, ending in a small lozenge.
+	for (let k = x + capW + 1; k < sx - 1; k++) g.set(k, y + 6, '~', 6);
+	g.set(sx - 1, y + 6, '♦', 8);
 }
 
 
@@ -670,6 +709,14 @@ export function tabStrip(tabs: Tab[], width = COLS): Row {
 	});
 }
 
+/**
+ * The way back (Home, Back, Close): always the same button, the same size, at the top left of
+ * the page, so a thumb finds it in one place on every screen.
+ */
+export function navRow(label: string, act: () => void): Row {
+	return { ...buttonBlock([btn('‹ ' + label.replace(/^[<‹]s*/, ''), act, { style: 'quiet', width: 12 })]), cls: 'nav' };
+}
+
 /** A run of buttons as one block row (wraps like buttonRows). */
 export function buttonBlock(buttons: Button[], width = INNER, gap = 1): Row {
 	const lines = buttonRows(buttons, width, gap);
@@ -704,6 +751,7 @@ const cellHash = (x: number, y: number) => {
  * screen the margins have a plain rule with a cross now and then.
  */
 function ground(g: Grid, width: number) {
+	if (paletteKey() === 'leather') return cover(g);
 	const night = !paletteKey().endsWith('-day');
 	for (let y = 0; y < g.rows; y++) for (let x = 0; x < g.cols; x++) {
 		const h = cellHash(x, y);
@@ -727,10 +775,30 @@ function ground(g: Grid, width: number) {
 	for (const mx of [x0 - 3, x0 + width + 2]) for (let y = 0; y < g.rows; y++) g.set(mx, y, y % 10 === 4 ? '+' : '|', 2, 0);
 }
 
+/**
+ * The cover of a leather-bound book: the calf's grain, two blind-tooled rules round the
+ * edge (pressed in, a shade darker than the leather), brass bosses at the corners, and a
+ * tooled lozenge at the middle of each side.
+ */
+function cover(g: Grid) {
+	for (let y = 0; y < g.rows; y++) for (let x = 0; x < g.cols; x++) {
+		const h = cellHash(x, y);
+		if (h < 60) g.set(x, y, h < 25 ? '.' : h < 45 ? ',' : "'", 1, 0);
+	}
+	const W = g.cols, H = g.rows;
+	for (const [i, ink] of [[0, 2], [2, 1]] as const) {
+		g.box({ x: i, y: i, w: W - 2 * i, h: H - 2 * i }, ink, 0, '', ink, i ? 'single' : 'double');
+	}
+	for (const [x, y] of [[0, 0], [W - 1, 0], [0, H - 1], [W - 1, H - 1]]) g.set(x, y, '◘', 6, 0);
+	for (const [x, y] of [[Math.floor(W / 2), 0], [Math.floor(W / 2), H - 1], [0, Math.floor(H / 2)], [W - 1, Math.floor(H / 2)]]) g.set(x, y, '♦', 6, 0);
+}
+
 function frame(g: Grid) {
 	// The town is lit for the dark: over it, the pages take their night inks.
 	const key = extra && extraShown() ? paletteKey().replace('-day', '-night') : paletteKey();
 	term!.palette = PALETTES[key] ?? PALETTES['manuscript-night'];
+	// The cover wants a margin of leather round its page: a few more columns (a touch smaller type).
+	term!.setCols(key === 'leather' ? COLS + 6 : COLS);
 	document.body.style.background = term!.palette[0];
 	document.documentElement.style.background = term!.palette[0];
 	g.clear(4, 0);

@@ -8,6 +8,7 @@
  * Storyteller. Nothing is decided here, and nothing secret arrives here
  * except what views.ts says is yours.
  */
+import { navRow } from './ascii.ts';
 import { COLS, INNER, titleRow, blank, blockRow, boxRow, btn, buttonBlock, buttonRows, center, endPanel, field, frameBottom, frameTop, listRow, paint, paneled, pad, redraw, row, rubric, setDynamic, setPalette, txt, wrap } from './ascii.ts';
 import type { Row } from './ascii.ts';
 import { joinRoom } from '../net/link.ts';
@@ -219,7 +220,7 @@ function leave() {
 
 /** A page's head: back home (or out of the room), and its name. */
 function head(title: string, back: [string, () => void]): Row[] {
-	return [buttonBlock([btn(back[0], back[1], { style: 'quiet' })]), rubric(title)];
+	return [navRow(back[0], back[1]), rubric(title)];
 }
 
 function joinScreen(): Row[] {
@@ -412,7 +413,11 @@ function render() {
 	document.documentElement.dataset.theme = P.view?.script === 'laissez-un-faire' ? 'occult' : '';
 	setPalette(() => theme + (P.view?.phase === 'night' || !P.view ? '-night' : '-day'));
 	// In the village the town is the screen; the player's pages come up over it as cards (My character, a wake).
-	paint(root, village && P.view && P.view.phase !== 'setup' ? [] : paneled(screen()));
+	// The way back is always the first thing on the page, above even the book's name.
+	const rows = screen();
+	const nav = rows.findIndex((r) => r.cls === 'nav');
+	if (nav > 0) rows.unshift(...rows.splice(nav, 1));
+	paint(root, village && P.view && P.view.phase !== 'setup' ? [] : paneled(rows));
 	const pages = overlay();
 	paint(cardRoot, pages.length ? paneled(pages, CARD_COLS) : [], CARD_COLS);
 	tick();
