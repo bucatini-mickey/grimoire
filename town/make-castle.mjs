@@ -219,6 +219,29 @@ while (sy < H - 2) {
 }
 for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (g[y][x] === '~' && (y === 44 || y === 45 || y === 73 || y === 74)) put(x, y, 'B');
 
+// ---- market day in the square: stalls under the oak's shade, a barrel or a hay bale beside each ----
+for (let k = 0; k < 10; k++) {
+	const a = ((k + 0.5) / 10) * Math.PI * 2;
+	const x = Math.round(sq.x + 0.5 + Math.cos(a) * 9), y = Math.round(sq.y + 0.5 + Math.sin(a) * 6.2);
+	if (get(x, y) !== '_') continue;
+	put(x, y, 'U2');
+	const [bx, by] = [x + Math.sign(Math.cos(a)), y];
+	if (get(bx, by) === '_') put(bx, by, k % 2 ? 'r2' : 'y');
+}
+// ---- behind the southern homes: kitchen gardens in rows, fenced, then the fields to the forest's edge ----
+for (let y = 81; y <= 87; y++) for (let x = 13; x <= 86; x++) {
+	if (y === 87) { put(x, y, x % 9 === 4 ? 'g' : 'W'); continue; } // the fence, a gate in each stretch
+	if (y <= 82) { if (get(x, y) === 'T') put(x, y, ','); continue; } // a path along the backs of the houses
+	put(x, y, 'g');
+	if ((y - 83) % 2 === 1 && x % 9 !== 4) put(x, y, rnd() < 0.7 ? 'f' : 'y'); // rows of greens; a stook here and there
+}
+for (let x = 13; x <= 86; x += 9) for (let y = 83; y <= 86; y++) put(x, y, 'W'); // fences between the plots
+for (let x = 13; x <= 86; x += 9) put(x, 84, 'g'); // a gap to go through
+label(14, 82, 'Kitchen Gardens');
+// ---- the orchard east of the square: apple trees in rows ----
+for (let y = 63; y <= 71; y += 2) for (let x = 76; x <= 86; x += 3) if (get(x, y) === ',' || get(x, y) === 'f') put(x, y, 'T');
+label(76, 62, 'Orchard');
+
 // ---- torches along the ways; flowers on the grass ----
 for (const [x, y] of [[53, 38], [58, 38], [30, 43], [78, 43], [42, 60], [64, 47], [30, 72], [80, 72], [88, 60], [20, 46]]) if (',g.'.includes(get(x, y))) put(x, y, '!');
 for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (g[y][x] === ',' && rnd() < 0.05) put(x, y, 'f');
@@ -261,6 +284,21 @@ const up = (x, y, ch) => { if (x >= 0 && y >= 0 && x < W && y < H) U[y][x] = ch;
 const upRoom = (x0, y0, x1, y1, wall, floor) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) up(x, y, y === y0 || y === y1 || x === x0 || x === x1 ? wall : floor); };
 /** A stair between the levels: up on the ground, down above, at the same spot. */
 const stair = (x, y, stone) => { put(x, y, stone ? '{' : '<'); up(x, y, stone ? '}' : '>'); };
+// The wall-walk along the top of the curtain wall, the corner towers' roofs (braziers, a stair down
+// inside each), and the gatehouse roof: the castle's battlements, to look out over the town from.
+for (let x = C.x0; x <= C.x1; x++) { up(x, C.y0, '_'); up(x, C.y1, '_'); }
+for (let y = C.y0; y <= C.y1; y++) { up(C.x0, y, '_'); up(C.x1, y, '_'); }
+for (const [x0, y0] of [[C.x0, C.y0], [C.x1 - 6, C.y0], [C.x0, C.y1 - 6], [C.x1 - 6, C.y1 - 6]]) {
+	for (let y = y0; y <= y0 + 6; y++) for (let x = x0; x <= x0 + 6; x++) up(x, y, '_');
+	up(x0 + 3, y0 + 2, 'k');
+	stair(x0 + 3, y0 + 4, true);
+}
+for (let y = C.y1 - 3; y <= C.y1 + 1; y++) for (let x = 51; x <= 59; x++) up(x, y, '_');
+// The belfry, up the church's tower: the bell hangs here now.
+put(17, 52, '_');
+upRoom(15, 50, 19, 54, '#', '_');
+stair(16, 53, true);
+up(17, 51, 'L'); up(17, 50, 'w'); up(15, 52, 'w');
 // The lord's solar, above his chamber: a bed, a chest, a window on the bailey.
 upRoom(62, 8, 69, 21, '#', '_');
 stair(64, 16, true);

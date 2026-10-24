@@ -600,7 +600,7 @@ function header(): Row[] {
 		p.kind === 'day' ? `Day ${p.n}` : 'Game over';
 	const tab = (t: Tab, label: string): TabSpec => ({ label, on: ui.tab === t, act: () => { ui.tab = t; render(); } });
 	return [
-		listRow('Grimoire · ' + phase, 'rubric', [
+		listRow(phase, 'rubric', [
 			btn('Undo', undo, { disabled: !saved.marks.length, style: 'quiet' }),
 			btn(ui.confirmNew ? 'Sure?' : 'New', () => { if (ui.confirmNew) newGame(); else { ui.confirmNew = true; render(); } }, { style: ui.confirmNew ? 'danger' : 'quiet' })
 		], COLS),

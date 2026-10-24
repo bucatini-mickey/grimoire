@@ -648,14 +648,30 @@ const cellHash = (x: number, y: number) => {
  * screen is wider than the page, illuminated margins: a gold double rule
  * with vine leaves and red lozenges climbing it.
  */
-const BACK = String.fromCharCode(92);
+/** One bay of the arcade behind the pages (it tiles across and down). */
+const ARCADE = [
+	String.raw`     ^     `,
+	String.raw`    / \    `,
+	String.raw`   / . \   `,
+	String.raw`  / / \ \  `,
+	String.raw` | /   \ | `,
+	String.raw` | | o | | `,
+	String.raw` | |   | | `,
+	String.raw` | |   | | `,
+	String.raw` | |   | | `,
+	String.raw` | |___| | `,
+	String.raw`_|_______|_`
+];
 function ground(g: Grid, width: number) {
-	// A faint diaper of lozenges, as tooled into a binding, with the grain over it.
-	for (let y = 0; y < g.rows; y++) for (let x = 0; x < g.cols; x++) {
-		const a = (x + 2 * y) % 12 === 0, b = (x - 2 * y + 1200) % 12 === 0;
-		if (a && b) g.set(x, y, '+', 2, 0);
-		else if (a) g.set(x, y, '/', 1, 0);
-		else if (b) g.set(x, y, BACK, 1, 0);
+	// Behind every page, faint as a watermark: tiers of lancet windows, a gothic arcade in
+	// plain ASCII, the rose in each window a shade brighter. The grain falls over it, weathering it.
+	const ox = Math.floor((g.cols - width) / 2);
+	for (let y = 0; y < g.rows; y++) {
+		const row = ARCADE[y % ARCADE.length];
+		for (let x = 0; x < g.cols; x++) {
+			const ch = row[(((x - ox) % row.length) + row.length) % row.length];
+			if (ch !== ' ') g.set(x, y, ch, ch === 'o' ? 2 : 1, 0);
+		}
 	}
 	for (let y = 0; y < g.rows; y++) for (let x = 0; x < g.cols; x++) {
 		const h = cellHash(x, y);

@@ -58,91 +58,91 @@ TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
 TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
 TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT,TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT,TTTTTTTTTTTTTTT
 TTTTTTTTTTTT,,,,,,TTTTTTTTTTTTTTT,T,,,TTTTTTTTTTTTTTTTT,,,,,TTTTTTTTTTTTTTTTT,TTTTTTTTTTTTTTTTT,TTTTTTTTTTTTTTTT
-TTTTTTTTTT,,,,,,,,,,TTTTTTTTTTTT,T,,,TT,,TTTTTTTTTT,T,,,T,T,,,TTTTTTTTT,,,T,,,TT,,TTTTTTTTT,,,T,TTTT,TTTTTTTTTTT
-TTTTTTTT,~~,T,,,f,,,,,TTT,TT,Tf,###############################################,,,,TTTTT,T,,,,,,,,fT,,,,T,TTTTTT
-TTTTTT,T~~,,f,,,,,,,,,T,TT,TT,,,#B__k_#.................................#____B#,,T,,T,T,,,,,,,,,,,,,,,,,,TTTTTTT
-TTTTTTTT~~,,,,,,,,,,,,,,,,T,,,,f#_____#..###w###w###w###w#############..#_____#,,,,,TT,T,,,,,,,,,,,,,,,,,TTTTTTT
-TTTTTTT,~~,f,,,,,,,,,,,,,,,,,,,f#_____D..#____________________#______#..D_____#,,,,f,,,Tf,,,,,,T,,,,,,,,,TTTTTTT
-TTTTTTT,~~,,,T,,,,,,,,,,f,,,,,,,#_____#..#_k________________i_#___B_E#..#_____#,,,,,,,,,,,,,,,,,,f,f,,,,T,TTTTTT
-TTTTTTT,~~,,,f,,,,,,,,,,,,,,,,,,#E____#..#____________________#______#..#__U_S#,,,,,,,,,,,f,,,,,,,,,,,,,,TTTTTTT
-TTTTTTTT,~~,,,,,,,,,,,,,,,,,,,,,#######..#______hhhhhhhh______#______#..#######,,,,,,,,,,,,,,,,T,,,,,,,TTTTTTTTT
-TTTTTTTT~~,,,,,,,,,,,,,,,T,f,f,,#........#_____hhUUUUUUhh_____#______#........#,,,,,,,f,,f,,,,,,,f,,,,ffTTTTTTTT
-TTTTTTTT~~,,,f,,,,,,,,,,,,,,,,,,#........#_____hUUUUUUUUh_____D______#........#,,,ff,,,,,,,,,,,,,,,,,,,,TTTTTTTT
-TTTTTTTT~~,,,,,,,,,,,,T,,f,f,,,,#........#_____hUUUUUUUUh_____#______#........#,,,,,T,,T,,,,f,,,,,,,,T,TTTTTTTTT
-TTTTTTT~~T,,,,,,,,,,,,,,f,,,,,,,#........#_____hhUUUUUUhh_____#_{____#........#,,,,T,,,,,,,,,,f,,,,,,,,TTTTTTTTT
-TTTTTT~~T,f,,,f,,,,,,,,,,f,f,,,,#........#______hhhhhhhh______#______#........#,,,,,,,,,,,,,f,,,,,,,,,,,TTTTTTTT
-TTTTTT~~T,,,,,,,,,,,,,f,,,,T,,f,#........#____________________#______#........#f,,,,f,,f,,,f,,,,,,,,,,,,TTTTTTTT
-TTTTTT~~TT,,,,,,,,,,,,,,f,,,,,,,#........#_k________________i_#___S_k#........#,,,,,,,,,,,,,f,,,,,,,,,,TTTTTTTTT
-TTTTTT~~,,,,,,,,,,,,,,,,,,,,,,,,#........#____________________#______#........#,,,,,,,,,,,T,,,,,,,,,,,,,TTTTTTTT
-TTTTTT~~,f,,,,,,,,,,,,,,,,,,,,,,#........#############DDD#############........#,,,,fT,,,,,,,,T,,,,,,,,,,TTTTTTTT
-TTTTTT~~,TT,,,,f,,,,,,,,,,,,,,,,#.............................................#,,,,T,,,,,,,,,,,,,,,,,,,,TTTTTTTT
-TTTTTT~~T,,,,,,f,,,,,,,,,,,f,,,,#.............................................#,,,,,,,,,,f,,,,,,,,,,,,,,,TTTTTTT
-TTTTTT~~,,,,,,,,,f,,,f,,,,,,,,f,#......###########..k.....k..##########.......#,,,,,,,,f,,,,,,,,,,,,,,,,TTTTTTTT
-TTTTTT~~T,,,,,,,,,,,f,,,,,,f,T,,#......#B______E_#...........#___UU__V#.......#,,,,,,,,,,,,,f,,,,,f,,,,,,,TTTTTT
-TTTTTT~~,,,,,,,,,,,,,,,f,,,f,,,,#......#_________#...........#________#.......#,,,,,,,,,,,,,,,,,,,,,,,,,,TTTTTTT
-TTTTTT~~,,,,,,,,,,,,,,,f,,,,,,,,#......#B________D.....o.....D________#.......#,,,,,,,,,,,,,,,,,f,,,,f,,T,TTTTTT
-TTTTTT~~T,,,,,,T,,,f,,,,,,,,,,,,#......#_________#...........#________#.......#,,,,,,,,,,,,,f,,,,,,,,,,T,TTTTTTT
-TTTTTT~~T,,,,,,,,,,,,,,,,,,f,,,,########B______r_#...........#_rr____V#.#######,,,,,,,,,,f,,,,,,,,,,,,,,TTTTTTTT
-TTTTTT~~,,,,,,f,,,f,ff,,,,,,,,,,#E____############...........##########.#__i_B#,,,,,,,,,,,,,,,,,,fRRRRRRRRTTTTTT
-TTTTTT~~,T,,,,,,,,,,,,,,,,,,,,,,#_____#.................................#_____#,,,,,,,,,,,,,,,,,TRRRRRRRRRTTTTTT
-TTTTTT~~T,,,,,,,,,,,,,,,,,,,,,,,#_____D............###___###............D_____#,,,,,,,,,,,,,,,,,,,RRRRRRRRTTTTTT
-TTTTTT~~T,,f,,,,,,,,,,,,,,,,,,,,#_____#............#_______#............#_____#,,,,,,,,,,,,,,,f,RRRRRRRRRRTTTTTT
-TTTTTT~~T,T,,,,,,,,,,,,,f,,,,,,,#E_X__#............#_______#............#____S#,,,,,,,,,,,,f,,,,RRRRRRRRRRTTTTTT
-TTTTTT~~T,,,,,,,,,,,f,,,,,,,,,f,####################_______####################,,,,,,,,,,,,f,,,,,RRRRRRRRRTTTTTT
-TTTTTT~~TTT,,,,,,,,,,,,,,f,f,,,,,,,fT,,,,,f,,,,,,,,###___###f,,,,,,,,f,,,,,,,,,,,,,,,,,,f,,,,,f,RRRRRRRRRRTTTTTT
-TTTTTT~~T,f,ffWWWWWWW,,WwWWWWW,,,,,,,,,,,,,,,,,,,,f,,T,..,,,,,,,,,,,,,,,,ff,,,,,,,WWWWWWW,,WwWWRRRRRRRRRRRTTTTTT
-TTTTTT~~,,,,,,WbngggW,fWb+++VW,,,,,,f,,,,,,,,,,,,,,,f!,..,!,,,,,,,,,,,,,,,,,,,,,,fWb+++yW,,Wb+++RRRRRRRRRRTTTTTT
-TTTTTT~~,,f,,,WgggggW,,W+++++W,,,,,,,,,,,,,,,,f,,,,,,,,..,,,,,,,,,,,,,,,,,,,,,,,,,W+++++Wf,W++++RRRRRRRRRRTTTTTT
-TTTTTT~~,,,f,,Wegg<gWf,We++t+W,,,,,,,,,,,,,,,,,,,T,,,,,..,,,,,,,,,,,,,,,,,,,,,,,,,We+++yW,,We<+J+RRRRRRRRRTTTTTT
-TTTTTT~~,,,,,,WWWdWWWf,WWWdWWW,,,,,,,,,,,,f,,,f,,,,,,,,..,,,,,,,,,,,,,T,f,,,,,,,,,WWWdWWW,,WWWdWWRRRRRRRRRTTTTTT
-TTTTTT,~~,f,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,f,,T,,,,,,,,,,..,,,,,,,,,T,,,,,,,,,,,,,,,,,,,,,,,,,,,g,,RRRRRRRRRTTTTTT
-TTTTTTT~~,,,,T,,,,,,,,,,,,,,,,!,f,,,,,,,,f,,,fT,,,,,,ff..,,,,,,,,,,,,,,,,,,,,,!,,,,,,g,,,,,,,,,,,,RRRRRRRRTTTTTT
+TTTTTTTTTT,,f,,,,,,,TTTTTTTTTTTT,T,,,TT,,TTTTTTTTTT,T,,,T,T,,,TTTTTTTTT,,,T,f,TT,,TTTTTTTTT,,,T,TTTT,TTTTTTTTTTT
+TTTTTTTT,~~,T,,,,,,,,,TTTfTT,T,,###############################################,f,,TTTTT,Tf,,,,,,,,T,,,,T,TTTTTT
+TTTTTT,T~~,,,,,,,,,,,,T,TT,TT,f,#B__k_#.................................#____B#,,T,,T,T,,,,,,,,,,,,,,,,,,TTTTTTT
+TTTTTTTT~~,f,f,,,,,,,,,f,,T,,,,,#_____#..###w###w###w###w#############..#_____#,,,,,TT,T,,,,,,,,,,,,,,,,fTTTTTTT
+TTTTTTT,~~,,,,,,,,,,,,,,,,,,,,,,#_____D..#____________________#______#..D_____#,,,,,,,,T,,,,,,,T,,,,,,,,,TTTTTTT
+TTTTTTT,~~,,,T,,,,,,,,,,,,,,,,,,#__{__#..#_k________________i_#___B_E#..#__{__#,,,,,,f,f,,,,,,,,,f,,f,,,T,TTTTTT
+TTTTTTT,~~,,f,,,,ff,,,f,,,,,,,,,#E____#..#____________________#______#..#__U_S#,,,,,,,,,,,,ff,,,,,,,,,,,,TTTTTTT
+TTTTTTTT,~~,,,,,,,,,,,,,,,,,,,,,#######..#______hhhhhhhh______#______#..#######f,f,,,,,,,,,,,,,T,,f,,,,TTTTTTTTT
+TTTTTTTT~~,,,,,,,,,,,,,,,T,,,,f,#........#_____hhUUUUUUhh_____#______#........#,,,,,,,,,,,,,,,,,,,,f,,,,TTTTTTTT
+TTTTTTTT~~,,,,,f,,,f,,,,,,,,,,f,#........#_____hUUUUUUUUh_____D______#........#f,,,,,,,,,,,,,,,,,f,,,,,,TTTTTTTT
+TTTTTTTT~~,,,,,,,,,,,,T,,,,,,f,,#........#_____hUUUUUUUUh_____#______#........#,,,,fT,fT,,,,f,,f,,,f,T,TTTTTTTTT
+TTTTTTT~~T,,,,,,,,,,,,,,,,,,,,,,#........#_____hhUUUUUUhh_____#_{____#........#,,f,T,,,,,,,,,,,,,,,,,,,TTTTTTTTT
+TTTTTT~~Tf,,,,,,,,,,,,,,,,,,,,,,#........#______hhhhhhhh______#______#........#,,,,,,,,,,,,,,,,,,,,,,,,,TTTTTTTT
+TTTTTT~~T,,,,,,,,,,,,f,,,,,T,,,,#........#____________________#______#........#,,,,,,,,,,,,,,,,,f,,,,,,,TTTTTTTT
+TTTTTT~~TT,,,,,,,,,,,,,,,,f,,,,,#........#_k________________i_#___S_k#........#,,,,,,,,,,,,,,,,,,,,,,,,TTTTTTTTT
+TTTTTT~~,,,,,,,,,,,,,,,,,f,,,,,,#........#____________________#______#........#,,,,,f,,,,,T,,,,,,,,,f,,,TTTTTTTT
+TTTTTT~~,,,,,,,,,,,,,,,,,,,,,f,,#........#############DDD#############........#,f,,,T,,,,,f,,T,,,,,,,f,,TTTTTTTT
+TTTTTT~~,TT,,,,,,,,,,,,,,,,,,,,,#.............................................#,,,fT,,,,,,f,,,,,,,,,,,,,TTTTTTTT
+TTTTTT~~T,,,f,,,,,f,,,,,,,,,,,,,#.............................................#,,,,,,,,,f,,,f,,,,,,,,,,,,TTTTTTT
+TTTTTT~~,,,,,,,,,,,,,,,,,,,,,,,,#......###########..k.....k..##########.......#,,,,,,,,,f,,,,,,,,,,,,,,,TTTTTTTT
+TTTTTT~~T,,,,,,,,,,f,,,,f,,,,T,,#......#B______E_#...........#___UU__V#.......#,,,,,,f,,,,,,,,,,,,,,,,,,,,TTTTTT
+TTTTTT~~,,,,,f,,,,,,,,,,,,,,,,,,#......#_________#...........#________#.......#,,,,,,,,,,,f,,,,,,,,,,,,,,TTTTTTT
+TTTTTT~~f,,,,,,,,,,,,,,,,,,,,f,,#......#B________D.....o.....D________#.......#,f,ff,,,,,,,,,,,,,,,,,,,,T,TTTTTT
+TTTTTT~~T,,,,,,T,f,,,,,,,,,,,,,,#......#_________#...........#________#.......#,,,,,,,,,,,,,,,,,,,,,,,,T,TTTTTTT
+TTTTTT~~T,,,,,,,,,,,,,,,,,,,,,,,########B______r_#...........#_rr____V#.#######,,,,,,,,,,,,,,,,,,,,,,f,,TTTTTTTT
+TTTTTT~~,,,,,,,,,,,,,,,,,,,,,,,,#E____############...........##########.#__i_B#,,,,,,,,,f,,,,,,,,,RRRRRRRRTTTTTT
+TTTTTT~~,T,,,,,f,,,,,,,,,,,,,,,,#_____#.................................#_____#,,,f,,,,,,,,,,,,,TRRRRRRRRRTTTTTT
+TTTTTT~~T,,f,,,,,,,,,f,,,,,,,,,,#_____D............###___###............D_____#,,,f,,,,,,,,,,,,,,,RRRRRRRRTTTTTT
+TTTTTT~~T,,,,f,f,,,,,,,f,,,,,f,,#__{__#............#_______#............#__{__#,,,,,,f,,,,,,,,f,RRRRRRRRRRTTTTTT
+TTTTTT~~T,T,,,,,,,,,,,,,,,,f,,,,#E_X__#............#_______#............#____S#,f,,f,ff,,,,,,,,,RRRRRRRRRRTTTTTT
+TTTTTT~~T,,,,,,,,,,,,,f,,,,,,,,,####################_______####################,,,,,,,,,,ff,,,,,,RRRRRRRRRTTTTTT
+TTTTTT~~TTT,,,,,,,,,,f,,,,,,f,,,,,,,T,,,,,,,,f,,,,,###___###,,,,,,,,,,,,,,,,,,,f,,,,f,,,,,,,,,,,RRRRRRRRRRTTTTTT
+TTTTTT~~T,,,,,WWWWWWW,,WwWWWWW,,,f,,,,,,,,,,,,,,,,,,,T,..,,,,,,,,,,,,,f,,,,f,,f,,,WWWWWWW,,WwWWRRRRRRRRRRRTTTTTT
+TTTTTT~~,,,,,,WbngggW,,Wb+++VW,,,,,,,,,,,,,,,,,,,,,,,!,..,!,,,,,,,,,,,,,,,,,,,,f,,Wb+++yW,,Wb+++RRRRRRRRRRTTTTTT
+TTTTTT~~,,,,,,WgggggW,,W+++++W,f,,,f,,,,,,,,,,,,,,,,,,,..,,,f,,,,,,,,,,,,,f,,,,,,,W+++++W,,W++++RRRRRRRRRRTTTTTT
+TTTTTT~~,,,,,,Wegg<gW,,We++t+W,,,,,,,,,,,,,f,,,,,T,,,,,..,,,,,,,,,,,,,,,,,,,,,,,,,We+++yW,,We<+J+RRRRRRRRRTTTTTT
+TTTTTT~~,,,,,,WWWdWWW,,WWWdWWW,,,f,,,,,,,,,,,,,,,,,,,,,..,,f,,,,,,,,f,T,,f,,,,,,ffWWWdWWW,,WWWdWWRRRRRRRRRTTTTTT
+TTTTTT,~~,,,,,,,,,,,,,,,,,,,,,,,,f,,,,,,,,,,T,,,,,,,,,,..,,,,,,,,,T,,,,,,,,,,,,,,,,,,g,,,,,,,,g,,RRRRRRRRRTTTTTT
+TTTTTTT~~,,,,T,,,,,,,,,,,,,,,,!,,,,,,,,,,,,,,,T,,,,,,,,..,,,,,,,,,,,,,,,,,,,,f!,,,,,,,,,,,,,,,,,,,RRRRRRRRTTTTTT
 TTTTTTT,BBT,ggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggRRRRGGGRTTTTTT
 TTTTTTTBB,,,gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggRRGuGGGTTTTTT
-TTTTTTT~~,,,,,,,,,,,!,,,,,,,,,,,,,,,,,,,f,gg,,,,,,,f,,,..,,,,,,,gg,,,,,,,,,,,,,,,,,,,,,,gg,,,,,,,,,RRGGGzGTTTTTT
-TTTTTTT~~,,,,,,,,,,,,,,,,,,,,,,,,f,,,,,,,,ggWWWWWWW,,,,..T,,,,,,!g,,,T,,,,,,,,,,f,,,,,,,gg,,,,,,,f,RRGGGGGTTTTTT
-TTTTTTTT~~T,,,,,,,,,####w#####w###w####,,,ggWb+++rWf,,T..,,,,,,,gg,,,,,,,,T,,,,,,,,,,,,,gWwWWWWW,,,RRRGGGRTTTTTT
-TTTTTTTTT~~,ff,,,f,,#_________________#,,,ggd+++++W,,,f..,,,,,,,gg,,,,,,,,,,,,,,,,,T,,,,gWb+++rW,,,RRRRGRRTTTTTT
-TTTTTTTT~~,,,,,######i____p__p__p__p__#,,,ggWe+++rW,,,,..,,,,,,,gg,,WWWWWWWWWWWWWWWWWWW,gd+++++W,,RRRRRGRRTTTTTT
-TTTTTTTT~~,,,,,#___##_____p__p__p__p__#,,,ggWWWWWWW,,,,..,,,,,,,gg,,WrrrrrrrK++W+e+++bW,gW<++r+W,,RRRRRGRRTTTTTT
-TTTTTTTT~~T,,,,#_L____a_______________D,g,gg,,,,,,,,,,,..f,,,,,,gg,,W++++++++++W++++++W,gWWWWWWW,,RRRRRGRRTTTTTT
-TTTTTTTT~~T,,,,#___##_a_______________D,,,gg,,,,,,_________..,,,g,f,W++++++++++W++++++W,gg,,f,,,,,RRRRGGGRTTTTTT
-TTTTTTTT~~,,,,,######_____p__p__p__p__#,f,gg,,,,,____________.,,,,,,W+ctc+ctc++W++++K+Wfgg,,,,,,,RRRRGGGGGTTTTTT
-TTTTTTTT~~,,ff,,,,,,#_____p__p__p__p__#,,,gg,,f_.______h_h____..,,,,d++c+++c+++d++++++W,gg,,,,,!,RRRGGGGGjGTTTTT
-TTTTTTT~~,,,,,,,f,,,#i________________#,ffgg,,.______h______h__._,,gd++++++++++WWWdWdWW,ggggggggGGGGGGGYGGGTTTTT
-TTTTTTT~~,,,,,,,,,,,#_________________#,,,gg,,k____h____________.,,,W++++++++++W+++W++WfggggggggGGGGGGGGGGGTTTTT
-TTTTTTT~~,,,,,,,,,,f####w#####w###w####,,fgg,,.______________h___,,,W+ctc+ctc++W+e+W+eW,gg,T,,,!RRRRRjGGGGTTTTTT
-TTTTTTT~~T,,,,,,,,,,,,,,,,f,,,,,,,,,,,,,,,gg,_____h____QQ________.,,W++c+++c+++W+++W++Wfgg,,,,,,RRRRRRGGGRTTTTTT
-TTTTTT~~,,,,,,,,,,,WWWWWWWWWWWWWWWWWWWW,,,!g,,.___h____QQ_____h__,,,W++++++++++W+++W++W,!gf,,,,,RRRRRRGRRRTTTTTT
-TTTTTT~~T,,,,,f,,,,WggggggggggggggggggW,f,gg,,_______________h__.,,,W++++<+++++Wb++Wb+W,gg,,,,,,RRRRRRGRRRTTTTTT
-TTTTTT~~,,f,,,,,,,,WggmggmggmggmggmggmW,,,gg,,.____h___________.k,,,WWWWwWWWwWWWWWWWWWW,gWwWWWWW,RRRRRGRRRTTTTTT
-TTTTTT~~T,,,,,,,,,,WggggggggggggggggggW,,,gg,,,_.____h______h__.,,,,,,,,,,,,,,,,,,,,,,,,gWb+++SW,,RRRRGRRRTTTTTT
-TTTTTT~~,T,,,,,,,,,Wgmggmggmggmggmggmgg,,,ggWWWWWWW____h_h___.,,,,,,,,,,,f,,,,,,,,,,,,,,gd+++++W,,RRRRGRRRTTTTTT
-TTTTTT~~TT,,,,,,,,,WggggggggggggggggggW,,,ggWb+++KW.._____._.,,,,,,,,,,,,,,,,,,,,,f,,,,,gWe++t+W,,RRRRGRRRTTTTTT
-TTTTTT~~T,,,,,,,,,,WggmggmggmggmggmggmW,,,ggd+++++W,,,,.,,,,,,,,,,,,WWWWWWW,,,,,,,,,,,,,gWWWWWWW,,,RRRGGGRTTTTTT
-TTTTTT~~TT,,,,,,,,,WggggggggggggggggggW,,,ggWe++t+W,,f,,,,,,,,,,,,,,Wb+++SW,,,,,,,,,,,f,gg,,,,,,,,,RGGGGGGGTTTTT
-TTTTTT~~T,,,,,,,,,,WgmggmggmggmggmggxgW,f,ggWWWWWWW,,,,,,,,,,,,,,,,,W+++++W,,,,,,,,,,,,,gg,,,f,,f,fRGGGGYGGTTTTT
-TTTTTT~~T,,,,,,,,,,WggggggggggggggggggW,,fgg,,,,,,f,,,,,,,,,,,,,,fffWe++t+W,,,,,,,ff,T,,gg,f,,,ff,,RGGjGGGGTTTTT
-TTTTTT~~,T,,,,,,,,,WWWWWWWWWWWWWWWWWWWW,,,gg,,,,,,,,,,,,,,f,,f,,,,,,WWWdWWW,,,,,,,,,,,,,gg,,,,,,,,,RRRGGGRTTTTTT
-TTTTTT~~T,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,gg,,,,,,f,,,,,,,,,,,,,,,,,,,,,f,,,,,,,,,,,,,,,ggf,,,,,,,,RRRRRRRTTTTTT
-TTTTTTT~~T,,,,,,,,,f,,f,,,,,,,!f,,,,,,,f,,gg,f,,,,,,,,,,,,,,,,,,,,,,f,,g,,,,,,,,!,,,,,,,gg,T,,,,,,RRRRRRRRTTTTTT
+TTTTTTT~~,,,,,,,f,,,!,,,,,,,,,,,f,,,,,,,,,gg,,,,f,,,,,,..,,,,,,,gg,,,,,,,,,,,,,,,,,,,,,fggf,,,f,,,,RRGGGzGTTTTTT
+TTTTTTT~~,,,,f,,,,,,,,,,,,,,,,,,,,,,,,,,,,ggWWWWWWW,,,,..T,,,,,,!g,,,T,,,,,,,,,,,,,,,,,,gg,,,,,,,,,RRGGGGGTTTTTT
+TTTTTTTT~~T,,,,,,,,,####w#####w###w####,,,ggWb+++rW,,,T..,f,,,,,gg,,,,,,,fT,,,,,,,,,,,,,gWwWWWWW,,,RRRGGGRTTTTTT
+TTTTTTTTT~~,,,,,,,,,#_________________#,,,ggd+++++Wf,,,..,f,,,,,gg,,,,,,f,,,,,,,,,,T,,f,gWb+++rW,,,RRRRGRRTTTTTT
+TTTTTTTT~~,,,,,######i____p__p__p__p__#ff,ggWe+++rW,,,,..,,,,,,fgg,,WWWWWWWWWWWWWWWWWWW,gd+++++W,,RRRRRGRRTTTTTT
+TTTTTTTT~~,,,,,#___##_____p__p__p__p__#,,,ggWWWWWWW,,,,..,f,,,,fggf,WrrrrrrrK++W+e+++bW,gW<++r+W,,RRRRRGRRTTTTTT
+TTTTTTTT~~Tf,,,#______a_______________D,,,gg,,,,,,,,,,,..,,,f,,,gg,,W++++++++++W++++++W,gWWWWWWW,,RRRRRGRRTTTTTT
+TTTTTTTT~~T,,f,#{__##_a_______________D,g,gg,,,,,,_____XU__..,,,g,,,W++++++++++W++++++W,gg,,,,,,,,RRRRGGGRTTTTTT
+TTTTTTTT~~,,,,f######_____p__p__p__p__#,,,gg,,,,,yU__________.,,,,,,W+ctc+ctc++W++++K+W,gg,,,f,,,RRRRGGGGGTTTTTT
+TTTTTTTT~~,,,,,,,,,,#_____p__p__p__p__#,,,gg,,,_.______h_h____..,,,,d++c+++c+++d++++++W,gg,,f,,!,RRRGGGGGjGTTTTT
+TTTTTTT~~,,,,,,,f,,,#i________________#,,fgg,,.______h______h__._,,,d++++++++++WWWdWdWW,ggggggggGGGGGGGYGGGTTTTT
+TTTTTTT~~,,,,,,,,,f,#_________________#,,,gg,,k____h____________.,,,W++++++++++W+++W++W,ggggggggGGGGGGGGGGGTTTTT
+TTTTTTT~~,,,,,,,,,,,####w#####w###w####,,,gg,,.U_____________h__U,,,W+ctc+ctc++W+e+W+eW,gg,T,,,!RRRRRjGGGGTTTTTT
+TTTTTTT~~T,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,gg,_____h____QQ________.,,W++c+++c+++W+++W++W,gg,,,,,,RRRRRRGGGRTTTTTT
+TTTTTT~~,,,,,,,,f,,WWWWWWWWWWWWWWWWWWWW,,,!g,,.___h____QQ_____h__,,,W++++++++++W+++W++W,!g,,,,,,RRRRRRGRRRTTTTTT
+TTTTTT~~T,,,,,,,,,,WggggggggggggggggggW,,,gg,,yU_____________h__.,,,W++++<+++++Wb++Wb+W,gg,,,,,,RRRRRRGRRRTTTTTT
+TTTTTT~~,,,,,,,f,,,WggmggmggmggmggmggmW,,,gg,,.____h___________.k,,,WWWWwWWWwWWWWWWWWWW,gWwWWWWW,RRRRRGRRRTTTTTT
+TTTTTT~~T,,,,,,,,,,WggggggggggggggggggW,,,gg,,,_.____h______h__.,,,,,,,,,,,,T,,T,,T,,T,,gWb+++SW,,RRRRGRRRTTTTTT
+TTTTTT~~,T,,,,,,,,,Wgmggmggmggmggmggmgg,,,ggWWWWWWW____h_h___.,,f,,,,,,,,,,,,,,,,,,,,,,,gd+++++W,,RRRRGRRRTTTTTT
+TTTTTT~~TTf,,,,,,,,WggggggggggggggggggW,,,ggWb+++KW.._____._.,,,,,,,,,,f,,,,T,,T,,T,,T,,gWe++t+W,,RRRRGRRRTTTTTT
+TTTTTT~~T,,,,,,,,,,WggmggmggmggmggmggmW,,,ggd+++++W,,,,.,,,f,,f,f,,,WWWWWWW,,,,,,,,,f,,,gWWWWWWW,,,RRRGGGRTTTTTT
+TTTTTT~~TTf,,,,,,,,WggggggggggggggggggW,,,ggWe++t+W,,,fff,,,,,,,ff,,Wb+++SW,T,fT,,T,fTf,gg,,,,,,,,,RGGGGGGGTTTTT
+TTTTTT~~T,,,,,,,,,,WgmggmggmggmggmggxgW,,,ggWWWWWWW,,,,,,f,,f,,,,,,,W+++++W,,,,,,,,,,,,,gg,,,,,,,,,RGGGGYGGTTTTT
+TTTTTT~~T,,,,,,,,,,WggggggggggggggggggW,,,gg,,,,,,,,,,,,,,,,,,,,,,,,We++t+W,Tf,T,,T,,T,,gg,,,,,,,,,RGGjGGGGTTTTT
+TTTTTT~~,T,,,,f,,,,WWWWWWWWWWWWWWWWWWWW,,,gg,,,,,,,,f,,,,,,,,,,,,,,,WWWdWWW,,f,,f,,,,,,,ggf,,,,,,,fRRRGGGRTTTTTT
+TTTTTT~~T,,,f,,,,,,,,,,,,,,,,,,,,,,f,,f,,,gg,,,,,,,,,,,,,,,,,,,,,,,,,,,,f,,,T,,T,,Tf,T,,gg,,,,,,,,,RRRRRRRTTTTTT
+TTTTTTT~~T,,,,,,,,,,,,,,,,,,,,!f,ff,,,f,,,gg,,,,,,,,,,,,f,,,fff,,,,,,,,,,,,,,,,,!,,,,,,,gg,T,,,,,fRRRRRRRRTTTTTT
 TTTTTTTBBT,,ggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggRRRRRRRRTTTTTT
 TTTTTT,BB,,,ggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggRRRRRRRRTTTTTT
-TTTTTT~~,,,f,,,,T,,,f,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,g,ff,,,f,,,,,,,,,,,,,,,f,,,gff,,,,,,,,,,,,,RRRRRRRRRRTTTTTT
-TTTTTT~~,,,,,,WWWdWWW,,WWWdWWW,,WWWdWWW,,WWWdWWW,,WWWdWWW,,WWWdWWW,fWWWdWWW,,WWWdWWW,,,,,,,,,,,,RRRRRRRRRRTTTTTT
-TTTTTT~~T,,,f,Wb+++tW,,Wb++<tW,,Wb+++YW,,Wb+++KW,,Wb++<tW,,Wb+++yW,,WbgggmWT,Wb++<KW,,,,,,,,,f,fRRRRRRRRRRTTTTTT
-TTTTTTT~~,f,f,W+++++W,,W+++++W,,W+++++W,,W+++++W,,W+++++W,,W+++++W,,WgggggW,,W+++++W,,,,T,,,,,,,RRRRRRRRRRTTTTTT
-TTTTTTT~~,,,,,We++t+W,,We++c+W,,We++t+Wf,We++r+W,,We++r+W,,We++y+W,,WeggtgW,,We++S+W,,,,,,,,,,,,RRRRRRRRRRTTTTTT
-TTTTTTT~~,,,,,WWWWWWW,,WWWWWWW,fWWWWWwW,,WWWWWwW,,WWWWWwW,,WWWWWWW,,WWWWWwW,,WWWWWWW,,,,,,,,,,,,RRRRRRRRRRTTTTTT
-TTTTTTT~~,,,,,,,,,,,,,,,,,,,,,,T,,,,ff,,,,,,,,,,,fT,,,,,,,,,,,,,,,,,,,,,f,f,,,,,,,,,,,,,,,f,,,,,RRRRRRRRRRTTTTTT
-TTTTTTT~~,,,,T,,,,,,,f,T,,,,,,,,,,,f,,,,,fTT,T,T,,,,,T,,,,,,,,,,,,,TT,,,,,,,,f,,,f,,,,T,T,,,,,,,,RRRRRRRRRTTTTTT
-TTTTTT~~f,,,,,,f,,,,T,T,TT,,,T,,,,T,,f,,,TTT,TT,,TTT,,,,,T,,,,,,,TTT,T,,,,,,T,,,,,,,,fT,TTf,,,,f,,,,,,,TTTTTTTTT
-TTTTTT~~TT,,,,,,,,,TT,TT,TTTT,T,f,,,,,,TTf,TTTTTTTT,,,,,,,,T,T,TTTTTT,,T,,,,,,,,,,TTTTTTT,T,,,,,,,,,,T,TTTTTTTTT
-TTTTTT~~TT,,T,,,,,,,TTTTTTTTTTT,,,,,,,T,,TTTTTTTTTTTT,,f,,TT,,TTTTTTTTT,T,TT,f,,,,TTTTTTTT,,TT,,,,,,,T,TTTTTTTTT
-TTTTTT~~TT,T,TTT,,fTTTTTTTTTTTTfT,TTT,,TT,TTTTTTTTTTT,T,,,,,,TTTTTTTTTTTfT,,,,,,T,TTTTTTTTTT,,f,,,,,,,TTTTTTTTTT
-TTTTTT~~TTTTTT,,,,T,TTTTTTTTTTT,T,,,TTT,TTTTTTTTTTTT,,f,,T,TTTTTTTTTTTTTT,T,T,,,TTTTTTTTTTTT,T,,,T,TTTTTTTTTTTTT
-TTTTTTT~~TTTTT,,,T,TTTTTTTTTTTTT,,T,,,T,TTTTTTTTTTTT,,T,,,,,TTTTTTTTTTTTTT,f,T,,TTTTTTTTTTTTT,T,,,,TTTTTTTTTTTTT
-TTTTTTT~~TTTTT,T,,fTTTTTTTTTTTTTTTT,,TTTTTTTTTTTTTTTTT,,T,TTTTTTTTTTTTTTTTTT,T,TTTTTTTTTTTTTTT,,,,,TTTTTTTTTTTTT
+TTTTTT~~,,,,,,,,T,,,f,,,,,,,,,,,,,,,,,,,,,,,g,f,f,f,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,f,,,,,,,,,RRRRRRRRRRTTTTTT
+TTTTTT~~,,,,,,WWWdWWW,,WWWdWWW,,WWWdWWW,,WWWdWWW,,WWWdWWW,,WWWdWWW,,WWWdWWW,,WWWdWWWf,,,,,,,,,,,RRRRRRRRRRTTTTTT
+TTTTTT~~T,,,,,Wb+++tW,,Wb++<tW,,Wb+++YW,,Wb+++KW,,Wb++<tW,,Wb+++yW,,WbgggmWT,Wb++<KW,,,,,,,,,,,,RRRRRRRRRRTTTTTT
+TTTTTTT~~,,,,,W+++++W,,W+++++WffW+++++W,,W+++++W,,W+++++W,,W+++++W,,WgggggW,,W+++++W,f,,T,,,,,,,RRRRRRRRRRTTTTTT
+TTTTTTT~~,,,,,We++t+W,,We++c+W,,We++t+W,,We++r+W,fWe++r+W,fWe++y+W,,WeggtgW,,We++S+W,,,,,,,,,,,fRRRRRRRRRRTTTTTT
+TTTTTTT~~,,,,,WWWWWWW,,WWWWWWW,,WWWWWwW,,WWWWWwW,,WWWWWwW,,WWWWWWW,fWWWWWwW,,WWWWWWW,,,,,,,,,,f,RRRRRRRRRRTTTTTT
+TTTTTTT~~,,,,f,,,,,,,,,,,,,,,,,,,,,,,,,,,,f,,,f,,,,,,,,,,,,,f,,,,,,f,,,,,,,,,,,,,,,f,,,,,,,,,,,,RRRRRRRRRRTTTTTT
+TTTTTTT~~,,,,,,,,,,,,,,,,,,,,,f,f,,,,f,,,,,,,,,,,,,,,,,,,,f,,,,,,f,,,,,,,,,,,,,,,,,,,,,,T,,,,,,,,RRRRRRRRRTTTTTT
+TTTTTT~~,,,,,WggggggggWggggggggWggggggggWggggggggWggggggggWggggggggWggggggggWggggggggWg,TT,,,,,,,,,,,,,TTTTTTTTT
+TTTTTT~~TT,,,gyffffyyfgfyffffffgffyffyfygyffyfyffgyyyffyffgfffffffygyfyffyffgyyffffyfgfTT,T,,f,,,,,,,TfTTTTTTTTT
+TTTTTT~~TT,,TWggggggggWggggggggWggggggggWggggggggWggggggggWggggggggWggggggggWggggggggWgTTT,,TT,,,,,,,T,TTTTTTTTT
+TTTTTT~~TT,T,WfyyfffyyWfffyfyffWyffffyffWfffffyffWyyfyffffWfffffffyWffffffffWffyffyffWfTTTTT,,,,ff,,,,TTTTTTTTTT
+TTTTTT~~TTTTTgWWWWWWWWgWWWWWWWWgWWWWWWWWgWWWWWWWWgWWWWWWWWgWWWWWWWWgWWWWWWWWgWWWWWWWWgWTTTTT,T,,,T,TTTTTTTTTTTTT
+TTTTTTT~~TTTTT,,fT,TTTTTTTTTTTTT,,T,,,T,TTTTTTTTTTTT,,Tf,,,,TTTTTTTTTTTTTT,,,T,,TTTTTTTTTTTTT,T,,,,TTTTTTTTTTTTT
+TTTTTTT~~TTTTT,T,,,TTTTTTTTTTTTTTTT,fTTTTTTTTTTTTTTTTT,,T,TTTTTTTTTTTTTTTTTT,T,TTTTTTTTTTTTTTT,,,,,TTTTTTTTTTTTT
 TTTTTTTT~~TTT,TTTTTTTTTTTTTTTTTTTT,TT,TTTTTTTTTTTTTTTTT,TT,TTTTTTTTTTTTTTTTT,,,TTTTTTTTTTTTTTTT,,T,TTTTTTTTTTTTT
 TTTTTTTTT~~TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
 TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
@@ -154,37 +154,37 @@ level 1
                                                                                                                 
                                                                                                                 
                                                                                                                 
-                                                                                                                
-                                                                                                                
-                                                              ########                                          
-                                                              #______#                                          
-                                                              #____B_#                                          
-                                                              #____E_#                                          
-                                                              #______#                                          
-                                                              #______w                                          
-                                                              #______#                                          
-                                                              #______#                                          
-                                                              #_}____#                                          
-                                                              #______#                                          
-                                                              #_____i#                                          
-                                                              #______#                                          
-                                                              #______#                                          
-                                                              ###w####                                          
-                                                                                                                
-                                                                                                                
-                                                                                                                
-                                                                                                                
-                                                                                                                
-                                                                                                                
-                                                                                                                
-                                                                                                                
-                                                                                                                
-                                                                                                                
-                                                                                                                
-                                                                                                                
-                                                                                                                
-                                                                                                                
-                                                                                                                
+                                _______________________________________________                                 
+                                _______                                 _______                                 
+                                ___k___                       ########  ___k___                                 
+                                _______                       #______#  _______                                 
+                                ___}___                       #____B_#  ___}___                                 
+                                _______                       #____E_#  _______                                 
+                                _______                       #______#  _______                                 
+                                _                             #______w        _                                 
+                                _                             #______#        _                                 
+                                _                             #______#        _                                 
+                                _                             #_}____#        _                                 
+                                _                             #______#        _                                 
+                                _                             #_____i#        _                                 
+                                _                             #______#        _                                 
+                                _                             #______#        _                                 
+                                _                             ###w####        _                                 
+                                _                                             _                                 
+                                _                                             _                                 
+                                _                                             _                                 
+                                _                                             _                                 
+                                _                                             _                                 
+                                _                                             _                                 
+                                _                                             _                                 
+                                _______                                 _______                                 
+                                _______                                 _______                                 
+                                ___k___                                 ___k___                                 
+                                _______            _________            _______                                 
+                                ___}___            _________            ___}___                                 
+                                _______            _________            _______                                 
+                                _______________________________________________                                 
+                                                   _________                                                    
               WWWWWWW                                                                      WWWWWWW              
               Wb++++W                                                                      Wb++++W              
               W+++++W                                                                      W+++++W              
@@ -198,11 +198,11 @@ level 1
                                                                                                                 
                                                                                          WWWWWWW                
                                                                                          Wb++++W                
-                                                                    WWWWWWWWWWWW         W+++++W                
-                                                                    Wb++eWWb++eW         W>++++W                
-                                                                    W++++WW++++W         WWWWWWW                
-                                                                    W++++WW++++W                                
-                                                                    W++++WW++++W                                
+               ##w##                                                WWWWWWWWWWWW         W+++++W                
+               #_L_#                                                Wb++eWWb++eW         W>++++W                
+               w___#                                                W++++WW++++W         WWWWWWW                
+               #}__#                                                W++++WW++++W                                
+               #####                                                W++++WW++++W                                
                                                                     WWWdWWWWWdWW                                
                                                                     W++K+++++++W                                
                                                                     W++++++++++W                                
@@ -273,4 +273,6 @@ label 68 76 Mason’s
 label 77 76 Midwife’s
 label 68 66 Herbalist’s
 label 98 54 The Old Mine
+label 14 82 Kitchen Gardens
+label 76 62 Orchard
 end

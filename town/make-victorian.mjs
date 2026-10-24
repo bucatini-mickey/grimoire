@@ -224,6 +224,47 @@ for (let y = LH.y - 3; y <= LH.y + 3; y++) for (let x = LH.x - 4; x <= LH.x + 4;
 up(LH.x - 1, LH.y, 'floor stone block | gas lamp'); up(LH.x, LH.y - 1, 'floor stone block | candle');
 label(LH.x - 5, LH.y - 5, 'Lighthouse');
 
+// ---- boats at their moorings in the bay: clinker hulls, a deck, a coil of rope or a barrel aboard ----
+for (const [bx, by, len] of [[50, 79, 6], [58, 84, 7], [70, 77, 5], [37, 80, 5]]) {
+	for (let x = bx; x < bx + len; x++) for (let y = by; y <= by + 2; y++) {
+		if (!isWater(x, y)) continue;
+		const edge = y === by || y === by + 2 || x === bx || x === bx + len - 1;
+		put(x, y, edge ? 'wall wood' : 'floor wood');
+	}
+	put(bx + len - 1, by + 1, 'wall wood'); // the bow
+	if (get(bx + 2, by + 1) === 'floor wood') thing(bx + 2, by + 1, 'barrel', 'floor wood');
+}
+// Crates and barrels stacked along the quays, nets drying.
+for (let y = 66; y < H; y++) for (let x = 20; x < 92; x++) if (get(x, y) === 'floor stone block' && rnd() < 0.05) thing(x, y, rnd() < 0.6 ? 'barrel' : 'chest', 'floor stone block');
+// ---- shopfronts on Market Street: a hanging sign beside each door ----
+for (let x = 18; x < 96; x++) for (const y of [39, 42]) if (get(x, y) === 'floor grass' && (get(x - 1, y + (y === 42 ? 1 : -1)).includes('door') || get(x - 1, y + (y === 42 ? 1 : -1)).includes('door'))) thing(x, y, 'sign', 'floor cobble');
+// ---- upstairs: the Customs House's long room of ledgers, the Lodge's library ----
+upRoom(70, 61, 80, 67, 'stone block', 'slate');
+stair(79, 62, 'stone block');
+for (const x of [72, 74, 76]) up(x, 62, 'floor slate | bookshelf');
+up(72, 66, 'floor slate | table'); up(73, 66, 'floor slate | chair');
+upRoom(L.x0, L.y0, L.x1, L.y1, 'slate', 'slate');
+stair(L.x0 + 2, L.y1 - 1, 'stone block');
+for (let y = L.y0 + 2; y <= L.y1 - 2; y += 2) up(L.x1 - 1, y, 'floor slate | bookshelf');
+up(L.x0 + 5, L.y0 + 3, 'floor slate | candle'); up(L.x0 + 5, L.y0 + 4, 'floor slate | sigil');
+// ---- up on the moor: a ring of standing stones round a flat altar stone, and a roofless croft ----
+const ring = { x: 60, y: 13 };
+for (let k = 0; k < 9; k++) {
+	const a = (k / 9) * Math.PI * 2;
+	const x = Math.round(ring.x + Math.cos(a) * 6), y = Math.round(ring.y + Math.sin(a) * 3);
+	if (!isWater(x, y)) put(x, y, 'wall granite');
+}
+thing(ring.x, ring.y, 'altar', 'floor granite');
+label(ring.x - 6, ring.y - 5, 'The Nine Stones');
+for (let y = 14; y <= 19; y++) for (let x = 36; x <= 44; x++) {
+	if (isWater(x, y)) continue;
+	const edge = y === 14 || y === 19 || x === 36 || x === 44;
+	if (edge) put(x, y, rnd() < 0.65 ? 'wall stone block' : 'floor gravel'); // fallen in
+	else put(x, y, rnd() < 0.3 ? 'floor grass' : 'floor mud');
+}
+thing(38, 16, 'coffin', 'floor mud');
+label(36, 13, 'Abandoned Croft');
+
 // ---- gas lamps, few and far apart; ferns in the damp; a few gnarled trees ----
 for (const [x0, y0, x1, y1] of [[14, 22, 98, 23], [10, 40, 102, 41], [16, 58, 96, 59]]) for (let x = x0 + 4; x <= x1; x += 11) if (floorOf(x, y0) === 'floor cobble') thing(x, y0, 'gas lamp');
 for (const x of [20, 37, 75, 92]) for (let y = 28; y <= 64; y += 12) if (floorOf(x, y) === 'floor cobble') thing(x, y, 'gas lamp');
