@@ -139,6 +139,18 @@ function logoPixels() {
 	}
 }
 
+/** The title: art/title.png, its alpha (0-255) by pixel; the page gilds and stains it. */
+function titleAlpha() {
+	try {
+		if (!existsSync('art/title.png')) return null;
+		const { w, h, rgba } = decodePng(readFileSync('art/title.png'));
+		return { w, h, a: Array.from({ length: h }, (_, y) => Array.from({ length: w }, (_, x) => rgba[(y * w + x) * 4 + 3])) };
+	} catch (e) {
+		console.warn('art/title.png could not be read:', e.message);
+		return null;
+	}
+}
+
 const options = {
 	absWorkingDir: process.cwd(),
 	entryPoints: ['src/ui/main.ts'],
@@ -149,7 +161,7 @@ const options = {
 	write: false,
 	outdir: 'dist/.js',
 	loader: { '.tbp': 'text' },
-	define: { __LOGO__: JSON.stringify(logoPixels()) },
+	define: { __LOGO__: JSON.stringify(logoPixels()), __TITLE__: JSON.stringify(titleAlpha()) },
 	plugins: [inline],
 	logLevel: 'warning'
 };

@@ -58,3 +58,24 @@ export function centrepiece(phase: 'night' | 'day' | 'other', height: number): s
 	if (height >= tower.length) return tower;
 	return tower.slice(tower.length - height);
 }
+
+/**
+ * Drolleries for the margins of the book: little devils as a scribe would doodle them at the
+ * head and foot of a page. Plain ASCII, about 50 columns. `R` marks are drawn in red, `G` in
+ * brass (the eyes); everything else in ink.
+ */
+export const HEADPIECE: string[] = [
+	String.raw`   ,/\,                                      ,/\,  `,
+	String.raw`  ( GG )  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~  ( GG ) `,
+	String.raw`  /)vv(\   Blood on the Clocktower  *  a      /)vv(\ `,
+	String.raw` //|  |\\  Storyteller's book of the dead   //|  |\\ `,
+	String.raw`   ^  ^   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~    ^  ^  `
+];
+
+export const TAILPIECE: string[] = [
+	String.raw`                      /\___/\                      `,
+	String.raw`  ~~~~~~~~~~~~~~~~~~~( G   G )~~~~~~~~~~~~~~~~~~~>  `,
+	String.raw`                      \ RRR /                       `,
+	String.raw`                     _/'---'\_                      `,
+	String.raw`                    (__/   \__)                     `
+];

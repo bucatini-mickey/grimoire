@@ -260,6 +260,9 @@ export class Canvas {
 const PALETTES: Record<string, Palette> = {
 	'manuscript-night': ['#110e0d', '#1d1816', '#4e4238', '#857868', '#d4c9b4', '#ece2cc', '#b08d55', '#a8683a', '#b0362c', '#6e1f1a', '#7f8a62', '#343a2a', '#6f87a6', '#26344a', '#8a6a90', '#4f3a2a'],
 	// The home page is the book's cover: brown calf, blind-tooled, gilt lettering and brass.
+	// The book's first page, opened: clean vellum, dark ink, red and brass.
+	folio: ['#e4dccb', '#d6ccb8', '#9c8f7a', '#706556', '#241c17', '#100b08', '#7d6232', '#93532a', '#8c2a22', '#6a1d17', '#56603f', '#b2b59a', '#3a5576', '#bcc4cf', '#6a4a72', '#ad9e86'],
+	cover: ['#2b1810', '#3a2216', '#5e3a26', '#a3825e', '#e3cfa8', '#f3e3c0', '#c69a45', '#b06a35', '#b8382c', '#6a1c14', '#7f8a62', '#3b3a26', '#6f87a6', '#26344a', '#8a6a90', '#4f3a2a'],
 	leather: ['#2b1810', '#3a2216', '#5e3a26', '#a3825e', '#e3cfa8', '#f3e3c0', '#c69a45', '#b06a35', '#b8382c', '#6a1c14', '#7f8a62', '#3b3a26', '#6f87a6', '#26344a', '#8a6a90', '#4f3a2a'],
 	'manuscript-day': ['#e4dccb', '#d6ccb8', '#9c8f7a', '#706556', '#241c17', '#100b08', '#7d6232', '#93532a', '#8c2a22', '#6a1d17', '#56603f', '#b2b59a', '#3a5576', '#bcc4cf', '#6a4a72', '#ad9e86'],
 	'victorian-night': ['#0e1411', '#16201b', '#3f5648', '#7d9486', '#cfd6c0', '#ecebd2', '#c7a24a', '#b9792f', '#b5503c', '#6b2a22', '#8cb36a', '#2f4a2c', '#6f9aa8', '#20404a', '#8a6aa0', '#4a3a24'],
@@ -759,7 +762,8 @@ const cellHash = (x: number, y: number) => {
  * screen the margins have a plain rule with a cross now and then.
  */
 function ground(g: Grid, width: number) {
-	if (paletteKey() === 'leather') return cover(g);
+	if (paletteKey() === 'leather' || paletteKey() === 'cover') return cover(g);
+	if (paletteKey() === 'folio') return folio(g);
 	const night = !paletteKey().endsWith('-day');
 	for (let y = 0; y < g.rows; y++) for (let x = 0; x < g.cols; x++) {
 		const h = cellHash(x, y);
@@ -801,12 +805,98 @@ function cover(g: Grid) {
 	for (const [x, y] of [[Math.floor(W / 2), 0], [Math.floor(W / 2), H - 1], [0, Math.floor(H / 2)], [W - 1, Math.floor(H / 2)]]) g.set(x, y, '♦', 6, 0);
 }
 
+/** A page of the opened book: vellum, a fine grain, and nothing else behind the words. */
+function folio(g: Grid) {
+	for (let y = 0; y < g.rows; y++) for (let x = 0; x < g.cols; x++) {
+		const h = cellHash(x, y);
+		if (h < 30) g.set(x, y, h < 12 ? "'" : '.', 1, 0);
+	}
+}
+
+// ---- the cover --------------------------------------------------------------------------------
+
+declare const __TITLE__: { w: number; h: number; a: number[][] } | undefined;
+
+/**
+ * Paint pixels as cells, two to a cell top and bottom (upper half block): `at(px, py)` gives a
+ * pixel's ink, or null for none (the leather shows).
+ */
+function pixels(g: Grid, x0: number, y0: number, w: number, h: number, at: (px: number, py: number) => number | null) {
+	for (let py = 0; py < h; py += 2) for (let px = 0; px < w; px++) {
+		const top = at(px, py), bot = py + 1 < h ? at(px, py + 1) : null;
+		if (top === null && bot === null) continue;
+		const cx = x0 + px, cy = y0 + py / 2;
+		if (top === bot) g.set(cx, cy, ' ', 0, top!);
+		else g.set(cx, cy, top === null ? '▄' : '▀', top ?? bot!, top === null ? 0 : bot ?? 0);
+	}
+}
+
+/**
+ * The cover: the logo, and under it the name in black-letter, gilt and pressed into the calf
+ * (a shadow below and right of each stroke), with blood on some of the letters and a few drips
+ * from them, and old stains on the leather. A tap anywhere opens the book.
+ */
+export function coverRow(open: () => void): Row {
+	return blockRow(term?.rows ?? 40, (c) => {
+		const g = c.g, W = g.cols, H = g.rows;
+		const L = logo();
+		const T = typeof __TITLE__ !== 'undefined' && __TITLE__ ? __TITLE__ : null;
+		const tw = T?.w ?? 0, th = T?.h ?? 0;
+		// The logo as large as fits: S pixels to its pixel.
+		const S = Math.max(1, Math.min(5, Math.floor((W - 8) / L.w), Math.floor(((H - 8) * 2 - th - 10) / L.h)));
+		const logoRows = Math.ceil((L.h * S) / 2), titleRows = Math.ceil((th + 6) / 2);
+		let y = Math.max(2, Math.floor((H - logoRows - titleRows - 4) / 2));
+		const lx = Math.floor((W - L.w * S) / 2);
+		pixels(g, lx, y, L.w * S, L.h * S, (px, py) => { const rgb = L.px[Math.floor(py / S)][Math.floor(px / S)]; return rgb ? quant(rgb) : null; });
+		y += logoRows + 2;
+		// Old stains soaked into the calf: dark, uneven, near the foot of the cover.
+		for (const [sx, sy, r] of [[0.18, 0.86, 3.2], [0.8, 0.78, 2.4], [0.7, 0.92, 1.6]]) {
+			const cx = Math.floor(W * sx), cy = Math.floor(H * sy);
+			for (let dy = -2; dy <= 2; dy++) for (let dx = -Math.ceil(r * 2); dx <= Math.ceil(r * 2); dx++) {
+				const d = Math.hypot(dx / 2, dy) + (cellHash(cx + dx, cy + dy) & 7) / 10;
+				if (d < r && g.get(cx + dx, cy + dy)) g.set(cx + dx, cy + dy, d < r * 0.5 ? ':' : '.', shade(9, 2), d < r * 0.6 ? shade(9, 0) : 0);
+			}
+		}
+		if (T) {
+			const tx = Math.floor((W - tw) / 2);
+			// Blood: on the strokes of some letters (a wash from the right), and drips from their feet.
+			const bloody = (px: number, py: number) => ((cellHash(px >> 2, py >> 2) & 1023) < 230 + px * 4) && px > tw * 0.45;
+			const drips = new Map<number, number>();
+			for (const [f, len] of [[0.58, 5], [0.72, 3], [0.9, 6]] as const) {
+				const px = Math.floor(tw * f);
+				let foot = -1;
+				for (let py = th - 1; py >= 0; py--) if (T.a[py][px] > 140) { foot = py; break; }
+				if (foot >= 0) drips.set(px, foot + len);
+			}
+			const at = (px: number, py: number): number | null => {
+				const a = py < th && px < tw ? T.a[py][px] : 0;
+				if (a > 70) {
+					if (bloody(px, py)) return a > 180 ? 8 : 9;
+					return a > 200 ? 5 : a > 130 ? 6 : shade(6, 2);
+				}
+				// The carving: the cut's shadow below and to the right of a stroke.
+				const up = py > 0 && px > 0 && py - 1 < th && px - 1 < tw ? T.a[py - 1][px - 1] : 0;
+				if (up > 140) return shade(15, 0);
+				const d = drips.get(px);
+				if (d !== undefined && py >= th - 4 && py <= d) return py >= d - 1 ? 9 : 8;
+				return null;
+			};
+			pixels(g, tx, y, tw, th + 8, at);
+			y += titleRows + 1;
+		}
+		const hint = '-  tap to open the book  -';
+		g.text(Math.floor((W - hint.length) / 2), Math.min(H - 3, y + 1), hint, 3);
+		c.hit({ x: 0, y: 0, w: W, h: H }, open);
+	});
+}
+
 function frame(g: Grid) {
 	// The town is lit for the dark: over it, the pages take their night inks.
 	const key = extra && extraShown() ? paletteKey().replace('-day', '-night') : paletteKey();
 	term!.palette = PALETTES[key] ?? PALETTES['manuscript-night'];
 	// The cover wants a margin of leather round its page: a few more columns (a touch smaller type).
-	term!.setCols(key === 'leather' ? COLS + 6 : COLS);
+	// The cover is a picture, drawn fine: many more columns (small cells, two pixels each).
+	term!.setCols(key === 'cover' ? 84 : key === 'leather' ? COLS + 6 : COLS);
 	document.body.style.background = term!.palette[0];
 	document.documentElement.style.background = term!.palette[0];
 	g.clear(4, 0);

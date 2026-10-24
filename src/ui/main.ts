@@ -17,7 +17,8 @@
  */
 import * as G from '../core/index.ts';
 import type { Candidate, CharacterId, Command, GameEvent, GameState, Info, SeatId, Script, Lean } from '../core/index.ts';
-import { navRow, tabStrip } from './ascii.ts';
+import { coverRow, navRow, tabStrip } from './ascii.ts';
+import { HEADPIECE, TAILPIECE } from './art.ts';
 import { LobbyVoice } from '../town/lobbyvoice.ts';
 import type { Tab as TabSpec } from './ascii.ts';
 import { COLS, INNER, Canvas, letteredRow, shade, titleRow, blank, blockRow, boxRow, btn, buttonBlock, buttonRows, center, endPanel, field, frameBottom, frameTop, listRow, paint, paneled, pad, redraw, row, rubric, rule, segWidth, setDynamic, setExtra, setPalette, txt, wrap } from './ascii.ts';
@@ -167,6 +168,8 @@ const ui = {
 	amnesiacSeed: 0,
 	/** Which page: the home page, or the app itself (a grimoire, a hosted game). */
 	page: 'app' as 'home' | 'app',
+	/** The home page starts as the book's shut cover; a tap opens it to the menu. */
+	coverOpen: false,
 	/** Second taps that confirm ending a game (home: host anew, play in person, end it). */
 	confirm: '' as '' | 'host' | 'grimoire' | 'table' | 'end',
 	showQr: false,
@@ -690,7 +693,9 @@ function hostNew() {
 /** The home page: host, join, play in person, or walk the town; and pick up a game already going. */
 function homeScreen(): Row[] {
 	const busy = saved.events.length > 0 || (saved.net?.lobby?.length ?? 0) > 0;
-	const rows: Row[] = [...art(), blank()];
+	// Shut: the cover alone. Open: the first page, a drollery at its head.
+	if (!ui.coverOpen) return [coverRow(() => { ui.coverOpen = true; render(); })];
+	const rows: Row[] = [drollery(HEADPIECE), blank()];
 	const resume = (label: string, sub: string, ...bs: Button[]) => rows.push(rubric(label), ...prose(sub, 'dim'), buttonBlock(bs), endPanel());
 	if (saved.net && busy) {
 		resume((saved.net.village ? 'Your game' : 'Your grimoire') + ' - ' + saved.net.room, gameSummary(),
@@ -717,6 +722,7 @@ function homeScreen(): Row[] {
 	rows.push(endPanel(), rubric('Players'));
 	rows.push(buttonBlock([btn('Join a game', () => go('#join'), { style: 'primary', width: INNER })]), ...prose('Type the four letters the Storyteller gives you.', 'dim'), endPanel());
 	rows.push(buttonBlock([btn('Walk the village alone (no game)', () => go('#village'), { style: 'quiet', width: INNER })]));
+	rows.push(blank(), drollery(TAILPIECE));
 	return rows;
 }
 
@@ -845,6 +851,18 @@ function customPicker(): Row[] {
 	rows.push(buttonBlock(of.filter((c) => !on.has(c.id)).map((c) => btn(c.name, () => toggle(c.id), { style: G.isModelled(c.id) ? 'primary' : undefined }))));
 	rows.push(endPanel());
 	return rows;
+}
+
+/** A margin drawing: ink, its eyes (G) in brass and its mouth (R) in red. */
+function drollery(lines: string[]): Row {
+	const w = Math.max(...lines.map((l) => l.length));
+	return blockRow(lines.length, (c) => {
+		const x0 = c.x + Math.max(0, Math.floor((c.w - w) / 2));
+		lines.forEach((l, j) => [...l].forEach((ch, i) => {
+			if (ch === ' ') return;
+			c.g.set(x0 + i, c.y + j, ch === 'G' ? 'o' : ch === 'R' ? 'v' : ch, ch === 'G' ? 6 : ch === 'R' ? 8 : /[A-Za-z*']/.test(ch) ? 4 : 3);
+		}));
+	});
 }
 
 function art(): Row[] {
@@ -2729,7 +2747,7 @@ function render() {
 	document.documentElement.dataset.phase = state.phase.kind === 'night' ? 'night' : 'day';
 	document.documentElement.dataset.theme = theme;
 	// The home page is the book shut, its leather cover; inside, the pages by night or day.
-	setPalette(() => (ui.page === 'home' ? 'leather' : (theme === 'occult' ? 'victorian' : 'manuscript') + (state.phase.kind === 'night' ? '-night' : '-day')));
+	setPalette(() => (ui.page === 'home' ? (ui.coverOpen ? 'folio' : 'cover') : (theme === 'occult' ? 'victorian' : 'manuscript') + (state.phase.kind === 'night' ? '-night' : '-day')));
 	// A village game: the town is always there; the grimoire is a drawer over it.
 	const vg = villageGame();
 	if (vg && lastKind === 'setup' && state.phase.kind !== 'setup') ui.drawer = null;
