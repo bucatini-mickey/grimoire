@@ -9,6 +9,7 @@
  * except what views.ts says is yours.
  */
 import { navRow } from './ascii.ts';
+import { bookKey, themeOf } from './theme.ts';
 import { COLS, INNER, illuminatedRow, blank, blockRow, boxRow, btn, buttonBlock, buttonRows, center, endPanel, field, frameBottom, frameTop, listRow, paint, paneled, pad, redraw, row, rubric, setDynamic, setPalette, txt, wrap } from './ascii.ts';
 import type { Row } from './ascii.ts';
 import { joinRoom } from '../net/link.ts';
@@ -409,10 +410,10 @@ function overlay(): Row[] {
 function render() {
 	// The game has begun: the village's own voice takes over.
 	if (lobbyVoice.voice && P.view && P.view.phase !== 'setup') lobbyVoice.stop();
-	const theme = P.view?.script === 'laissez-un-faire' ? 'folio-occult' : 'folio';
+	const theme = themeOf(P.view?.script);
 	document.documentElement.dataset.phase = P.view?.phase === 'night' ? 'night' : 'day';
-	document.documentElement.dataset.theme = P.view?.script === 'laissez-un-faire' ? 'occult' : '';
-	setPalette(() => theme + (P.view?.phase === 'night' || !P.view ? '-night' : ''));
+	document.documentElement.dataset.theme = theme;
+	setPalette(() => bookKey(theme, P.view?.phase === 'night' || !P.view));
 	// In the village the town is the screen; the player's pages come up over it as cards (My character, a wake).
 	// The way back is always the first thing on the page, above even the book's name.
 	const rows = screen();

@@ -38,7 +38,10 @@ const MATS: Record<string, Mat> = {
 	brick: { fg: [168, 92, 70], bg: [60, 30, 26], wall: '#', floors: ['+'], style: 'double' },
 	cobble: { fg: [124, 122, 120], bg: [40, 40, 42], wall: '▒', floors: ['∙', '·', ':', '∙', '.'] },
 	iron: { fg: [96, 102, 110], bg: [24, 26, 30], wall: '╫', floors: ['.'] },
-	ice: { fg: [200, 230, 244], bg: [70, 96, 112], wall: '░', floors: ['.'] }
+	ice: { fg: [200, 230, 244], bg: [70, 96, 112], wall: '░', floors: ['.', '-', '.'] },
+	// Wolfsgrund's: snow lying everywhere, and the pine wood.
+	snow: { fg: [214, 222, 232], bg: [128, 136, 150], wall: '▒', floors: ['.', '·', ',', '.', "'", ' '] },
+	pine: { fg: [46, 96, 62], bg: [10, 26, 18], wall: '♠', floors: ['♠'] }
 };
 const FALLBACK = MATS.soil;
 
@@ -54,7 +57,8 @@ const KINDS: Record<string, Kind> = {
 	well: { ch: 'O', fg: STONE }, anvil: { ch: '¬', fg: [120, 120, 130] }, 'hay bale': { ch: '"', fg: [220, 200, 100] },
 	sign: { ch: '¶', fg: BROWN }, bell: { ch: ' ', fg: [214, 172, 92] }, oak: { ch: '♣', fg: [70, 120, 46] }, loom: { ch: '╫', fg: BROWN }, oven: { ch: '◙', fg: [200, 120, 70], light: [150, 80, 30] }, cart: { ch: '⌐', fg: BROWN }, clock: { ch: ' ', fg: [214, 172, 92] }, flowers: { ch: '*', fg: [220, 120, 160] }, waterfall: { ch: '¦', fg: [200, 228, 240] }, rug: { ch: '░', fg: [150, 50, 50] },
 	'gas lamp': { ch: '‡', fg: [214, 236, 196], light: [150, 186, 150] }, fern: { ch: '♠', fg: [72, 150, 96] },
-	sigil: { ch: '✶', fg: [120, 230, 180], light: [50, 130, 100], flicker: true }, 'plank bridge': { ch: '=', fg: [150, 110, 70] }
+	sigil: { ch: '✶', fg: [120, 230, 180], light: [50, 130, 100], flicker: true },
+	beacon: { ch: '☼', fg: [255, 244, 200], light: [255, 236, 180] }, 'plank bridge': { ch: '=', fg: [150, 110, 70] }
 };
 const DOUBLE = ['■', '║', '═', '╚', '║', '║', '╔', '╠', '═', '╝', '═', '╩', '╗', '╣', '╦', '╬'];
 const SINGLE = ['o', '│', '─', '└', '│', '│', '┌', '├', '─', '┘', '─', '┴', '┐', '┤', '┬', '┼'];
@@ -189,9 +193,11 @@ export function lightMap(t: Town, srcs: Source[]): Uint8ClampedArray {
 
 /** Light level at a cell, per channel (Tachyon's light_level); walls take their brightest open neighbour. */
 export function level(t: Town, sk: Uint8Array, dyn: Uint8ClampedArray, day: Rgb, x: number, y: number): Rgb {
+	// Flames tell in the dark; by day a torch is a small thing beside the sky.
+	const flame = 1.3 * (1 - Math.min(0.7, (day[0] + day[1] + day[2]) / 3));
 	const sample = (i: number): Rgb => {
 		const s = (sk[i] / SKY_MAX) ** 2;
-		return [0, 1, 2].map((c) => s * day[c] + (dyn[i * 3 + c] / 255) * 1.3) as Rgb;
+		return [0, 1, 2].map((c) => s * day[c] + (dyn[i * 3 + c] / 255) * flame) as Rgb;
 	};
 	let l: Rgb;
 	if (isWallAt(t, x, y)) {

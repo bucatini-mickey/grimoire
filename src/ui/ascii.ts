@@ -10,6 +10,7 @@
  * Nothing here knows about the game.
  */
 
+import { themeOfKey } from './theme.ts';
 import { Term, shade } from '../term/pterm.ts';
 import type { Grid, Palette, Rect } from '../term/pterm.ts';
 
@@ -262,8 +263,8 @@ const PALETTES: Record<string, Palette> = {
 	'manuscript-night': ['#110e0d', '#1d1816', '#4e4238', '#857868', '#d4c9b4', '#ece2cc', '#b08d55', '#a8683a', '#b0362c', '#6e1f1a', '#7f8a62', '#343a2a', '#6f87a6', '#26344a', '#8a6a90', '#4f3a2a'],
 	// The home page is the book's cover: brown calf, blind-tooled, gilt lettering and brass.
 	// The book's first page, opened: clean vellum, dark ink, red and brass.
-	folio: ['#e4dccb', '#d6ccb8', '#9c8f7a', '#706556', '#241c17', '#100b08', '#7d6232', '#c2522e', '#8c2a22', '#6a1d17', '#56603f', '#dcb38c', '#3a5576', '#9a7b55', '#6a4a72', '#cdb592'],
-	// (In the book, slots 7, 11, 13 and 15 are the colours of the hares in its margins: vermilion,
+	folio: ['#e4dccb', '#d6ccb8', '#9c8f7a', '#706556', '#241c17', '#100b08', '#9a7534', '#c2522e', '#8c2a22', '#6a1d17', '#56603f', '#dcb38c', '#3a5576', '#9a7b55', '#6a4a72', '#cdb592'],
+	// (In the books, slots 7, 11, 13 and 15 are the colours of the hares in its margins: vermilion,
 	// flesh, a hare's brown and fawn.)
 	// The same leaf read by candlelight: the vellum in shadow, the ink pale, the gold and colours kept.
 	'folio-night': ['#2a2119', '#352a20', '#5c4c3a', '#9a8a72', '#e2d4b8', '#f4e8cf', '#c69a45', '#c8573a', '#c0453a', '#7a2a22', '#7f8a62', '#c9a383', '#6f87a6', '#9a7b55', '#8a6a90', '#cdb592'],
@@ -271,10 +272,26 @@ const PALETTES: Record<string, Palette> = {
 	leather: ['#2b1810', '#3a2216', '#5e3a26', '#a3825e', '#e3cfa8', '#f3e3c0', '#c69a45', '#b06a35', '#b8382c', '#6a1c14', '#7f8a62', '#3b3a26', '#6f87a6', '#26344a', '#8a6a90', '#4f3a2a'],
 	'manuscript-day': ['#e4dccb', '#d6ccb8', '#9c8f7a', '#706556', '#241c17', '#100b08', '#7d6232', '#93532a', '#8c2a22', '#6a1d17', '#56603f', '#b2b59a', '#3a5576', '#bcc4cf', '#6a4a72', '#ad9e86'],
 	'victorian-night': ['#0e1411', '#16201b', '#3f5648', '#7d9486', '#cfd6c0', '#ecebd2', '#c7a24a', '#b9792f', '#b5503c', '#6b2a22', '#8cb36a', '#2f4a2c', '#6f9aa8', '#20404a', '#8a6aa0', '#4a3a24'],
-	// The occult script's book (Laissez un Faire): the same leaf in the Victorian greens and brass, with the
-	// hares' colours (vermilion, flesh, brown, fawn) where the plain inks have none.
-	'folio-occult': ['#e2dcc0', '#d3cdae', '#8f9a82', '#66705e', '#1e2a22', '#0c150f', '#8a6a1a', '#c2522e', '#8e2f24', '#6b1f18', '#3f5a28', '#dcb38c', '#2a5a66', '#9a7b55', '#5e3f78', '#cdb592'],
-	'folio-occult-night': ['#0e1411', '#16201b', '#3f5648', '#7d9486', '#cfd6c0', '#ecebd2', '#c7a24a', '#c8573a', '#b5503c', '#6b2a22', '#8cb36a', '#c9a383', '#6f9aa8', '#9a7b55', '#8a6aa0', '#cdb592'],
+	// Each script's own book (src/ui/theme.ts), by day and by candlelight, in the same slots as the folio:
+	// 0 page, 1 panel, 2 rule, 3 dim, 4 ink, 5 strong, 6 gold, 7 vermilion, 8 rubric, 9 deep rubric,
+	// 10 green, 11 flesh, 12 lapis, 13 a hare's brown, 14 violet, 15 fawn.
+	// Laissez un Faire, Lovecraftian: sea-damp leaves, verdigris for rubric, tarnished brass.
+	'folio-lovecraft': ['#d5d8c6', '#c6cab5', '#8a917c', '#5f665a', '#1b2421', '#0b1210', '#8a7638', '#a8533a', '#2f5d57', '#1e3d3a', '#4d6b4a', '#cdb08c', '#2e4f66', '#8a7556', '#5b4a6e', '#bfae8c'],
+	'folio-lovecraft-night': ['#0e1615', '#16211f', '#2f4440', '#6f8a80', '#c8d6c8', '#e8f0e0', '#b59a4a', '#b8613f', '#5fa592', '#2c5a50', '#6f8f63', '#b39a7c', '#5f88a6', '#8a7556', '#8a74a6', '#bfae8c'],
+	// Sects & Violets, clockwork London: soot-stained paper, blood for rubric, brass; gaslight at night.
+	'folio-clockwork': ['#ddd3c0', '#cec2ab', '#958670', '#665b4c', '#1f1a16', '#0c0907', '#94712e', '#a8442c', '#7a1f1a', '#4f1410', '#4f5a46', '#d0b08c', '#34465a', '#8c6e4c', '#55435e', '#c4ab88'],
+	'folio-clockwork-night': ['#1c1a17', '#25221e', '#4a4338', '#8d826f', '#ddd2bb', '#f2e8d2', '#c9a04a', '#c45a3a', '#b33a2e', '#6b1f19', '#8a9a6a', '#c4a383', '#7d93a8', '#9a7b55', '#8d7699', '#cdb592'],
+	// Bad Moon Rising, a grim German fairy tale: birch-white leaves, pine green, blood red; the dark wood at night.
+	'folio-grimm': ['#e2e0d6', '#d3d1c4', '#929486', '#5e6158', '#1a1d1a', '#0a0c0a', '#8f7330', '#b0402e', '#8b1e1e', '#5a1414', '#3e5a3a', '#d9b896', '#3a4f6a', '#8a6d4c', '#5b4766', '#c9b48e'],
+	'folio-grimm-night': ['#141815', '#1c221d', '#3c463d', '#7f8a7c', '#d8dcd0', '#f0f2ea', '#b8964a', '#c0503a', '#c0392f', '#6e1c18', '#6f9a62', '#c4a383', '#7a94b8', '#9a7b55', '#8d72a0', '#cdb592'],
+	// The village's own inks, one set per theme, chosen for what a town is made of (grass and pine, stone,
+	// water, wood, brick, flame and gaslight, snow) so it is drawn true and moody rather than tinted by the
+	// book's. The same slots stay dark (0-1), light (4-5), gold (6), red (8) and tan (15), for the
+	// parchment labels laid over the map.
+	'map-medieval': ['#0b0c0d', '#1c1f22', '#4a4d4e', '#8f8c84', '#d8d2c2', '#f5efe0', '#d9a441', '#c46a2c', '#a83a2c', '#6b4a2e', '#4f7a36', '#2c4a24', '#4c79a8', '#2a3d5c', '#7d5aa0', '#a8885a'],
+	'map-lovecraft': ['#080b0c', '#161d20', '#3d4a4c', '#7d8a88', '#c9d0c6', '#eef2e8', '#d8c070', '#b8693a', '#9a3a32', '#5a4634', '#4a6e46', '#24402c', '#3f7a8c', '#1d3a48', '#6a5a8a', '#8a7a5a'],
+	'map-grimm': ['#0a0c0e', '#1a1f24', '#475058', '#8e98a0', '#cfd6dc', '#f4f7f8', '#e0a848', '#c45a2a', '#a0282a', '#5e4630', '#3f6a3c', '#1f3a26', '#5a86b0', '#2a3f5e', '#6e5a8a', '#9a8466'],
+	'map-clockwork': ['#0b0b0b', '#1e1d1b', '#4a4741', '#8a847a', '#cfc6b4', '#f2ead8', '#d6d48a', '#c47a36', '#9a3028', '#5c3e2c', '#56684a', '#2a3626', '#4a6a86', '#25344a', '#6a5a7a', '#a07a4a'],
 	'victorian-day': ['#e2dcc0', '#d3cdae', '#8f9a82', '#66705e', '#1e2a22', '#0c150f', '#8a6a1a', '#9a5c20', '#8e2f24', '#6b1f18', '#3f5a28', '#a9b78e', '#2a5a66', '#b4c8c8', '#5e3f78', '#a89870']
 };
 
@@ -1260,7 +1277,7 @@ export function illuminatedRow(lines: { t: string; tone?: Tone }[]): Row {
 
 function frame(g: Grid) {
 	// The town is lit for the dark: over it, the pages take their night inks.
-	const key = extra && extraShown() ? (paletteKey().startsWith('folio-occult') ? 'victorian-night' : paletteKey().startsWith('folio') ? 'manuscript-night' : paletteKey().replace('-day', '-night')) : paletteKey();
+	const key = extra && extraShown() ? (paletteKey().startsWith('folio') ? 'map-' + themeOfKey(paletteKey()) : paletteKey().replace('-day', '-night')) : paletteKey();
 	term!.palette = PALETTES[key] ?? PALETTES['manuscript-night'];
 	// The cover wants a margin of leather round its page: a few more columns (a touch smaller type).
 	// The cover is a picture, drawn fine: many more columns (small cells, two pixels each).

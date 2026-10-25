@@ -72,10 +72,10 @@ export const AIR: BpCell = { tile: 'open', mat: '', things: [] };
 export const isAir = (c: BpCell | null | undefined) => !!c && c.tile === 'open' && !c.mat;
 /** Stairs: step onto one and you are on the level above (or below). */
 export const stairGoes = (c: BpCell | null | undefined): -1 | 0 | 1 => (c?.tile === 'stair-up' ? 1 : c?.tile === 'stair-down' ? -1 : 0);
-const BLOCKING = new Set(['well', 'brazier', 'altar', 'statue', 'anvil', 'barrel', 'bookshelf', 'coffin', 'table', 'waterfall', 'bell', 'clock', 'oak', 'loom', 'oven', 'cart', 'gas lamp']);
+const BLOCKING = new Set(['beacon', 'well', 'brazier', 'altar', 'statue', 'anvil', 'barrel', 'bookshelf', 'coffin', 'table', 'waterfall', 'bell', 'clock', 'oak', 'loom', 'oven', 'cart', 'gas lamp']);
 /** Deep water: you cannot walk it, but you see and hear across it. A plank bridge crosses. */
 const isWater = (c: BpCell) => c.mat === 'water' && !c.things.includes('plank bridge');
-const LIGHTS = new Set(['torch', 'brazier', 'candle', 'gas lamp', 'sigil', 'oven']);
+const LIGHTS = new Set(['torch', 'brazier', 'candle', 'gas lamp', 'sigil', 'oven', 'beacon']);
 
 export const at = (t: Town, x: number, y: number): BpCell | null => (x < 0 || y < 0 || x >= t.w || y >= t.h ? null : t.cells[x + y * t.w]);
 const isDoor = (c: BpCell) => c.things.includes('door');

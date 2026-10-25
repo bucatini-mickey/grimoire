@@ -35,11 +35,21 @@ import { css, FOG, fogAt, LANTERN, sunlight, lerp, level, lightMap, lookAt, luma
 import type { Rgb } from './look.ts';
 import { audio, bell, startVoice } from './voice.ts';
 import type { Voice, VoiceMode } from './voice.ts';
-import VILLAGE from '../../town/castle.tbp';
+import CASTLE from '../../town/castle.tbp';
 import SALTGRAVE from '../../town/victorian.tbp';
+import WOLFSGRUND from '../../town/grimm.tbp';
+import WHITECHAPEL from '../../town/whitechapel.tbp';
+import { animated, beamAt, fall, flash, weatherOf } from './weather.ts';
+import { bookKey, THEMES, THEME_TOWN, themeOf } from '../ui/theme.ts';
+import type { Theme } from '../ui/theme.ts';
 
-/** The town a script is played in: Laissez un Faire in gas-lit Saltgrave, the rest in the castle town. A town the Storyteller loaded themselves wins. */
-const townFor = (script: string | undefined) => store.get('grimoire.town') ?? (script === 'laissez-un-faire' ? SALTGRAVE : VILLAGE);
+/** Each theme's town (src/ui/theme.ts): the castle town, Wolfsgrund in the snow, Whitechapel, Saltgrave. */
+const TOWNS: Record<Theme, string> = { medieval: CASTLE, grimm: WOLFSGRUND, clockwork: WHITECHAPEL, lovecraft: SALTGRAVE };
+/** A script to open each theme's town with, from the lobby. */
+const THEME_SCRIPT: Record<Theme, string> = { medieval: 'trouble-brewing', grimm: 'bad-moon-rising', clockwork: 'sects-and-violets', lovecraft: 'laissez-un-faire' };
+/** The town a script is played in. A town the Storyteller loaded themselves wins. */
+const townFor = (script: string | undefined) => store.get('grimoire.town') ?? TOWNS[themeOf(script)];
+const themeOfTown = (text: string): Theme => THEMES.find((t) => TOWNS[t] === text) ?? 'medieval';
 
 const PREFIX = 'grimoire-village-';
 
@@ -795,7 +805,7 @@ function tickMap() {
 	if (!cam.ready) Object.assign(cam, { x: p.x, y: p.y, ready: true });
 	const aim = S.phase === 'circle' && t.council ? t.council.at : p;
 	const settled = Math.abs(cam.x - aim.x) < 0.01 && Math.abs(cam.y - aim.y) < 0.01;
-	if (!relight && !S.dirty && settled && !animating && S.phase !== 'circle' && now - drawnAt < 250) return;
+	if (!relight && !S.dirty && settled && !animating && S.phase !== 'circle' && now - drawnAt < (animated(weatherOf(t.name)) ? 100 : 250)) return;
 	const dt = Math.min(100, Math.max(1, now - drawnAt));
 	animating = false;
 	for (const q of S.people.values()) glide(q.id, q.x, q.y, dt);
@@ -945,6 +955,19 @@ function filler(ch: string, wall: { mask: number; style: string } | undefined, x
 	return ch !== ' ' && (hash2(x * 3 + 1, y) & 3) === 0 ? ch : ' ';
 }
 
+/** Where a town's turning lamp stands, on whatever level it is (null if it has none). */
+const beacons = new WeakMap<Town, { x: number; y: number } | null>();
+function beaconOf(t: Town): { x: number; y: number } | null {
+	if (beacons.has(t)) return beacons.get(t)!;
+	let found: { x: number; y: number } | null = null;
+	for (const l of t.levels.length ? t.levels : [t]) {
+		const i = l.cells.findIndex((c) => c.things.includes('beacon'));
+		if (i >= 0) { found = { x: i % l.w, y: Math.floor(i / l.w) }; break; }
+	}
+	beacons.set(t, found);
+	return found;
+}
+
 function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: number) {
 	const cols = g.cols;
 	const x0 = Math.round(cam.x) - Math.floor(cols / CW / 2), y0 = Math.round(cam.y) - Math.floor(mapH / 2);
@@ -965,7 +988,7 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 	const inside = mine.length > 0 && !mine.includes(t.outdoors);
 	const here = at(t, p.x, p.y);
 	const inCave = !p.st && !inside && here?.tile !== 'wall' && here?.mat === 'granite';
-	const fogBase = FOG[S.phase];
+	const fogBase = weatherOf(t.name).fogTint && S.phase === 'day' ? weatherOf(t.name).fogTint! : FOG[S.phase];
 	// What you can see changes only when you move or a door does: keep it till then.
 	const lockKey = [...t.locked].join(',');
 	const visKey = `${p.st}|${p.x},${p.y}|${lockKey}`;
@@ -981,7 +1004,11 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 	const memoBelow = below ? looksFor(below, '') : null;
 	// The mist rolls slowly: move it on in steps, so a still screen stays still.
 	const fogMs = Math.floor(now / 250) * 250;
-	const sk = sky(t), day = sunlight(S.phase);
+	const sk = sky(t), w = weatherOf(t.name);
+	// Lightning lights the whole sky white for a moment.
+	const fl = w.storm ? flash(now) : 0;
+	const day: Rgb = fl ? lerp(sunlight(S.phase), [1.5, 1.55, 1.7], fl) : sunlight(S.phase);
+	const lamp = w.beam ? beaconOf(t) : null;
 	const seatSet = new Set((gathering(t)?.seats ?? []).map((q) => q.x + q.y * t.w));
 	const mySeat = !p.st && S.phase === 'dusk' ? seatCell(t, p.seat) : null;
 	const lit = new Map<number, Rgb>();
@@ -1015,7 +1042,9 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 			}
 			let fg: Rgb, bg: Rgb;
 			if (shown) {
-				const l = level(t, sk, dyn!, day, x, y);
+				let l = level(t, sk, dyn!, day, x, y);
+				// The lighthouse's beam sweeps the open ground and the water.
+				if (lamp && t.room[i] === t.outdoors) { const b = beamAt(lamp, x, y, now); if (b) l = [l[0] + b * 1.1, l[1] + b * 1.05, l[2] + b * 0.8]; }
 				lit.set(i, l);
 				fg = look.emissive ? look.fg : mul(look.fg, l);
 				bg = mul(look.bg, l);
@@ -1026,7 +1055,7 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 			}
 			const f = indoors ? (shown ? 0 : 0.2)
 				: inCave && rock ? fogAt(t, x, y, cam, S.phase, fogMs) * 0.25 * (shown ? 1 : 0.6) + (shown ? 0 : 0.35)
-				: fogAt(t, x, y, cam, S.phase, fogMs) * (p.st ? 0.6 : 1) * (shown ? 1 : 0.6) + (shown ? 0 : 0.35) + (inCave ? 0.25 : 0);
+				: fogAt(t, x, y, cam, S.phase, fogMs) * w.fog * (p.st ? 0.6 : 1) * (shown ? 1 : 0.6) + (shown ? 0 : 0.35) + (inCave ? 0.25 : 0);
 			if (f > 0.01) fg = lerp(fg, fogBase, Math.min(1, f * 1.05));
 			let ch = fold(look.ch);
 			if (look.wall) {
@@ -1042,6 +1071,10 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 				const lf = luma(fg);
 				if (lf < 16) ch = ' ';
 				else if (lf < 34 && ch !== '~') ch = hash2(x, y) & 1 ? '.' : ' ';
+			}
+			if (shown && !indoors && !look.wall && (w.rain || w.snow)) {
+				const f2 = fall(w, x, y, now);
+				if (f2 && !t.cells[i].things.length) { ch = f2.ch; fg = mul(f2.c, lit.get(i)!.map((v) => Math.min(1, v + 0.35)) as Rgb); }
 			}
 			const fgi = quant(fg);
 			// The ground keeps its own colour, in the shades of its ink, so a lit square glows and the dark falls away.
@@ -1323,9 +1356,9 @@ let looping = false;
 function lobbyRows(): Row[] {
 	const rows: Row[] = [navRow('Home', () => act('back')), rubric('The Village'), ...prose('Walk the town on your own phone. Talk to whoever is near you: voices fade with distance and stop at walls.', 'dim')];
 	if (!lobbyCode) {
-		rows.push(buttonBlock([btn('Open the castle town', () => { audio(); openVillage(); }, { style: 'primary', width: INNER })]),
-			buttonBlock([btn('Open Saltgrave (Victorian)', () => { audio(); openVillage('laissez-un-faire'); }, { width: INNER })]),
-			row(txt(center('or join one', INNER), 'dim')));
+		// One town for each script's look.
+		THEMES.forEach((th, k) => rows.push(buttonBlock([btn('Open ' + THEME_TOWN[th], () => { audio(); openVillage(THEME_SCRIPT[th]); }, { style: k ? undefined : 'primary', width: INNER })])));
+		rows.push(row(txt(center('or join one', INNER), 'dim')));
 	}
 	rows.push(field('v-name', 'Your name', lobbyName, (v) => { lobbyName = v.trim(); store.set('grimoire.villageName', lobbyName); drawChrome(); }, 14, 'tap to type'),
 		field('v-code', 'Village code', lobbyCodeIn, (v) => { lobbyCodeIn = v.trim().toUpperCase(); drawChrome(); }, 4, 'four letters'));
@@ -1423,9 +1456,8 @@ function wire() {
 
 /** The demo: #village. */
 export function startVillage(_appRoot: HTMLElement, code: string) {
-	// Walking the town alone: the lobby a leaf of the book by candlelight (Saltgrave's in the Victorian
-	// greens); the map itself in the town's own night inks.
-	setPalette(() => (S.townText === SALTGRAVE ? 'folio-occult-night' : 'folio-night'));
+	// Walking the town alone: the lobby a leaf of the town's own book by candlelight; the map in its own inks.
+	setPalette(() => bookKey(themeOfTown(S.townText), true));
 	document.body.classList.add('in-village');
 	wire();
 	inLobby = true;

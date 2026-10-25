@@ -18,6 +18,7 @@
 import * as G from '../core/index.ts';
 import type { Candidate, CharacterId, Command, GameEvent, GameState, Info, SeatId, Script, Lean } from '../core/index.ts';
 import { coverRow, illuminatedRow, navRow, tabStrip } from './ascii.ts';
+import { bookKey, themeOf } from './theme.ts';
 import { LobbyVoice } from '../town/lobbyvoice.ts';
 import type { Tab as TabSpec } from './ascii.ts';
 import { COLS, INNER, Canvas, letteredRow, shade, titleRow, blank, blockRow, boxRow, btn, buttonBlock, buttonRows, center, endPanel, field, frameBottom, frameTop, listRow, paint, paneled, pad, redraw, row, rubric, rule, segWidth, setDynamic, setExtra, setPalette, txt, wrap } from './ascii.ts';
@@ -2818,8 +2819,6 @@ function actionRows(): Row[] {
 	return rows;
 }
 
-/** The look a script asks for. */
-const themeOf = (id: string | undefined) => (id === 'laissez-un-faire' ? 'occult' : '');
 
 const villageGame = () => !!village && state.phase.kind !== 'setup';
 let villageShown = false;
@@ -2868,12 +2867,12 @@ function render() {
 		if (state.phase.kind !== 'setup' || !link) lobbyVoice.stop();
 		else lobbyVoice.setPeers([...phones.keys()]);
 	}
-	// The script sets the look: Laissez un Faire is Victorian; the night is dark vellum, the day light.
+	// The script sets the look (src/ui/theme.ts); the night is the leaf by candlelight, the day light.
 	const theme = themeOf(state.seats.length ? state.scriptId : ui.scriptId);
 	document.documentElement.dataset.phase = state.phase.kind === 'night' ? 'night' : 'day';
 	document.documentElement.dataset.theme = theme;
 	// The home page is the book shut, its leather cover; inside, the pages by night or day.
-	setPalette(() => (ui.page === 'home' ? (ui.coverOpen ? 'folio' : 'cover') : (theme === 'occult' ? 'folio-occult' : 'folio') + (state.phase.kind === 'night' ? '-night' : '')));
+	setPalette(() => (ui.page === 'home' ? (ui.coverOpen ? 'folio' : 'cover') : bookKey(theme, state.phase.kind === 'night')));
 	// A village game: the town is always there; the grimoire is a drawer over it.
 	const vg = villageGame();
 	if (vg && lastKind === 'setup' && state.phase.kind !== 'setup') ui.drawer = null;

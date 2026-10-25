@@ -222,6 +222,8 @@ for (let y = LH.y - 3; y <= LH.y + 3; y++) for (let x = LH.x - 4; x <= LH.x + 4;
 	if (d <= 3.4 && !u[y][x]) up(x, y, d > 2.4 ? 'wall glass' : 'floor stone block');
 }
 up(LH.x - 1, LH.y, 'floor stone block | gas lamp'); up(LH.x, LH.y - 1, 'floor stone block | candle');
+// The great lamp itself: its beam turns over the town and the sea (src/town/weather.ts).
+up(LH.x, LH.y + 1, 'floor stone block | beacon');
 label(LH.x - 5, LH.y - 5, 'Lighthouse');
 
 // ---- boats at their moorings in the bay: clinker hulls, a deck, a coil of rope or a barrel aboard ----
