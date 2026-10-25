@@ -1168,28 +1168,36 @@ export function coverRow(open: () => void): Row {
 	});
 }
 
-/**
- * The opening of the page: the G of the title as an illuminated initial (red on a blue field
- * pricked with white, in a square of gold), and the first words written beside it.
- */
-/** "rimoire" in a small textura, one pixel a '#', to follow the illuminated G. */
+/** "rimoire" in a tall, narrow textura, one pixel a '#', as high as the illuminated G it follows. */
 const RIMOIRE = [
+	'....#.............#..........',
 	'....#.............#..........',
 	'.............................',
 	'#.#.#..#.#.#..##..#..#.#..##.',
-	'###.#..#####.#..#.#..###.#..#',
+	'##..#..#####.#..#.#..##..#..#',
 	'#...#..#.#.#.#..#.#..#...#..#',
-	'#...#..#.#.#.#..#.#..#...#.#.',
+	'#...#..#.#.#.#..#.#..#...#..#',
+	'#...#..#.#.#.#..#.#..#...#.##',
 	'#...#..#.#.#.#..#.#..#...##..',
+	'#...#..#.#.#.#..#.#..#...#...',
+	'#...#..#.#.#.#..#.#..#...#...',
+	'#...#..#.#.#.#..#.#..#...#...',
+	'#...#..#.#.#.#..#.#..#...#...',
+	'#...#..#.#.#.#..#.#..#...#...',
+	'#...#..#.#.#.#..#.#..#...#...',
 	'#...#..#.#.#.#..#.#..#...#...',
 	'#...#..#.#.#.#..#.#..#...#...',
 	'#...#..#.#.#.#..#.#..#...#..#',
 	'##..##.#.#.#..##..##.##...##.'
 ];
 
+/**
+ * The opening of the page: the G of the title as an illuminated initial (red on a blue field
+ * pricked with white, in a square of gold), the rest of the word beside it, the first words under it.
+ */
 export function illuminatedRow(lines: { t: string; tone?: Tone }[]): Row {
 	const BOX = 21, ROWS = 11;
-	return blockRow(Math.max(ROWS, lines.length), (c) => {
+	return blockRow(ROWS + 1 + lines.length, (c) => {
 		const g = c.g, T = typeof __TITLE__ !== 'undefined' && __TITLE__ ? __TITLE__ : null;
 		const px: (number | null)[][] = Array.from({ length: ROWS * 2 }, () => Array(BOX).fill(null));
 		for (let y = 0; y < ROWS * 2; y++) for (let x = 0; x < BOX; x++) {
@@ -1212,21 +1220,20 @@ export function illuminatedRow(lines: { t: string; tone?: Tone }[]): Row {
 			const t = px[y][x]!, b = px[y + 1][x]!;
 			g.set(c.x + x, c.y + y / 2, t === b ? ' ' : '▀', t, b);
 		}
-		// The rest of the word beside the initial: a small black-letter cut pixel by pixel (the title
-		// shrunk to this size blurs), gilt with a carved shadow under it, then the words below.
-		let ty = c.y;
-		const ox = c.x + BOX + 1, h = RIMOIRE.length;
+		// The rest of the word beside the initial, standing on the G's line: a black-letter cut pixel by
+		// pixel (the title shrunk to this size blurs), gilt with a carved shadow; the words under it all.
+		const ty = c.y, top = 1;
+		const ox = c.x + BOX, h = RIMOIRE.length;
 		const gilt = 6, cut = 3; // the page's gold, and a cut shadow under it
-		const ink = (x: number, y: number) => RIMOIRE[y]?.[x] === '#' ? gilt : RIMOIRE[y - 1]?.[x - 1] === '#' ? cut : null;
-		for (let py = 0; py < h + 1; py += 2) for (let px = 0; px < Math.min(RIMOIRE[0].length + 1, c.w - BOX - 1); px++) {
+		const ink = (x: number, y: number) => RIMOIRE[y - top]?.[x] === '#' ? gilt : RIMOIRE[y - top - 1]?.[x - 1] === '#' ? cut : null;
+		for (let py = 0; py < h + top + 1; py += 2) for (let px = 0; px < Math.min(RIMOIRE[0].length + 1, c.w - BOX - 1); px++) {
 			const t = ink(px, py), b = ink(px, py + 1);
 			if (t === null && b === null) continue;
 			const ground = g.get(ox + px, ty + py / 2)?.bg ?? 0;
 			if (t === b) g.set(ox + px, ty + py / 2, ' ', 4, t!);
 			else g.set(ox + px, ty + py / 2, '▀', t ?? ground, b ?? ground);
 		}
-		ty += Math.ceil((h + 1) / 2) + 1;
-		lines.forEach((l, j) => g.text(c.x + BOX + 2, ty + j, l.t, c.ink(l.tone)));
+		lines.forEach((l, j) => g.text(c.x, ty + ROWS + 1 + j, l.t, c.ink(l.tone)));
 	});
 }
 
