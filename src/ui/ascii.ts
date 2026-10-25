@@ -298,7 +298,8 @@ const PALETTES: Record<string, Palette> = {
 const TONE: Record<Tone, number> = { plain: 4, rubric: 8, gold: 6, evil: 8, good: 12, dim: 3, title: 5, poison: 10, drunk: 14 };
 
 let term: Term | null = null;
-const layers = new Map<unknown, { rows: Row[]; width: number; page: number; sig: string }>();
+interface Layer { rows: Row[]; width: number; page: number; sig: string }
+const layers = new Map<unknown, Layer>();
 /** Latest on top: the card layer (set by the caller) covers the app layer. */
 const order: unknown[] = [];
 let dynamic: (d: Record<string, string>) => string | null = () => null;
@@ -821,6 +822,8 @@ function drawLayer(g: Grid, key: unknown, ink: (t: Tone | undefined) => number, 
 	let pages = paginate(L.rows, g.rows - top);
 	if (total > g.rows - top) pages = paginate(L.rows, g.rows - top - barH - foot);
 	L.page = Math.max(0, Math.min(L.page, pages.length - 1));
+	const half = sheet ? 0 : spreadOf(g, L.width);
+	if (half) return drawSpread(g, key, L, pages, half, top, foot, ink);
 	const x0 = Math.max(0, Math.floor((g.cols - L.width) / 2));
 	let y = top;
 	const p = pages[L.page];
@@ -856,6 +859,39 @@ function drawLayer(g: Grid, key: unknown, ink: (t: Tone | undefined) => number, 
 	} else pagesOf.set(key, 1);
 }
 const pagesOf = new Map<unknown, number>();
+
+/**
+ * The book lying open on a wide screen: a long page's pages two at a time, left leaf and right, the
+ * page-turns at the foot of each; a short page on the right-hand leaf.
+ */
+function drawSpread(g: Grid, key: unknown, L: Layer, pages: { from: number; to: number }[], half: number, top: number, foot: number, ink: (t: Tone | undefined) => number) {
+	const multi = pages.length > 1;
+	L.page = multi ? L.page & ~1 : 0;
+	const leaves: [boolean, { from: number; to: number } | undefined][] = multi ? [[true, pages[L.page]], [false, pages[L.page + 1]]] : [[false, pages[0]]];
+	for (const [left, p] of leaves) {
+		if (!p) continue;
+		const x0 = leafText({ x: left ? 0 : half, w: left ? half : g.cols - half, mirror: left }, L.width);
+		let y = top;
+		if (inFrame(L.rows[p.from])) {
+			let k = p.from;
+			while (k > 0 && L.rows[k].cls !== 'frame-top') k--;
+			const t = L.rows[k].segs[0] && !isButton(L.rows[k].segs[0]) ? (L.rows[k].segs[0] as Text).t : '';
+			drawRow(g, { segs: [txt(t ? t + ' (cont.)' : '')], cls: 'frame-top' }, x0, y++, L.width, 1, ink);
+		}
+		for (let i = p.from; i < p.to; i++) { const h = lineH(L.rows[i]); drawRow(g, L.rows[i], x0, y, L.width, h, ink); y += h; }
+		if (inFrame(L.rows[p.to - 1])) drawRow(g, { segs: [], cls: 'frame-bot' }, x0, y, L.width, 1, ink);
+	}
+	pagesOf.set(key, pages.length);
+	if (!multi) return;
+	const by = g.rows - 3 - foot;
+	const ctx: Ctx = { g, x: 0, y: by, w: g.cols, ink, hit: (r, fn) => g.hit(r, fn) };
+	const lx = leafText({ x: 0, w: half, mirror: true }, L.width), rx = leafText({ x: half, w: g.cols - half, mirror: false }, L.width);
+	drawButton(ctx, lx, by, 12, { label: '< Back', act: () => { L.page -= 2; term?.draw(); }, disabled: L.page === 0, style: 'quiet' });
+	const last = L.page + 2 >= pages.length;
+	drawButton(ctx, rx + L.width - 12, by, 12, { label: 'Next >', act: () => { L.page += 2; term?.draw(); }, disabled: last, style: last ? 'quiet' : 'primary' });
+	g.text(lx + L.width - 4, by + 1, String(L.page + 1), 3);
+	if (pages[L.page + 1]) g.text(rx + 2, by + 1, String(L.page + 2), 3);
+}
 
 /** A line of text on the middle of a 3-high row, with buttons at its right end. */
 export function listRow(text: string, tone: Tone | undefined, buttons: Button[], width = INNER): Row {
@@ -969,10 +1005,10 @@ const cellHash = (x: number, y: number) => {
  * nothing is written, a pentacle in its circle so faint you half see it. On a wide
  * screen the margins have a plain rule with a cross now and then.
  */
-function ground(g: Grid, width: number, used = g.rows, reserve = 0, seed = '') {
+function ground(g: Grid, width: number, used = g.rows, reserve = 0, seed = '', leaves?: Leaf[]) {
 	if (paletteKey() === 'cover') return; // the cover paints itself, every pixel (coverRow)
 	if (paletteKey() === 'leather') return cover(g);
-	if (isBook()) return folio(g, width, used, reserve, seed);
+	if (isBook()) return folio(g, width, leaves ?? [{ x: 0, w: g.cols, mirror: false, used, reserve, seed }]);
 	const night = !paletteKey().endsWith('-day');
 	for (let y = 0; y < g.rows; y++) for (let x = 0; x < g.cols; x++) {
 		const h = cellHash(x, y);
@@ -1030,6 +1066,15 @@ function vnoise(x: number, y: number, seed: number): number {
 
 let folioMemo: { key: string; px: Int16Array } | null = null;
 
+/** A leaf of the book on the screen: where it stands, whether it is a left-hand one, how much of it is written on. */
+interface Leaf { x: number; w: number; mirror: boolean; used: number; reserve: number; seed: string }
+/** Where the writing starts on a leaf. */
+const leafText = (l: { x: number; w: number; mirror: boolean }, width: number) => l.x + (l.mirror ? Math.ceil : Math.floor)((l.w - width) / 2);
+/** On a wide screen the book lies open, two leaves side by side: the width of each, or 0 for one leaf alone. */
+const spreadOf = (g: Grid, width: number) => (isBook() && wideScreen() && g.cols >= 2 * (width + 12) ? Math.floor(g.cols / 2) : 0);
+/** A desktop's screen, or a tablet on its side: wide enough, and wider than tall. */
+const wideScreen = () => innerWidth >= 1000 && innerWidth > innerHeight * 1.25;
+
 /**
  * A leaf of the opened book, drawn as pixels (two to a cell, top and bottom): vellum mottled and
  * foxed, darker at its edges and in the gutter where it is sewn into the binding, the edges of
@@ -1037,124 +1082,131 @@ let folioMemo: { key: string; px: Int16Array } | null = null;
  * of gold, in the margins a painted vine with leaves and flowers, and below the writing, where the
  * page is empty, a hare or two out of the margins of the old books. The words are written over all of it.
  */
-function folio(g: Grid, width: number, used: number, reserve = 0, seed = '') {
-	const W = g.cols, H = g.rows * 2;
-	const x0 = Math.floor((W - width) / 2), x1 = x0 + width - 1;
+function folio(g: Grid, width: number, leaves: Leaf[]) {
+	const GW = g.cols, H = g.rows * 2;
 	const yTop = 1, yBot = H - 3;
-	const key = `${W}x${H}:${width}:${used}:${reserve}:${paletteKey()}:${seed}`;
+	const key = `${GW}x${H}:${width}:${JSON.stringify(leaves)}:${paletteKey()}`;
 	// By candlelight the vellum and its edges go to shadow; the gold, the vine and its flowers keep their colour.
 	const C = paletteKey().endsWith('-night')
 		? { vellum: [46, 37, 28], fox: [70, 52, 36], stitch: [18, 12, 8], edge: [70, 58, 44], edge2: [58, 48, 36] }
 		: { vellum: [232, 221, 198], fox: [176, 140, 100], stitch: [70, 48, 30], edge: [180, 160, 128], edge2: [205, 190, 160] };
 	if (!folioMemo || folioMemo.key !== key) {
-		const px = new Int16Array(W * H).fill(-1);
-		const set = (x: number, y: number, rgb: number[]) => { if (x >= 0 && y >= 0 && x < W && y < H) px[x + y * W] = quant(rgb); };
-		const VELLUM = C.vellum;
-		for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-			// Mottling, foxing, a darker rim; the gutter's shadow; the stain.
-			const m = vnoise(x / 9, y / 7, 1) * 0.6 + vnoise(x / 3, y / 3, 2) * 0.4;
-			const rim = Math.min(x / 6, (W - 1 - x) / 4, y / 6, (H - 1 - y) / 6, 1);
-			const gutter = x < 6 ? (6 - x) / 6 : 0;
-			// Inside the gold rule the vellum is kept clean for the writing; outside it is worn.
-			const inText = x >= x0 && x <= x1 && y > yTop && y < yBot;
-			// (one even tone under the writing: a mottle finer than an ink step only stripes the rows)
-			let k = inText ? 0.99 : 0.95 + (m - 0.5) * 0.1 - (1 - rim) * 0.18 - gutter * 0.35;
-			const sx = x - W * 0.78, sy = (y - H * 0.18) * 1.2, sd = Math.hypot(sx, sy);
-			// The stain stays in the margin: the writing was kept clear of it.
-			if (!inText) { if (Math.abs(sd - 9) < 0.9) k -= 0.1; else if (sd < 9) k -= 0.03; }
-			let rgb = VELLUM.map((v, i) => v * k - (i === 2 ? (1 - k) * 30 : 0));
-			if ((cellHash(x * 3, y * 5) & 1023) < (inText ? 0 : 6)) rgb = C.fox; // foxing, never on the writing
-			set(x, y, rgb);
-		}
-		// Sewing: stitches down the gutter; the edges of the leaves beneath at the fore-edge and foot.
-		for (let y = 6; y < H - 6; y += 7) set(1, y, C.stitch);
-		for (let y = 0; y < H; y++) for (const d of [1, 2]) set(W - d, y, d === 1 ? C.edge : C.edge2);
-		for (let x = 0; x < W; x++) set(x, H - 1, C.edge);
-		// The text's frame: a ruled line of gold.
-		const gold = [176, 136, 62];
-		for (let x = x0 - 1; x <= x1 + 1; x++) { set(x, yTop, gold); set(x, yBot, gold); }
-		for (let y = yTop; y <= yBot; y++) { set(x0 - 1, y, gold); set(x1 + 1, y, gold); }
-		// Down each side margin, the book's own ornament (its look, src/ui/theme.ts):
-		//   medieval    a vine that sways, leaves on it, a flower every so often
-		//   grimm       a briar: a dark stem set with thorns, haws red as blood, now and then a pale toadstool
-		//   clockwork   a fine iron chain hung straight down, a brass cog on it here and there
-		//   lovecraft   a tentacle, swaying, its suckers turned to the writing, an eye opening now and then
-		const theme = themeOfKey(paletteKey());
-		const FLOWERS = [[178, 52, 40], [104, 70, 120], [70, 96, 150]];
-		const STEM: Record<string, number[]> = { medieval: [90, 110, 60], grimm: [74, 54, 42], clockwork: [64, 64, 70], lovecraft: [62, 98, 86] };
-		for (const side of [0, 1]) {
-			const mx = side ? x1 + 3 : 3;
-			if (side ? mx > W - 3 : mx > x0 - 2) continue;
-			const inward = side ? -1 : 1; // towards the writing
-			for (let y = yTop + 2; y < yBot - 1; y++) {
-				if (theme === 'grimm') {
-					const x = mx + Math.round(Math.sin(y / 4 + side * 2) * 0.8 + Math.sin(y / 11) * 0.5);
-					set(x, y, STEM.grimm);
-					if (y % 4 === 1) set(x + (y % 8 === 1 ? 1 : -1), y, [116, 92, 68]);
-					if (y % 19 === 9) { set(x + inward, y, [150, 28, 28]); set(x + inward, y + 1, [104, 18, 22]); set(x - inward, y - 2, [150, 28, 28]); }
-					if (y % 43 === 30) { for (const dx of [-1, 0, 1]) set(x + inward * 2 + dx, y - 1, [214, 206, 190]); set(x + inward * 2, y, [182, 172, 152]); }
-				} else if (theme === 'clockwork') {
-					const x = mx;
-					if (y % 3) set(x, y, STEM.clockwork); else { set(x - 1, y, STEM.clockwork); set(x + 1, y, STEM.clockwork); }
-					if (y % 29 === 14) {
-						for (let a = 0; a < 16; a++) { const t = (a / 16) * Math.PI * 2; set(x + Math.round(Math.cos(t) * 2), y + Math.round(Math.sin(t) * 2), [176, 136, 62]); }
-						for (let a = 0; a < 6; a++) { const t = (a / 6) * Math.PI * 2; set(x + Math.round(Math.cos(t) * 3), y + Math.round(Math.sin(t) * 3), [140, 106, 44]); }
-						set(x, y, [70, 54, 30]);
-					}
-				} else if (theme === 'lovecraft') {
-					const x = mx + Math.round(Math.sin(y / 7 + side * 2) * 1.4);
-					set(x, y, STEM.lovecraft); set(x - inward, y, [44, 72, 64]);
-					if (y % 3 === 0) set(x + inward, y, [190, 146, 136]);
-					if (y % 37 === 18) { for (const dx of [-1, 0, 1]) { set(x + dx, y - 1, [222, 214, 180]); set(x + dx, y + 1, [222, 214, 180]); } set(x - 1, y, [222, 214, 180]); set(x + 1, y, [222, 214, 180]); set(x, y, [30, 22, 18]); }
-				} else {
-					const x = mx + Math.round(Math.sin(y / 5 + side) * 0.9);
-					set(x, y, STEM.medieval);
-					if (y % 6 === 0) set(x + inward, y - 1, [110, 140, 70]);
-					if (y % 6 === 3) set(x - inward, y - 1, [110, 140, 70]);
-					if (y % 23 === 11) {
-						const c = FLOWERS[(y + side) % FLOWERS.length];
-						for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) set(x + dx, y + dy, dx || dy ? c : [212, 170, 70]);
+		const px = new Int16Array(GW * H).fill(-1);
+		for (const leaf of leaves) {
+			const { w: W, used, reserve, seed } = leaf;
+			const x0 = Math.floor((W - width) / 2), x1 = x0 + width - 1;
+			// (a left-hand leaf is a right-hand one mirrored: its sewn edge on the right, by the spine)
+			const set = (x: number, y: number, rgb: number[]) => { if (x >= 0 && y >= 0 && x < W && y < H) px[(leaf.mirror ? leaf.x + W - 1 - x : leaf.x + x) + y * GW] = quant(rgb); };
+			const VELLUM = C.vellum;
+			for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+				// Mottling, foxing, a darker rim; the gutter's shadow; the stain.
+				const m = vnoise(x / 9, y / 7, 1) * 0.6 + vnoise(x / 3, y / 3, 2) * 0.4;
+				const rim = Math.min(x / 6, (W - 1 - x) / 4, y / 6, (H - 1 - y) / 6, 1);
+				const gutter = x < 6 ? (6 - x) / 6 : 0;
+				// Inside the gold rule the vellum is kept clean for the writing; outside it is worn.
+				const inText = x >= x0 && x <= x1 && y > yTop && y < yBot;
+				// (one even tone under the writing: a mottle finer than an ink step only stripes the rows)
+				let k = inText ? 0.99 : 0.95 + (m - 0.5) * 0.1 - (1 - rim) * 0.18 - gutter * 0.35;
+				const sx = x - W * 0.78, sy = (y - H * 0.18) * 1.2, sd = Math.hypot(sx, sy);
+				// The stain stays in the margin: the writing was kept clear of it.
+				if (!inText) { if (Math.abs(sd - 9) < 0.9) k -= 0.1; else if (sd < 9) k -= 0.03; }
+				let rgb = VELLUM.map((v, i) => v * k - (i === 2 ? (1 - k) * 30 : 0));
+				if ((cellHash(x * 3, y * 5) & 1023) < (inText ? 0 : 6)) rgb = C.fox; // foxing, never on the writing
+				set(x, y, rgb);
+			}
+			// Sewing: stitches down the gutter; the edges of the leaves beneath at the fore-edge and foot.
+			for (let y = 6; y < H - 6; y += 7) set(1, y, C.stitch);
+			for (let y = 0; y < H; y++) for (const d of [1, 2]) set(W - d, y, d === 1 ? C.edge : C.edge2);
+			for (let x = 0; x < W; x++) set(x, H - 1, C.edge);
+			// The text's frame: a ruled line of gold.
+			const gold = [176, 136, 62];
+			for (let x = x0 - 1; x <= x1 + 1; x++) { set(x, yTop, gold); set(x, yBot, gold); }
+			for (let y = yTop; y <= yBot; y++) { set(x0 - 1, y, gold); set(x1 + 1, y, gold); }
+			// Down each side margin, the book's own ornament (its look, src/ui/theme.ts):
+			//   medieval    a vine that sways, leaves on it, a flower every so often
+			//   grimm       a briar: a dark stem set with thorns, haws red as blood, now and then a pale toadstool
+			//   clockwork   a fine iron chain hung straight down, a brass cog on it here and there
+			//   lovecraft   a tentacle, swaying, its suckers turned to the writing, an eye opening now and then
+			const theme = themeOfKey(paletteKey());
+			const FLOWERS = [[178, 52, 40], [104, 70, 120], [70, 96, 150]];
+			const STEM: Record<string, number[]> = { medieval: [90, 110, 60], grimm: [74, 54, 42], clockwork: [64, 64, 70], lovecraft: [62, 98, 86] };
+			for (const side of [0, 1]) {
+				const mx = side ? x1 + 3 : 3;
+				if (side ? mx > W - 3 : mx > x0 - 2) continue;
+				// (an open book keeps its ornament to the outer margins: none down the spine)
+				if (!side && leaves.length > 1) continue;
+				const inward = side ? -1 : 1; // towards the writing
+				for (let y = yTop + 2; y < yBot - 1; y++) {
+					if (theme === 'grimm') {
+						const x = mx + Math.round(Math.sin(y / 4 + side * 2) * 0.8 + Math.sin(y / 11) * 0.5);
+						set(x, y, STEM.grimm);
+						if (y % 4 === 1) set(x + (y % 8 === 1 ? 1 : -1), y, [116, 92, 68]);
+						if (y % 19 === 9) { set(x + inward, y, [150, 28, 28]); set(x + inward, y + 1, [104, 18, 22]); set(x - inward, y - 2, [150, 28, 28]); }
+						if (y % 43 === 30) { for (const dx of [-1, 0, 1]) set(x + inward * 2 + dx, y - 1, [214, 206, 190]); set(x + inward * 2, y, [182, 172, 152]); }
+					} else if (theme === 'clockwork') {
+						const x = mx;
+						if (y % 3) set(x, y, STEM.clockwork); else { set(x - 1, y, STEM.clockwork); set(x + 1, y, STEM.clockwork); }
+						if (y % 29 === 14) {
+							for (let a = 0; a < 16; a++) { const t = (a / 16) * Math.PI * 2; set(x + Math.round(Math.cos(t) * 2), y + Math.round(Math.sin(t) * 2), [176, 136, 62]); }
+							for (let a = 0; a < 6; a++) { const t = (a / 6) * Math.PI * 2; set(x + Math.round(Math.cos(t) * 3), y + Math.round(Math.sin(t) * 3), [140, 106, 44]); }
+							set(x, y, [70, 54, 30]);
+						}
+					} else if (theme === 'lovecraft') {
+						const x = mx + Math.round(Math.sin(y / 7 + side * 2) * 1.4);
+						set(x, y, STEM.lovecraft); set(x - inward, y, [44, 72, 64]);
+						if (y % 3 === 0) set(x + inward, y, [190, 146, 136]);
+						if (y % 37 === 18) { for (const dx of [-1, 0, 1]) { set(x + dx, y - 1, [222, 214, 180]); set(x + dx, y + 1, [222, 214, 180]); } set(x - 1, y, [222, 214, 180]); set(x + 1, y, [222, 214, 180]); set(x, y, [30, 22, 18]); }
+					} else {
+						const x = mx + Math.round(Math.sin(y / 5 + side) * 0.9);
+						set(x, y, STEM.medieval);
+						if (y % 6 === 0) set(x + inward, y - 1, [110, 140, 70]);
+						if (y % 6 === 3) set(x - inward, y - 1, [110, 140, 70]);
+						if (y % 23 === 11) {
+							const c = FLOWERS[(y + side) % FLOWERS.length];
+							for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) set(x + dx, y + dy, dx || dy ? c : [212, 170, 70]);
+						}
 					}
 				}
 			}
-		}
-		// Hares at the foot of the page, if the writing leaves room for them.
-		// Which of them, and in what order, is the page's own: each page has its own, the same each time it is turned to.
-		// (only the figures painted in this look's books: art/margins.json "themes")
-		const books = typeof __MARGIN_THEMES__ !== 'undefined' && __MARGIN_THEMES__ ? __MARGIN_THEMES__ : {};
-		const all = (typeof __MARGINS__ !== 'undefined' && __MARGINS__ ? Object.entries(__MARGINS__) : [])
-			.filter(([name]) => { const b = books[name.replace(/-(small|tiny)$/, '')]; return !b || b.includes(theme); });
-		const luck = (name: string) => [...(seed + name)].reduce((h, ch) => Math.imul(h ^ ch.charCodeAt(0), 16777619), 2166136261) >>> 0;
-		// A figure may come in sizes (hare, hare-small, hare-tiny): the page takes the largest that fits.
-		const figures = new Map<string, typeof all[number][1][]>();
-		for (const [name, m] of all) { const f = name.replace(/-(small|tiny)$/, ''); figures.set(f, [...(figures.get(f) ?? []), m].sort((a, b) => b.h - a.h)); }
-		const M = [...figures.entries()].sort((a, b) => luck(a[0]) - luck(b[0])).map(([, sizes]) => sizes);
-		// (above the page-turns, if the page has them)
-		const foot = yBot - reserve * 2;
-		const free = foot - (used * 2 + 2);
-		if (M.length && free >= 14) {
-			// As many as fit across the text's width.
-			const pick: typeof all[number][1][] = [];
-			let used2 = 0;
-			for (const sizes of M) {
-				const m = sizes.find((v) => v.h <= free && used2 + v.w + (pick.length ? 4 : 0) <= width);
-				if (m) { pick.push(m); used2 += m.w + (pick.length > 1 ? 4 : 0); }
+			// Hares at the foot of the page, if the writing leaves room for them.
+			// Which of them, and in what order, is the page's own: each page has its own, the same each time it is turned to.
+			// (only the figures painted in this look's books: art/margins.json "themes")
+			const books = typeof __MARGIN_THEMES__ !== 'undefined' && __MARGIN_THEMES__ ? __MARGIN_THEMES__ : {};
+			const all = (typeof __MARGINS__ !== 'undefined' && __MARGINS__ ? Object.entries(__MARGINS__) : [])
+				.filter(([name]) => { const b = books[name.replace(/-(small|tiny)$/, '')]; return !b || b.includes(theme); });
+			const luck = (name: string) => [...(seed + name)].reduce((h, ch) => Math.imul(h ^ ch.charCodeAt(0), 16777619), 2166136261) >>> 0;
+			// A figure may come in sizes (hare, hare-small, hare-tiny): the page takes the largest that fits.
+			const figures = new Map<string, typeof all[number][1][]>();
+			for (const [name, m] of all) { const f = name.replace(/-(small|tiny)$/, ''); figures.set(f, [...(figures.get(f) ?? []), m].sort((a, b) => b.h - a.h)); }
+			// (the left-hand leaf of an open book takes them from the other end: its own, not the right's again)
+			const M = [...figures.entries()].sort((a, b) => (luck(a[0]) - luck(b[0])) * (leaf.mirror ? -1 : 1)).map(([, sizes]) => sizes);
+			// (above the page-turns, if the page has them)
+			const foot = yBot - reserve * 2;
+			const free = foot - (used * 2 + 2);
+			if (M.length && free >= 14) {
+				// As many as fit across the text's width.
+				const pick: typeof all[number][1][] = [];
+				let used2 = 0;
+				for (const sizes of M) {
+					const m = sizes.find((v) => v.h <= free && used2 + v.w + (pick.length ? 4 : 0) <= width);
+					if (m) { pick.push(m); used2 += m.w + (pick.length > 1 ? 4 : 0); }
+				}
+				const span = pick.reduce((k, m) => k + m.w, 0);
+				let x = x0 + Math.max(0, Math.floor((width - span - (pick.length - 1) * 4) / 2));
+				for (const m of pick) {
+					const top = foot - 2 - m.h;
+					// By candlelight the black ink lines would sink into the dark page: they are drawn in a lighter brown.
+					const night = paletteKey().endsWith('-night');
+					m.px.forEach((row, j) => row.forEach((c, i) => {
+						if (!c) return;
+						const rgb = [1, 3, 5].map((k) => parseInt(c.slice(k, k + 2), 16));
+						set(x + (leaf.mirror ? m.w - 1 - i : i), top + j, night && rgb[0] + rgb[1] + rgb[2] < 120 ? [96, 80, 60] : rgb);
+					}));
+					x += m.w + 4;
+				}
+				// The ground they stand on: a tendril of the margin's ornament.
+				for (let xx = x0 + 2; xx < x1 - 1; xx++) set(xx, foot - 2 + (theme === 'clockwork' ? 0 : Math.round(Math.sin(xx / 3) * 0.6)), STEM[theme]);
 			}
-			const span = pick.reduce((k, m) => k + m.w, 0);
-			let x = x0 + Math.max(0, Math.floor((width - span - (pick.length - 1) * 4) / 2));
-			for (const m of pick) {
-				const top = foot - 2 - m.h;
-				// By candlelight the black ink lines would sink into the dark page: they are drawn in a lighter brown.
-				const night = paletteKey().endsWith('-night');
-				m.px.forEach((row, j) => row.forEach((c, i) => {
-					if (!c) return;
-					const rgb = [1, 3, 5].map((k) => parseInt(c.slice(k, k + 2), 16));
-					set(x + i, top + j, night && rgb[0] + rgb[1] + rgb[2] < 120 ? [96, 80, 60] : rgb);
-				}));
-				x += m.w + 4;
-			}
-			// The ground they stand on: a tendril of the margin's ornament.
-			for (let xx = x0 + 2; xx < x1 - 1; xx++) set(xx, foot - 2 + (theme === 'clockwork' ? 0 : Math.round(Math.sin(xx / 3) * 0.6)), STEM[theme]);
 		}
 		folioMemo = { key, px };
 	}
@@ -1162,12 +1214,14 @@ function folio(g: Grid, width: number, used: number, reserve = 0, seed = '') {
 	// The grain of the skin under the writing: specks a shade off the page, thicker in soft patches.
 	// (Specks, not a mottle of the page's own colour, which striped the rows.)
 	const GRAIN = ['.', ',', "'", '`'];
-	const bare = px[x0 + (yTop + 2) * W]; // the vellum under the writing, where nothing is painted
-	for (let cy = 0; cy < g.rows; cy++) for (let x = 0; x < W; x++) {
-		const t = px[x + cy * 2 * W], b = px[x + (cy * 2 + 1) * W];
+	// (each leaf's writing, and the vellum under it where nothing is painted)
+	const texts = leaves.map((l) => { const x0 = leafText(l, width); return { l, x0, x1: x0 + width - 1, bare: px[x0 + (yTop + 2) * GW] }; });
+	for (let cy = 0; cy < g.rows; cy++) for (let x = 0; x < GW; x++) {
+		const t = px[x + cy * 2 * GW], b = px[x + (cy * 2 + 1) * GW];
 		if (t !== b) { g.set(x, cy, '▀', t, b); continue; }
 		const h = cellHash(x * 7 + 3, cy * 5 + 1);
-		const grain = t === bare && x >= x0 && x <= x1 && cy * 2 > yTop && cy * 2 < yBot && h < 30 + vnoise(x / 6, cy / 3, 7) * 110;
+		const lt = texts.find((k) => x >= k.l.x && x < k.l.x + k.l.w);
+		const grain = !!lt && t === lt.bare && x >= lt.x0 && x <= lt.x1 && cy * 2 > yTop && cy * 2 < yBot && h < 30 + vnoise(x / 6, cy / 3, 7) * 110;
 		g.set(x, cy, grain ? GRAIN[h & 3] : ' ', 1, t);
 	}
 }
@@ -1317,7 +1371,8 @@ function frame(g: Grid) {
 	term!.palette = PALETTES[key] ?? PALETTES['manuscript-night'];
 	// The cover wants a margin of leather round its page: a few more columns (a touch smaller type).
 	// The cover is a picture, drawn fine: many more columns (small cells, two pixels each).
-	term!.setCols(key === 'cover' ? 84 : key.startsWith('folio') ? COLS + 12 : key === 'leather' ? COLS + 6 : COLS);
+	// A book on a wide screen lies open: room for two leaves.
+	term!.setCols(key === 'cover' ? 84 : key.startsWith('folio') ? (wideScreen() ? 2 * (COLS + 12) : COLS + 12) : key === 'leather' ? COLS + 6 : COLS);
 	document.body.style.background = term!.palette[0];
 	document.documentElement.style.background = term!.palette[0];
 	g.clear(4, 0);
@@ -1334,7 +1389,19 @@ function frame(g: Grid) {
 			for (let i = p.from; i < p.to; i++) used += lineH(top.rows[i]);
 			reserve = 3 + (isBook() ? 2 : 0);
 		}
-		ground(g, top.width, used, reserve, top.sig);
+		const half = spreadOf(g, top.width);
+		if (half) {
+			// The book open: a long page runs on from the left leaf to the right; a short one is written on
+			// the right, and the left faces it with its pictures alone.
+			const pages = total > g.rows - off ? paginate(top.rows, g.rows - off - 5) : null;
+			const pl = pages ? Math.max(0, Math.min(top.page, pages.length - 1)) & ~1 : 0;
+			const usedOf = (p?: { from: number; to: number }) => { if (!p) return 0; let u = off + (inFrame(top.rows[p.from]) ? 1 : 0); for (let i = p.from; i < p.to; i++) u += lineH(top.rows[i]); return u; };
+			const r = pages ? 5 : 0;
+			ground(g, top.width, used, reserve, top.sig, [
+				{ x: 0, w: half, mirror: true, used: pages ? usedOf(pages[pl]) : 0, reserve: r, seed: top.sig + '<' },
+				{ x: half, w: g.cols - half, mirror: false, used: pages ? usedOf(pages[pl + 1]) : used, reserve: r, seed: top.sig }
+			]);
+		} else ground(g, top.width, used, reserve, top.sig);
 	}
 	const ink = (t: Tone | undefined) => TONE[t ?? 'plain'];
 	const under = !!extra?.(g);
