@@ -60,6 +60,7 @@
 		<ul id="figures"></ul>
 		<div class="row"><button id="new">New</button><button id="dup">Copy</button><button id="ren">Rename</button><button id="del">Delete</button></div>
 		<div class="row"><label><input id="onPage" type="checkbox"> On the pages</label></div>
+		<div class="row" id="books">In the books of: <label><input type="checkbox" value="medieval"> medieval</label> <label><input type="checkbox" value="grimm"> grimm</label> <label><input type="checkbox" value="clockwork"> clockwork</label> <label><input type="checkbox" value="lovecraft"> Lovecraft</label></div>
 		<p class="hint">Off the pages, a figure is kept here to work on but the app does not show it. Copy one to start a new figure from it (the imp is a start for demons).</p>
 		<h2>Size</h2>
 		<div class="row"><input id="w" type="number" min="1" max="52"> × <input id="h" type="number" min="1" max="60"><button id="resize">Set</button></div>
@@ -91,6 +92,7 @@
 // The figures as they were when this page was made; "Open art folder" or "Load margins.json" reads the real file.
 let data = {
 	off: ["imp"],
+	themes: {},
 	ink: {O: '#4a3422', B: '#9a7b55', b: '#785f42', F: '#cdb592', W: '#dcb38c', E: '#241c17', P: '#c98d78', Y: '#c09a48', y: '#8a6a2a', R: '#c2522e', r: '#8c2a22', S: '#c4c2ba', s: '#7c7a72'},
 	figures: {
 		trumpeter: ['..........bO..OObO....', '.........Obbb.ObPO....', '.........OOOF.bPO.....', '...........ObObPO.....', '.O.........OFFBbO.....', 'OYO.......OFOBBBO.....', 'OYyO......OBBBBBO.....', 'OYYYYYYYYYYYBBFBO.....', 'OYyO.....ObbbBBBO.....', 'OYO.......ObbbBBFO....', '.O.........ObbFbBOO...', '...........ObBFbbBWO..', '...........OBBBbbBOO..', '..........OBBObbBB....', '.........OBbO.OBbO....', '.........OOO..OOO.....'],
@@ -153,6 +155,8 @@ function draw() {
 	}
 	$('w').value = W(); $('h').value = H();
 	$('onPage').checked = !data.off.includes(cur);
+	// (a figure ticked in none of the books is painted in all of them)
+	for (const b of document.querySelectorAll('#books input')) b.checked = (data.themes[cur] ?? []).includes(b.value);
 	drawPalette(); drawList(); drawPage('day'); drawPage('night');
 }
 function drawList() {
@@ -281,11 +285,12 @@ $('ren').onclick = () => {
 	remember();
 	data.figures = Object.fromEntries(Object.entries(data.figures).map(([k, v]) => [k === cur ? n : k, v]));
 	data.off = data.off.map((k) => (k === cur ? n : k));
+	if (data.themes[cur]) { data.themes[n] = data.themes[cur]; delete data.themes[cur]; }
 	cur = n; changed();
 };
 $('del').onclick = () => {
 	if (Object.keys(data.figures).length < 2 || !confirm(`Delete ${cur}?`)) return;
-	remember(); delete data.figures[cur]; data.off = data.off.filter((k) => k !== cur); cur = Object.keys(data.figures)[0]; changed();
+	remember(); delete data.figures[cur]; delete data.themes[cur]; data.off = data.off.filter((k) => k !== cur); cur = Object.keys(data.figures)[0]; changed();
 };
 $('resize').onclick = () => {
 	const w = Math.max(1, Math.min(52, +$('w').value)), h = Math.max(1, Math.min(60, +$('h').value));
@@ -296,11 +301,17 @@ $('resize').onclick = () => {
 	data.figures[cur] = g; changed();
 };
 $('onPage').onchange = (e) => { remember(); data.off = e.target.checked ? data.off.filter((n) => n !== cur) : [...data.off, cur]; changed(); };
+for (const b of document.querySelectorAll('#books input')) b.onchange = () => {
+	remember();
+	const on = [...document.querySelectorAll('#books input')].filter((i) => i.checked).map((i) => i.value);
+	if (on.length) data.themes[cur] = on; else delete data.themes[cur];
+	changed();
+};
 $('flip').onclick = () => { remember(); data.figures[cur] = grid().map((r) => [...r.padEnd(W(), '.')].reverse().join('')); changed(); };
 $('clear').onclick = () => { if (!confirm('Clear this figure?')) return; remember(); data.figures[cur] = grid().map((r) => '.'.repeat(r.length)); changed(); };
 
 // ---- files ----
-const pretty = (d) => '{\n\t"ink": ' + JSON.stringify(d.ink).replace(/,/g, ', ') + ',\n\t"off": ' + JSON.stringify(d.off) + ',\n\t"figures": {\n' +
+const pretty = (d) => '{\n\t"ink": ' + JSON.stringify(d.ink).replace(/,/g, ', ') + ',\n\t"off": ' + JSON.stringify(d.off) + ',\n\t"themes": ' + JSON.stringify(d.themes ?? {}).replace(/,"/g, ', "') + ',\n\t"figures": {\n' +
 	Object.entries(d.figures).map(([k, v]) => `\t\t"${k}": [\n${v.map((r) => `\t\t\t"${r}"`).join(',\n')}\n\t\t]`).join(',\n') + '\n\t}\n}\n';
 function pngBlob(f) {
 	const c = document.createElement('canvas');
@@ -313,6 +324,7 @@ function use(text) {
 	const d = JSON.parse(text);
 	if (!d.ink || !d.figures) throw new Error('not a margins.json');
 	d.off ??= [];
+	d.themes ??= {};
 	data = d; cur = Object.keys(d.figures)[0]; undo.length = redo.length = 0; dirty = false; draw();
 }
 $('open').onclick = async () => {

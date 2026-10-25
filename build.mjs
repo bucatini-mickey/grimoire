@@ -154,6 +154,11 @@ function margins() {
 	return out;
 }
 
+/** Which books each margin figure is painted in (art/margins.json "themes"; a figure not listed is in all). */
+function marginThemes() {
+	try { return JSON.parse(readFileSync('art/margins.json', 'utf8')).themes ?? {}; } catch { return {}; }
+}
+
 /** The title: art/title.png, its alpha (0-255) by pixel; the page gilds and stains it. */
 function titleAlpha() {
 	try {
@@ -176,7 +181,7 @@ const options = {
 	write: false,
 	outdir: 'dist/.js',
 	loader: { '.tbp': 'text' },
-	define: { __LOGO__: JSON.stringify(logoPixels()), __TITLE__: JSON.stringify(titleAlpha()), __MARGINS__: JSON.stringify(margins()) },
+	define: { __LOGO__: JSON.stringify(logoPixels()), __TITLE__: JSON.stringify(titleAlpha()), __MARGINS__: JSON.stringify(margins()), __MARGIN_THEMES__: JSON.stringify(marginThemes()) },
 	plugins: [inline],
 	logLevel: 'warning'
 };

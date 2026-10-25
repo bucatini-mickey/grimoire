@@ -368,6 +368,8 @@ export function drawButton(c: Ctx, x: number, y: number, w: number, b: Button) {
 			: st === 'off' ? [2, 1, 'single', -1]
 			: [5, 3, 'single', -1];
 		if (ground >= 0) g.fill({ x: x + 1, y: y + 1, w: bw - 2, h: 1 }, ' ', ink, ground);
+		// (else the page shows through, but not its grain: no specks round the label)
+		else for (let i = 1; i < bw - 1; i++) { const cell = g.get(x + i, y + 1); g.set(x + i, y + 1, ' ', ink, cell ? cell.bg : 0); }
 		const [h, v, tl, tr, bl, br] = line === 'double' ? ['═', '║', '╔', '╗', '╚', '╝'] : ['─', '│', '┌', '┐', '└', '┘'];
 		const at = (cx: number, cy: number, ch: string) => { const cell = g.get(cx, cy); g.set(cx, cy, ch, rule, cell ? cell.bg : 0); };
 		for (let i = 1; i < bw - 1; i++) { at(x + i, y, h); at(x + i, y + 2, h); }
@@ -378,7 +380,9 @@ export function drawButton(c: Ctx, x: number, y: number, w: number, b: Button) {
 		const numeral = label.match(/^[IVXLC]+(?=\.)/)?.[0];
 		if (st !== 'off' && st !== 'on' && st !== 'quiet') for (let k = 0; k < (numeral?.length ?? (/\p{L}/u.test(label[0]) ? 1 : 0)); k++) g.set(lx + k, y + 1, label[k], 0, 8);
 		// The vine: a stem off the frame's side, a leaf every few steps.
-		if (w - bw >= 4 && st !== 'off') for (let i = bw; i < w; i++) g.set(x + i, y + 1, (i - bw) % 4 === 2 ? '♣' : '~', 10);
+		// (in each look its own: a leafy vine, a pine bough, a chain with its links, the sea and its bubbles)
+		const [run, knot] = ({ medieval: ['~', '♣'], grimm: ['~', '♠'], clockwork: ['-', '○'], lovecraft: ['≈', '°'] } as const)[themeOfKey(paletteKey())];
+		if (w - bw >= 4 && st !== 'off') for (let i = bw; i < w; i++) g.set(x + i, y + 1, (i - bw) % 4 === 2 ? knot : run, 10);
 		if (!b.disabled) c.hit({ x, y, w, h: 3 }, b.act);
 		return;
 	}
@@ -1012,6 +1016,7 @@ function cover(g: Grid) {
 
 /** A page of the opened book: vellum, a fine grain, and nothing else behind the words. */
 declare const __MARGINS__: Record<string, { w: number; h: number; px: (string | null)[][] }> | undefined;
+declare const __MARGIN_THEMES__: Record<string, string[]> | undefined;
 
 /** A smooth value noise, 0-1, for the vellum's mottling. */
 function vnoise(x: number, y: number, seed: number): number {
@@ -1069,25 +1074,56 @@ function folio(g: Grid, width: number, used: number, reserve = 0, seed = '') {
 		const gold = [176, 136, 62];
 		for (let x = x0 - 1; x <= x1 + 1; x++) { set(x, yTop, gold); set(x, yBot, gold); }
 		for (let y = yTop; y <= yBot; y++) { set(x0 - 1, y, gold); set(x1 + 1, y, gold); }
-		// The vine in each side margin: a stem that sways, leaves on it, a flower every so often.
+		// Down each side margin, the book's own ornament (its look, src/ui/theme.ts):
+		//   medieval    a vine that sways, leaves on it, a flower every so often
+		//   grimm       a briar: a dark stem set with thorns, haws red as blood, now and then a pale toadstool
+		//   clockwork   a fine iron chain hung straight down, a brass cog on it here and there
+		//   lovecraft   a tentacle, swaying, its suckers turned to the writing, an eye opening now and then
+		const theme = themeOfKey(paletteKey());
 		const FLOWERS = [[178, 52, 40], [104, 70, 120], [70, 96, 150]];
+		const STEM: Record<string, number[]> = { medieval: [90, 110, 60], grimm: [74, 54, 42], clockwork: [64, 64, 70], lovecraft: [62, 98, 86] };
 		for (const side of [0, 1]) {
 			const mx = side ? x1 + 3 : 3;
 			if (side ? mx > W - 3 : mx > x0 - 2) continue;
+			const inward = side ? -1 : 1; // towards the writing
 			for (let y = yTop + 2; y < yBot - 1; y++) {
-				const x = mx + Math.round(Math.sin(y / 5 + side) * 0.9);
-				set(x, y, [90, 110, 60]);
-				if (y % 6 === 0) set(x + (side ? -1 : 1), y - 1, [110, 140, 70]);
-				if (y % 6 === 3) set(x - (side ? -1 : 1), y - 1, [110, 140, 70]);
-				if (y % 23 === 11) {
-					const c = FLOWERS[(y + side) % FLOWERS.length];
-					for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) set(x + dx, y + dy, dx || dy ? c : [212, 170, 70]);
+				if (theme === 'grimm') {
+					const x = mx + Math.round(Math.sin(y / 4 + side * 2) * 0.8 + Math.sin(y / 11) * 0.5);
+					set(x, y, STEM.grimm);
+					if (y % 4 === 1) set(x + (y % 8 === 1 ? 1 : -1), y, [116, 92, 68]);
+					if (y % 19 === 9) { set(x + inward, y, [150, 28, 28]); set(x + inward, y + 1, [104, 18, 22]); set(x - inward, y - 2, [150, 28, 28]); }
+					if (y % 43 === 30) { for (const dx of [-1, 0, 1]) set(x + inward * 2 + dx, y - 1, [214, 206, 190]); set(x + inward * 2, y, [182, 172, 152]); }
+				} else if (theme === 'clockwork') {
+					const x = mx;
+					if (y % 3) set(x, y, STEM.clockwork); else { set(x - 1, y, STEM.clockwork); set(x + 1, y, STEM.clockwork); }
+					if (y % 29 === 14) {
+						for (let a = 0; a < 16; a++) { const t = (a / 16) * Math.PI * 2; set(x + Math.round(Math.cos(t) * 2), y + Math.round(Math.sin(t) * 2), [176, 136, 62]); }
+						for (let a = 0; a < 6; a++) { const t = (a / 6) * Math.PI * 2; set(x + Math.round(Math.cos(t) * 3), y + Math.round(Math.sin(t) * 3), [140, 106, 44]); }
+						set(x, y, [70, 54, 30]);
+					}
+				} else if (theme === 'lovecraft') {
+					const x = mx + Math.round(Math.sin(y / 7 + side * 2) * 1.4);
+					set(x, y, STEM.lovecraft); set(x - inward, y, [44, 72, 64]);
+					if (y % 3 === 0) set(x + inward, y, [190, 146, 136]);
+					if (y % 37 === 18) { for (const dx of [-1, 0, 1]) { set(x + dx, y - 1, [222, 214, 180]); set(x + dx, y + 1, [222, 214, 180]); } set(x - 1, y, [222, 214, 180]); set(x + 1, y, [222, 214, 180]); set(x, y, [30, 22, 18]); }
+				} else {
+					const x = mx + Math.round(Math.sin(y / 5 + side) * 0.9);
+					set(x, y, STEM.medieval);
+					if (y % 6 === 0) set(x + inward, y - 1, [110, 140, 70]);
+					if (y % 6 === 3) set(x - inward, y - 1, [110, 140, 70]);
+					if (y % 23 === 11) {
+						const c = FLOWERS[(y + side) % FLOWERS.length];
+						for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) set(x + dx, y + dy, dx || dy ? c : [212, 170, 70]);
+					}
 				}
 			}
 		}
 		// Hares at the foot of the page, if the writing leaves room for them.
 		// Which of them, and in what order, is the page's own: each page has its own, the same each time it is turned to.
-		const all = typeof __MARGINS__ !== 'undefined' && __MARGINS__ ? Object.entries(__MARGINS__) : [];
+		// (only the figures painted in this look's books: art/margins.json "themes")
+		const books = typeof __MARGIN_THEMES__ !== 'undefined' && __MARGIN_THEMES__ ? __MARGIN_THEMES__ : {};
+		const all = (typeof __MARGINS__ !== 'undefined' && __MARGINS__ ? Object.entries(__MARGINS__) : [])
+			.filter(([name]) => { const b = books[name.replace(/-(small|tiny)$/, '')]; return !b || b.includes(theme); });
 		const luck = (name: string) => [...(seed + name)].reduce((h, ch) => Math.imul(h ^ ch.charCodeAt(0), 16777619), 2166136261) >>> 0;
 		// A figure may come in sizes (hare, hare-small, hare-tiny): the page takes the largest that fits.
 		const figures = new Map<string, typeof all[number][1][]>();
@@ -1117,8 +1153,8 @@ function folio(g: Grid, width: number, used: number, reserve = 0, seed = '') {
 				}));
 				x += m.w + 4;
 			}
-			// The ground they stand on: a tendril of the vine.
-			for (let xx = x0 + 2; xx < x1 - 1; xx++) set(xx, foot - 2 + Math.round(Math.sin(xx / 3) * 0.6), [90, 110, 60]);
+			// The ground they stand on: a tendril of the margin's ornament.
+			for (let xx = x0 + 2; xx < x1 - 1; xx++) set(xx, foot - 2 + (theme === 'clockwork' ? 0 : Math.round(Math.sin(xx / 3) * 0.6)), STEM[theme]);
 		}
 		folioMemo = { key, px };
 	}
