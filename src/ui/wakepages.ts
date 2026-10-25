@@ -5,7 +5,8 @@
  * wake arrives on the player's phone: who you are, then whom you choose,
  * then what you learn, then (for the Spy) the grimoire, then a last page.
  */
-import { COLS, blank, btn, buttonRows, center, endPanel, letteredRow, pad, row, rubric, txt, wrap } from './ascii.ts';
+import { COLS, blank, btn, buttonRows, center, endPanel, illuminatedName, letteredRow, pad, row, rubric, txt, wrap } from './ascii.ts';
+import { ALL_CHARACTERS } from '../core/index.ts';
 import type { Button, Row } from './ascii.ts';
 import type { SeatId } from '../core/index.ts';
 import type { Section, Wake } from '../net/views.ts';
@@ -34,24 +35,40 @@ export interface PageHandlers {
 export const big = (...lines: string[]): Row[] => lines.map((l) => row(txt('  ' + l, 'gold', 'heading')));
 export const note = (text: string): Row[] => wrap(text, CARD_INNER - 2).map((l) => row(txt('  ' + l, 'dim')));
 export const cardButtons = (buttons: Button[]): Row[] => buttonRows(buttons, CARD_COLS);
+// What a player is told at night, set in the middle of the page so it is read at a glance.
+const midBig = (...lines: string[]): Row[] => lines.flatMap((l) => wrap(l, CARD_INNER - 2)).map((l) => row(txt(center(l, CARD_INNER), 'gold', 'heading')));
+const midNote = (text: string): Row[] => wrap(text, CARD_INNER - 2).map((l) => row(txt(center(l, CARD_INNER), 'dim')));
+const midText = (text: string): Row[] => wrap(text, CARD_INNER - 2).map((l) => row(txt(center(l, CARD_INNER))));
+/** The side a character is on, for the colour of its arch. */
+const sideOf = (role?: string): 'good' | 'evil' | 'other' => {
+	const t = ALL_CHARACTERS.find((c) => c.id === role)?.team;
+	return t === 'minion' || t === 'demon' ? 'evil' : t === 'townsfolk' || t === 'outsider' ? 'good' : 'other';
+};
 
 /** Room above the first panel for the character's picture, if one has been drawn. */
 export function pictureRows(_character?: string): Row[] {
 	return [blank()];
 }
 
-export function sectionRows(sections: Section[]): Row[] {
+export function sectionRows(sections: Section[], role?: string): Row[] {
 	const rows: Row[] = [];
 	for (const s of sections) {
-		if (s.title) rows.push(rubric(s.title));
+		// Who you are, as an illuminated page shows it: "You are the" small, then the name under its arch.
+		if (s.title === 'You are' && s.style === 'big' && s.lines.length === 1) {
+			const l = s.lines[0], name = l.replace(/^(now )?the /i, '');
+			const arch = illuminatedName(name, sideOf(role), CARD_COLS);
+			if (arch) { rows.push(blank(), ...midNote('You are ' + l.slice(0, l.length - name.length).trim()), arch, blank()); continue; }
+		}
+		// (each heading in the middle too, in red, over what it heads)
+		if (s.title) rows.push(blank(), row(txt(center(s.title, CARD_INNER), 'rubric')));
 		for (const l of s.lines) {
 			// Who you are, lettered large when the name is short enough: "the" small above it.
 			const name = l.replace(/^the /i, '');
 			const lettered = s.style === 'big' && s.title === 'You are' ? letteredRow(name, CARD_INNER) : null;
 			if (lettered) rows.push(...(name !== l ? note(l.slice(0, l.length - name.length).trim()) : []), lettered);
-			else if (s.style === 'big') rows.push(...big(l));
-			else if (s.style === 'note') rows.push(...note(l));
-			else rows.push(...wrap(l, CARD_INNER).map((w) => row(txt(w))));
+			else if (s.style === 'big') rows.push(...midBig(l));
+			else if (s.style === 'note') rows.push(...midNote(l));
+			else rows.push(...midText(l));
 		}
 	}
 	return rows;
@@ -75,7 +92,7 @@ export function wakeRows(w: Wake, page: Page, picks: SeatId[], h: PageHandlers):
 	const next = (from: Page) => btn('Next', () => h.go(nextPage(w, from)), { style: 'primary' });
 	switch (page) {
 		case 'who':
-			rows.push(...pictureRows(w.role), ...sectionRows(w.sections), endPanel(), blank(), ...cardButtons([next('who')]));
+			rows.push(...pictureRows(w.role), ...sectionRows(w.sections, w.role), endPanel(), blank(), ...cardButtons([next('who')]));
 			break;
 		case 'pick': {
 			const p = w.pick!;
@@ -94,7 +111,7 @@ export function wakeRows(w: Wake, page: Page, picks: SeatId[], h: PageHandlers):
 			rows.push(...pictureRows(w.role), rubric('Chosen'), ...big(...picks.map(h.name)), ...note('The Storyteller will answer in a moment. Keep the phone to yourself.'), endPanel());
 			break;
 		case 'info':
-			rows.push(...pictureRows(w.role), ...sectionRows(w.info ?? []), endPanel(), blank(), ...cardButtons([next('info')]));
+			rows.push(...pictureRows(w.role), ...sectionRows(w.info ?? [], w.role), endPanel(), blank(), ...cardButtons([next('info')]));
 			break;
 		case 'grimoire': {
 			const g = w.grimoire!;

@@ -569,16 +569,107 @@ const TEXTURA_UPPER: Record<string, string> = {
 const texturaGlyph = (ch: string, cap: boolean) => (cap ? TEXTURA_UPPER[ch.toUpperCase()] : TEXTURA_LOWER[ch.toLowerCase()])?.split('/');
 
 /** The glyphs of a name in the textura, each word's first letter a capital; null if one is missing. */
-function texturaGlyphs(word: string): { px: string[]; cap: boolean }[] | null {
+function texturaGlyphs(word: string, capFirst = true): { px: string[]; cap: boolean }[] | null {
 	const out: { px: string[]; cap: boolean }[] = [];
 	for (const [k, ch] of [...word].entries()) {
 		if (ch === ' ') { out.push({ px: Array(12).fill('...'), cap: false }); continue; }
-		const cap = k === 0 || word[k - 1] === ' ';
+		const cap = (k === 0 && capFirst) || word[k - 1] === ' ';
 		const px = texturaGlyph(ch, cap) ?? (cap ? texturaGlyph(ch, false) : undefined);
 		if (!px) return null;
 		out.push({ px, cap });
 	}
 	return out;
+}
+
+/**
+ * A name in the textura as pixels, twelve rows high: 1 where a capital's ink is, 2 the rest. `tight`
+ * condenses it as a scribe short of room would: the four-wide letters lose a column (".##." to ".#.").
+ */
+function texturaPixels(word: string, tight: boolean, capFirst = true): { at: (0 | 1 | 2)[][]; w: number } | null {
+	const gl = texturaGlyphs(word, capFirst);
+	if (!gl) return null;
+	const cut = (r: string) => (tight && r.length === 4 ? r[0] + r[1] + r[3] : r);
+	const w = gl.reduce((k, g) => k + cut(g.px[0]).length + 1, -1);
+	const at: (0 | 1 | 2)[][] = Array.from({ length: 12 }, () => Array(w).fill(0));
+	let x = 0;
+	for (const g of gl) {
+		g.px.forEach((r, y) => [...cut(r)].forEach((p, i) => { if (p === '#') at[y][x + i] = g.cap ? 1 : 2; }));
+		x += cut(g.px[0]).length + 1;
+	}
+	return { at, w };
+}
+
+/**
+ * Who a player is, as an illuminated page shows it: under a pointed arch, its ground diapered in gold
+ * (blue for the good, red for the evil, green for a traveller), the name lettered in the textura, pale
+ * on the colour, its capital gilt. Long names are condensed, or set a word a line. Marks its page for
+ * the vine border and the roundel at the foot (folio). Null if the name cannot be lettered.
+ */
+export function illuminatedName(name: string, team: 'good' | 'evil' | 'other', width: number): Row | null {
+	const room = width - 8;
+	// A line lettered in full if it fits, else condensed; a line carried on from a split word has no capital.
+	const set = (s: string, cap = true) => {
+		const a = texturaPixels(s, false, cap);
+		if (a && a.w <= room) return a;
+		const b = texturaPixels(s, true, cap);
+		return b && b.w <= room ? b : null;
+	};
+	// A word too long for the line is split as a scribe would: a hyphen, between a vowel and what
+	// follows it, as near the middle as will fit.
+	const vowel = (ch: string) => 'aeiouy'.includes(ch.toLowerCase());
+	const split = (w: string): string[] | null => {
+		const at = [...Array(w.length - 3).keys()].map((k) => k + 2).sort((a, b) => Math.abs(a - w.length / 2) - Math.abs(b - w.length / 2));
+		for (const strict of [true, false]) for (const k of at) {
+			if (strict && !(vowel(w[k - 1]) && !vowel(w[k]))) continue;
+			if (set(w.slice(0, k) + '-') && set(w.slice(k), false)) return [w.slice(0, k) + '-', w.slice(k)];
+		}
+		return null;
+	};
+	// The words set a line at a time, as many to a line as fit.
+	const text: { s: string; cap: boolean }[] = [];
+	let cur = '';
+	for (const wd of name.split(' ')) {
+		if (set(cur ? cur + ' ' + wd : wd)) { cur = cur ? cur + ' ' + wd : wd; continue; }
+		if (cur) text.push({ s: cur, cap: true });
+		cur = '';
+		if (set(wd)) { cur = wd; continue; }
+		const parts = split(wd);
+		if (!parts) return null;
+		text.push({ s: parts[0], cap: true }, { s: parts[1], cap: false });
+	}
+	if (cur) text.push({ s: cur, cap: true });
+	const lines = text.map((t) => set(t.s, t.cap));
+	if (!lines.length || lines.some((l) => !l)) return null;
+	const ARCH = 28, LINE = 15, H = 2 + ARCH + lines.length * LINE + 3;
+	return blockRow(Math.ceil(H / 2), (c) => {
+		const aw = Math.min(c.w, width) - 2, ax = c.x + Math.floor((c.w - aw) / 2), half = aw / 2;
+		const ground = team === 'evil' ? [96, 26, 26] : team === 'good' ? [30, 46, 96] : [44, 70, 48];
+		const diaper = team === 'evil' ? [150, 60, 40] : [190, 150, 66];
+		const GOLD = [204, 160, 66], INK = [240, 230, 206], CAP = [226, 182, 80];
+		// The pointed arch: two arcs, each struck from the far side's foot, flattened to ARCH pixels tall.
+		const rise = (i: number) => { const x = Math.min(i + 0.5, aw - i - 0.5); return Math.sqrt(Math.max(0, aw * aw - (aw - x) ** 2)) / (0.866 * aw) * ARCH; };
+		const inside = (i: number, y: number) => i >= 0 && i < aw && y < H - 1 && y >= 2 + ARCH - rise(i);
+		const px: (number[] | null)[][] = Array.from({ length: H + 1 }, () => Array(aw).fill(null));
+		for (let y = 0; y < H; y++) for (let i = 0; i < aw; i++) {
+			if (!inside(i, y)) continue;
+			const edge = !inside(i - 1, y) || !inside(i + 1, y) || !inside(i, y - 1) || !inside(i, y + 1);
+			px[y][i] = edge ? GOLD : y % 4 === 1 && (i + (y % 8 === 1 ? 0 : 2)) % 4 === 0 ? diaper : ground;
+		}
+		// A finial at the point.
+		px[0][Math.floor(half)] = GOLD; px[1][Math.floor(half)] = GOLD; px[1][Math.floor(half) - 1] = GOLD; px[1][Math.ceil(half)] = GOLD;
+		lines.forEach((l, k) => {
+			const lx = Math.floor((aw - l!.w) / 2), ly = 2 + ARCH + 1 + k * LINE;
+			l!.at.forEach((r, y) => r.forEach((p, i) => { if (p) px[ly + y][lx + i] = p === 1 ? CAP : INK; }));
+		});
+		for (let y = 0; y < H; y += 2) for (let i = 0; i < aw; i++) {
+			const t = px[y][i], b = px[y + 1]?.[i] ?? null;
+			if (!t && !b) continue;
+			const under = c.g.get(ax + i, c.y + y / 2)?.bg ?? 0;
+			const ti = t ? quant(t) : under, bi = b ? quant(b) : under;
+			if (ti === bi) c.g.set(ax + i, c.y + y / 2, ' ', 4, ti);
+			else c.g.set(ax + i, c.y + y / 2, '▀', ti, bi);
+		}
+	}, 'illum-' + team);
 }
 
 /** A name written large in the textura, at the left like the writing; null when it will not fit in `width` or has letters the face lacks. */
@@ -1065,6 +1156,8 @@ function vnoise(x: number, y: number, seed: number): number {
 }
 
 let folioMemo: { key: string; px: Int16Array } | null = null;
+/** The page shown is an illuminated one (a row of it marked illum-<side>): that side, or ''. Set by frame. */
+let pageIllum = '';
 
 /** A leaf of the book on the screen: where it stands, whether it is a left-hand one, how much of it is written on. */
 interface Leaf { x: number; w: number; mirror: boolean; used: number; reserve: number; seed: string }
@@ -1085,7 +1178,7 @@ const wideScreen = () => innerWidth >= 1000 && innerWidth > innerHeight * 1.25;
 function folio(g: Grid, width: number, leaves: Leaf[]) {
 	const GW = g.cols, H = g.rows * 2;
 	const yTop = 1, yBot = H - 3;
-	const key = `${GW}x${H}:${width}:${JSON.stringify(leaves)}:${paletteKey()}`;
+	const key = `${GW}x${H}:${width}:${JSON.stringify(leaves)}:${paletteKey()}:${pageIllum}`;
 	// By candlelight the vellum and its edges go to shadow; the gold, the vine and its flowers keep their colour.
 	const C = paletteKey().endsWith('-night')
 		? { vellum: [46, 37, 28], fox: [70, 52, 36], stitch: [18, 12, 8], edge: [70, 58, 44], edge2: [58, 48, 36] }
@@ -1168,6 +1261,21 @@ function folio(g: Grid, width: number, leaves: Leaf[]) {
 					}
 				}
 			}
+			// An illuminated page (who a player is: illuminatedName): the rule along its head and foot sprouts
+			// leaves, a flower now and then, and down the sides the ornament flowers thicker.
+			if (pageIllum) {
+				const LEAF = theme === 'medieval' ? [110, 140, 70] : STEM[theme].map((v) => Math.min(255, v + 36));
+				for (let x = x0; x <= x1; x++) {
+					if (x % 3 === 0) { set(x, yTop - 1, LEAF); set(x + 1, yBot + 1, LEAF); }
+					if (x % 12 === 6) for (const dx of [0, 1, -1]) { set(x + dx, yTop - 1, dx ? FLOWERS[x % 3] : [212, 170, 70]); set(x + dx, yBot + 1, dx ? FLOWERS[(x + 1) % 3] : [212, 170, 70]); }
+				}
+				for (const gx of [x0 - 1, x1 + 1]) for (let y = yTop + 4; y < yBot - 3; y += 9) {
+					// (not down the spine of an open book)
+					if (leaves.length > 1 && gx < x0) continue;
+					const fx = gx + (gx < x0 ? -2 : 2);
+					set(fx, y, [212, 170, 70]); set(fx, y - 1, FLOWERS[y % 3]); set(fx, y + 1, FLOWERS[y % 3]); set(fx - 1, y, LEAF); set(fx + 1, y, LEAF);
+				}
+			}
 			// Hares at the foot of the page, if the writing leaves room for them.
 			// Which of them, and in what order, is the page's own: each page has its own, the same each time it is turned to.
 			// (only the figures painted in this look's books: art/margins.json "themes")
@@ -1183,7 +1291,18 @@ function folio(g: Grid, width: number, leaves: Leaf[]) {
 			// (above the page-turns, if the page has them)
 			const foot = yBot - reserve * 2;
 			const free = foot - (used * 2 + 2);
-			if (M.length && free >= 14) {
+			if (pageIllum && free >= 16) {
+				// An illuminated page has a roundel at its foot in place of figures: a gold ring, the colour of
+				// the player's side within it, a gilt flower of four petals at its heart.
+				const cx = Math.floor((x0 + x1) / 2), cy = foot - 9, R = 7;
+				const inner = pageIllum === 'evil' ? [96, 26, 26] : pageIllum === 'good' ? [30, 46, 96] : [44, 70, 48];
+				for (let dy = -R; dy <= R; dy++) for (let dx = -R * 1.5; dx <= R * 1.5; dx++) {
+					const d = Math.hypot(dx / 1.5, dy);
+					if (d <= R) set(cx + Math.round(dx), cy + dy, d > R - 1.2 ? [204, 160, 66] : inner);
+				}
+				for (const [dx, dy] of [[0, -3], [0, -2], [0, 2], [0, 3], [-3, 0], [-2, 0], [-4, 0], [2, 0], [3, 0], [4, 0], [0, 0], [-1, -1], [1, -1], [-1, 1], [1, 1]]) set(cx + dx, cy + dy, [214, 172, 70]);
+				set(cx, cy, [240, 226, 190]);
+			} else if (M.length && free >= 14) {
 				// As many as fit across the text's width.
 				const pick: typeof all[number][1][] = [];
 				let used2 = 0;
@@ -1377,6 +1496,7 @@ function frame(g: Grid) {
 	document.documentElement.style.background = term!.palette[0];
 	g.clear(4, 0);
 	const top = [...order].reverse().map((k) => layers.get(k)).find((L) => L && L.rows.length);
+	pageIllum = top?.rows.find((r) => r.cls?.startsWith('illum-'))?.cls?.slice(6) ?? '';
 	if (top) {
 		// How much of the screen the page shown takes, and what its page-turns keep at the foot: the
 		// book's margins draw their pictures only where nothing is written.
