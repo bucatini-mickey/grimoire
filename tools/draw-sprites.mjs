@@ -13,7 +13,9 @@ const INK = {
 	W: '#f2ede2', w: '#a9a296', // white hair and beard, its strokes
 	R: '#d0502a', r: '#9c3519', // vermilion, its shade
 	B: '#7aa3c8', b: '#4a6e93', N: '#2c4b7a', // azure, its shade, lapis
-	Y: '#c39a45' // gold
+	Y: '#c39a45', // gold
+	G: '#8a8580', g: '#5e5955', // the grey beast's hide, its wing
+	V: '#7f5a86', v: '#5a3d62' // violet, its shade
 };
 
 /** After the drollery in the margin of a Book of Hours: a bearded man with a beast's ears, a lion's
@@ -107,6 +109,56 @@ const BLUE = [
 	'.KKKKKKKKKKKKKKKKK..'
 ];
 
+/** The grey beast of the Avarice page, crouched, grinning wide, a bat's wing raised behind it. */
+const GREY = [
+	'KK.................K.....K....',
+	'KgK...............KgK...KgK...',
+	'KggK...............KgK.KgK....',
+	'KgggK...........KKKKgKKgKKK...',
+	'KgKggK.........KGGGGGGGGGGGK..',
+	'KgKgggK.......KGGGYKGGGYKGGGK.',
+	'KgKKgggK.....KGGGGGGGGGGGGGGGK',
+	'.KgKKgggK....KGGKKKKKKKKKKKGGK',
+	'..KgKKgggK...KGKWKWKWKWKWKWKGK',
+	'...KgKKggKKKKKGKKKKKKKKKKKKKGK',
+	'.K..KKKKKGGGGGKGGGGGGGGGGGGGK.',
+	'KgK.KGGGgGGGGGGGKKGGGGGGGKK...',
+	'KgK.KGGGGgGGGGGGGGKKKKKKK.....',
+	'.KgKKGGGGGgGGGGGGGGGGK........',
+	'..KKGGGGGGGGgGGGGGGGGGK.......',
+	'...KGGGGGGGGGGGGGGGGGGGK......',
+	'...KGGKKGGGGGGGGKKKGGGGK......',
+	'...KGGK.KGGK..KGGK.KGGK.......',
+	'..KGGK..KGGK..KGGK..KGGK......',
+	'..KGGK..KGGK...KGGK.KGGK......',
+	'.KWKWK.KWKWK..KWKWK.KWKWK.....',
+	'KYYYYYYYYYYYYYYYYYYYYYYYYYK...'
+];
+
+/** A grotesque from the foot of a page: a red bird-headed thing, crested, its body violet, its wing and tail blue leaves. */
+const GROTESQUE = [
+	'...K.K.K....................',
+	'...KRKRK....................',
+	'..KRRRRRK...................',
+	'.KRRWKRRRK..................',
+	'KYYKRRRRRK..................',
+	'KYRRKRRRRK.......KK.........',
+	'KYYYKRRRRK......KBBK........',
+	'.KKK.KRRRK.....KBbBK..KK....',
+	'.....KRRRRK...KBbBBK.KBBK...',
+	'......KRRRRK.KBbBBKKBbBK....',
+	'.......KRRRRKKBBBBBBbBK.....',
+	'.......KVVVVVVKBBBBBBK......',
+	'......KVVVvVVVVKKKKKK..KK...',
+	'......KVVVVvVVVVVVK...KBBK..',
+	'.......KVVVVVvVVVVVK.KBbBK..',
+	'........KVVVVVVVVVVVKBbBK...',
+	'.........KKVVVVVVVKKBbBK....',
+	'..........KYK..KYK.KBBK.....',
+	'.........KYYK.KYYK..KK......',
+	'........KKKKKKKKKKK.........'
+];
+
 const chunk = (k, d) => { const l = Buffer.alloc(4); l.writeUInt32BE(d.length); const b = Buffer.concat([Buffer.from(k, 'latin1'), d]); const c = Buffer.alloc(4); c.writeUInt32BE(crc32(b) >>> 0); return Buffer.concat([l, b, c]); };
 function png(name, grid, k = 1, path = `art/margin-${name}.png`) {
 	const h = grid.length * k, w = Math.max(...grid.map((r) => r.length)) * k;
@@ -124,3 +176,5 @@ function png(name, grid, k = 1, path = `art/margin-${name}.png`) {
 }
 png('drollery', DROLLERY);
 png('blue', BLUE);
+png('grey', GREY);
+png('grotesque', GROTESQUE);

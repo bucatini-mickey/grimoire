@@ -927,10 +927,10 @@ const cellHash = (x: number, y: number) => {
  * nothing is written, a pentacle in its circle so faint you half see it. On a wide
  * screen the margins have a plain rule with a cross now and then.
  */
-function ground(g: Grid, width: number, used = g.rows, reserve = 0) {
+function ground(g: Grid, width: number, used = g.rows, reserve = 0, seed = '') {
 	if (paletteKey() === 'cover') return; // the cover paints itself, every pixel (coverRow)
 	if (paletteKey() === 'leather') return cover(g);
-	if (isBook()) return folio(g, width, used, reserve);
+	if (isBook()) return folio(g, width, used, reserve, seed);
 	const night = !paletteKey().endsWith('-day');
 	for (let y = 0; y < g.rows; y++) for (let x = 0; x < g.cols; x++) {
 		const h = cellHash(x, y);
@@ -994,11 +994,11 @@ let folioMemo: { key: string; px: Int16Array } | null = null;
  * of gold, in the margins a painted vine with leaves and flowers, and below the writing, where the
  * page is empty, a few devils of the kind scribes drew. The words are written over all of it.
  */
-function folio(g: Grid, width: number, used: number, reserve = 0) {
+function folio(g: Grid, width: number, used: number, reserve = 0, seed = '') {
 	const W = g.cols, H = g.rows * 2;
 	const x0 = Math.floor((W - width) / 2), x1 = x0 + width - 1;
 	const yTop = 1, yBot = H - 3;
-	const key = `${W}x${H}:${width}:${used}:${reserve}:${paletteKey()}`;
+	const key = `${W}x${H}:${width}:${used}:${reserve}:${paletteKey()}:${seed}`;
 	// By candlelight the vellum and its edges go to shadow; the gold, the vine and its flowers keep their colour.
 	const C = paletteKey() === 'folio-night'
 		? { vellum: [46, 37, 28], fox: [70, 52, 36], stitch: [18, 12, 8], edge: [70, 58, 44], edge2: [58, 48, 36] }
@@ -1048,15 +1048,18 @@ function folio(g: Grid, width: number, used: number, reserve = 0) {
 			}
 		}
 		// Devils at the foot of the page, if the writing leaves room for them.
-		const M = typeof __MARGINS__ !== 'undefined' && __MARGINS__ ? Object.values(__MARGINS__) : [];
+		// Which of them, and in what order, is the page's own: each page has its devils, the same each time it is turned to.
+		const all = typeof __MARGINS__ !== 'undefined' && __MARGINS__ ? Object.entries(__MARGINS__) : [];
+		const luck = (name: string) => [...(seed + name)].reduce((h, ch) => Math.imul(h ^ ch.charCodeAt(0), 16777619), 2166136261) >>> 0;
+		const M = all.sort((a, b) => luck(a[0]) - luck(b[0])).map(([, m]) => m);
 		// (above the page-turns, if the page has them)
 		const foot = yBot - reserve * 2;
 		const free = foot - (used * 2 + 2);
 		if (M.length && free >= 14) {
-			// As many as fit across the text's width, tallest first.
+			// As many as fit across the text's width.
 			const pick: typeof M = [];
 			let used2 = 0;
-			for (const m of [...M].sort((a, b) => b.h - a.h)) if (m.h <= free && used2 + m.w + (pick.length ? 2 : 0) <= width) { pick.push(m); used2 += m.w + (pick.length > 1 ? 2 : 0); }
+			for (const m of M) if (m.h <= free && used2 + m.w + (pick.length ? 2 : 0) <= width) { pick.push(m); used2 += m.w + (pick.length > 1 ? 2 : 0); }
 			const span = pick.reduce((k, m) => k + m.w, 0);
 			let x = x0 + Math.max(0, Math.floor((width - span - (pick.length - 1) * 2) / 2));
 			for (const m of pick) {
@@ -1246,7 +1249,7 @@ function frame(g: Grid) {
 			for (let i = p.from; i < p.to; i++) used += lineH(top.rows[i]);
 			reserve = 3 + (isBook() ? 2 : 0);
 		}
-		ground(g, top.width, used, reserve);
+		ground(g, top.width, used, reserve, top.sig);
 	}
 	const ink = (t: Tone | undefined) => TONE[t ?? 'plain'];
 	const under = !!extra?.(g);
