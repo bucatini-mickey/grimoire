@@ -1069,11 +1069,11 @@ function folio(g: Grid, width: number, used: number, reserve = 0, seed = '') {
 			const pick: typeof all[number][1][] = [];
 			let used2 = 0;
 			for (const sizes of M) {
-				const m = sizes.find((v) => v.h <= free && used2 + v.w + (pick.length ? 2 : 0) <= width);
-				if (m) { pick.push(m); used2 += m.w + (pick.length > 1 ? 2 : 0); }
+				const m = sizes.find((v) => v.h <= free && used2 + v.w + (pick.length ? 4 : 0) <= width);
+				if (m) { pick.push(m); used2 += m.w + (pick.length > 1 ? 4 : 0); }
 			}
 			const span = pick.reduce((k, m) => k + m.w, 0);
-			let x = x0 + Math.max(0, Math.floor((width - span - (pick.length - 1) * 2) / 2));
+			let x = x0 + Math.max(0, Math.floor((width - span - (pick.length - 1) * 4) / 2));
 			for (const m of pick) {
 				const top = foot - 2 - m.h;
 				// By candlelight the black ink lines would sink into the dark page: they are drawn in a lighter brown.
@@ -1083,7 +1083,7 @@ function folio(g: Grid, width: number, used: number, reserve = 0, seed = '') {
 					const rgb = [1, 3, 5].map((k) => parseInt(c.slice(k, k + 2), 16));
 					set(x + i, top + j, night && rgb[0] + rgb[1] + rgb[2] < 120 ? [96, 80, 60] : rgb);
 				}));
-				x += m.w + 2;
+				x += m.w + 4;
 			}
 			// The ground they stand on: a tendril of the vine.
 			for (let xx = x0 + 2; xx < x1 - 1; xx++) set(xx, foot - 2 + Math.round(Math.sin(xx / 3) * 0.6), [90, 110, 60]);
@@ -1091,10 +1091,16 @@ function folio(g: Grid, width: number, used: number, reserve = 0, seed = '') {
 		folioMemo = { key, px };
 	}
 	const px = folioMemo.px;
+	// The grain of the skin under the writing: specks a shade off the page, thicker in soft patches.
+	// (Specks, not a mottle of the page's own colour, which striped the rows.)
+	const GRAIN = ['.', ',', "'", '`'];
+	const bare = px[x0 + (yTop + 2) * W]; // the vellum under the writing, where nothing is painted
 	for (let cy = 0; cy < g.rows; cy++) for (let x = 0; x < W; x++) {
 		const t = px[x + cy * 2 * W], b = px[x + (cy * 2 + 1) * W];
-		if (t === b) g.set(x, cy, ' ', 4, t);
-		else g.set(x, cy, '▀', t, b);
+		if (t !== b) { g.set(x, cy, '▀', t, b); continue; }
+		const h = cellHash(x * 7 + 3, cy * 5 + 1);
+		const grain = t === bare && x >= x0 && x <= x1 && cy * 2 > yTop && cy * 2 < yBot && h < 30 + vnoise(x / 6, cy / 3, 7) * 110;
+		g.set(x, cy, grain ? GRAIN[h & 3] : ' ', 1, t);
 	}
 }
 

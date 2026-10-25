@@ -37,11 +37,4 @@ The `2` halves the size (3 makes it a third), and `48` is how close two colours 
 
 ## The hares in the margins
 
-`margin-<name>.png` are the figures at the foot of the book's pages, traced from manuscript marginalia so they keep the paint: one picture a page, the largest size that fits (`name`, `name-small`, `name-tiny`). Make one from a picture with:
-
-```
-npm i --no-save sharp
-node tools/trace-margins.mjs hare.webp hare 35 110 515 470 38 eye=365,200
-```
-
-The numbers are the crop round the figure and its height in pixels (the page's text is 52 pixels wide); `eye=x,y` paints the eye back in. Restart `npm run dev` to see a new one.
+`margin-<name>.png` are the little figures at the foot of the book's pages: hares after the marginalia of the old books, a trumpeter, a knight with sword and shield, a spearman. They are drawn by hand as letter grids in `tools/draw-hares.mjs` (one letter a colour); edit a grid, run `node tools/draw-hares.mjs` and restart `npm run dev`. Keep to the browns there: they are the book's own inks, so the hares sit in the page. Each page shows as many as fit across its foot.
