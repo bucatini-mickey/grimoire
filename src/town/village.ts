@@ -1423,9 +1423,9 @@ function wire() {
 
 /** The demo: #village. */
 export function startVillage(_appRoot: HTMLElement, code: string) {
-	// Walking the town alone: Saltgrave in its Victorian inks, the castle town's lobby a leaf of the
-	// book by candlelight (the map itself is drawn in the manuscript's night inks).
-	setPalette(() => (S.townText === SALTGRAVE ? 'victorian-night' : 'folio-night'));
+	// Walking the town alone: the lobby a leaf of the book by candlelight (Saltgrave's in the Victorian
+	// greens); the map itself in the town's own night inks.
+	setPalette(() => (S.townText === SALTGRAVE ? 'folio-occult-night' : 'folio-night'));
 	document.body.classList.add('in-village');
 	wire();
 	inLobby = true;

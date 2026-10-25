@@ -409,10 +409,10 @@ function overlay(): Row[] {
 function render() {
 	// The game has begun: the village's own voice takes over.
 	if (lobbyVoice.voice && P.view && P.view.phase !== 'setup') lobbyVoice.stop();
-	const theme = P.view?.script === 'laissez-un-faire' ? 'victorian' : 'folio';
+	const theme = P.view?.script === 'laissez-un-faire' ? 'folio-occult' : 'folio';
 	document.documentElement.dataset.phase = P.view?.phase === 'night' ? 'night' : 'day';
 	document.documentElement.dataset.theme = P.view?.script === 'laissez-un-faire' ? 'occult' : '';
-	setPalette(() => theme + (P.view?.phase === 'night' || !P.view ? '-night' : theme === 'folio' ? '' : '-day'));
+	setPalette(() => theme + (P.view?.phase === 'night' || !P.view ? '-night' : ''));
 	// In the village the town is the screen; the player's pages come up over it as cards (My character, a wake).
 	// The way back is always the first thing on the page, above even the book's name.
 	const rows = screen();

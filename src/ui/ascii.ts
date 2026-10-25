@@ -268,6 +268,10 @@ const PALETTES: Record<string, Palette> = {
 	leather: ['#2b1810', '#3a2216', '#5e3a26', '#a3825e', '#e3cfa8', '#f3e3c0', '#c69a45', '#b06a35', '#b8382c', '#6a1c14', '#7f8a62', '#3b3a26', '#6f87a6', '#26344a', '#8a6a90', '#4f3a2a'],
 	'manuscript-day': ['#e4dccb', '#d6ccb8', '#9c8f7a', '#706556', '#241c17', '#100b08', '#7d6232', '#93532a', '#8c2a22', '#6a1d17', '#56603f', '#b2b59a', '#3a5576', '#bcc4cf', '#6a4a72', '#ad9e86'],
 	'victorian-night': ['#0e1411', '#16201b', '#3f5648', '#7d9486', '#cfd6c0', '#ecebd2', '#c7a24a', '#b9792f', '#b5503c', '#6b2a22', '#8cb36a', '#2f4a2c', '#6f9aa8', '#20404a', '#8a6aa0', '#4a3a24'],
+	// The occult script's book (Laissez un Faire): the same leaf in the Victorian greens and brass, with the
+	// drolleries' own colours (vermilion, flesh, azure, lead white) where the plain inks have none.
+	'folio-occult': ['#e2dcc0', '#d3cdae', '#8f9a82', '#66705e', '#1e2a22', '#0c150f', '#8a6a1a', '#c2522e', '#8e2f24', '#6b1f18', '#3f5a28', '#dcb38c', '#2a5a66', '#7c9fc2', '#5e3f78', '#f8f4ec'],
+	'folio-occult-night': ['#0e1411', '#16201b', '#3f5648', '#7d9486', '#cfd6c0', '#ecebd2', '#c7a24a', '#c8573a', '#b5503c', '#6b2a22', '#8cb36a', '#c9a383', '#6f9aa8', '#86a8c8', '#8a6aa0', '#efe6d6'],
 	'victorian-day': ['#e2dcc0', '#d3cdae', '#8f9a82', '#66705e', '#1e2a22', '#0c150f', '#8a6a1a', '#9a5c20', '#8e2f24', '#6b1f18', '#3f5a28', '#a9b78e', '#2a5a66', '#b4c8c8', '#5e3f78', '#a89870']
 };
 
@@ -1000,7 +1004,7 @@ function folio(g: Grid, width: number, used: number, reserve = 0, seed = '') {
 	const yTop = 1, yBot = H - 3;
 	const key = `${W}x${H}:${width}:${used}:${reserve}:${paletteKey()}:${seed}`;
 	// By candlelight the vellum and its edges go to shadow; the gold, the vine and its flowers keep their colour.
-	const C = paletteKey() === 'folio-night'
+	const C = paletteKey().endsWith('-night')
 		? { vellum: [46, 37, 28], fox: [70, 52, 36], stitch: [18, 12, 8], edge: [70, 58, 44], edge2: [58, 48, 36] }
 		: { vellum: [232, 221, 198], fox: [176, 140, 100], stitch: [70, 48, 30], edge: [180, 160, 128], edge2: [205, 190, 160] };
 	if (!folioMemo || folioMemo.key !== key) {
@@ -1228,7 +1232,7 @@ export function illuminatedRow(lines: { t: string; tone?: Tone }[]): Row {
 
 function frame(g: Grid) {
 	// The town is lit for the dark: over it, the pages take their night inks.
-	const key = extra && extraShown() ? (paletteKey().startsWith('folio') ? 'manuscript-night' : paletteKey().replace('-day', '-night')) : paletteKey();
+	const key = extra && extraShown() ? (paletteKey().startsWith('folio-occult') ? 'victorian-night' : paletteKey().startsWith('folio') ? 'manuscript-night' : paletteKey().replace('-day', '-night')) : paletteKey();
 	term!.palette = PALETTES[key] ?? PALETTES['manuscript-night'];
 	// The cover wants a margin of leather round its page: a few more columns (a touch smaller type).
 	// The cover is a picture, drawn fine: many more columns (small cells, two pixels each).

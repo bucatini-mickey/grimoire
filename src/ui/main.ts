@@ -250,6 +250,7 @@ function actAll(cmds: Command[]): boolean {
 	ui.message = '';
 	ui.pending = null;
 	ui.decision = null;
+	ui.question = '';
 	ui.dayMode = 'none';
 	ui.compose = false;
 	clearPicks();
@@ -324,6 +325,7 @@ function undo() {
 	ui.message = 'Undone.';
 	ui.pending = null;
 	ui.decision = null;
+	ui.question = '';
 	ui.show = null;
 	clearPicks();
 	syncFlow();
@@ -1038,8 +1040,9 @@ function draftScreen(): Row[] {
 		rows.push(...buttonRows(sc.characters.filter((c) => G.teamAlignment(c.team) === 'good').map((c) => btn(c.name, () => { storm.character = c.id; save(); render(); }, { style: storm.character === c.id ? 'on' : undefined }))));
 	}
 	if (G.evilLearnEachOther(n) || fab.some((x) => x.id === 'toymaker')) {
-		rows.push(blank(), rubric(`Demon Bluffs ${d.bluffs.length}/3`));
 		const pool = sc.characters.filter((c) => G.teamAlignment(c.team) === 'good' && !d.selected.includes(c.id));
+		// Three, unless a small script leaves fewer good characters out of play.
+		rows.push(blank(), rubric(`Demon Bluffs ${d.bluffs.length}/${Math.min(3, pool.length)}`));
 		rows.push(...buttonRows(pool.map((c) => btn(c.name, () => {
 			d.bluffs = d.bluffs.includes(c.id) ? d.bluffs.filter((b) => b !== c.id) : [...d.bluffs, c.id].slice(-3);
 			save();
@@ -1054,7 +1057,8 @@ function draftScreen(): Row[] {
 		})]));
 	}
 
-	rows.push(blank(), ...messageRows());
+	// A refusal that wants something chosen here (the bluffs, a red herring) is said here too.
+	rows.push(blank(), ...messageRows(), ...(ui.question && !ui.message ? [...prose(ui.question, 'evil'), blank()] : []));
 	const assign = (allowNonstandard: boolean): Command => ({
 		type: 'assign',
 		characters: d.placed.map((c) => c ?? ''),
@@ -2736,7 +2740,7 @@ function render() {
 	document.documentElement.dataset.phase = state.phase.kind === 'night' ? 'night' : 'day';
 	document.documentElement.dataset.theme = theme;
 	// The home page is the book shut, its leather cover; inside, the pages by night or day.
-	setPalette(() => (ui.page === 'home' ? (ui.coverOpen ? 'folio' : 'cover') : (theme === 'occult' ? 'victorian' : 'folio') + (state.phase.kind === 'night' ? '-night' : theme === 'occult' ? '-day' : '')));
+	setPalette(() => (ui.page === 'home' ? (ui.coverOpen ? 'folio' : 'cover') : (theme === 'occult' ? 'folio-occult' : 'folio') + (state.phase.kind === 'night' ? '-night' : '')));
 	// A village game: the town is always there; the grimoire is a drawer over it.
 	const vg = villageGame();
 	if (vg && lastKind === 'setup' && state.phase.kind !== 'setup') ui.drawer = null;
