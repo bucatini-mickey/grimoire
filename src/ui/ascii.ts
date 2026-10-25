@@ -177,7 +177,8 @@ export function paneled(rows: Row[], width = COLS): Row[] {
 		if (!body) return;
 		while (body.length && isBlank(body[body.length - 1])) body.pop();
 		if (!body.length) {
-			out.push(opener!);
+			// A heading with nothing under it: in the book, a heading like any other.
+			out.push(isBook() ? frameTop(title, width)[0] : opener!);
 			body = null;
 			return;
 		}
@@ -337,16 +338,30 @@ export function drawButton(c: Ctx, x: number, y: number, w: number, b: Button) {
 	// in red), its numeral or first letter on a red plate, a flourish at each end and a dotted rule
 	// under it, so it reads as writing and still shows where to tap.
 	if (isBook()) {
-		const ink = st === 'primary' || st === 'danger' ? 8 : st === 'quiet' || st === 'off' ? 3 : 5;
+		// On a leaf of the book a button is a ruled frame round its words: the main one in a double rule
+		// of red, a chosen one a plate of gold, a quiet one in a faint rule, and its first letter (or its
+		// numeral) on a red plate as a scribe would letter it. A wide button's spare room grows a vine.
 		const label = [...b.label].slice(0, Math.max(1, w - 4)).join('');
-		const lx = x + 2;
-		// One that is chosen (a character in play, a seat picked) is written on a plate of gold.
-		if (st === 'on') g.text(lx - 1, y + 1, ' ' + label + ' ', 0, 6);
+		const bw = Math.min(w, [...label].length + 4), lx = x + 2;
+		const [ink, rule, line, ground]: [number, number, 'single' | 'double', number] =
+			st === 'primary' ? [8, 8, 'double', -1]
+			: st === 'danger' ? [8, 8, 'single', -1]
+			: st === 'on' ? [0, 6, 'double', 6]
+			: st === 'quiet' ? [3, 2, 'single', -1]
+			: st === 'off' ? [2, 1, 'single', -1]
+			: [5, 3, 'single', -1];
+		if (ground >= 0) g.fill({ x: x + 1, y: y + 1, w: bw - 2, h: 1 }, ' ', ink, ground);
+		const [h, v, tl, tr, bl, br] = line === 'double' ? ['═', '║', '╔', '╗', '╚', '╝'] : ['─', '│', '┌', '┐', '└', '┘'];
+		const at = (cx: number, cy: number, ch: string) => { const cell = g.get(cx, cy); g.set(cx, cy, ch, rule, cell ? cell.bg : 0); };
+		for (let i = 1; i < bw - 1; i++) { at(x + i, y, h); at(x + i, y + 2, h); }
+		at(x, y, tl); at(x + bw - 1, y, tr); at(x, y + 2, bl); at(x + bw - 1, y + 2, br);
+		at(x, y + 1, v); at(x + bw - 1, y + 1, v);
+		if (ground >= 0) g.text(lx, y + 1, label, ink, ground);
 		else g.text(lx, y + 1, label, ink);
 		const numeral = label.match(/^[IVXLC]+(?=\.)/)?.[0];
-		if (st !== 'off' && st !== 'on') for (let k = 0; k < (numeral?.length ?? (/\p{L}/u.test(label[0]) ? 1 : 0)); k++) g.set(lx + k, y + 1, label[k], 0, 8);
-		if (st !== 'quiet' && st !== 'off') g.text(x, y + 1, '~', 6);
-		for (let i = x + 2; i < x + 2 + [...label].length + 2; i += 2) g.set(i, y + 2, '.', st === 'primary' ? 8 : 2);
+		if (st !== 'off' && st !== 'on' && st !== 'quiet') for (let k = 0; k < (numeral?.length ?? (/\p{L}/u.test(label[0]) ? 1 : 0)); k++) g.set(lx + k, y + 1, label[k], 0, 8);
+		// The vine: a stem off the frame's side, a leaf every few steps.
+		if (w - bw >= 4 && st !== 'off') for (let i = bw; i < w; i++) g.set(x + i, y + 1, (i - bw) % 4 === 2 ? '♣' : '~', 10);
 		if (!b.disabled) c.hit({ x, y, w, h: 3 }, b.act);
 		return;
 	}
