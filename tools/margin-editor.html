@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hare editor</title>
+<title>Margin editor</title>
 <!--
-	The hares at the foot of the Grimoire's pages: open this file in Chrome or Edge, press "Open art folder"
-	and pick Grimoire/art. Paint, then "Save" writes art/hares.json and art/margin-<name>.png. Restart
-	`npm run dev` to see them in the app. (In other browsers: "Load hares.json", then download the files
-	and put them in art/ yourself.)
+	The figures at the foot of the Grimoire's pages (hares, demons, anything): open this file in Chrome or
+	Edge, press "Open art folder" and pick Grimoire/art. Paint, then "Save" writes art/margins.json and
+	art/margin-<name>.png for each figure that is on the pages. Restart `npm run dev` to see them in the
+	app. (In other browsers: "Load margins.json", then download the files and put them in art/ yourself.)
 -->
 <style>
 	:root { --bg: #1d1916; --panel: #28221d; --line: #4a4038; --ink: #ece2cc; --dim: #a39684; --gold: #c69a45; --red: #c0453a; }
@@ -29,6 +29,7 @@
 	#figures li { padding: 6px 8px; border-radius: 4px; cursor: pointer; display: flex; justify-content: space-between; }
 	#figures li.on { background: #3d342b; color: var(--gold); }
 	#figures li small { color: var(--dim); }
+	#figures li.off span { color: var(--dim); font-style: italic; }
 	.row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
 	.row input[type=number] { width: 64px; }
 	#palette { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
@@ -45,19 +46,21 @@
 </head>
 <body>
 <header>
-	<h1>Hare editor</h1>
+	<h1>Margin editor</h1>
 	<button id="open" title="Pick the Grimoire/art folder (Chrome, Edge)">Open art folder</button>
 	<button id="save" disabled>Save</button>
-	<label><button id="loadBtn" type="button">Load hares.json</button><input id="load" type="file" accept=".json" hidden></label>
-	<button id="dlJson">Download hares.json</button>
+	<label><button id="loadBtn" type="button">Load margins.json</button><input id="load" type="file" accept=".json" hidden></label>
+	<button id="dlJson">Download margins.json</button>
 	<button id="dlPng">Download pictures</button>
-	<span id="status">No folder open: showing the hares built into this page.</span>
+	<span id="status">No folder open: showing the figures built into this page.</span>
 </header>
 <main>
 	<aside>
 		<h2>Figures</h2>
 		<ul id="figures"></ul>
 		<div class="row"><button id="new">New</button><button id="dup">Copy</button><button id="ren">Rename</button><button id="del">Delete</button></div>
+		<div class="row"><label><input id="onPage" type="checkbox"> On the pages</label></div>
+		<p class="hint">Off the pages, a figure is kept here to work on but the app does not show it. Copy one to start a new figure from it (the imp is a start for demons).</p>
 		<h2>Size</h2>
 		<div class="row"><input id="w" type="number" min="1" max="52"> × <input id="h" type="number" min="1" max="60"><button id="resize">Set</button></div>
 		<p class="hint">Resizing keeps the feet where they are: rows come and go at the top, columns at the right. The page's writing is 52 wide; most pages have room for about 20 high.</p>
@@ -81,17 +84,19 @@
 		<canvas id="day" class="preview"></canvas>
 		<h2>By candlelight</h2>
 		<canvas id="night" class="preview"></canvas>
-		<p class="hint">Drawn as the app draws them: every colour taken to the nearest of the book's inks (and their darker shades), and at night the darkest lines lightened to brown so they show on the dark page. Keep to the browns already here and the hare stays in the page.</p>
+		<p class="hint">Drawn as the app draws them: every colour taken to the nearest of the book's inks (and their darker shades), and at night the darkest lines lightened to brown so they show on the dark page. Keep to the inks already here and the figure stays in the page. Only figures on the pages are shown here, with the one being drawn.</p>
 	</section>
 </main>
 <script>
-// The hares as they were when this page was made; "Open art folder" or "Load hares.json" reads the real file.
+// The figures as they were when this page was made; "Open art folder" or "Load margins.json" reads the real file.
 let data = {
-	ink: { O: '#4a3422', B: '#9a7b55', b: '#785f42', F: '#cdb592', W: '#dcb38c', E: '#241c17', P: '#c98d78', Y: '#c09a48', y: '#8a6a2a', R: '#c2522e', r: '#8c2a22', S: '#c4c2ba', s: '#7c7a72' },
+	off: ["imp"],
+	ink: {O: '#4a3422', B: '#9a7b55', b: '#785f42', F: '#cdb592', W: '#dcb38c', E: '#241c17', P: '#c98d78', Y: '#c09a48', y: '#8a6a2a', R: '#c2522e', r: '#8c2a22', S: '#c4c2ba', s: '#7c7a72'},
 	figures: {
-		trumpeter: ['..............O..O....', '.............OPO.OBO..', '.............OPO.OFO..', '.............OPOOBO...', '............OFFBBBO...', '...........OFEBFBBO...', 'OO........OFBBBBBO....', 'YYO......OFBBbBFO.....', 'YYyyyyyyyYYBFbBBO.....', 'YYO......OWBBBFBBO....', 'OO.......OWWBFBBBbO...', '.........OWWBBBBbbO.OO', '..........OWBFBbbbOOWO', '..........OBBObbBBOO..', '.........OBbO.OBbO....', '........OOOO.OOOO.....'],
-		knight: ['..............s...', '.....O..O.....S...', '....OPO.OBO...S...', '....OPO.OFO...S...', '.....OPOOBO...S...', '....OFFBBBO..YS...', '...OFEBFBBO.YYY...', '..OFBBBBBO...OO...', '..ORRRRBFBBOOBO...', '.ORRYRRBBBFBBO....', '.ORYYYRBFBBBO.....', '.ORRYRRBBBBbO.....', '.OrRRRRBFBbbO.OO..', '..OrRRBBBbbbOOWO..', '...OrBBObbBBOO....', '....OBbO.OBbO.....', '...OOOO.OOOO......'],
-		spearman: ['....S...........', '...SSS..........', '....s...........', '.RRRy...........', 'RRRRy...O..O....', '.RRry..OPO.OBO..', '....y..OPO.OFO..', '....y...OPOOBO..', '....y..OFFBBBO..', '....y.OFEBFBBO..', '....yOFBBBBBO...', '...OFFBBbBFO....', '....yOWBBFBBO...', '....yOWWBBBBbO..', '....yOWWBFBbbO.O', '....y.OWBBbbbOWO', '....y.OBBObbBOO.', '....yOBbO..OBbO.', '....OOOO....OOO.']
+		trumpeter: ['..........bO..OObO....', '.........Obbb.ObPO....', '.........OOOF.bPO.....', '...........ObObPO.....', '.O.........OFFBbO.....', 'OYO.......OFOBBBO.....', 'OYyO......OBBBBBO.....', 'OYYYYYYYYYYYBBFBO.....', 'OYyO.....ObbbBBBO.....', 'OYO.......ObbbBBFO....', '.O.........ObbFbBOO...', '...........ObBFbbBWO..', '...........OBBBbbBOO..', '..........OBBObbBB....', '.........OBbO.OBbO....', '.........OOO..OOO.....'],
+		knight: ['.............s....', '.....O..OO...S....', '....OBO.OPO..S....', '....OBO.OPO..S....', '.....OBOOPO..S....', '....OFFBBBO..Y....', '...OFEBFBBO.YYY...', '...OBBBBBO...OO...', '..OOOOOBFBBOOBO...', '.ORRSRROBBFBBO....', '.ORSSSROFBBBO.....', '.ORRSRROBBBbO.....', '.OrRSRROFBbbO.OO..', '..OrRROBBbbbOOWO..', '...OrOBObbBBOO....', '....OBbO.OBbO.....', '...OOOO.OOOO......'],
+		spearman: ['....S...........', '...SSS.OO....OO.', '....s.OBBO..OBPO', '.RRRy..OBB.OBPO.', 'RRRRy...OB.OPO..', '.RRry...OBOBPO..', '....y...OBBBBO..', '....y..OFFBBBO..', '....y.OFFEBBBO..', '....y.OBBBFBBO..', '...OyOOOBBBBO...', '...OFFbFbBFO....', '....yObbbbBBO...', '....y..ObbbBbO..', '....y..OBFBbbOOO', '....y..WBBbbbOWO', '....y.OBBObbBOO.', '....yOBbO..OBbO.', '....OOOO....OOO.'],
+		imp: ['..y......y.....', '..Oy....yO.....', '...ORRRRO......', '..ORERRERO.....', '..ORRRRRRO...Y.', '...ORSSRO...Y.Y', '....ORRO....YYY', '..ORRRRRRO...y.', '.ORRrRRRrRO.Oy.', 'OR.ORRRRO.ORRy.', 'O..ORrRRO..OOy.', '...ORRRRO....y.', '...ORRrRO....y.', '..ORO..ORO.R.y.', '..OO....OO.ORy.', '.............O.']
 	}
 };
 
@@ -147,14 +152,15 @@ function draw() {
 		for (let y = 0; y <= H(); y++) { g.beginPath(); g.moveTo(0, y * z + 0.5); g.lineTo(c.width, y * z + 0.5); g.stroke(); }
 	}
 	$('w').value = W(); $('h').value = H();
+	$('onPage').checked = !data.off.includes(cur);
 	drawPalette(); drawList(); drawPage('day'); drawPage('night');
 }
 function drawList() {
 	$('figures').innerHTML = '';
 	for (const [name, g] of Object.entries(data.figures)) {
 		const li = document.createElement('li');
-		li.className = name === cur ? 'on' : '';
-		li.innerHTML = `<span>${name}</span><small>${Math.max(...g.map((r) => r.length))}×${g.length}</small>`;
+		li.className = (name === cur ? 'on' : '') + (data.off.includes(name) ? ' off' : '');
+		li.innerHTML = `<span>${name}${data.off.includes(name) ? ' (off the pages)' : ''}</span><small>${Math.max(...g.map((r) => r.length))}×${g.length}</small>`;
 		li.onclick = () => { cur = name; draw(); };
 		$('figures').appendChild(li);
 	}
@@ -179,7 +185,7 @@ function drawPalette() {
 /** A strip of the page's foot: vellum (or the dark leaf), a line of writing, the figures standing on the vine. */
 function drawPage(when) {
 	const c = $(when), g = c.getContext('2d'), P = PAGE[when];
-	const figs = Object.entries(data.figures);
+	const figs = Object.entries(data.figures).filter(([n]) => n === cur || !data.off.includes(n));
 	const order = [cur, ...figs.map(([n]) => n).filter((n) => n !== cur)];
 	const tall = Math.max(...figs.map(([, f]) => f.length));
 	const PW = 64, PH = tall + 14, X0 = 6;
@@ -274,11 +280,12 @@ $('ren').onclick = () => {
 	if (!n || n === cur || !nameOk(n)) return;
 	remember();
 	data.figures = Object.fromEntries(Object.entries(data.figures).map(([k, v]) => [k === cur ? n : k, v]));
+	data.off = data.off.map((k) => (k === cur ? n : k));
 	cur = n; changed();
 };
 $('del').onclick = () => {
 	if (Object.keys(data.figures).length < 2 || !confirm(`Delete ${cur}?`)) return;
-	remember(); delete data.figures[cur]; cur = Object.keys(data.figures)[0]; changed();
+	remember(); delete data.figures[cur]; data.off = data.off.filter((k) => k !== cur); cur = Object.keys(data.figures)[0]; changed();
 };
 $('resize').onclick = () => {
 	const w = Math.max(1, Math.min(52, +$('w').value)), h = Math.max(1, Math.min(60, +$('h').value));
@@ -288,11 +295,12 @@ $('resize').onclick = () => {
 	g = h > g.length ? [...Array(h - g.length).fill('.'.repeat(w)), ...g] : g.slice(g.length - h);
 	data.figures[cur] = g; changed();
 };
+$('onPage').onchange = (e) => { remember(); data.off = e.target.checked ? data.off.filter((n) => n !== cur) : [...data.off, cur]; changed(); };
 $('flip').onclick = () => { remember(); data.figures[cur] = grid().map((r) => [...r.padEnd(W(), '.')].reverse().join('')); changed(); };
 $('clear').onclick = () => { if (!confirm('Clear this figure?')) return; remember(); data.figures[cur] = grid().map((r) => '.'.repeat(r.length)); changed(); };
 
 // ---- files ----
-const pretty = (d) => '{\n\t"ink": ' + JSON.stringify(d.ink).replace(/,/g, ', ') + ',\n\t"figures": {\n' +
+const pretty = (d) => '{\n\t"ink": ' + JSON.stringify(d.ink).replace(/,/g, ', ') + ',\n\t"off": ' + JSON.stringify(d.off) + ',\n\t"figures": {\n' +
 	Object.entries(d.figures).map(([k, v]) => `\t\t"${k}": [\n${v.map((r) => `\t\t\t"${r}"`).join(',\n')}\n\t\t]`).join(',\n') + '\n\t}\n}\n';
 function pngBlob(f) {
 	const c = document.createElement('canvas');
@@ -303,27 +311,31 @@ function pngBlob(f) {
 }
 function use(text) {
 	const d = JSON.parse(text);
-	if (!d.ink || !d.figures) throw new Error('not a hares.json');
+	if (!d.ink || !d.figures) throw new Error('not a margins.json');
+	d.off ??= [];
 	data = d; cur = Object.keys(d.figures)[0]; undo.length = redo.length = 0; dirty = false; draw();
 }
 $('open').onclick = async () => {
-	if (!window.showDirectoryPicker) return alert('This browser cannot open folders: use Chrome or Edge, or "Load hares.json" and download the files.');
+	if (!window.showDirectoryPicker) return alert('This browser cannot open folders: use Chrome or Edge, or "Load margins.json" and download the files.');
 	try {
 		const d = await showDirectoryPicker({ id: 'grimoire-art', mode: 'readwrite' });
-		const fh = await d.getFileHandle('hares.json').catch(() => null);
-		if (!fh) return alert('There is no hares.json in that folder: pick Grimoire/art.');
+		const fh = await d.getFileHandle('margins.json').catch(() => null);
+		if (!fh) return alert('There is no margins.json in that folder: pick Grimoire/art.');
 		use(await (await fh.getFile()).text());
 		dir = d; $('save').disabled = false;
-		status(`Editing ${d.name}/hares.json.`);
+		status(`Editing ${d.name}/margins.json.`);
 	} catch (e) { if (e.name !== 'AbortError') alert(e.message); }
 };
 async function save() {
 	if (!dir) return;
 	const write = async (name, body) => { const w = await (await dir.getFileHandle(name, { create: true })).createWritable(); await w.write(body); await w.close(); };
-	await write('hares.json', pretty(data));
-	for (const [n, f] of Object.entries(data.figures)) await write(`margin-${n}.png`, await pngBlob(f));
-	// a figure deleted here leaves the page too
-	for await (const [name] of dir.entries()) { const m = name.match(/^margin-(.+)\.png$/); if (m && !data.figures[m[1]]) await dir.removeEntry(name); }
+	await write('margins.json', pretty(data));
+	const shown = Object.entries(data.figures).filter(([n]) => !data.off.includes(n));
+	for (const [n, f] of shown) await write(`margin-${n}.png`, await pngBlob(f));
+	// a figure deleted here, or taken off the pages, leaves the pages too
+	const gone = [];
+	for await (const [name] of dir.entries()) { const m = name.match(/^margin-(.+)\.png$/); if (m && !shown.some(([n]) => n === m[1])) gone.push(name); }
+	for (const name of gone) await dir.removeEntry(name);
 	dirty = false; $('save').disabled = true;
 	status('Saved. Restart npm run dev to see them in the app.');
 }
@@ -331,8 +343,8 @@ $('save').onclick = save;
 $('loadBtn').onclick = () => $('load').click();
 $('load').onchange = async (e) => { const f = e.target.files[0]; if (!f) return; try { use(await f.text()); status(`Loaded ${f.name}: download the files when you are done.`); } catch (err) { alert(err.message); } };
 const download = (name, blob) => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); };
-$('dlJson').onclick = () => download('hares.json', new Blob([pretty(data)], { type: 'application/json' }));
-$('dlPng').onclick = async () => { for (const [n, f] of Object.entries(data.figures)) download(`margin-${n}.png`, await pngBlob(f)); };
+$('dlJson').onclick = () => download('margins.json', new Blob([pretty(data)], { type: 'application/json' }));
+$('dlPng').onclick = async () => { for (const [n, f] of Object.entries(data.figures)) if (!data.off.includes(n)) download(`margin-${n}.png`, await pngBlob(f)); };
 window.addEventListener('beforeunload', (e) => { if (dirty) e.preventDefault(); });
 
 draw();

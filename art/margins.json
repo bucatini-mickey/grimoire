@@ -1,5 +1,6 @@
 {
 	"ink": {"O":"#4a3422", "B":"#9a7b55", "b":"#785f42", "F":"#cdb592", "W":"#dcb38c", "E":"#241c17", "P":"#c98d78", "Y":"#c09a48", "y":"#8a6a2a", "R":"#c2522e", "r":"#8c2a22", "S":"#c4c2ba", "s":"#7c7a72"},
+	"off": ["imp"],
 	"figures": {
 		"trumpeter": [
 			"..........bO..OObO....",
@@ -58,6 +59,24 @@
 			"....y.OBBObbBOO.",
 			"....yOBbO..OBbO.",
 			"....OOOO....OOO."
+		],
+		"imp": [
+			"..y......y.....",
+			"..Oy....yO.....",
+			"...ORRRRO......",
+			"..ORERRERO.....",
+			"..ORRRRRRO...Y.",
+			"...ORSSRO...Y.Y",
+			"....ORRO....YYY",
+			"..ORRRRRRO...y.",
+			".ORRrRRRrRO.Oy.",
+			"OR.ORRRRO.ORRy.",
+			"O..ORrRRO..OOy.",
+			"...ORRRRO....y.",
+			"...ORRrRO....y.",
+			"..ORO..ORO.R.y.",
+			"..OO....OO.ORy.",
+			".............O."
 		]
 	}
 }
