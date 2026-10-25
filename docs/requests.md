@@ -4,7 +4,7 @@ Asked for by the user, not yet built. Newest first; tick off (move to "Done") as
 
 ## 2026-10-25
 
-**Start here next session** (2026-10-25, paused at the session limit): themes and four towns are done and committed (c74d1b7, d635b6f, docs), NOT pushed. Ask the user before pushing Grimoire and Tachyon (pterm keyboard fix 1e45a07). Unconfirmed: Sects & Violets = Clockwork (one line in src/ui/theme.ts). Not yet seen by eye: Saltgrave beam at night. Then take the list below in order.
+**Start here next session** (2026-10-25, paused at the session limit): themes and four towns are done and committed (c74d1b7, d635b6f, docs), pushed with Tachyon on 2026-10-25. Unconfirmed: Sects & Violets = Clockwork (one line in src/ui/theme.ts). Not yet seen by eye: Saltgrave beam at night. Then take the list below in order.
 
 **Still to do**
 - The rural village, the monastery, and the Lovecraftian liner or airship (maps 3, 4 and 7 below).
