@@ -39,17 +39,25 @@ import CASTLE from '../../town/castle.tbp';
 import SALTGRAVE from '../../town/victorian.tbp';
 import WOLFSGRUND from '../../town/grimm.tbp';
 import WHITECHAPEL from '../../town/whitechapel.tbp';
-import { animated, beamAt, fall, flash, weatherOf } from './weather.ts';
-import { bookKey, THEMES, THEME_TOWN, themeOf } from '../ui/theme.ts';
+import ASHCOMBE from '../../town/hamlet.tbp';
+import ABBEY from '../../town/abbey.tbp';
+import CARCOSA from '../../town/liner.tbp';
+import { animated, beamAt, fall, flash, grazer, weatherOf } from './weather.ts';
+import { bookKey, THEMES, TOWN_LIST, themeOf } from '../ui/theme.ts';
 import type { Theme } from '../ui/theme.ts';
 
-/** Each theme's town (src/ui/theme.ts): the castle town, Wolfsgrund in the snow, Whitechapel, Saltgrave. */
-const TOWNS: Record<Theme, string> = { medieval: CASTLE, grimm: WOLFSGRUND, clockwork: WHITECHAPEL, lovecraft: SALTGRAVE };
-/** A script to open each theme's town with, from the lobby. */
-const THEME_SCRIPT: Record<Theme, string> = { medieval: 'trouble-brewing', grimm: 'bad-moon-rising', clockwork: 'sects-and-violets', lovecraft: 'laissez-un-faire' };
+/** Each town's blueprint, by its key in TOWN_LIST (src/ui/theme.ts). */
+const TOWN_TEXT: Record<string, string> = { castle: CASTLE, hamlet: ASHCOMBE, abbey: ABBEY, grimm: WOLFSGRUND, whitechapel: WHITECHAPEL, victorian: SALTGRAVE, liner: CARCOSA };
+/** The town a theme is played in: the one the Storyteller picked for it, else its first. */
+const themeTown = (th: Theme) => {
+	const picked = store.get('grimoire.townOf.' + th);
+	const k = TOWN_LIST.find((t) => t.key === picked && t.theme === th) ?? TOWN_LIST.find((t) => t.theme === th)!;
+	return TOWN_TEXT[k.key];
+};
 /** The town a script is played in. A town the Storyteller loaded themselves wins. */
-const townFor = (script: string | undefined) => store.get('grimoire.town') ?? TOWNS[themeOf(script)];
-const themeOfTown = (text: string): Theme => THEMES.find((t) => TOWNS[t] === text) ?? 'medieval';
+const townFor = (script: string | undefined) => store.get('grimoire.town') ?? themeTown(themeOf(script));
+const townInfo = (text: string) => TOWN_LIST.find((t) => TOWN_TEXT[t.key] === text);
+const themeOfTown = (text: string): Theme => townInfo(text)?.theme ?? 'medieval';
 
 const PREFIX = 'grimoire-village-';
 
@@ -323,10 +331,10 @@ function workDoor(d: number) {
 	S.dirty = true;
 }
 
-function openVillage(script?: string) {
+function openVillage(key?: string) {
 	S.host = true;
 	S.room = newRoomCode();
-	S.townText = townFor(script);
+	S.townText = key ? TOWN_TEXT[key] : townFor(undefined);
 	loadTown(S.townText);
 	const link = hostRoom<Up, Down>(S.room, {
 		message: (peerId, msg) => {
@@ -790,7 +798,7 @@ const fold = (ch: string) => {
 	const m: Record<string, string> = { '·': '.', '∙': '.', '•': '.', '∼': '~', '○': 'o', '✶': '*', '✦': '*', '❀': '*', '↑': '^' };
 	return m[ch] ?? '*';
 };
-const KEEP = new Set([...'≈π╥Θ■ö¡Ω‡♠♣¶⌐◙╫≡═▬†¬╤▒▓░▲♪☼∩']);
+const KEEP = new Set([...'≈π╥Θ■ö¡Ω‡♠♣¶⌐◙╫≡═▬†¬╤▒▓░▲♪☼∩¥⌠¤♦█ôÖ']);
 
 /** The map's frame: move people and the camera, light the town, and ask for a redraw only when something changed. */
 function tickMap() {
@@ -1076,6 +1084,10 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 				const f2 = fall(w, x, y, now);
 				if (f2 && !t.cells[i].things.length) { ch = f2.ch; fg = mul(f2.c, lit.get(i)!.map((v) => Math.min(1, v + 0.35)) as Rgb); }
 			}
+			if (shown && w.graze && t.cells[i].mat === 'pasture' && !t.cells[i].things.length) {
+				const b = grazer(x, y, now);
+				if (b) { ch = b.ch; fg = mul(b.c, lit.get(i)!.map((v) => Math.min(1, v + 0.2)) as Rgb); }
+			}
 			const fgi = quant(fg);
 			// The ground keeps its own colour, in the shades of its ink, so a lit square glows and the dark falls away.
 			// At dusk the seats are picked out in gold.
@@ -1248,6 +1260,9 @@ function sheetRows(): Row[] {
 		rows.push(buttonBlock([btn('All ears: ' + (me()?.ears ? 'on' : 'off'), () => act('ears'), { style: me()?.ears ? 'on' : undefined }), btn('+ Test villager', () => act('bot'))]));
 		if (S.game) rows.push(buttonBlock([btn('Open the grimoire', () => act('back-game'), { style: 'primary', width: INNER })]));
 		else rows.push(...prose('Players open ' + location.origin + location.pathname + '#village=' + S.room, 'dim'));
+		// Another town of the same look: the game moves there, everyone with it.
+		const th = themeOfTown(S.townText), ts = TOWN_LIST.filter((t) => t.theme === th);
+		if (ts.length > 1 && !store.get('grimoire.town')) rows.push(buttonBlock(ts.map((t) => btn(t.name, () => act('town-' + t.key), { style: TOWN_TEXT[t.key] === S.townText ? 'on' : undefined }))));
 		if (store.get('grimoire.town')) rows.push(buttonBlock([btn('Use the demo village', () => act('town-reset'))]));
 		return [close('st-toggle'), ...rows, endPanel()];
 	}
@@ -1357,7 +1372,11 @@ function lobbyRows(): Row[] {
 	const rows: Row[] = [navRow('Home', () => act('back')), rubric('The Village'), ...prose('Walk the town on your own phone. Talk to whoever is near you: voices fade with distance and stop at walls.', 'dim')];
 	if (!lobbyCode) {
 		// One town for each script's look.
-		THEMES.forEach((th, k) => rows.push(buttonBlock([btn('Open ' + THEME_TOWN[th], () => { audio(); openVillage(THEME_SCRIPT[th]); }, { style: k ? undefined : 'primary', width: INNER })])));
+		// The towns, a row for each look: medieval, grimm, clockwork, Lovecraftian.
+		THEMES.forEach((th, k) => {
+			const ts = TOWN_LIST.filter((t) => t.theme === th);
+			rows.push(buttonBlock(ts.map((t) => btn(t.name, () => { audio(); openVillage(t.key); }, { style: k ? undefined : 'primary', width: ts.length === 1 ? INNER : undefined }))));
+		});
 		rows.push(row(txt(center('or join one', INNER), 'dim')));
 	}
 	rows.push(field('v-name', 'Your name', lobbyName, (v) => { lobbyName = v.trim(); store.set('grimoire.villageName', lobbyName); drawChrome(); }, 14, 'tap to type'),
@@ -1426,6 +1445,13 @@ function act(a: string, id = '') {
 		case 'phase-night': setPhase('night'); break;
 		case 'bot': addBot(); break;
 		case 'st-toggle': S.stOpen = !S.stOpen; S.sheet = null; drawChrome(); break;
+		case 'town-castle': case 'town-hamlet': case 'town-abbey': case 'town-grimm': case 'town-whitechapel': case 'town-victorian': case 'town-liner': {
+			const key = id.slice(5), info = TOWN_LIST.find((t) => t.key === key)!;
+			store.set('grimoire.townOf.' + info.theme, key);
+			changeTown(TOWN_TEXT[key]);
+			drawChrome();
+			break;
+		}
 		case 'town-reset':
 			try { localStorage.removeItem('grimoire.town'); } catch { /* private mode */ }
 			toast('Reopen the village to use the demo village.');
@@ -1555,29 +1581,31 @@ export function villageForGame(wire: HostWire, onBack: () => void): VillageHost 
 		ring: (seats) => { if (JSON.stringify(seats) !== JSON.stringify(S.ring)) { S.ring = seats; S.dirty = true; } },
 		clock: (src) => { S.clock = src; },
 		toast,
-		script: (id) => {
-			const text = townFor(id);
-			if (text === S.townText) return;
-			S.townText = text;
-			loadTown(text);
-			// Everyone stands somewhere in the new town: at their seat if they have one, by the meeting place if not.
-			const t = S.town!;
-			const taken = new Set<number>();
-			for (const q of S.people.values()) {
-				const c = (!q.st && seatCell(t, q.seat)) || nearestOpen(t, t.meeting ? { x: Math.round(t.meeting.at.x), y: Math.round(t.meeting.at.y) } : { x: t.w >> 1, y: t.h >> 1 }, taken);
-				q.x = c.x; q.y = c.y; taken.add(c.x + c.y * t.w);
-				const b = S.bots.get(q.id);
-				if (b) b.route = [];
-			}
-			S.route = []; cam.ready = false;
-			for (const id of S.welcomed) welcome(id);
-		},
+		script: (id) => changeTown(townFor(id)),
 		stop: () => {
 			for (const id of S.welcomed) wire.send(id, { t: 'off' });
 			S.welcomed.clear();
 			hideVillage();
 		}
 	};
+}
+
+/** Move to another town: everyone stands somewhere in it, and every phone is sent the new map. */
+function changeTown(text: string) {
+	if (text === S.townText) return;
+	S.townText = text;
+	loadTown(text);
+	// Everyone stands somewhere in the new town: at their seat if they have one, by the meeting place if not.
+	const t = S.town!;
+	const taken = new Set<number>();
+	for (const q of S.people.values()) {
+		const c = (!q.st && seatCell(t, q.seat)) || nearestOpen(t, t.meeting ? { x: Math.round(t.meeting.at.x), y: Math.round(t.meeting.at.y) } : { x: t.w >> 1, y: t.h >> 1 }, taken);
+		q.x = c.x; q.y = c.y; taken.add(c.x + c.y * t.w);
+		const b = S.bots.get(q.id);
+		if (b) b.route = [];
+	}
+	S.route = []; cam.ready = false;
+	for (const id of S.welcomed) welcome(id);
 }
 
 function rekey(q: Person, id: string) {

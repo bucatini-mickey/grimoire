@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { beamAngle, beamAt, fall, flash, weatherOf } from '../src/town/weather.ts';
+import { beamAngle, beamAt, fall, flash, grazer, weatherOf } from '../src/town/weather.ts';
 
 test('each town its weather: storm and beam at Saltgrave, snow at Wolfsgrund, fog in Whitechapel', () => {
 	assert.ok(weatherOf('victorian').rain && weatherOf('victorian').beam && weatherOf('victorian').storm);
@@ -39,4 +39,13 @@ test('rain and snow fall: a few cells at a time, moving with the clock, the same
 	for (let x = 0; x < 40; x++) if (!!fall(snow, x, 5, 0) !== !!fall(snow, x, 5, 2000)) moved++;
 	assert.ok(moved > 0, 'the snow moves');
 	assert.equal(fall(weatherOf('castle'), 3, 4, 1000), null);
+});
+
+test('sheep and cattle graze at Ashcombe: a few in a field, wandering slowly, never two in a square', () => {
+	assert.ok(weatherOf('hamlet').graze && !weatherOf('castle').graze);
+	const at = (ms: number) => { const out: string[] = []; for (let y = 0; y < 42; y++) for (let x = 0; x < 42; x++) if (grazer(x, y, ms)) out.push(`${x},${y}`); return out; };
+	const now = at(0);
+	assert.ok(now.length >= 12 && now.length <= 36, `${now.length} beasts`);
+	for (const p of now) { const [x, y] = p.split(',').map(Number); assert.equal(now.filter((q) => { const [a, b] = q.split(',').map(Number); return Math.floor(a / 7) === Math.floor(x / 7) && Math.floor(b / 7) === Math.floor(y / 7); }).length, 1); }
+	assert.notDeepEqual(at(0), at(20000), 'they move');
 });

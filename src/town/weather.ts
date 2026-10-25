@@ -6,6 +6,9 @@
  *   Wolfsgrund (grimm)       snow falling, drifting with the wind
  *   Whitechapel              a yellow fog, thick: the gas lamps are islands in it
  *   Ravensburg (castle)      fair weather, the river mist
+ *   Ashcombe (hamlet)        a morning mist; the sheep and cattle wander the pasture
+ *   St. Cuthwin's (abbey)    a still mist in the cloister
+ *   the Carcosa (liner)      rain and lightning on a black sea, sea fog
  *
  * Everything follows the clock (ms), not chance, so a still frame stays still and every phone sees the
  * same storm.
@@ -21,17 +24,22 @@ export interface Weather {
 	fogTint: Rgb | null;
 	/** Turning light: the cell of the lamp, if the town has one. */
 	beam: boolean;
+	/** Sheep and cattle wandering the pasture. */
+	graze: boolean;
 }
 
-const CALM: Weather = { rain: false, storm: false, snow: false, fog: 1, fogTint: null, beam: false };
+const CALM: Weather = { rain: false, storm: false, snow: false, fog: 1, fogTint: null, beam: false, graze: false };
 const BY_TOWN: Record<string, Weather> = {
 	victorian: { ...CALM, rain: true, storm: true, beam: true, fog: 1.15 },
 	grimm: { ...CALM, snow: true, fog: 1.1, fogTint: [150, 160, 172] },
 	whitechapel: { ...CALM, fog: 1.7, fogTint: [86, 82, 58] },
-	castle: CALM
+	castle: CALM,
+	hamlet: { ...CALM, graze: true, fog: 1.2, fogTint: [120, 128, 116] },
+	abbey: { ...CALM, fog: 1.25, fogTint: [128, 128, 122] },
+	liner: { ...CALM, rain: true, storm: true, fog: 1.3, fogTint: [70, 82, 84] }
 };
 export const weatherOf = (town: string): Weather => BY_TOWN[town] ?? CALM;
-export const animated = (w: Weather) => w.rain || w.snow || w.beam || w.storm;
+export const animated = (w: Weather) => w.rain || w.snow || w.beam || w.storm || w.graze;
 
 const hash = (x: number, y: number, k: number) => {
 	let h = Math.imul(x, 374761393) ^ Math.imul(y, 668265263) ^ Math.imul(k, 1274126177);
@@ -66,6 +74,18 @@ export function beamAt(lamp: { x: number; y: number }, x: number, y: number, ms:
 	const width = 0.07 + 1.2 / d;
 	if (Math.abs(diff) > width) return 0;
 	return (1 - Math.abs(diff) / width) * (1 - d / 46) * 1.1;
+}
+
+/**
+ * The beasts in the pasture: one in some of the seven-cell squares of the field, each walking slowly
+ * about the middle of its square (so no two meet), now a sheep, now a cow. Null where none stands.
+ */
+export function grazer(x: number, y: number, ms: number): { ch: string; c: Rgb } | null {
+	const bx = Math.floor(x / 7), by = Math.floor(y / 7), h = hash(bx, by, 31);
+	if (h % 3 === 0) return null;
+	const px = bx * 7 + 3 + Math.round(Math.sin(ms / 9000 + (h & 255)) * 2), py = by * 7 + 3 + Math.round(Math.sin(ms / 13000 + ((h >> 8) & 255)) * 1.6);
+	if (px !== x || py !== y) return null;
+	return (h >> 16) % 3 ? { ch: 'ô', c: [226, 222, 206] } : { ch: 'Ö', c: [128, 82, 52] };
 }
 
 /** Rain or snow over an open cell at this moment: a glyph and its colour, or null for none. */

@@ -1,0 +1,251 @@
+tachyon-blueprint 1
+# St. Cuthwin's Abbey, the whole map within its precinct wall, for Grimoire's medieval games.
+# Made by town/make-abbey.mjs; edit that and run it again. `label x y Name` names a place.
+name abbey
+size 96 82 2
+key , floor grass
+key : floor gravel
+key L wall limestone
+key l floor limestone
+key + floor wood
+key W wall wood
+key ~ floor water
+key s floor stone block
+key | wall paling
+key < stair-up wood
+key > stair-down wood
+key . floor wood | bookshelf
+key ; floor limestone | candle
+key _ stair-up limestone
+key = floor limestone | pew
+key # floor limestone | door
+key % floor limestone | altar
+key & floor wood | chair
+key * floor wood | table
+key - floor wood | candle
+key ^ floor wood | door
+key " floor stone block | torch
+key ' floor stone block | barrel
+key ` floor limestone | torch
+key ! floor gravel | torch
+key ? floor limestone | chair
+key $ floor wood | brazier
+key @ floor limestone | table
+key A floor wood | bed
+key B floor stone block | chest
+key C floor grass | flowers
+key D floor grass | chair
+key E floor wood | chest
+key F floor limestone | chest
+key G floor limestone | well
+key H floor stone block | door
+key I floor tilled | crops
+key J floor tilled
+key K floor limestone | brazier
+key M floor grass | well
+key N floor stone block | candle
+key O floor limestone | oven
+key P floor grass | coffin
+key Q floor grass | statue
+key R floor limestone | barrel
+key U floor grass | torch
+key V floor grass | bare tree
+key X floor grass | oak
+key Y floor stone block | oven
+key Z floor mud | reeds
+key a floor stone block | table
+key b floor soil | door
+key c floor stone block | brazier
+key d floor soil
+key e floor soil | cart
+key f floor soil | hay bale
+key g floor limestone | bed
+key h stair-down limestone
+key i floor limestone | bell
+level 0
+LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
+LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
+LL,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,LL
+LL,,,,,,,,,,,,,,,,:,LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL,:,LLLLLLLLLLLLLLLL
+LL,,,,,,,,,,,,,,,,:,LlllllllllllllllllllllllllllllllllllllllllllllllllllllllL,:,L.....+......LLL
+LL,,,,,,,,,,,,,,,,:,Llllllllll;lllllllllllll;llllllllll_llll;lllllllllllllllL,:,L++++++++++++LLL
+LL,,,,,,,,,,,,,,,,:,LlllllllllllllllllllllllllllllllllllllllllllllllllllllllL,:,L+.++.++.++.+LLL
+LL,,,,,,,,,,,,,,,,:,LlllllLlllLlllLlllLlllLlllLlllLlllllllllllllllllllllllllL,:,L++++++++++++LLL
+LL,,,,,,,,,,,,,,,,:,Llllllllllllllllllllllllllllllllllllllllll========ll;lllL,:,L++++++++++++LLL
+LL,,,,,,,,,,,,,,,,:,Lllll=l=l=l=l=l=l=l=l=l=l=l=l=l=llllllllllllllllllllllllL,:,L+.++.++.++.+LLL
+LL,,,,,,,,,,,,,,,,:,#llll=l=l=l=l=l=l=l=l=l=l=l=l=l=lllllllllllllllllllll%llL,:,L++++++++++++LLL
+LL,,,,,,,,,,,,,,,,:,#llllllllllllllllllllllllllllllllllllllllllllllllllll%llL,:,L++++++++++++LLL
+LL,,,,,,,,,,,,,,,,:,Lllll=l=l=l=l=l=l=l=l=l=l=l=l=l=llllllllllllllllllllllllL,:,L+.++.++.++.+LLL
+LL,,,,,,,,,,,,,,,,:,Llllllllllllllllllllllllllllllllllllllllll========ll;lllL,:,L++++++++++++LLL
+LL,,,,,,,,,,,,,,,,:,LlllllLlllLlllLlllLlllLlllLlllLlllllllllllllllllllllllllL,:,L+++&*++-++++LLL
+LL,,,,,,,,,,,,,,,,:,LlllllllllllllllllllllllllllllllllllllllllllllllllllllllL,:,L++++++++++++LLL
+LL,,,,,,,,,,,,,,,,:,Llllllllll;lllllllllllll;lllllllllllllll;lllllllllllllllL,:,LLLLLL^LLLLLLLLL
+LL,,,,,,,,,,,,,,,,:,LlllllllllllllllllllllllllllllllllllllllllllllllllllllllL,:,,,,,,,,,,,,,,,LL
+LL,,,,,,,,,,,,,,LLLLLLLLLLLLLLLLL#LLLLLLLLLLLLLLLLLLLLLLLLL#LLLLLLLLLLLLLLLLL,:,,,,,,,,,,,,,,,LL
+LL,,,,,,,,,,,,,,LsssssssssssssLlllllllllllllllllllllllllllllllL;lllllllllll;L,:,,,,,,,,,,,,,,,LL
+LL,,,,,,,,,,,,,:Ls"'sssssss''sLl`lllllllllllllllllllllllllll`lLlllllllllllllL,!::::::::::::,,,LL
+LL,,,,,,,,,,,,,:LsssssssssssssLlllllllllllllllllllllllllllllllLlllllllllllllL,:,,,,,,,,,,,,,,,LL
+LL,LLLLLLLLLLL,:Ls''sssssss''sLllllllLllLllLllLllLllLllLllllllLlllllllllllllL,:,LLLLLLLLLLLLLLLL
+LL,L..++++++-L,:LsssssssssssssLllll,,,,,,,,,,,,,,,,,,,,,,,llllLll?????????llL,:,L$+++++++++++LLL
+LL,L+++++++++L,:Ls''sssssss''sLllll,,,,,,,,,,,,,,,,,,,,,,,llllLl?@@@@@@@@@llL,:,L+A++A++A++++LLL
+LL,L+++++++++L,:LsssssssssssssLlllL,,,,,,,,,,,,,,,,,,,,,,,Llll#ll@@@@@@@@@llL,:,L++++++++++++LLL
+LL,L++++*+++<^,:Ls''sssBsss''sLllll,,,,,,,,,,,,,,,,,,,,,,,llllLll?????????llL,:,L++++++++++++LLL
+LL,L+++++++++L,:LsssssssssssssLllll,,,C,,,,,,,,,,,,,,,,,,,llllLlllllllllllllL,:,^+++++*++++++LLL
+LL,L+++++++++L,:Ls''sssssss''sLlllL,,,,,,,,,,,,,,,,,,,,,,,LlllLlllllllllllllL,:,L++++++++++++LLL
+LL,L+++++++++L,:LsssssssssssssLllll,,,,,,,D,,D,,D,,,,,,,,,llllLlllllllllllllL,:,L++++++++++++LLL
+LL,LA+++++++EL,:Ls''sssssss''sLllll,,,,,,,,,,,,,,,,D,,,,,,llllL;lllllllllll;L,:,L++++++++++++LLL
+LL,LLLLLLLLLLL,:LsssssssssssssLlllL,,,,,D,,,,,,,,,,,,,,,,,LlllLLLLLLLLLLLLLLL,:,L+A++A+++++++LLL
+LL,,,,,,,,,,,,,:Ls''sssssss''sLllll,,,,,,,,,,,,,,,,,,D,,,,llllLlllllllllllllL,:,LE++++++++++ALLL
+LL,,,,,,,,,,,,,:LsssssssssssssLllll,,,D,,,,,,,,,,,,,,,,,,,llllLlFlllllllllllL,:,LLLLLLLLLLLLLLLL
+LL,,,,,,,,,,,,,:LsssssssssssssLlllL,,,,,,,,,,,G,,,,,,,D,,,LlllLlllllllllllllL,:,,,,,,,,,,,,,,,LL
+LL,,,,,,,,,,,,,:HsssssssssssssHllll,,,D,,,,,,,,,,,,,,,,,,,llllLlllllllllllllL,:,,,,,,,,,,,,,,,LL
+LL,,,,,,,,,,,,,:LsssssssssssssLllll,,,,,,,,,,,,,,,,,,D,,,,llllLlllllllllllllL,:,||||||||||||||LL
+LL,,,,,,,,,,,,,:LsssssssssssssLlllL,,,,,D,,,,,,,,,,,,,,,,,LlllLlllllllllllllL,:,|IIIIIIIIIIII|LL
+LL,LLLLLLLLLLL,:Ls''sssssss''sLllll,,CC,,,,,,,,,,,,D,,,,,,llllLlllllllllllllL,:,|JJJCJJJCJJJC|LL
+LL,L++++++++-L,:LsssssssssssssLllll,,,,,,,D,,D,,D,,,,,,,,,llllLlllllllllllllL,:,|IIIIIIIIIIII|LL
+LL,L+++++++++L,:Ls"'sssssss''sLlllL,,,,,,,,,,,,,,,,,,,,,,,Llll#lllllllllllllL,:,|JJJCJJJCJJJC|LL
+LL,L+++++++++L,:LsssssssssssssLllll,,,,,,,,,,,,,,,,,,,,,,,llllLllllllKllllllL,:,|IIIIIIIIIIII|LL
+LL,L++++*++++^,:Ls''sssssss''sLllll,,,,,,,,,,,,,,,,,,,,,,,llllLlllllllllllllL,:,|JJJCJJJCJJJC|LL
+LL,L+++++++++L,:LsssssssssssssLlllL,,,,,,,,,,,,,,,C,,,,,,,LlllLlllllllllllllL,:,:IIIIIMIIIIII|LL
+LL,L+++++++++L,:Ls''sssNsss''sLllll,,,,,,,,,,,,,,,,,,,,,,,llllLlllllllllllllL,:,|JJJCJJJCJJJC|LL
+LL,LA+++++++EL,:LsssssssssssssLllllllLllLllLllLllLllLllLllllllLlllllllllllllL,:,|IIIIIIIIIIII|LL
+LL,LLLLLLLLLLL,:Ls''sssssss''sLlllllllllllllllllllllllllllllllLlllllllllllllL,:,|JJJCJJJCJJJC|LL
+LL,LLLLLLLLLLL,:LsssssssssssssLl`lllllllllllllllllllllllllll`lLlllllllllllllL,:,|IIIIIIIIIIII|LL
+LL,L++++++++-L,:Ls''sssssss''sLlllllllllllllllllllllllllllllllLlllllllllllllL,:,|JJJCJJJCJJJC|LL
+LL,L+++++++++L,:LsssssssssssssLLLLLLLL#LLLLLL::LLLLLLLL#LLLLLLLlllllllllllllL,:,|IIIIIIIIIIII|LL
+LL,L+++++++++L,:LsssssssssssssL;lllllllllll;LllLllllllllllllllLllllll<llllllL,:,||||||||||||||LL
+LL,L++++*++++^,:LLLLLLLLLLLLLLLlllllllllllllLllLllOlllllllllOlLLLLLLLLLLLLLLL,:,,,,,,,,,,,,,,,LL
+LL,L+++++++++L,:,,,,,,,,,,,,,,Lll=========llLllLllllllllllllllL,,,,,,,,,,,,,,,:,,,,,,,,,,,,,,,LL
+LL,L+++++++++L,:,,,,,,,,,,,,,,Lll@@@@@@@@@llLllLllllllllllllllL,,,,,,,,,,,,,,,:,,,,,,,,,,,,,,,LL
+LL,LA+++++++EL,:,,,,,,,,,,,,,,Lll=========llLllLlllll@llllllllL,,,,,,,,,,,,,,,:,P,Q,Q,Q,Q,Q,,,LL
+LL,LLLLLLLLLLL,:,,,,,,,,,,,,,,LlllllllllllllLllLllllllllllllllL,,,,,,,,,,,,,,,:,,,,,,,,,,,,,,,LL
+LL,,,,,,,,,,,,,:,,,,,,,,,,,,,,Lllllll@llllllLllLlllllllllRRlllL,,,,,,,,,,,,,,,:,,,,,,,,,,,,,,,LL
+LL,,,,,,,,,,,,,:,,,,,,,,,,,,,,LlllllllllllllLllLllllllllllllllL,,,,,,,,,,,,,,,:,Q,P,Q,Q,Q,Q,,,LL
+LL,,,,,,,,,,,,,:,,,,,,,,,,,,,,LLLLLLLLLLLLLLL::LLLLLLLL#LLLLLLL,,,,,,,,,,,,,,,:,,,,,,,,,,,,,,,LL
+LL,,,,,,,,,,,,,:,,,,,,,,,,,,,,,,,,,,,,,,,,,,,::,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,:,,,,,,,,,,,,,,,LL
+LL,,,,,,U,,,,,,:::::::::::::::!:::::::::::::::::::::::::::::!:::::::::::::::::!:Q:Q:P:Q:Q:Q,,,LL
+LL,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,::,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,LL
+LL,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,::,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,LL
+LL,,,,,,,,,,,,,,,,,,,,,,LLLLLLHLLLLLL,,,,,,,,::,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,LL
+LL,,V,,,X,,,X,,,X,,,V,,,LsssssssssssL,,,,,,,,::,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,LL
+LL,,,,,,,,,,,,,,,,,,,,,,LsYsssssssYsL,,,,,,,,::,,,,,,,,,,,,,,,,,,,,,,ZZZZZZZ,,,,,,,,,,,,,,,,,,LL
+LL,,,,,,,,,,,,,,,,,,,,,,LsssssssssssL,,,,,,,U::,,,,,,,,,,,,,,,,,,,,ZZ~~~~~~~ZZ,,,,,,,,,,,,,,,,LL
+LL,,,X,,,X,,,V,,,X,,,X,,LsssssasssssL,,,,,,,,::,,,,,,,,,,,,,,,,,,,ZZ~~~~~~~~~ZZ,,,,,,,,,,,,,,,LL
+LL,,,,,,,,,,,,,,,,,,,,,,LsssssssssssL,,,,,,,,::,,,,,,,,,,,,,,,,,,ZZ~~~~~~~~~~~ZZ,,,,,,,,,,,,,,LL
+LL,,,,,,,,,,,,,,,,,,,,,,LLLLLLLLLLLLL,,,,,,,,::,,,,,,,,,,,,,,,,,,ZZ~~~~~~~~~~~ZZ,,,,,,,,,,,,,,LL
+LL,,X,,,V,,,X,,,X,,,X,,,,,,,,,,,,,,,,,,,,,,,,::,,,,,,,,,,,,,,,,,,ZZ~~~~~~~~~~~ZZ,,,,,,,,,,,,,,LL
+LL,,,,,,,,,,,,,,,,,,,,,,LLLLLLHLLLLLL,,,,,,,,::,,,,,,,,,,,,,,,,,,,ZZ~~~~~~~~~ZZ,,,,,,,,,,,,,,,LL
+LL,,,,,,,,,,,,,,,,,,,,,,LsssssssssssL,,,LLLLL#LLLLL,,,WWWWWWbWWWWWWZZ~~~~~~~ZZ,,,,,,,,,,,,,,,,LL
+LL,,,X,,,X,,,V,,,X,,,X,,LssssscsssssL,,,LKllllllllL,,,WdddddddddddW,,ZZZZZZZ,,,,,,,,,,,,,,,,,,LL
+LL,,,,,,,,,,,,,,,,,,,,,,LsssssssssssL,,,LlllllllllL,,,WddeddddddddW,,,,,,,,,,,,,,,,,,,,,,,,,,,LL
+LL,,,,,,,,,,,,,,,,,,,,,,Ls's's's's'sL,,,Lllll@llllL,,,WdddddddddddW,,,,,,,,,,,,,,,,,,,,,,,,,,,LL
+LL,,X,,,V,,,V,,,X,,,X,,,LsssssssssssL,,,LlllllllllL,,,WdddddddddddW,,,,,,,,,,,,,,,,,,,,,,,,,,,LL
+LL,,,,,,,,,,,,,,,,,,,,,,LsssssssssssL,,,LlllllllllL,,,WdfdfdfdfdfdW,,,,,,,,,,,,,,,,,,,,,,,,,,,LL
+LL,,,,,,,,,,,,,,,,,,,,,,LLLLLLLLLLLLL,,,LFlllllllgL,,,WdddddddddddW,,,,,,,,,,,,,,,,,,,,,,,,,,,LL
+LL,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,LLLLLLLLLLL,,,WWWWWWWWWWWWW,,,,,,,,,,,,,,,,,,,,,,,,,,,LL
+LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
+LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
+level 1
+                                                                                                
+                                                                                                
+                                                                                                
+                                                      LLLLLLL                                   
+                                                      LlllllL                                   
+                                                      LhllllL                                   
+                                                      LllillL                                   
+                                                      LlllllL                                   
+                                                      Llll;lL                                   
+                                                      LLLLLLL                                   
+                                                                                                
+                                                                                                
+                                                                                                
+                                                                                                
+                                                                                                
+                                                                                                
+                                                                                                
+                                                                                                
+                                                              LLLLLLLLLLLLLLL                   
+                                                              LA++++L+L++++AL                   
+                                                              L+++++^-^+++++L                   
+                                                              L+++++L+L+++++L                   
+   LLLLLLLLLLL                                                LLLLLLL+LLLLLLL                   
+   L+++++++++L                                                LA++++L+L++++AL                   
+   L+++++++++L                                                L+++++^+^+++++L                   
+   L+++++++++L                                                L+++++L+L+++++L                   
+   L++++++++>L                                                LLLLLLL+LLLLLLL                   
+   L+++++++++L                                                LA++++L+L++++AL                   
+   L+++++++++L                                                L+++++^-^+++++L                   
+   L+++++++++L                                                L+++++L+L+++++L                   
+   LA++++++++L                                                LLLLLLL+LLLLLLL                   
+   LLLLLLLLLLL                                                LA++++L+L++++AL                   
+                                                              L+++++^+^+++++L                   
+                                                              L+++++L+L+++++L                   
+                                                              LLLLLLL+LLLLLLL                   
+                                                              LA++++L+L++++AL                   
+                                                              L+++++^-^+++++L                   
+                                                              L+++++L+L+++++L                   
+                                                              LLLLLLL+LLLLLLL                   
+                                                              LA++++L+L++++AL                   
+                                                              L+++++^+^+++++L                   
+                                                              L+++++L+L+++++L                   
+                                                              LLLLLLL+LLLLLLL                   
+                                                              LA++++L+L++++AL                   
+                                                              L+++++^-^+++++L                   
+                                                              L+++++L+L+++++L                   
+                                                              LLLLLLL+LLLLLLL                   
+                                                              LA++++L+L++++AL                   
+                                                              L+++++^+^+++++L                   
+                                                              L+++++L+L+++++L                   
+                                                              L+++++L>L+++++L                   
+                                                              LLLLLLLLLLLLLLL                   
+                                                                                                
+                                                                                                
+                                                                                                
+                                                                                                
+                                                                                                
+                                                                                                
+                                                                                                
+                                                                                                
+                                                                                                
+                                                                                                
+                                                                                                
+                                                                                                
+                                                                                                
+                                                                                                
+                                                                                                
+                                                                                                
+                                                                                                
+                                                                                                
+                                                                                                
+                                                                                                
+                                                                                                
+                                                                                                
+                                                                                                
+                                                                                                
+                                                                                                
+                                                                                                
+                                                                                                
+                                                                                                
+                                                                                                
+                                                                                                
+label 21 2 the Abbey Church
+label 43 21 the Cloister
+label 63 17 Chapter House
+label 77 40 Warming Room
+label 78 30 the Dorter (above)
+label 31 59 Refectory
+label 49 59 Kitchen
+label 17 52 Cellarium
+label 3 21 Abbot's House
+label 3 37 Guest House
+label 80 17 Library
+label 80 21 Infirmary
+label 81 35 Herb Garden
+label 80 53 the Graves
+label 66 63 the Fishpond
+label 4 62 the Orchard
+label 24 62 Bakehouse
+label 24 79 Brewhouse
+label 54 71 Stables
+label 40 80 the Gatehouse
+end

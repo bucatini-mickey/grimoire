@@ -7,7 +7,7 @@ import { makeWorld, path, walkable, stairGoes } from '../src/town/map.ts';
 // Every town a game can be played in keeps the same promises: a home for each of fifteen players, the ring
 // of fifteen seats round a speaking place, a council table for fifteen, every door reachable, every stair
 // leading somewhere, and nothing walkable off the edge of the map.
-for (const file of ['castle', 'victorian', 'grimm', 'whitechapel']) {
+for (const file of ['castle', 'victorian', 'grimm', 'whitechapel', 'hamlet', 'abbey', 'liner']) {
 	let text: string;
 	try { text = readFileSync(new URL(`../town/${file}.tbp`, import.meta.url), 'utf8'); } catch { continue; }
 	const bp = parseBlueprint(text);

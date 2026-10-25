@@ -12,7 +12,7 @@
 import { writeFileSync } from 'node:fs';
 
 /** Things nobody walks through (src/town/map.ts BLOCKING). */
-const BLOCKING = ['well', 'brazier', 'altar', 'statue', 'anvil', 'barrel', 'bookshelf', 'coffin', 'table', 'waterfall', 'bell', 'clock', 'oak', 'loom', 'oven', 'cart', 'gas lamp'];
+const BLOCKING = ['bare tree', 'rail', 'lifeboat', 'piano', 'wheel', 'well', 'brazier', 'altar', 'statue', 'anvil', 'barrel', 'bookshelf', 'coffin', 'table', 'waterfall', 'bell', 'clock', 'oak', 'loom', 'oven', 'cart', 'gas lamp'];
 
 export function plan(W, H, ground, seed = 1) {
 	let s = seed;

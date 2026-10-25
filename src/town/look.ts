@@ -41,7 +41,21 @@ const MATS: Record<string, Mat> = {
 	ice: { fg: [200, 230, 244], bg: [70, 96, 112], wall: '░', floors: ['.', '-', '.'] },
 	// Wolfsgrund's: snow lying everywhere, and the pine wood.
 	snow: { fg: [214, 222, 232], bg: [128, 136, 150], wall: '▒', floors: ['.', '·', ',', '.', "'", ' '] },
-	pine: { fg: [46, 96, 62], bg: [10, 26, 18], wall: '♠', floors: ['♠'] }
+	pine: { fg: [46, 96, 62], bg: [10, 26, 18], wall: '♠', floors: ['♠'] },
+	// Ashcombe's: thatched cottages, wattle fences, standing wheat that the wind runs through, pasture, tilled plots.
+	thatch: { fg: [176, 146, 86], bg: [74, 58, 32], wall: '▒', floors: ['.'] },
+	paling: { fg: [130, 100, 66], bg: [34, 44, 22], wall: '┼', floors: ['.'], style: 'single' },
+	wheat: { fg: [196, 168, 92], bg: [86, 72, 36], wall: '"', floors: ['"', "'", ',', '"'] },
+	pasture: { fg: [96, 148, 66], bg: [30, 50, 22], wall: '"', floors: [',', '.', "'", ',', '.', ' '] },
+	tilled: { fg: [104, 136, 60], bg: [58, 40, 26], wall: '▒', floors: ['=', '≡', '='] },
+	// The abbey's: pale limestone, the garth's turf.
+	limestone: { fg: [196, 190, 172], bg: [72, 70, 62], wall: '#', floors: ['+'], style: 'double' },
+	// The liner's: teak decks, white-painted steel, black hull plates, the funnels.
+	teak: { fg: [168, 128, 84], bg: [62, 44, 28], wall: 'O', floors: ['='], style: 'single' },
+	steel: { fg: [206, 206, 198], bg: [70, 72, 74], wall: '#', floors: ['+'], style: 'double' },
+	hull: { fg: [74, 78, 84], bg: [16, 18, 22], wall: '▓', floors: ['.'] },
+	funnel: { fg: [176, 92, 54], bg: [40, 22, 16], wall: '█', floors: ['.'] },
+	carpet: { fg: [150, 60, 64], bg: [52, 22, 26], wall: '▒', floors: ['░', '.'] }
 };
 const FALLBACK = MATS.soil;
 
@@ -58,7 +72,9 @@ const KINDS: Record<string, Kind> = {
 	sign: { ch: '¶', fg: BROWN }, bell: { ch: ' ', fg: [214, 172, 92] }, oak: { ch: '♣', fg: [70, 120, 46] }, loom: { ch: '╫', fg: BROWN }, oven: { ch: '◙', fg: [200, 120, 70], light: [150, 80, 30] }, cart: { ch: '⌐', fg: BROWN }, clock: { ch: ' ', fg: [214, 172, 92] }, flowers: { ch: '*', fg: [220, 120, 160] }, waterfall: { ch: '¦', fg: [200, 228, 240] }, rug: { ch: '░', fg: [150, 50, 50] },
 	'gas lamp': { ch: '‡', fg: [214, 236, 196], light: [150, 186, 150] }, fern: { ch: '♠', fg: [72, 150, 96] },
 	sigil: { ch: '✶', fg: [120, 230, 180], light: [50, 130, 100], flicker: true },
-	beacon: { ch: '☼', fg: [255, 244, 200], light: [255, 236, 180] }, 'plank bridge': { ch: '=', fg: [150, 110, 70] }
+	beacon: { ch: '☼', fg: [255, 244, 200], light: [255, 236, 180] }, 'plank bridge': { ch: '=', fg: [150, 110, 70] },
+	reeds: { ch: '⌠', fg: [150, 160, 84] }, 'bare tree': { ch: '¥', fg: [112, 96, 82] }, crops: { ch: '♣', fg: [96, 150, 70] },
+	rail: { ch: '■', fg: [120, 124, 130] }, lifeboat: { ch: '▬', fg: [222, 220, 210] }, wheel: { ch: '¤', fg: [214, 172, 92] }, piano: { ch: '╤', fg: [60, 44, 36] }, lamp: { ch: '♦', fg: [250, 226, 170], light: [190, 150, 90] }
 };
 const DOUBLE = ['■', '║', '═', '╚', '║', '║', '╔', '╠', '═', '╝', '═', '╩', '╗', '╣', '╦', '╬'];
 const SINGLE = ['o', '│', '─', '└', '│', '│', '┌', '├', '─', '┘', '─', '┴', '┐', '┤', '┬', '┼'];
@@ -277,6 +293,11 @@ export function lookAt(t: Town, x: number, y: number, ms = 0): Look {
 			return { ch: ['¦', '|', ':', '¦'][((f % 4) + 4) % 4], fg: lerp(k.fg, [255, 255, 255], (hash(x, f, 2) & 3) / 6), bg: lerp(m.bg, [70, 110, 140], 0.5), emissive: false };
 		}
 		return { ch: k.ch, fg: k.fg, bg: m.bg, emissive: !!k.light };
+	}
+	if (c.mat === 'wheat') {
+		const wv = Math.sin((x * 0.32 + y * 0.18) - ms / 520) + Math.sin(x * 0.07 - ms / 1700) * 0.6;
+		const bent = wv > 0.9;
+		return { ch: bent ? (hash(x, y, 4) & 1 ? '/' : ',') : m.floors[hash(x, y, 7) % m.floors.length], fg: lerp(m.fg, [236, 214, 140], bent ? 0.45 : 0), bg: m.bg, emissive: false };
 	}
 	if (c.mat === 'water') {
 		const r = Math.floor(ms / 700 + hash(x, y, 9) % 7);

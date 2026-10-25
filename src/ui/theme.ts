@@ -29,10 +29,17 @@ export function themeOfKey(key: string): Theme {
 	return 'medieval';
 }
 
-/** What each theme is called, for choosing a town to walk. */
-export const THEME_TOWN: Record<Theme, string> = {
-	medieval: 'the castle town',
-	grimm: 'the village in the snow',
-	clockwork: 'Whitechapel',
-	lovecraft: 'Saltgrave'
-};
+/**
+ * The towns, each in its theme's look (town/<key>.tbp). A game is played in its theme's first town
+ * unless the Storyteller picks another of that theme's.
+ */
+export interface TownInfo { key: string; name: string; theme: Theme; }
+export const TOWN_LIST: TownInfo[] = [
+	{ key: 'castle', name: 'Ravensburg', theme: 'medieval' },
+	{ key: 'hamlet', name: 'Ashcombe', theme: 'medieval' },
+	{ key: 'abbey', name: 'The Abbey', theme: 'medieval' },
+	{ key: 'grimm', name: 'Wolfsgrund', theme: 'grimm' },
+	{ key: 'whitechapel', name: 'Whitechapel', theme: 'clockwork' },
+	{ key: 'victorian', name: 'Saltgrave', theme: 'lovecraft' },
+	{ key: 'liner', name: 'The Carcosa', theme: 'lovecraft' }
+];
