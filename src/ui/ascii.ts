@@ -1068,7 +1068,13 @@ function folio(g: Grid, width: number, used: number, reserve = 0, seed = '') {
 			let x = x0 + Math.max(0, Math.floor((width - span - (pick.length - 1) * 2) / 2));
 			for (const m of pick) {
 				const top = foot - 2 - m.h;
-				m.px.forEach((row, j) => row.forEach((c, i) => { if (c) set(x + i, top + j, [1, 3, 5].map((k) => parseInt(c.slice(k, k + 2), 16))); }));
+				// By candlelight the black ink lines would sink into the dark page: they are drawn in a lighter brown.
+				const night = paletteKey().endsWith('-night');
+				m.px.forEach((row, j) => row.forEach((c, i) => {
+					if (!c) return;
+					const rgb = [1, 3, 5].map((k) => parseInt(c.slice(k, k + 2), 16));
+					set(x + i, top + j, night && rgb[0] + rgb[1] + rgb[2] < 120 ? [96, 80, 60] : rgb);
+				}));
 				x += m.w + 2;
 			}
 			// The ground they stand on: a tendril of the vine.
