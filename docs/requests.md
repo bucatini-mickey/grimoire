@@ -4,6 +4,11 @@ Asked for by the user, not yet built. Newest first; tick off (move to "Done") as
 
 ## 2026-10-25
 
+**Still to do**
+- The rural village, the monastery, and the Lovecraftian liner or airship (maps 3, 4 and 7 below).
+- Margin ornaments per theme (the vines and flowers are the medieval ones on every book).
+- Desktop two-page book; the players' wake cards (below).
+
 **Look and palette**
 - Revisit the palette: moody but realistic. One per game mode and per script, to fit its theme.
 - Per-script looks: Laissez un Faire Lovecraftian; Bad Moon Rising a folkish, woodland, sinister grim fairytale; a Jack-the-Ripper Victorian, clockwork rather than steampunk (the user dislikes steampunk; which script still to confirm: Sects & Violets or Trouble Brewing).
@@ -25,4 +30,5 @@ Asked for around 2026-10-23 15:12 in a chat that is missing from this PC (the us
 **How to reach the maps now:** Contents → For the players → Walk the village alone → Open the castle town / Open Saltgrave. A mode III game uses the castle town; a Laissez un Faire game uses Saltgrave.
 
 ## Done
+- 2026-10-25: a look and a town per script (src/ui/theme.ts): Trouble Brewing medieval in Ravensburg, rebuilt from the castle plans; Bad Moon Rising grimm in Wolfsgrund, a village in the snow; Sects & Violets clockwork in Whitechapel's fog; Laissez un Faire Lovecraftian in Saltgrave, in rain and thunderstorms with the lighthouse beam turning. Each map in its own true inks (the red cast is gone); torches dim by day. The day gold brightened so brass stays brass.
 - 2026-10-25: pages one thing each (contents, Storyteller's and players' leaves; setup as pages; settings; book of characters); bordered buttons; the margin editor with demons; the phone keyboard no longer opens on every tap.
