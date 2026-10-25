@@ -398,7 +398,9 @@ function assign(tx: Tx, cmd: Extract<Command, { type: 'assign' }>) {
 	}
 
 	const bluffs = cmd.bluffs;
-	const wantBluffs = evilLearnEachOther(chars.length) || fabled.some((f) => f.id === 'toymaker') ? 3 : 0;
+	// Three, or as many good characters as are left out of play when a small script has fewer.
+	const goodOut = script.characters.filter((d) => teamAlignment(d.team) === 'good' && notInPlay(d.id)).length;
+	const wantBluffs = evilLearnEachOther(chars.length) || fabled.some((f) => f.id === 'toymaker') ? Math.min(3, goodOut) : 0;
 	if (bluffs.length !== wantBluffs && !(wantBluffs === 0 && bluffs.length === 3)) {
 		refuse(`Choose ${wantBluffs || 'no'} Demon bluffs.`, 'bluffs');
 	}

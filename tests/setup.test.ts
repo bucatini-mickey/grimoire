@@ -55,6 +55,13 @@ test('bluffs are three good characters not in play, and only from 7 players', ()
 	ok(created(5), { type: 'assign', characters: ['imp', 'poisoner', 'chef', 'empath', 'monk'], bluffs: [] });
 });
 
+test('a small script with fewer than three good characters left out gives as many bluffs as there are', () => {
+	const s = ok(emptyState(), { type: 'create', names: NAMES.slice(0, 8), scriptId: 'laissez-un-faire' });
+	const chars = ['balloonist', 'savant', 'goblin', 'lunatic', 'leviathan', 'amnesiac', 'fisherman', 'cult-leader'];
+	refused(s, { type: 'assign', characters: chars, bluffs: ['artist'], allowNonstandard: true }, /2 Demon bluffs/);
+	ok(s, { type: 'assign', characters: chars, bluffs: ['artist', 'mutant'], allowNonstandard: true });
+});
+
 test('random deals are always legal, for every script and player count', () => {
 	// Bad Moon Rising: the Godfather's one fewer Outsider is impossible with none to remove.
 	for (const id of ['trouble-brewing', 'bad-moon-rising']) {
