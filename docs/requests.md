@@ -4,12 +4,10 @@ Asked for by the user, not yet built. Newest first; tick off (move to "Done") as
 
 ## 2026-10-25
 
-**Start here next session** (2026-10-25, paused at the session limit): themes and four towns are done and committed (c74d1b7, d635b6f, docs), pushed with Tachyon on 2026-10-25. Unconfirmed: Sects & Violets = Clockwork (one line in src/ui/theme.ts). Not yet seen by eye: Saltgrave beam at night. Then take the list below in order.
-
-**Still to do**
-- The rural village, the monastery, and the Lovecraftian liner or airship (maps 3, 4 and 7 below).
-- Margin ornaments per theme (the vines and flowers are the medieval ones on every book).
-- Desktop two-page book; the players' wake cards (below).
+**Where things stand** (2026-10-25, evening): everything below is built. Still open:
+- Unconfirmed with the user: Sects & Violets = Clockwork (one line in src/ui/theme.ts).
+- Not yet seen by eye: Saltgrave's beam at night; the liner and abbey at night.
+- Possible next: an airship (the user's other modern idea); a picture in each wake card's arch; the Lovecraftian and clockwork books want more figures (draw them in tools/margin-editor.html, tick their books).
 
 **Look and palette**
 - Revisit the palette: moody but realistic. One per game mode and per script, to fit its theme.
@@ -32,5 +30,10 @@ Asked for around 2026-10-23 15:12 in a chat that is missing from this PC (the us
 **How to reach the maps now:** Contents → For the players → Walk the village alone → Open the castle town / Open Saltgrave. A mode III game uses the castle town; a Laissez un Faire game uses Saltgrave.
 
 ## Done
+- 2026-10-25 (evening): three more towns, each look able to have several (src/ui/theme.ts TOWN_LIST; the lobby lists them, the Storyteller switches in the village's Storyteller panel): Ashcombe in the fields (town/make-hamlet.mjs: wheat the wind runs through, sheep and cattle wandering the common, the Leam and its reeds, the church in its fenced yard), St. Cuthwin's Abbey within its precinct wall (make-abbey.mjs: cloister, chapter house, dorter of sixteen cells), the RMS Carcosa on a black sea in a storm (make-liner.mjs: promenade, grand saloon, staterooms, the boat deck's funnels and lifeboats, lights in the water).
+- 2026-10-25 (evening): each look its own margins (a briar, an iron chain with cogs, a tentacle) and its own figures, ticked per book in the margin editor; button vines per look.
+- 2026-10-25 (evening): on a desktop the book lies open, two leaves; long pages run across both.
+- 2026-10-25 (evening): wake cards as illuminated pages: the name in textura under a pointed arch (blue good, red evil), centred text, vine border, roundel.
+- 2026-10-25: the hares' brass keeps its gold by candlelight (checked: the night gold is the nearest ink).
 - 2026-10-25: a look and a town per script (src/ui/theme.ts): Trouble Brewing medieval in Ravensburg, rebuilt from the castle plans; Bad Moon Rising grimm in Wolfsgrund, a village in the snow; Sects & Violets clockwork in Whitechapel's fog; Laissez un Faire Lovecraftian in Saltgrave, in rain and thunderstorms with the lighthouse beam turning. Each map in its own true inks (the red cast is gone); torches dim by day. The day gold brightened so brass stays brass.
 - 2026-10-25: pages one thing each (contents, Storyteller's and players' leaves; setup as pages; settings; book of characters); bordered buttons; the margin editor with demons; the phone keyboard no longer opens on every tap.
