@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hare editor</title>
+<!--
+	The hares at the foot of the Grimoire's pages: open this file in Chrome or Edge, press "Open art folder"
+	and pick Grimoire/art. Paint, then "Save" writes art/hares.json and art/margin-<name>.png. Restart
+	`npm run dev` to see them in the app. (In other browsers: "Load hares.json", then download the files
+	and put them in art/ yourself.)
+-->
+<style>
+	:root { --bg: #1d1916; --panel: #28221d; --line: #4a4038; --ink: #ece2cc; --dim: #a39684; --gold: #c69a45; --red: #c0453a; }
+	* { box-sizing: border-box; }
+	body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.4 system-ui, sans-serif; }
+	header { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--line); background: var(--panel); }
+	header h1 { font-size: 16px; margin: 0 12px 0 0; color: var(--gold); font-weight: 600; }
+	button, select, input { font: inherit; color: var(--ink); background: #342c25; border: 1px solid var(--line); border-radius: 4px; padding: 5px 10px; }
+	button:hover { border-color: var(--gold); cursor: pointer; }
+	button.on { background: var(--gold); color: #1d1916; border-color: var(--gold); }
+	button:disabled { opacity: 0.4; cursor: default; }
+	#status { color: var(--dim); margin-left: auto; }
+	main { display: grid; grid-template-columns: 220px 1fr 380px; gap: 14px; padding: 14px; align-items: start; }
+	@media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
+	section, aside { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px; }
+	h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); margin: 0 0 8px; font-weight: 600; }
+	#figures { list-style: none; margin: 0 0 10px; padding: 0; }
+	#figures li { padding: 6px 8px; border-radius: 4px; cursor: pointer; display: flex; justify-content: space-between; }
+	#figures li.on { background: #3d342b; color: var(--gold); }
+	#figures li small { color: var(--dim); }
+	.row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+	.row input[type=number] { width: 64px; }
+	#palette { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+	.sw { width: 44px; height: 44px; border-radius: 4px; border: 2px solid transparent; position: relative; cursor: pointer; display: flex; align-items: flex-end; justify-content: flex-end; }
+	.sw span { font: 600 11px monospace; background: rgba(0, 0, 0, 0.55); color: #fff; padding: 0 3px; border-radius: 2px; margin: 2px; }
+	.sw.on { border-color: #fff; outline: 2px solid var(--gold); }
+	.sw.erase { background: repeating-conic-gradient(#4a4038 0 25%, #342c25 0 50%) 0 0 / 12px 12px; }
+	#editwrap { overflow: auto; max-height: 70vh; background: repeating-conic-gradient(#e4dccb 0 25%, #dcd3c0 0 50%) 0 0 / 16px 16px; border-radius: 4px; }
+	#edit { display: block; image-rendering: pixelated; cursor: crosshair; touch-action: none; }
+	.preview { image-rendering: pixelated; display: block; width: 100%; border-radius: 4px; margin-bottom: 10px; }
+	.hint { color: var(--dim); font-size: 12px; margin: 6px 0 0; }
+	kbd { font: 11px monospace; border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; }
+</style>
+</head>
+<body>
+<header>
+	<h1>Hare editor</h1>
+	<button id="open" title="Pick the Grimoire/art folder (Chrome, Edge)">Open art folder</button>
+	<button id="save" disabled>Save</button>
+	<label><button id="loadBtn" type="button">Load hares.json</button><input id="load" type="file" accept=".json" hidden></label>
+	<button id="dlJson">Download hares.json</button>
+	<button id="dlPng">Download pictures</button>
+	<span id="status">No folder open: showing the hares built into this page.</span>
+</header>
+<main>
+	<aside>
+		<h2>Figures</h2>
+		<ul id="figures"></ul>
+		<div class="row"><button id="new">New</button><button id="dup">Copy</button><button id="ren">Rename</button><button id="del">Delete</button></div>
+		<h2>Size</h2>
+		<div class="row"><input id="w" type="number" min="1" max="52"> × <input id="h" type="number" min="1" max="60"><button id="resize">Set</button></div>
+		<p class="hint">Resizing keeps the feet where they are: rows come and go at the top, columns at the right. The page's writing is 52 wide; most pages have room for about 20 high.</p>
+		<div class="row"><button id="flip">Flip left-right</button><button id="clear">Clear</button></div>
+	</aside>
+	<section>
+		<h2>Paint</h2>
+		<div class="row">
+			<button id="tPen" class="on" title="P">Pen</button><button id="tFill" title="F">Fill</button><button id="tPick" title="I">Pick</button>
+			<label>Zoom <input id="zoom" type="range" min="8" max="40" value="22"></label>
+			<label><input id="grid" type="checkbox" checked> Grid</label>
+			<button id="undo" title="Ctrl+Z">Undo</button><button id="redo" title="Ctrl+Y">Redo</button>
+		</div>
+		<div id="palette"></div>
+		<div class="row"><button id="addInk">New ink</button><input id="inkColour" type="color" title="The selected ink's colour"><span class="hint" id="inkNote"></span></div>
+		<div id="editwrap"><canvas id="edit"></canvas></div>
+		<p class="hint">Left button paints, right button rubs out. <kbd>1</kbd>-<kbd>9</kbd> pick an ink, <kbd>0</kbd> the rubber, <kbd>P</kbd> <kbd>F</kbd> <kbd>I</kbd> the tools.</p>
+	</section>
+	<section>
+		<h2>On the page, by day</h2>
+		<canvas id="day" class="preview"></canvas>
+		<h2>By candlelight</h2>
+		<canvas id="night" class="preview"></canvas>
+		<p class="hint">Drawn as the app draws them: every colour taken to the nearest of the book's inks (and their darker shades), and at night the darkest lines lightened to brown so they show on the dark page. Keep to the browns already here and the hare stays in the page.</p>
+	</section>
+</main>
+<script>
+// The hares as they were when this page was made; "Open art folder" or "Load hares.json" reads the real file.
+let data = {
+	ink: { O: '#4a3422', B: '#9a7b55', b: '#785f42', F: '#cdb592', W: '#dcb38c', E: '#241c17', P: '#c98d78', Y: '#c09a48', y: '#8a6a2a', R: '#c2522e', r: '#8c2a22', S: '#c4c2ba', s: '#7c7a72' },
+	figures: {
+		trumpeter: ['..............O..O....', '.............OPO.OBO..', '.............OPO.OFO..', '.............OPOOBO...', '............OFFBBBO...', '...........OFEBFBBO...', 'OO........OFBBBBBO....', 'YYO......OFBBbBFO.....', 'YYyyyyyyyYYBFbBBO.....', 'YYO......OWBBBFBBO....', 'OO.......OWWBFBBBbO...', '.........OWWBBBBbbO.OO', '..........OWBFBbbbOOWO', '..........OBBObbBBOO..', '.........OBbO.OBbO....', '........OOOO.OOOO.....'],
+		knight: ['..............s...', '.....O..O.....S...', '....OPO.OBO...S...', '....OPO.OFO...S...', '.....OPOOBO...S...', '....OFFBBBO..YS...', '...OFEBFBBO.YYY...', '..OFBBBBBO...OO...', '..ORRRRBFBBOOBO...', '.ORRYRRBBBFBBO....', '.ORYYYRBFBBBO.....', '.ORRYRRBBBBbO.....', '.OrRRRRBFBbbO.OO..', '..OrRRBBBbbbOOWO..', '...OrBBObbBBOO....', '....OBbO.OBbO.....', '...OOOO.OOOO......'],
+		spearman: ['....S...........', '...SSS..........', '....s...........', '.RRRy...........', 'RRRRy...O..O....', '.RRry..OPO.OBO..', '....y..OPO.OFO..', '....y...OPOOBO..', '....y..OFFBBBO..', '....y.OFEBFBBO..', '....yOFBBBBBO...', '...OFFBBbBFO....', '....yOWBBFBBO...', '....yOWWBBBBbO..', '....yOWWBFBbbO.O', '....y.OWBBbbbOWO', '....y.OBBObbBOO.', '....yOBbO..OBbO.', '....OOOO....OOO.']
+	}
+};
+
+// The book's inks (src/ui/ascii.ts: folio, folio-night), each with its darker shades, as pterm expands them.
+const PAGE = {
+	day: ['#e4dccb', '#d6ccb8', '#9c8f7a', '#706556', '#241c17', '#100b08', '#7d6232', '#c2522e', '#8c2a22', '#6a1d17', '#56603f', '#dcb38c', '#3a5576', '#9a7b55', '#6a4a72', '#cdb592'],
+	night: ['#2a2119', '#352a20', '#5c4c3a', '#9a8a72', '#e2d4b8', '#f4e8cf', '#c69a45', '#c8573a', '#c0453a', '#7a2a22', '#7f8a62', '#c9a383', '#6f87a6', '#9a7b55', '#8a6a90', '#cdb592']
+};
+const rgbOf = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+const hexOf = (rgb) => '#' + rgb.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
+const expand = (p) => [...p, ...p.flatMap((h) => [0.22, 0.4, 0.58, 0.78].map((k) => hexOf(rgbOf(h).map((v) => v * k))))].map(rgbOf);
+const INKS = { day: expand(PAGE.day), night: expand(PAGE.night) };
+function nearest(rgb, pal) {
+	let best = pal[0], bd = Infinity;
+	for (const p of pal) { const d = 2 * (p[0] - rgb[0]) ** 2 + 4 * (p[1] - rgb[1]) ** 2 + 3 * (p[2] - rgb[2]) ** 2; if (d < bd) { bd = d; best = p; } }
+	return best;
+}
+const onPage = (hex, when) => {
+	let rgb = rgbOf(hex);
+	if (when === 'night' && rgb[0] + rgb[1] + rgb[2] < 120) rgb = [96, 80, 60];
+	return hexOf(nearest(rgb, INKS[when]));
+};
+
+let cur = Object.keys(data.figures)[0], ink = 'B', tool = 'pen', dir = null, dirty = false;
+const undo = [], redo = [];
+const $ = (id) => document.getElementById(id);
+const grid = () => data.figures[cur];
+const W = () => Math.max(...grid().map((r) => r.length)), H = () => grid().length;
+const at = (x, y) => grid()[y]?.[x] ?? '.';
+function put(x, y, ch) {
+	const g = grid();
+	if (y < 0 || y >= g.length || x < 0 || x >= W()) return;
+	const row = g[y].padEnd(W(), '.');
+	g[y] = row.slice(0, x) + ch + row.slice(x + 1);
+}
+const snapshot = () => JSON.stringify(data);
+function remember() { undo.push(snapshot()); if (undo.length > 200) undo.shift(); redo.length = 0; }
+function changed() { dirty = true; $('save').disabled = !dir; status(dir ? 'Unsaved changes.' : 'Changes not saved: download the files, or open the art folder.'); draw(); }
+function status(t) { $('status').textContent = t; }
+
+// ---- drawing ----
+function draw() {
+	const z = +$('zoom').value, c = $('edit'), g = c.getContext('2d');
+	c.width = W() * z; c.height = H() * z;
+	for (let y = 0; y < H(); y++) for (let x = 0; x < W(); x++) {
+		const ch = at(x, y);
+		if (data.ink[ch]) { g.fillStyle = data.ink[ch]; g.fillRect(x * z, y * z, z, z); }
+	}
+	if ($('grid').checked) {
+		g.strokeStyle = 'rgba(0,0,0,0.12)';
+		g.lineWidth = 1;
+		for (let x = 0; x <= W(); x++) { g.beginPath(); g.moveTo(x * z + 0.5, 0); g.lineTo(x * z + 0.5, c.height); g.stroke(); }
+		for (let y = 0; y <= H(); y++) { g.beginPath(); g.moveTo(0, y * z + 0.5); g.lineTo(c.width, y * z + 0.5); g.stroke(); }
+	}
+	$('w').value = W(); $('h').value = H();
+	drawPalette(); drawList(); drawPage('day'); drawPage('night');
+}
+function drawList() {
+	$('figures').innerHTML = '';
+	for (const [name, g] of Object.entries(data.figures)) {
+		const li = document.createElement('li');
+		li.className = name === cur ? 'on' : '';
+		li.innerHTML = `<span>${name}</span><small>${Math.max(...g.map((r) => r.length))}×${g.length}</small>`;
+		li.onclick = () => { cur = name; draw(); };
+		$('figures').appendChild(li);
+	}
+}
+function drawPalette() {
+	const p = $('palette');
+	p.innerHTML = '';
+	const letters = Object.keys(data.ink);
+	[...letters, '.'].forEach((ch, i) => {
+		const d = document.createElement('div');
+		d.className = 'sw' + (ch === '.' ? ' erase' : '') + (ch === ink ? ' on' : '');
+		if (ch !== '.') d.style.background = data.ink[ch];
+		d.title = ch === '.' ? 'Rubber (0)' : `${ch} ${data.ink[ch]} (${i + 1 <= 9 ? i + 1 : ''})`;
+		d.innerHTML = `<span>${ch === '.' ? '×' : ch}</span>`;
+		d.onclick = () => { ink = ch; drawPalette(); };
+		p.appendChild(d);
+	});
+	$('inkColour').disabled = ink === '.';
+	if (ink !== '.') $('inkColour').value = data.ink[ink];
+	$('inkNote').textContent = ink === '.' ? '' : `on the page: ${onPage(data.ink[ink], 'day')} by day, ${onPage(data.ink[ink], 'night')} at night`;
+}
+/** A strip of the page's foot: vellum (or the dark leaf), a line of writing, the figures standing on the vine. */
+function drawPage(when) {
+	const c = $(when), g = c.getContext('2d'), P = PAGE[when];
+	const figs = Object.entries(data.figures);
+	const order = [cur, ...figs.map(([n]) => n).filter((n) => n !== cur)];
+	const tall = Math.max(...figs.map(([, f]) => f.length));
+	const PW = 64, PH = tall + 14, X0 = 6;
+	const K = 6; // a pixel of the page is about this many screen pixels on a phone
+	c.width = PW * K; c.height = PH * K;
+	g.fillStyle = P[0]; g.fillRect(0, 0, c.width, c.height);
+	// the gold rule round the writing, and the vine in the margins
+	g.fillStyle = when === 'day' ? '#7d6232' : '#c69a45';
+	g.fillRect((X0 - 1) * K, 0, K, c.height); g.fillRect((X0 + 52) * K, 0, K, c.height);
+	g.fillStyle = when === 'day' ? '#56603f' : '#7f8a62';
+	for (let y = 0; y < PH; y++) { g.fillRect((2 + Math.round(Math.sin(y / 5))) * K, y * K, K, K); g.fillRect((61 + Math.round(Math.sin(y / 5 + 1))) * K, y * K, K, K); }
+	// a line of writing, to judge the size by
+	g.fillStyle = P[3];
+	g.font = `${2 * K * 0.9}px monospace`;
+	g.textBaseline = 'top';
+	g.fillText('Walk the village alone (no game)', (X0 + 2) * K, 2 * K);
+	// the figures, as many as fit across the writing, as the page lays them out
+	const foot = PH - 2;
+	let used = 0;
+	const pick = [];
+	for (const n of order) { const f = data.figures[n], w = Math.max(...f.map((r) => r.length)); if (used + w + (pick.length ? 4 : 0) <= 52) { pick.push(f); used += w + (pick.length > 1 ? 4 : 0); } }
+	let x = X0 + Math.floor((52 - used) / 2);
+	for (const f of pick) {
+		const top = foot - 2 - f.length;
+		f.forEach((row, j) => [...row].forEach((ch, i) => { if (data.ink[ch]) { g.fillStyle = onPage(data.ink[ch], when); g.fillRect((x + i) * K, (top + j) * K, K, K); } }));
+		x += Math.max(...f.map((r) => r.length)) + 4;
+	}
+	g.fillStyle = when === 'day' ? '#56603f' : '#7f8a62';
+	for (let xx = X0 + 2; xx < X0 + 51; xx++) g.fillRect(xx * K, (foot - 2 + Math.round(Math.sin(xx / 3) * 0.6)) * K, K, K);
+}
+
+// ---- painting ----
+let painting = null;
+function cell(ev) { const r = $('edit').getBoundingClientRect(), z = +$('zoom').value; return [Math.floor((ev.clientX - r.left) / z), Math.floor((ev.clientY - r.top) / z)]; }
+function fill(x, y, ch) {
+	const from = at(x, y);
+	if (from === ch) return;
+	const todo = [[x, y]];
+	while (todo.length) {
+		const [a, b] = todo.pop();
+		if (a < 0 || b < 0 || a >= W() || b >= H() || at(a, b) !== from) continue;
+		put(a, b, ch);
+		todo.push([a + 1, b], [a - 1, b], [a, b + 1], [a, b - 1]);
+	}
+}
+$('edit').addEventListener('contextmenu', (e) => e.preventDefault());
+$('edit').addEventListener('pointerdown', (e) => {
+	const [x, y] = cell(e), ch = e.button === 2 ? '.' : ink;
+	if (tool === 'pick') { ink = at(x, y); setTool('pen'); drawPalette(); return; }
+	remember();
+	if (tool === 'fill') { fill(x, y, ch); changed(); return; }
+	painting = ch;
+	$('edit').setPointerCapture(e.pointerId);
+	put(x, y, ch); changed();
+});
+$('edit').addEventListener('pointermove', (e) => { if (painting === null) return; const [x, y] = cell(e); if (at(x, y) !== painting) { put(x, y, painting); changed(); } });
+$('edit').addEventListener('pointerup', () => { painting = null; });
+function setTool(t) { tool = t; for (const [id, n] of [['tPen', 'pen'], ['tFill', 'fill'], ['tPick', 'pick']]) $(id).classList.toggle('on', n === t); }
+$('tPen').onclick = () => setTool('pen'); $('tFill').onclick = () => setTool('fill'); $('tPick').onclick = () => setTool('pick');
+$('zoom').oninput = draw; $('grid').onchange = draw;
+function step(from, to) { if (!from.length) return; to.push(snapshot()); data = JSON.parse(from.pop()); if (!data.figures[cur]) cur = Object.keys(data.figures)[0]; changed(); }
+$('undo').onclick = () => step(undo, redo); $('redo').onclick = () => step(redo, undo);
+document.addEventListener('keydown', (e) => {
+	if (e.target.tagName === 'INPUT') return;
+	if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); step(undo, redo); }
+	else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.shiftKey && e.key === 'Z'))) { e.preventDefault(); step(redo, undo); }
+	else if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); save(); }
+	else if (/^[0-9]$/.test(e.key)) { const ls = Object.keys(data.ink); ink = e.key === '0' ? '.' : ls[+e.key - 1] ?? ink; drawPalette(); }
+	else if (e.key === 'p') setTool('pen'); else if (e.key === 'f') setTool('fill'); else if (e.key === 'i') setTool('pick');
+});
+
+// ---- inks and figures ----
+$('inkColour').oninput = (e) => { if (ink === '.') return; remember(); data.ink[ink] = e.target.value; changed(); };
+$('addInk').onclick = () => {
+	const ch = prompt('A letter for the new ink (one that is not used yet):', '');
+	if (!ch || ch.length !== 1 || ch === '.' || data.ink[ch]) return;
+	remember(); data.ink[ch] = '#9a7b55'; ink = ch; changed();
+};
+const nameOk = (n) => /^[a-z][a-z0-9-]*$/.test(n) && !data.figures[n];
+$('new').onclick = () => {
+	const n = prompt('Name (lower case, no spaces), e.g. drummer:', '');
+	if (!n || !nameOk(n)) return alert('Use lower case letters, numbers and hyphens, and a name not taken.');
+	remember(); data.figures[n] = Array(16).fill('.'.repeat(16)); cur = n; changed();
+};
+$('dup').onclick = () => {
+	const n = prompt('Name for the copy:', cur + '-2');
+	if (!n || !nameOk(n)) return;
+	remember(); data.figures[n] = [...grid()]; cur = n; changed();
+};
+$('ren').onclick = () => {
+	const n = prompt('New name:', cur);
+	if (!n || n === cur || !nameOk(n)) return;
+	remember();
+	data.figures = Object.fromEntries(Object.entries(data.figures).map(([k, v]) => [k === cur ? n : k, v]));
+	cur = n; changed();
+};
+$('del').onclick = () => {
+	if (Object.keys(data.figures).length < 2 || !confirm(`Delete ${cur}?`)) return;
+	remember(); delete data.figures[cur]; cur = Object.keys(data.figures)[0]; changed();
+};
+$('resize').onclick = () => {
+	const w = Math.max(1, Math.min(52, +$('w').value)), h = Math.max(1, Math.min(60, +$('h').value));
+	remember();
+	let g = grid().map((r) => r.padEnd(w, '.').slice(0, w));
+	// the feet stay put: rows are added or taken at the top
+	g = h > g.length ? [...Array(h - g.length).fill('.'.repeat(w)), ...g] : g.slice(g.length - h);
+	data.figures[cur] = g; changed();
+};
+$('flip').onclick = () => { remember(); data.figures[cur] = grid().map((r) => [...r.padEnd(W(), '.')].reverse().join('')); changed(); };
+$('clear').onclick = () => { if (!confirm('Clear this figure?')) return; remember(); data.figures[cur] = grid().map((r) => '.'.repeat(r.length)); changed(); };
+
+// ---- files ----
+const pretty = (d) => '{\n\t"ink": ' + JSON.stringify(d.ink).replace(/,/g, ', ') + ',\n\t"figures": {\n' +
+	Object.entries(d.figures).map(([k, v]) => `\t\t"${k}": [\n${v.map((r) => `\t\t\t"${r}"`).join(',\n')}\n\t\t]`).join(',\n') + '\n\t}\n}\n';
+function pngBlob(f) {
+	const c = document.createElement('canvas');
+	c.width = Math.max(...f.map((r) => r.length)); c.height = f.length;
+	const g = c.getContext('2d');
+	f.forEach((row, y) => [...row].forEach((ch, x) => { if (data.ink[ch]) { g.fillStyle = data.ink[ch]; g.fillRect(x, y, 1, 1); } }));
+	return new Promise((r) => c.toBlob(r, 'image/png'));
+}
+function use(text) {
+	const d = JSON.parse(text);
+	if (!d.ink || !d.figures) throw new Error('not a hares.json');
+	data = d; cur = Object.keys(d.figures)[0]; undo.length = redo.length = 0; dirty = false; draw();
+}
+$('open').onclick = async () => {
+	if (!window.showDirectoryPicker) return alert('This browser cannot open folders: use Chrome or Edge, or "Load hares.json" and download the files.');
+	try {
+		const d = await showDirectoryPicker({ id: 'grimoire-art', mode: 'readwrite' });
+		const fh = await d.getFileHandle('hares.json').catch(() => null);
+		if (!fh) return alert('There is no hares.json in that folder: pick Grimoire/art.');
+		use(await (await fh.getFile()).text());
+		dir = d; $('save').disabled = false;
+		status(`Editing ${d.name}/hares.json.`);
+	} catch (e) { if (e.name !== 'AbortError') alert(e.message); }
+};
+async function save() {
+	if (!dir) return;
+	const write = async (name, body) => { const w = await (await dir.getFileHandle(name, { create: true })).createWritable(); await w.write(body); await w.close(); };
+	await write('hares.json', pretty(data));
+	for (const [n, f] of Object.entries(data.figures)) await write(`margin-${n}.png`, await pngBlob(f));
+	// a figure deleted here leaves the page too
+	for await (const [name] of dir.entries()) { const m = name.match(/^margin-(.+)\.png$/); if (m && !data.figures[m[1]]) await dir.removeEntry(name); }
+	dirty = false; $('save').disabled = true;
+	status('Saved. Restart npm run dev to see them in the app.');
+}
+$('save').onclick = save;
+$('loadBtn').onclick = () => $('load').click();
+$('load').onchange = async (e) => { const f = e.target.files[0]; if (!f) return; try { use(await f.text()); status(`Loaded ${f.name}: download the files when you are done.`); } catch (err) { alert(err.message); } };
+const download = (name, blob) => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); };
+$('dlJson').onclick = () => download('hares.json', new Blob([pretty(data)], { type: 'application/json' }));
+$('dlPng').onclick = async () => { for (const [n, f] of Object.entries(data.figures)) download(`margin-${n}.png`, await pngBlob(f)); };
+window.addEventListener('beforeunload', (e) => { if (dirty) e.preventDefault(); });
+
+draw();
+</script>
+</body>
+</html>

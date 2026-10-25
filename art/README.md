@@ -37,4 +37,8 @@ The `2` halves the size (3 makes it a third), and `48` is how close two colours 
 
 ## The hares in the margins
 
-`margin-<name>.png` are the little figures at the foot of the book's pages: hares after the marginalia of the old books, a trumpeter, a knight with sword and shield, a spearman. They are drawn by hand as letter grids in `tools/draw-hares.mjs` (one letter a colour); edit a grid, run `node tools/draw-hares.mjs` and restart `npm run dev`. Keep to the browns there: they are the book's own inks, so the hares sit in the page. Each page shows as many as fit across its foot.
+`margin-<name>.png` are the little figures at the foot of the book's pages: hares after the marginalia of the old books. They are kept as letter grids in `hares.json` (one letter an ink).
+
+**To edit them,** open `tools/hare-editor.html` in Chrome or Edge (double-click it), press **Open art folder** and pick this folder. Paint, then **Save** (or Ctrl+S): it writes `hares.json` and the pictures. Restart `npm run dev` to see them in the app. The editor shows each hare on the page by day and by candlelight, in the colours the app will really draw it in; keep to the browns already there and the hare stays in the page. In other browsers, use **Load hares.json** and the download buttons, and put the files here yourself.
+
+From the command line, `node tools/draw-hares.mjs` writes the pictures from `hares.json`.
