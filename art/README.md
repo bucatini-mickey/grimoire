@@ -34,3 +34,14 @@ The `2` halves the size (3 makes it a third), and `48` is how close two colours 
 ## The logo
 
 `art/logo.png` is the logo at the head of the home page. Any size works (16 x 16 is the size it was drawn at; up to about 20 pixels wide fits a phone); transparent pixels stay empty. Each colour becomes a coloured cell with a glyph of its own (dark colours get #, light ones lighter marks). On a phone it is drawn at half height, two pixels to a cell. The build reads it once: after editing, run `npm run build`, or restart `npm run dev`.
+
+## The hares in the margins
+
+`margin-<name>.png` are the figures at the foot of the book's pages, traced from manuscript marginalia so they keep the paint: one picture a page, the largest size that fits (`name`, `name-small`, `name-tiny`). Make one from a picture with:
+
+```
+npm i --no-save sharp
+node tools/trace-margins.mjs hare.webp hare 35 110 515 470 38 eye=365,200
+```
+
+The numbers are the crop round the figure and its height in pixels (the page's text is 52 pixels wide); `eye=x,y` paints the eye back in. Restart `npm run dev` to see a new one.

@@ -261,17 +261,19 @@ const PALETTES: Record<string, Palette> = {
 	'manuscript-night': ['#110e0d', '#1d1816', '#4e4238', '#857868', '#d4c9b4', '#ece2cc', '#b08d55', '#a8683a', '#b0362c', '#6e1f1a', '#7f8a62', '#343a2a', '#6f87a6', '#26344a', '#8a6a90', '#4f3a2a'],
 	// The home page is the book's cover: brown calf, blind-tooled, gilt lettering and brass.
 	// The book's first page, opened: clean vellum, dark ink, red and brass.
-	folio: ['#e4dccb', '#d6ccb8', '#9c8f7a', '#706556', '#241c17', '#100b08', '#7d6232', '#c2522e', '#8c2a22', '#6a1d17', '#56603f', '#dcb38c', '#3a5576', '#7c9fc2', '#6a4a72', '#f8f4ec'],
+	folio: ['#e4dccb', '#d6ccb8', '#9c8f7a', '#706556', '#241c17', '#100b08', '#7d6232', '#c2522e', '#8c2a22', '#6a1d17', '#56603f', '#dcb38c', '#3a5576', '#9a7b55', '#6a4a72', '#cdb592'],
+	// (In the book, slots 7, 11, 13 and 15 are the colours of the hares in its margins: vermilion,
+	// flesh, a hare's brown and fawn.)
 	// The same leaf read by candlelight: the vellum in shadow, the ink pale, the gold and colours kept.
-	'folio-night': ['#2a2119', '#352a20', '#5c4c3a', '#9a8a72', '#e2d4b8', '#f4e8cf', '#c69a45', '#c8573a', '#c0453a', '#7a2a22', '#7f8a62', '#c9a383', '#6f87a6', '#86a8c8', '#8a6a90', '#efe6d6'],
+	'folio-night': ['#2a2119', '#352a20', '#5c4c3a', '#9a8a72', '#e2d4b8', '#f4e8cf', '#c69a45', '#c8573a', '#c0453a', '#7a2a22', '#7f8a62', '#c9a383', '#6f87a6', '#9a7b55', '#8a6a90', '#cdb592'],
 	cover: ['#2b1810', '#3a2216', '#5e3a26', '#a3825e', '#e3cfa8', '#f3e3c0', '#c69a45', '#b06a35', '#b8382c', '#6a1c14', '#7f8a62', '#3b3a26', '#6f87a6', '#26344a', '#8a6a90', '#4f3a2a'],
 	leather: ['#2b1810', '#3a2216', '#5e3a26', '#a3825e', '#e3cfa8', '#f3e3c0', '#c69a45', '#b06a35', '#b8382c', '#6a1c14', '#7f8a62', '#3b3a26', '#6f87a6', '#26344a', '#8a6a90', '#4f3a2a'],
 	'manuscript-day': ['#e4dccb', '#d6ccb8', '#9c8f7a', '#706556', '#241c17', '#100b08', '#7d6232', '#93532a', '#8c2a22', '#6a1d17', '#56603f', '#b2b59a', '#3a5576', '#bcc4cf', '#6a4a72', '#ad9e86'],
 	'victorian-night': ['#0e1411', '#16201b', '#3f5648', '#7d9486', '#cfd6c0', '#ecebd2', '#c7a24a', '#b9792f', '#b5503c', '#6b2a22', '#8cb36a', '#2f4a2c', '#6f9aa8', '#20404a', '#8a6aa0', '#4a3a24'],
 	// The occult script's book (Laissez un Faire): the same leaf in the Victorian greens and brass, with the
-	// drolleries' own colours (vermilion, flesh, azure, lead white) where the plain inks have none.
-	'folio-occult': ['#e2dcc0', '#d3cdae', '#8f9a82', '#66705e', '#1e2a22', '#0c150f', '#8a6a1a', '#c2522e', '#8e2f24', '#6b1f18', '#3f5a28', '#dcb38c', '#2a5a66', '#7c9fc2', '#5e3f78', '#f8f4ec'],
-	'folio-occult-night': ['#0e1411', '#16201b', '#3f5648', '#7d9486', '#cfd6c0', '#ecebd2', '#c7a24a', '#c8573a', '#b5503c', '#6b2a22', '#8cb36a', '#c9a383', '#6f9aa8', '#86a8c8', '#8a6aa0', '#efe6d6'],
+	// hares' colours (vermilion, flesh, brown, fawn) where the plain inks have none.
+	'folio-occult': ['#e2dcc0', '#d3cdae', '#8f9a82', '#66705e', '#1e2a22', '#0c150f', '#8a6a1a', '#c2522e', '#8e2f24', '#6b1f18', '#3f5a28', '#dcb38c', '#2a5a66', '#9a7b55', '#5e3f78', '#cdb592'],
+	'folio-occult-night': ['#0e1411', '#16201b', '#3f5648', '#7d9486', '#cfd6c0', '#ecebd2', '#c7a24a', '#c8573a', '#b5503c', '#6b2a22', '#8cb36a', '#c9a383', '#6f9aa8', '#9a7b55', '#8a6aa0', '#cdb592'],
 	'victorian-day': ['#e2dcc0', '#d3cdae', '#8f9a82', '#66705e', '#1e2a22', '#0c150f', '#8a6a1a', '#9a5c20', '#8e2f24', '#6b1f18', '#3f5a28', '#a9b78e', '#2a5a66', '#b4c8c8', '#5e3f78', '#a89870']
 };
 
@@ -996,7 +998,7 @@ let folioMemo: { key: string; px: Int16Array } | null = null;
  * foxed, darker at its edges and in the gutter where it is sewn into the binding, the edges of
  * the leaves beneath stacked at its fore-edge, an old water stain; round the text a ruled frame
  * of gold, in the margins a painted vine with leaves and flowers, and below the writing, where the
- * page is empty, a few devils of the kind scribes drew. The words are written over all of it.
+ * page is empty, a hare or two out of the margins of the old books. The words are written over all of it.
  */
 function folio(g: Grid, width: number, used: number, reserve = 0, seed = '') {
 	const W = g.cols, H = g.rows * 2;
@@ -1051,19 +1053,25 @@ function folio(g: Grid, width: number, used: number, reserve = 0, seed = '') {
 				}
 			}
 		}
-		// Devils at the foot of the page, if the writing leaves room for them.
-		// Which of them, and in what order, is the page's own: each page has its devils, the same each time it is turned to.
+		// Hares at the foot of the page, if the writing leaves room for them.
+		// Which of them, and in what order, is the page's own: each page has its own, the same each time it is turned to.
 		const all = typeof __MARGINS__ !== 'undefined' && __MARGINS__ ? Object.entries(__MARGINS__) : [];
 		const luck = (name: string) => [...(seed + name)].reduce((h, ch) => Math.imul(h ^ ch.charCodeAt(0), 16777619), 2166136261) >>> 0;
-		const M = all.sort((a, b) => luck(a[0]) - luck(b[0])).map(([, m]) => m);
+		// A figure may come in sizes (hare, hare-small, hare-tiny): the page takes the largest that fits.
+		const figures = new Map<string, typeof all[number][1][]>();
+		for (const [name, m] of all) { const f = name.replace(/-(small|tiny)$/, ''); figures.set(f, [...(figures.get(f) ?? []), m].sort((a, b) => b.h - a.h)); }
+		const M = [...figures.entries()].sort((a, b) => luck(a[0]) - luck(b[0])).map(([, sizes]) => sizes);
 		// (above the page-turns, if the page has them)
 		const foot = yBot - reserve * 2;
 		const free = foot - (used * 2 + 2);
 		if (M.length && free >= 14) {
 			// As many as fit across the text's width.
-			const pick: typeof M = [];
+			const pick: typeof all[number][1][] = [];
 			let used2 = 0;
-			for (const m of M) if (m.h <= free && used2 + m.w + (pick.length ? 2 : 0) <= width) { pick.push(m); used2 += m.w + (pick.length > 1 ? 2 : 0); }
+			for (const sizes of M) {
+				const m = sizes.find((v) => v.h <= free && used2 + v.w + (pick.length ? 2 : 0) <= width);
+				if (m) { pick.push(m); used2 += m.w + (pick.length > 1 ? 2 : 0); }
+			}
 			const span = pick.reduce((k, m) => k + m.w, 0);
 			let x = x0 + Math.max(0, Math.floor((width - span - (pick.length - 1) * 2) / 2));
 			for (const m of pick) {
@@ -1174,27 +1182,15 @@ export function coverRow(open: () => void): Row {
 	});
 }
 
-/** "rimoire" in a tall, narrow textura, one pixel a '#', as high as the illuminated G it follows. */
+/** "rimoire", one pixel a '#', in a plain small hand: larger than the writing, but there to be read. */
 const RIMOIRE = [
-	'....#.............#..........',
-	'....#.............#..........',
+	'.....#............#..........',
 	'.............................',
-	'#.#.#..#.#.#..##..#..#.#..##.',
-	'##..#..#####.#..#.#..##..#..#',
-	'#...#..#.#.#.#..#.#..#...#..#',
-	'#...#..#.#.#.#..#.#..#...#..#',
-	'#...#..#.#.#.#..#.#..#...#.##',
-	'#...#..#.#.#.#..#.#..#...##..',
-	'#...#..#.#.#.#..#.#..#...#...',
-	'#...#..#.#.#.#..#.#..#...#...',
-	'#...#..#.#.#.#..#.#..#...#...',
-	'#...#..#.#.#.#..#.#..#...#...',
-	'#...#..#.#.#.#..#.#..#...#...',
-	'#...#..#.#.#.#..#.#..#...#...',
-	'#...#..#.#.#.#..#.#..#...#...',
-	'#...#..#.#.#.#..#.#..#...#...',
-	'#...#..#.#.#.#..#.#..#...#..#',
-	'##..##.#.#.#..##..##.##...##.'
+	'#.##.#.####...##..#.#.##..##.',
+	'##...#.#.#.#.#..#.#.##...#..#',
+	'#....#.#.#.#.#..#.#.#....####',
+	'#....#.#.#.#.#..#.#.#....#...',
+	'#....#.#.#.#..##..#.#.....###'
 ];
 
 /**
@@ -1226,12 +1222,10 @@ export function illuminatedRow(lines: { t: string; tone?: Tone }[]): Row {
 			const t = px[y][x]!, b = px[y + 1][x]!;
 			g.set(c.x + x, c.y + y / 2, t === b ? ' ' : '▀', t, b);
 		}
-		// The rest of the word beside the initial, standing on the G's line: a black-letter cut pixel by
-		// pixel (the title shrunk to this size blurs), gilt with a carved shadow; the words under it all.
-		const ty = c.y, top = 1;
-		const ox = c.x + BOX, h = RIMOIRE.length;
-		const gilt = 6, cut = 3; // the page's gold, and a cut shadow under it
-		const ink = (x: number, y: number) => RIMOIRE[y - top]?.[x] === '#' ? gilt : RIMOIRE[y - top - 1]?.[x - 1] === '#' ? cut : null;
+		// The rest of the word beside the initial, standing on the G's line, in gold; the words under it all.
+		const ty = c.y, top = 20 - RIMOIRE.length;
+		const ox = c.x + BOX + 1, h = RIMOIRE.length;
+		const ink = (x: number, y: number) => (RIMOIRE[y - top]?.[x] === '#' ? 6 : null);
 		for (let py = 0; py < h + top + 1; py += 2) for (let px = 0; px < Math.min(RIMOIRE[0].length + 1, c.w - BOX - 1); px++) {
 			const t = ink(px, py), b = ink(px, py + 1);
 			if (t === null && b === null) continue;

@@ -694,7 +694,7 @@ function hostNew() {
 /** The home page: host, join, play in person, or walk the town; and pick up a game already going. */
 function homeScreen(): Row[] {
 	const busy = saved.events.length > 0 || (saved.net?.lobby?.length ?? 0) > 0;
-	// Shut: the cover alone. Open: the first page, a drollery at its head.
+	// Shut: the cover alone. Open: the first page, the illuminated G at its head.
 	if (!ui.coverOpen) return [coverRow(() => { ui.coverOpen = true; render(); })];
 	const rows: Row[] = [navRow('Close the book', () => { ui.coverOpen = false; render(); }), illuminatedRow([
 		{ t: 'the book of the Storyteller' }, { t: 'for Blood on the Clocktower,' }, { t: 'wherein the game is kept,', tone: 'dim' }, { t: 'its nights and its dead.', tone: 'dim' }
