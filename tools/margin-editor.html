@@ -3,14 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Margin and portrait editor</title>
+<title>Margin editor</title>
 <!--
-	The figures at the foot of the Grimoire's pages (hares, demons, anything), and the characters'
-	portraits on the players' cards: open this file in Chrome or Edge, press "Open art folder" and pick
-	Grimoire/art, and choose Margin figures or Portraits at the top. Paint, then "Save" writes
-	art/margins.json (and art/margin-<name>.png for each figure on the pages) or art/portraits.json.
-	Restart `npm run dev` to see them in the app. (In other browsers: "Load", then download the files
-	and put them in art/ yourself.)
+	The figures at the foot of the Grimoire's pages (hares, demons, anything): open this file in Chrome or
+	Edge, press "Open art folder" and pick Grimoire/art. Paint, then "Save" writes art/margins.json and
+	art/margin-<name>.png for each figure that is on the pages. Restart `npm run dev` to see them in the
+	app. (In other browsers: "Load margins.json", then download the files and put them in art/ yourself.)
 
 	Colours: pick from the book's own inks (what a page can show); a letter is given to each colour as it
 	is first used, and "Tidy inks" drops the letters nothing uses.
@@ -35,20 +33,15 @@
 	#figures li.on { background: #3d342b; color: var(--gold); }
 	#figures li small { color: var(--dim); }
 	#figures li.off span { color: var(--dim); font-style: italic; }
-	#figures { max-height: 52vh; overflow: auto; }
-	#figures li.group { color: var(--gold); cursor: default; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; padding-top: 10px; }
-	#figures canvas { image-rendering: pixelated; width: 24px; height: 24px; margin-right: 8px; flex: none; }
-	#figures li span { display: flex; align-items: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-	body.portraits .figOnly, body:not(.portraits) .portraitOnly { display: none; }
-	#bookInks { display: grid; grid-template-columns: repeat(16, 1fr); gap: 2px; margin-bottom: 10px; max-width: 440px; }
-	#bookInks div { aspect-ratio: 1; border-radius: 2px; cursor: pointer; border: 1px solid rgba(0,0,0,0.3); }
-	#bookInks div:hover { outline: 2px solid var(--gold); }
 	.row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
 	.row input[type=number] { width: 64px; }
 	#palette { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
 	.sw { width: 44px; height: 44px; border-radius: 4px; border: 2px solid transparent; position: relative; cursor: pointer; display: flex; align-items: flex-end; justify-content: flex-end; }
 	.sw span { font: 600 11px monospace; background: rgba(0, 0, 0, 0.55); color: #fff; padding: 0 3px; border-radius: 2px; margin: 2px; }
 	.sw.on { border-color: #fff; outline: 2px solid var(--gold); }
+	#bookInks { display: grid; grid-template-columns: repeat(16, 1fr); gap: 2px; margin-bottom: 10px; max-width: 440px; }
+	#bookInks div { aspect-ratio: 1; border-radius: 2px; cursor: pointer; border: 1px solid rgba(0,0,0,0.3); }
+	#bookInks div:hover { outline: 2px solid var(--gold); }
 	.sw.erase { background: repeating-conic-gradient(#4a4038 0 25%, #342c25 0 50%) 0 0 / 12px 12px; }
 	#editwrap { overflow: auto; max-height: 70vh; background: repeating-conic-gradient(#e4dccb 0 25%, #dcd3c0 0 50%) 0 0 / 16px 16px; border-radius: 4px; }
 	#edit { display: block; image-rendering: pixelated; cursor: crosshair; touch-action: none; }
@@ -59,31 +52,25 @@
 </head>
 <body>
 <header>
-	<h1>Margin &amp; portrait editor</h1>
-	<select id="book" title="What is being drawn"><option value="margins">Margin figures</option><option value="portraits">Portraits (one per character)</option></select>
+	<h1>Margin editor</h1>
 	<button id="open" title="Pick the Grimoire/art folder (Chrome, Edge)">Open art folder</button>
 	<button id="save" disabled>Save</button>
-	<label><button id="loadBtn" type="button">Load a .json</button><input id="load" type="file" accept=".json" hidden></label>
-	<button id="dlJson">Download the .json</button>
+	<label><button id="loadBtn" type="button">Load margins.json</button><input id="load" type="file" accept=".json" hidden></label>
+	<button id="dlJson">Download margins.json</button>
 	<button id="dlPng">Download pictures</button>
 	<span id="status">No folder open: showing the figures built into this page.</span>
 </header>
 <main>
 	<aside>
-		<h2 id="listHead">Figures</h2>
-		<div class="row portraitOnly"><input id="find" type="search" placeholder="Find a character" style="width:100%"></div>
+		<h2>Figures</h2>
 		<ul id="figures"></ul>
-		<div class="row figOnly"><button id="new">New</button><button id="dup">Copy</button><button id="ren">Rename</button><button id="del">Delete</button></div>
-		<div class="row portraitOnly"><button id="copyFrom">Start from another…</button></div>
-		<p class="hint portraitOnly">Each portrait is 16 × 16. It stands in an arch at the head of the player's card, twice the size on a tall phone, on a ground of their side's colour.</p>
-		<div class="figOnly">
+		<div class="row"><button id="new">New</button><button id="dup">Copy</button><button id="ren">Rename</button><button id="del">Delete</button></div>
 		<div class="row"><label><input id="onPage" type="checkbox"> On the pages</label></div>
 		<div class="row" id="books">In the books of: <label><input type="checkbox" value="medieval"> medieval</label> <label><input type="checkbox" value="grimm"> grimm</label> <label><input type="checkbox" value="clockwork"> clockwork</label> <label><input type="checkbox" value="lovecraft"> Lovecraft</label></div>
 		<p class="hint">Off the pages, a figure is kept here to work on but the app does not show it. Copy one to start a new figure from it (the imp is a start for demons).</p>
 		<h2>Size</h2>
 		<div class="row"><input id="w" type="number" min="1" max="52"> × <input id="h" type="number" min="1" max="60"><button id="resize">Set</button></div>
 		<p class="hint">Resizing keeps the feet where they are: rows come and go at the top, columns at the right. The page's writing is 52 wide; most pages have room for about 20 high.</p>
-		</div>
 		<div class="row"><button id="flip">Flip left-right</button><button id="clear">Clear</button></div>
 	</aside>
 	<section>
@@ -96,7 +83,7 @@
 		</div>
 		<div id="palette"></div>
 		<div class="row"><button id="tidy" title="Drop the letters no figure uses">Tidy inks</button><label class="hint">Any colour <input id="anyColour" type="color" value="#9a7b55" title="Paint with any colour (it becomes a new ink)"></label><span class="hint" id="inkNote"></span></div>
-		<h2>The book's inks <small id="inksWhen" class="hint">(by day)</small></h2>
+		<h2>The book's inks <small class="hint">(by day)</small></h2>
 		<div id="bookInks"></div>
 		<div id="editwrap"><canvas id="edit"></canvas></div>
 		<p class="hint">Click one of the book's inks to paint with it (it joins the inks above). Left button paints, right button rubs out. <kbd>1</kbd>-<kbd>9</kbd> pick an ink, <kbd>0</kbd> the rubber, <kbd>P</kbd> <kbd>F</kbd> <kbd>I</kbd> the tools.</p>
@@ -174,8 +161,6 @@ function draw() {
 		for (let x = 0; x <= W(); x++) { g.beginPath(); g.moveTo(x * z + 0.5, 0); g.lineTo(x * z + 0.5, c.height); g.stroke(); }
 		for (let y = 0; y <= H(); y++) { g.beginPath(); g.moveTo(0, y * z + 0.5); g.lineTo(c.width, y * z + 0.5); g.stroke(); }
 	}
-	document.body.classList.toggle('portraits', portraits());
-	$('listHead').textContent = portraits() ? 'Characters' : 'Figures';
 	$('w').value = W(); $('h').value = H();
 	$('onPage').checked = !data.off.includes(cur);
 	// (a figure ticked in none of the books is painted in all of them)
@@ -184,7 +169,6 @@ function draw() {
 }
 function drawList() {
 	$('figures').innerHTML = '';
-	if (portraits()) return drawCharacters();
 	for (const [name, g] of Object.entries(data.figures)) {
 		const li = document.createElement('li');
 		li.className = (name === cur ? 'on' : '') + (data.off.includes(name) ? ' off' : '');
@@ -192,33 +176,6 @@ function drawList() {
 		li.onclick = () => { cur = name; draw(); };
 		$('figures').appendChild(li);
 	}
-}
-/** The portraits' list: the characters by edition, each with its little picture, filtered by the search. */
-const EDITIONS = { tb: 'Trouble Brewing', bmr: 'Bad Moon Rising', snv: 'Sects & Violets', carousel: 'Experimental', traveller: 'Travellers', fabled: 'Fabled', loric: 'Loric' };
-const aboutOf = (id) => { const [name, team, edition] = (data.about?.[id] ?? id + '||').split('|'); return { name, team, edition: team === 'traveller' ? 'traveller' : edition }; };
-let listed = '';
-function drawCharacters() {
-	const q = $('find').value.trim().toLowerCase();
-	const ids = Object.keys(data.figures).filter((id) => !q || id.includes(q) || aboutOf(id).name.toLowerCase().includes(q));
-	const groups = Object.keys(EDITIONS).concat('');
-	for (const ed of groups) {
-		const here = ids.filter((id) => (EDITIONS[aboutOf(id).edition] ? aboutOf(id).edition : '') === ed);
-		if (!here.length) continue;
-		const h = document.createElement('li'); h.className = 'group'; h.textContent = EDITIONS[ed] ?? 'Others'; $('figures').appendChild(h);
-		for (const id of here) {
-			const li = document.createElement('li');
-			li.className = id === cur ? 'on' : '';
-			const c = document.createElement('canvas'); c.width = 16; c.height = 16;
-			const g = c.getContext('2d');
-			data.figures[id].forEach((r, y) => [...r].forEach((ch, x) => { if (data.ink[ch]) { g.fillStyle = data.ink[ch]; g.fillRect(x, y, 1, 1); } }));
-			const span = document.createElement('span'); span.append(c, aboutOf(id).name || id);
-			li.append(span, Object.assign(document.createElement('small'), { textContent: aboutOf(id).team }));
-			li.onclick = () => { cur = id; draw(); };
-			$('figures').appendChild(li);
-		}
-	}
-	// keep the one being drawn in view
-	if (listed !== cur) { listed = cur; $('figures').querySelector('li.on')?.scrollIntoView({ block: 'nearest' }); }
 }
 /** The ink's letter for a colour: the one it already has, else a new one. */
 function letterFor(hex) {
@@ -231,12 +188,12 @@ function letterFor(hex) {
 	data.ink[ch] = hex;
 	return ch;
 }
+/** The book's inks to paint with: the sixteen across, their darker shades down. */
 function drawBookInks() {
-	const when = 'day', box = $('bookInks');
+	const box = $('bookInks');
 	box.innerHTML = '';
-	// the sixteen inks across, their darker shades down
 	for (const step of [4, 3, 2, 1, 0]) for (let i = 0; i < 16; i++) {
-		const hex = step === 4 ? PAGE[when][i] : hexOf(rgbOf(PAGE[when][i]).map((v) => v * [0.22, 0.4, 0.58, 0.78][step]));
+		const hex = step === 4 ? PAGE.day[i] : hexOf(rgbOf(PAGE.day[i]).map((v) => v * [0.22, 0.4, 0.58, 0.78][step]));
 		const d = document.createElement('div');
 		d.style.background = hex; d.title = hex;
 		d.onclick = () => { remember(); const ch = letterFor(hex); if (ch) { ink = ch; changed(); } };
@@ -261,7 +218,6 @@ function drawPalette() {
 }
 /** A strip of the page's foot: vellum (or the dark leaf), a line of writing, the figures standing on the vine. */
 function drawPage(when) {
-	if (portraits()) return drawPortrait(when);
 	const c = $(when), g = c.getContext('2d'), P = PAGE[when];
 	const figs = Object.entries(data.figures).filter(([n]) => n === cur || !data.off.includes(n));
 	const order = [cur, ...figs.map(([n]) => n).filter((n) => n !== cur)];
@@ -293,32 +249,6 @@ function drawPage(when) {
 	}
 	g.fillStyle = when === 'day' ? '#56603f' : '#7f8a62';
 	for (let xx = X0 + 2; xx < X0 + 51; xx++) g.fillRect(xx * K, (foot - 2 + Math.round(Math.sin(xx / 3) * 0.6)) * K, K, K);
-}
-
-/** A portrait as the player's card shows it: in its arch on the side's diaper, twice the size, the name under it. */
-function drawPortrait(when) {
-	const c = $(when), g = c.getContext('2d'), P = PAGE[when], K = 6, S = 2;
-	const aw = 16 * S + 8, ARCH = 10 * S, AH = 2 + ARCH / 2 + 16 * S + 2, PW = 64, PH = AH + 12;
-	c.width = PW * K; c.height = PH * K;
-	g.fillStyle = P[0]; g.fillRect(0, 0, c.width, c.height);
-	const ax = Math.floor((PW - aw) / 2), team = aboutOf(cur).team;
-	const [g1, g2] = team === 'minion' || team === 'demon' ? [[72, 20, 20], [96, 30, 26]] : team === 'townsfolk' || team === 'outsider' ? [[24, 34, 72], [36, 52, 98]] : [[30, 52, 36], [44, 70, 48]];
-	const rise = (i) => { const x = Math.min(i + 0.5, aw - i - 0.5); return Math.sqrt(Math.max(0, aw * aw - (aw - x) ** 2)) / (0.866 * aw) * ARCH; };
-	const inside = (i, y) => i >= 0 && i < aw && y < AH - 1 && y >= 2 + ARCH - rise(i);
-	const dot = (x, y, rgb) => { g.fillStyle = hexOf(nearest(rgb, INKS[when])); g.fillRect(x * K, y * K, K, K); };
-	for (let y = 0; y < AH; y++) for (let i = 0; i < aw; i++) {
-		if (!inside(i, y)) continue;
-		const edge = !inside(i - 1, y) || !inside(i + 1, y) || !inside(i, y - 1) || !inside(i, y + 1);
-		const tile = (Math.floor(i / 4) + Math.floor(y / 4)) % 2;
-		dot(ax + i, y, edge ? [204, 160, 66] : i % 4 === 0 && y % 4 === 0 ? [150, 118, 52] : tile ? g1 : g2);
-	}
-	const top = AH - 2 - 16 * S, left = ax + Math.floor((aw - 16 * S) / 2);
-	grid().forEach((r, j) => [...r].forEach((ch, i) => {
-		if (!data.ink[ch]) return;
-		for (let dy = 0; dy < S; dy++) for (let dx = 0; dx < S; dx++) if (inside(left - ax + i * S + dx, top + j * S + dy)) dot(left + i * S + dx, top + j * S + dy, rgbOf(data.ink[ch]));
-	}));
-	g.fillStyle = P[4]; g.font = `bold ${3 * K}px serif`; g.textBaseline = 'top';
-	g.fillText(aboutOf(cur).name || cur, (ax + 2) * K, (AH + 3) * K);
 }
 
 // ---- painting ----
@@ -369,13 +299,6 @@ $('tidy').onclick = () => {
 	if (!gone.length) return status('Every ink is in use.');
 	remember(); for (const k of gone) delete data.ink[k]; if (!data.ink[ink]) ink = '.'; changed(); status(`Dropped ${gone.length} unused inks.`);
 };
-$('find').oninput = () => drawList();
-$('copyFrom').onclick = () => {
-	const id = prompt('Start from which character\'s portrait? (its name, e.g. monk)', '');
-	const key = id && Object.keys(data.figures).find((k) => k === id.trim().toLowerCase().replace(/ /g, '-') || aboutOf(k).name.toLowerCase() === id.trim().toLowerCase());
-	if (!key) return;
-	remember(); data.figures[cur] = [...data.figures[key]]; changed();
-};
 const nameOk = (n) => /^[a-z][a-z0-9-]*$/.test(n) && !data.figures[n];
 $('new').onclick = () => {
 	const n = prompt('Name (lower case, no spaces), e.g. drummer:', '');
@@ -419,7 +342,7 @@ $('flip').onclick = () => { remember(); data.figures[cur] = grid().map((r) => [.
 $('clear').onclick = () => { if (!confirm('Clear this figure?')) return; remember(); data.figures[cur] = grid().map((r) => '.'.repeat(r.length)); changed(); };
 
 // ---- files ----
-const pretty = (d) => '{\n\t"ink": ' + JSON.stringify(d.ink).replace(/,/g, ', ') + ',\n\t"off": ' + JSON.stringify(d.off) + ',\n\t"themes": ' + JSON.stringify(d.themes ?? {}).replace(/,"/g, ', "') + (d.about ? ',\n\t"about": ' + JSON.stringify(d.about).replace(/,"/g, ', "') : '') + ',\n\t"figures": {\n' +
+const pretty = (d) => '{\n\t"ink": ' + JSON.stringify(d.ink).replace(/,/g, ', ') + ',\n\t"off": ' + JSON.stringify(d.off) + ',\n\t"themes": ' + JSON.stringify(d.themes ?? {}).replace(/,"/g, ', "') + ',\n\t"figures": {\n' +
 	Object.entries(d.figures).map(([k, v]) => `\t\t"${k}": [\n${v.map((r) => `\t\t\t"${r}"`).join(',\n')}\n\t\t]`).join(',\n') + '\n\t}\n}\n';
 function pngBlob(f) {
 	const c = document.createElement('canvas');
@@ -433,24 +356,23 @@ function use(text) {
 	if (!d.ink || !d.figures) throw new Error('not a margins.json');
 	d.off ??= [];
 	d.themes ??= {};
-	data = d; cur = Object.keys(d.figures)[0]; $('book').value = d.about ? 'portraits' : 'margins'; undo.length = redo.length = 0; dirty = false; draw();
+	data = d; cur = Object.keys(d.figures)[0]; undo.length = redo.length = 0; dirty = false; draw();
 }
 $('open').onclick = async () => {
 	if (!window.showDirectoryPicker) return alert('This browser cannot open folders: use Chrome or Edge, or "Load margins.json" and download the files.');
 	try {
 		const d = await showDirectoryPicker({ id: 'grimoire-art', mode: 'readwrite' });
-		const fh = await d.getFileHandle(file()).catch(() => null);
-		if (!fh) return alert(`There is no ${file()} in that folder: pick Grimoire/art.`);
+		const fh = await d.getFileHandle('margins.json').catch(() => null);
+		if (!fh) return alert('There is no margins.json in that folder: pick Grimoire/art.');
 		use(await (await fh.getFile()).text());
 		dir = d; $('save').disabled = false;
-		status(`Editing ${d.name}/${file()}.`);
+		status(`Editing ${d.name}/margins.json.`);
 	} catch (e) { if (e.name !== 'AbortError') alert(e.message); }
 };
 async function save() {
 	if (!dir) return;
 	const write = async (name, body) => { const w = await (await dir.getFileHandle(name, { create: true })).createWritable(); await w.write(body); await w.close(); };
-	await write(file(), pretty(data));
-	if (file() !== 'margins.json') { dirty = false; $('save').disabled = true; status('Saved. Restart npm run dev to see them in the app.'); return; }
+	await write('margins.json', pretty(data));
 	const shown = Object.entries(data.figures).filter(([n]) => !data.off.includes(n));
 	for (const [n, f] of shown) await write(`margin-${n}.png`, await pngBlob(f));
 	// a figure deleted here, or taken off the pages, leaves the pages too
@@ -461,22 +383,11 @@ async function save() {
 	status('Saved. Restart npm run dev to see them in the app.');
 }
 $('save').onclick = save;
-// Margin figures or portraits: the other file, from the open folder if there is one.
-const file = () => $('book').value + '.json';
-const portraits = () => file() === 'portraits.json';
-$('book').onchange = async () => {
-	if (dirty && !confirm('Leave without saving?')) { $('book').value = file() === 'margins.json' ? 'portraits' : 'margins'; return; }
-	if (!dir) { status(`Open the art folder (or load ${file()}) to draw these.`); return; }
-	const fh = await dir.getFileHandle(file()).catch(() => null);
-	if (!fh) return alert(`There is no ${file()} in that folder.`);
-	use(await (await fh.getFile()).text());
-	status(`Editing ${dir.name}/${file()}.`);
-};
 $('loadBtn').onclick = () => $('load').click();
 $('load').onchange = async (e) => { const f = e.target.files[0]; if (!f) return; try { use(await f.text()); status(`Loaded ${f.name}: download the files when you are done.`); } catch (err) { alert(err.message); } };
 const download = (name, blob) => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); };
-$('dlJson').onclick = () => download(file(), new Blob([pretty(data)], { type: 'application/json' }));
-$('dlPng').onclick = async () => { if (portraits()) return status('Portraits need no pictures: the .json is all.'); for (const [n, f] of Object.entries(data.figures)) if (!data.off.includes(n)) download(`margin-${n}.png`, await pngBlob(f)); };
+$('dlJson').onclick = () => download('margins.json', new Blob([pretty(data)], { type: 'application/json' }));
+$('dlPng').onclick = async () => { for (const [n, f] of Object.entries(data.figures)) if (!data.off.includes(n)) download(`margin-${n}.png`, await pngBlob(f)); };
 window.addEventListener('beforeunload', (e) => { if (dirty) e.preventDefault(); });
 
 draw();

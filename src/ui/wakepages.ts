@@ -7,10 +7,9 @@
  *
  * Each is an illuminated page: what it says set in a block in the middle of the leaf, written from the
  * left as a book is, each heading and each paragraph opening on an initial (red on blue); the
- * character's portrait in an arch at its head and their name lettered large; the way on in the middle
- * at the foot. The leaf round the block is the book's to decorate (folio: the vines, the roundel).
+ * character's name lettered large at its head; the way on in the middle at the foot. The leaf round the block is the book's to decorate (folio: the vines, the roundel).
  */
-import { COLS, INITIAL, blank, blockRow, btn, centredButtons, endPanel, initial, miniature, namePlate, pad, row, txt, wrap } from './ascii.ts';
+import { COLS, INITIAL, blank, blockRow, btn, centredButtons, endPanel, initial, namePlate, pad, row, txt, wrap } from './ascii.ts';
 import type { Button, Row, Tone } from './ascii.ts';
 import { ALL_CHARACTERS } from '../core/index.ts';
 import type { SeatId } from '../core/index.ts';
@@ -67,10 +66,10 @@ const sideOf = (role?: string): 'good' | 'evil' | 'other' => {
 	const t = ALL_CHARACTERS.find((c) => c.id === role)?.team;
 	return t === 'minion' || t === 'demon' ? 'evil' : t === 'townsfolk' || t === 'outsider' ? 'good' : 'other';
 };
-/** Marks a page as illuminated without a miniature (folio: the vine borders and the roundel). */
+/** Marks a page as illuminated (folio: the vine borders and the roundel). */
 const illumined = (role?: string): Row => ({ segs: [], cls: 'illum-' + sideOf(role) });
 
-/** Room above the first panel for the character's picture: the miniature, on the page that says who they are. */
+/** Room above the first panel. */
 export function pictureRows(_character?: string): Row[] {
 	return [blank()];
 }
@@ -78,11 +77,11 @@ export function pictureRows(_character?: string): Row[] {
 export function sectionRows(sections: Section[], role?: string): Row[] {
 	const rows: Row[] = [];
 	for (const s of sections) {
-		// Who you are: the portrait in its arch, "You are the" small, the name large on one line.
+		// Who you are: "You are the" small, the name large on one line.
 		if (s.title === 'You are' && s.style === 'big' && s.lines.length === 1) {
 			const l = s.lines[0], name = l.replace(/^(now )?the /i, '');
 			const plate = namePlate(name, IND);
-			if (plate) { rows.push(miniature(role, sideOf(role), CARD_COLS), blank(), line('You are ' + l.slice(0, l.length - name.length).trim(), 'dim'), plate, blank()); continue; }
+			if (plate) { rows.push(blank(), line('You are ' + l.slice(0, l.length - name.length).trim(), 'dim'), plate, blank()); continue; }
 		}
 		if (s.title) rows.push(heading(s.title));
 		for (const l of s.lines) {

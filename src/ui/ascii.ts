@@ -605,16 +605,6 @@ export function texturaPixels(word: string, tight: boolean | 0 | 1 | 2 | 3, capF
 	return { at, w };
 }
 
-declare const __PORTRAITS__: { ink: Record<string, string>; figures: Record<string, string[]> } | null | undefined;
-
-/** A character's portrait (art/portraits.json) as colours by pixel, null where the ground shows; null if none is drawn. */
-function portraitOf(id: string | undefined): (number[] | null)[][] | null {
-	const P = typeof __PORTRAITS__ !== 'undefined' ? __PORTRAITS__ : null;
-	const f = id ? P?.figures[id] : undefined;
-	if (!P || !f) return null;
-	return f.map((r) => [...r].map((ch) => { const h = P.ink[ch]; return h ? [1, 3, 5].map((k) => parseInt(h.slice(k, k + 2), 16)) : null; }));
-}
-
 /** Draw pixels (palette indices, or -1 for none) two to a cell at (x, y), over whatever is there. */
 function stampPixels(g: Grid, x: number, y: number, px: number[][]) {
 	for (let j = 0; j < px.length; j += 2) for (let i = 0; i < px[j].length; i++) {
@@ -625,44 +615,6 @@ function stampPixels(g: Grid, x: number, y: number, px: number[][]) {
 		if (ti === bi) g.set(x + i, y + j / 2, ' ', 4, ti);
 		else g.set(x + i, y + j / 2, '▀', ti, bi);
 	}
-}
-
-/**
- * The miniature at the head of a player's page: a pointed arch edged in gold, its ground a diaper of
- * the side's colours (blue for the good, red for the evil, green for a traveller), the character's
- * portrait standing in it, twice the size on a tall screen. Marks its page as illuminated: the vine
- * borders round the writing and the roundel at the foot (folio).
- */
-export function miniature(role: string | undefined, team: 'good' | 'evil' | 'other', width: number): Row {
-	const S = (term?.rows ?? 0) >= 60 ? 2 : 1;
-	const aw = 16 * S + 8, ARCH = 10 * S, H = 2 + ARCH / 2 + 16 * S + 2;
-	return blockRow(Math.ceil(H / 2), (c) => {
-		const ax = c.x + Math.floor((Math.min(c.w, width) - aw) / 2), half = aw / 2;
-		const [g1, g2] = team === 'evil' ? [[72, 20, 20], [96, 30, 26]] : team === 'good' ? [[24, 34, 72], [36, 52, 98]] : [[30, 52, 36], [44, 70, 48]];
-		const GOLD = [204, 160, 66];
-		const rise = (i: number) => { const x = Math.min(i + 0.5, aw - i - 0.5); return Math.sqrt(Math.max(0, aw * aw - (aw - x) ** 2)) / (0.866 * aw) * ARCH; };
-		const inside = (i: number, y: number) => i >= 0 && i < aw && y < H - 1 && y >= 2 + ARCH - rise(i);
-		const px: number[][] = Array.from({ length: H + 1 }, () => Array(aw).fill(-1));
-		for (let y = 0; y < H; y++) for (let i = 0; i < aw; i++) {
-			if (!inside(i, y)) continue;
-			const edge = !inside(i - 1, y) || !inside(i + 1, y) || !inside(i, y - 1) || !inside(i, y + 1);
-			// The diaper: tiles of two tones, a gold point where four meet.
-			const tile = (Math.floor(i / 4) + Math.floor(y / 4)) % 2;
-			px[y][i] = quant(edge ? GOLD : i % 4 === 0 && y % 4 === 0 ? [150, 118, 52] : tile ? g1 : g2);
-		}
-		const mid = Math.floor(half);
-		for (const [i, y] of [[mid, 0], [mid, 1], [mid - 1, 1], [mid, 2]]) px[y][i] = quant(GOLD);
-		// The portrait, standing on the arch's foot.
-		const pic = portraitOf(role);
-		if (pic) {
-			const top = H - 2 - 16 * S, left = Math.floor((aw - 16 * S) / 2);
-			pic.forEach((r, j) => r.forEach((rgb, i) => {
-				if (!rgb) return;
-				for (let dy = 0; dy < S; dy++) for (let dx = 0; dx < S; dx++) if (inside(left + i * S + dx, top + j * S + dy)) px[top + j * S + dy][left + i * S + dx] = quant(rgb);
-			}));
-		}
-		stampPixels(c.g, ax, c.y, px);
-	}, 'illum-' + team);
 }
 
 /**

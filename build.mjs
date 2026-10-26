@@ -159,11 +159,6 @@ function marginThemes() {
 	try { return JSON.parse(readFileSync('art/margins.json', 'utf8')).themes ?? {}; } catch { return {}; }
 }
 
-/** The characters' portraits: art/portraits.json as it is (inks by letter, each portrait rows of letters). */
-function portraits() {
-	try { const { ink, figures } = JSON.parse(readFileSync('art/portraits.json', 'utf8')); return { ink, figures }; } catch { return null; }
-}
-
 /** The title: art/title.png, its alpha (0-255) by pixel; the page gilds and stains it. */
 function titleAlpha() {
 	try {
@@ -186,7 +181,7 @@ const options = {
 	write: false,
 	outdir: 'dist/.js',
 	loader: { '.tbp': 'text' },
-	define: { __LOGO__: JSON.stringify(logoPixels()), __TITLE__: JSON.stringify(titleAlpha()), __MARGINS__: JSON.stringify(margins()), __MARGIN_THEMES__: JSON.stringify(marginThemes()), __PORTRAITS__: JSON.stringify(portraits()) },
+	define: { __LOGO__: JSON.stringify(logoPixels()), __TITLE__: JSON.stringify(titleAlpha()), __MARGINS__: JSON.stringify(margins()), __MARGIN_THEMES__: JSON.stringify(marginThemes()) },
 	plugins: [inline],
 	logLevel: 'warning'
 };
