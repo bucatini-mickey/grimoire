@@ -263,7 +263,7 @@ const PALETTES: Record<string, Palette> = {
 	'manuscript-night': ['#110e0d', '#1d1816', '#4e4238', '#857868', '#d4c9b4', '#ece2cc', '#b08d55', '#a8683a', '#b0362c', '#6e1f1a', '#7f8a62', '#343a2a', '#6f87a6', '#26344a', '#8a6a90', '#4f3a2a'],
 	// The home page is the book's cover: brown calf, blind-tooled, gilt lettering and brass.
 	// The book's first page, opened: clean vellum, dark ink, red and brass.
-	folio: ['#e4dccb', '#d6ccb8', '#9c8f7a', '#706556', '#241c17', '#100b08', '#9a7534', '#c2522e', '#8c2a22', '#6a1d17', '#56603f', '#dcb38c', '#3a5576', '#9a7b55', '#6a4a72', '#cdb592'],
+	folio: ['#e4dccb', '#d6ccb8', '#9c8f7a', '#706556', '#241c17', '#100b08', '#b8913e', '#c2522e', '#8c2a22', '#6a1d17', '#56603f', '#dcb38c', '#3a5576', '#9a7b55', '#6a4a72', '#cdb592'],
 	// (In the books, slots 7, 11, 13 and 15 are the colours of the hares in its margins: vermilion,
 	// flesh, a hare's brown and fawn.)
 	// The same leaf read by candlelight: the vellum in shadow, the ink pale, the gold and colours kept.
@@ -276,13 +276,13 @@ const PALETTES: Record<string, Palette> = {
 	// 0 page, 1 panel, 2 rule, 3 dim, 4 ink, 5 strong, 6 gold, 7 vermilion, 8 rubric, 9 deep rubric,
 	// 10 green, 11 flesh, 12 lapis, 13 a hare's brown, 14 violet, 15 fawn.
 	// Laissez un Faire, Lovecraftian: sea-damp leaves, verdigris for rubric, tarnished brass.
-	'folio-lovecraft': ['#d5d8c6', '#c6cab5', '#8a917c', '#5f665a', '#1b2421', '#0b1210', '#8a7638', '#a8533a', '#2f5d57', '#1e3d3a', '#4d6b4a', '#cdb08c', '#2e4f66', '#8a7556', '#5b4a6e', '#bfae8c'],
+	'folio-lovecraft': ['#d5d8c6', '#c6cab5', '#8a917c', '#5f665a', '#1b2421', '#0b1210', '#a8923e', '#a8533a', '#2f5d57', '#1e3d3a', '#4d6b4a', '#cdb08c', '#2e4f66', '#8a7556', '#5b4a6e', '#bfae8c'],
 	'folio-lovecraft-night': ['#0e1615', '#16211f', '#2f4440', '#6f8a80', '#c8d6c8', '#e8f0e0', '#b59a4a', '#b8613f', '#5fa592', '#2c5a50', '#6f8f63', '#b39a7c', '#5f88a6', '#8a7556', '#8a74a6', '#bfae8c'],
 	// Sects & Violets, clockwork London: soot-stained paper, blood for rubric, brass; gaslight at night.
-	'folio-clockwork': ['#ddd3c0', '#cec2ab', '#958670', '#665b4c', '#1f1a16', '#0c0907', '#94712e', '#a8442c', '#7a1f1a', '#4f1410', '#4f5a46', '#d0b08c', '#34465a', '#8c6e4c', '#55435e', '#c4ab88'],
+	'folio-clockwork': ['#ddd3c0', '#cec2ab', '#958670', '#665b4c', '#1f1a16', '#0c0907', '#b38c3c', '#a8442c', '#7a1f1a', '#4f1410', '#4f5a46', '#d0b08c', '#34465a', '#8c6e4c', '#55435e', '#c4ab88'],
 	'folio-clockwork-night': ['#1c1a17', '#25221e', '#4a4338', '#8d826f', '#ddd2bb', '#f2e8d2', '#c9a04a', '#c45a3a', '#b33a2e', '#6b1f19', '#8a9a6a', '#c4a383', '#7d93a8', '#9a7b55', '#8d7699', '#cdb592'],
 	// Bad Moon Rising, a grim German fairy tale: birch-white leaves, pine green, blood red; the dark wood at night.
-	'folio-grimm': ['#e2e0d6', '#d3d1c4', '#929486', '#5e6158', '#1a1d1a', '#0a0c0a', '#8f7330', '#b0402e', '#8b1e1e', '#5a1414', '#3e5a3a', '#d9b896', '#3a4f6a', '#8a6d4c', '#5b4766', '#c9b48e'],
+	'folio-grimm': ['#e2e0d6', '#d3d1c4', '#929486', '#5e6158', '#1a1d1a', '#0a0c0a', '#ad8c3e', '#b0402e', '#8b1e1e', '#5a1414', '#3e5a3a', '#d9b896', '#3a4f6a', '#8a6d4c', '#5b4766', '#c9b48e'],
 	'folio-grimm-night': ['#141815', '#1c221d', '#3c463d', '#7f8a7c', '#d8dcd0', '#f0f2ea', '#b8964a', '#c0503a', '#c0392f', '#6e1c18', '#6f9a62', '#c4a383', '#7a94b8', '#9a7b55', '#8d72a0', '#cdb592'],
 	// The village's own inks, one set per theme, chosen for what a town is made of (grass and pine, stone,
 	// water, wood, brick, flame and gaslight, snow) so it is drawn true and moody rather than tinted by the
@@ -294,6 +294,9 @@ const PALETTES: Record<string, Palette> = {
 	'map-clockwork': ['#0b0b0b', '#1e1d1b', '#4a4741', '#8a847a', '#cfc6b4', '#f2ead8', '#d6d48a', '#c47a36', '#9a3028', '#5c3e2c', '#56684a', '#2a3626', '#4a6a86', '#25344a', '#6a5a7a', '#a07a4a'],
 	'victorian-day': ['#e2dcc0', '#d3cdae', '#8f9a82', '#66705e', '#1e2a22', '#0c150f', '#8a6a1a', '#9a5c20', '#8e2f24', '#6b1f18', '#3f5a28', '#a9b78e', '#2a5a66', '#b4c8c8', '#5e3f78', '#a89870']
 };
+
+/** An initial, as the scribes painted them: a red letter on a ground of deep blue (lighter by candlelight, to show on the dark page). */
+export const INITIAL = { fg: 7, get bg() { return paletteKey().endsWith('-night') ? shade(12, 2) : 12; } };
 
 const TONE: Record<Tone, number> = { plain: 4, rubric: 8, gold: 6, evil: 8, good: 12, dim: 3, title: 5, poison: 10, drunk: 14 };
 
@@ -364,7 +367,7 @@ export function drawButton(c: Ctx, x: number, y: number, w: number, b: Button) {
 		const [ink, rule, line, ground]: [number, number, 'single' | 'double', number] =
 			st === 'primary' ? [8, 8, 'double', -1]
 			: st === 'danger' ? [8, 8, 'single', -1]
-			: st === 'on' ? [0, 6, 'double', 6]
+			: st === 'on' ? [paletteKey().endsWith('-night') || !paletteKey().startsWith('folio') ? 0 : 5, 6, 'double', 6]
 			: st === 'quiet' ? [3, 2, 'single', -1]
 			: st === 'off' ? [2, 1, 'single', -1]
 			: [5, 3, 'single', -1];
@@ -379,7 +382,7 @@ export function drawButton(c: Ctx, x: number, y: number, w: number, b: Button) {
 		if (ground >= 0) g.text(lx, y + 1, label, ink, ground);
 		else g.text(lx, y + 1, label, ink);
 		const numeral = label.match(/^[IVXLC]+(?=\.)/)?.[0];
-		if (st !== 'off' && st !== 'on' && st !== 'quiet') for (let k = 0; k < (numeral?.length ?? (/\p{L}/u.test(label[0]) ? 1 : 0)); k++) g.set(lx + k, y + 1, label[k], 0, 8);
+		if (st !== 'off' && st !== 'on' && st !== 'quiet') for (let k = 0; k < (numeral?.length ?? (/\p{L}/u.test(label[0]) ? 1 : 0)); k++) g.set(lx + k, y + 1, label[k], INITIAL.fg, INITIAL.bg);
 		// The vine: a stem off the frame's side, a leaf every few steps.
 		// (in each look its own: a leafy vine, a pine bough, a chain with its links, the sea and its bubbles)
 		const [run, knot] = ({ medieval: ['~', '♣'], grimm: ['~', '♠'], clockwork: ['-', '○'], lovecraft: ['≈', '°'] } as const)[themeOfKey(paletteKey())];
@@ -585,91 +588,112 @@ function texturaGlyphs(word: string, capFirst = true): { px: string[]; cap: bool
  * A name in the textura as pixels, twelve rows high: 1 where a capital's ink is, 2 the rest. `tight`
  * condenses it as a scribe short of room would: the four-wide letters lose a column (".##." to ".#.").
  */
-function texturaPixels(word: string, tight: boolean, capFirst = true): { at: (0 | 1 | 2)[][]; w: number } | null {
+export function texturaPixels(word: string, tight: boolean | 0 | 1 | 2 | 3, capFirst = true): { at: (0 | 1 | 2)[][]; w: number } | null {
 	const gl = texturaGlyphs(word, capFirst);
 	if (!gl) return null;
-	const cut = (r: string) => (tight && r.length === 4 ? r[0] + r[1] + r[3] : r);
-	const w = gl.reduce((k, g) => k + cut(g.px[0]).length + 1, -1);
+	// (tighter still, 2: every small letter four wide or more loses a middle column, and the spaces narrow;
+	// 3: the capitals too)
+	const level = +tight;
+	const cut = (r: string, cap: boolean) => (level >= 1 && r.length === 4 ? r[0] + r[1] + r[3] : level >= 2 && !cap && r.length >= 5 ? r.slice(0, 2) + r.slice(3) : level >= 2 && r === '...' ? '..' : level >= 3 && cap && r.length >= 6 ? r.slice(0, 3) + r.slice(4) : r);
+	const w = gl.reduce((k, g) => k + cut(g.px[0], g.cap).length + 1, -1);
 	const at: (0 | 1 | 2)[][] = Array.from({ length: 12 }, () => Array(w).fill(0));
 	let x = 0;
 	for (const g of gl) {
-		g.px.forEach((r, y) => [...cut(r)].forEach((p, i) => { if (p === '#') at[y][x + i] = g.cap ? 1 : 2; }));
-		x += cut(g.px[0]).length + 1;
+		g.px.forEach((r, y) => [...cut(r, g.cap)].forEach((p, i) => { if (p === '#') at[y][x + i] = g.cap ? 1 : 2; }));
+		x += cut(g.px[0], g.cap).length + 1;
 	}
 	return { at, w };
 }
 
-/**
- * Who a player is, as an illuminated page shows it: under a pointed arch, its ground diapered in gold
- * (blue for the good, red for the evil, green for a traveller), the name lettered in the textura, pale
- * on the colour, its capital gilt. Long names are condensed, or set a word a line. Marks its page for
- * the vine border and the roundel at the foot (folio). Null if the name cannot be lettered.
- */
-export function illuminatedName(name: string, team: 'good' | 'evil' | 'other', width: number): Row | null {
-	const room = width - 8;
-	// A line lettered in full if it fits, else condensed; a line carried on from a split word has no capital.
-	const set = (s: string, cap = true) => {
-		const a = texturaPixels(s, false, cap);
-		if (a && a.w <= room) return a;
-		const b = texturaPixels(s, true, cap);
-		return b && b.w <= room ? b : null;
-	};
-	// A word too long for the line is split as a scribe would: a hyphen, between a vowel and what
-	// follows it, as near the middle as will fit.
-	const vowel = (ch: string) => 'aeiouy'.includes(ch.toLowerCase());
-	const split = (w: string): string[] | null => {
-		const at = [...Array(w.length - 3).keys()].map((k) => k + 2).sort((a, b) => Math.abs(a - w.length / 2) - Math.abs(b - w.length / 2));
-		for (const strict of [true, false]) for (const k of at) {
-			if (strict && !(vowel(w[k - 1]) && !vowel(w[k]))) continue;
-			if (set(w.slice(0, k) + '-') && set(w.slice(k), false)) return [w.slice(0, k) + '-', w.slice(k)];
-		}
-		return null;
-	};
-	// The words set a line at a time, as many to a line as fit.
-	const text: { s: string; cap: boolean }[] = [];
-	let cur = '';
-	for (const wd of name.split(' ')) {
-		if (set(cur ? cur + ' ' + wd : wd)) { cur = cur ? cur + ' ' + wd : wd; continue; }
-		if (cur) text.push({ s: cur, cap: true });
-		cur = '';
-		if (set(wd)) { cur = wd; continue; }
-		const parts = split(wd);
-		if (!parts) return null;
-		text.push({ s: parts[0], cap: true }, { s: parts[1], cap: false });
+declare const __PORTRAITS__: { ink: Record<string, string>; figures: Record<string, string[]> } | null | undefined;
+
+/** A character's portrait (art/portraits.json) as colours by pixel, null where the ground shows; null if none is drawn. */
+function portraitOf(id: string | undefined): (number[] | null)[][] | null {
+	const P = typeof __PORTRAITS__ !== 'undefined' ? __PORTRAITS__ : null;
+	const f = id ? P?.figures[id] : undefined;
+	if (!P || !f) return null;
+	return f.map((r) => [...r].map((ch) => { const h = P.ink[ch]; return h ? [1, 3, 5].map((k) => parseInt(h.slice(k, k + 2), 16)) : null; }));
+}
+
+/** Draw pixels (palette indices, or -1 for none) two to a cell at (x, y), over whatever is there. */
+function stampPixels(g: Grid, x: number, y: number, px: number[][]) {
+	for (let j = 0; j < px.length; j += 2) for (let i = 0; i < px[j].length; i++) {
+		const t = px[j][i], b = px[j + 1]?.[i] ?? -1;
+		if (t < 0 && b < 0) continue;
+		const under = g.get(x + i, y + j / 2)?.bg ?? 0;
+		const ti = t < 0 ? under : t, bi = b < 0 ? under : b;
+		if (ti === bi) g.set(x + i, y + j / 2, ' ', 4, ti);
+		else g.set(x + i, y + j / 2, '▀', ti, bi);
 	}
-	if (cur) text.push({ s: cur, cap: true });
-	const lines = text.map((t) => set(t.s, t.cap));
-	if (!lines.length || lines.some((l) => !l)) return null;
-	const ARCH = 28, LINE = 15, H = 2 + ARCH + lines.length * LINE + 3;
+}
+
+/**
+ * The miniature at the head of a player's page: a pointed arch edged in gold, its ground a diaper of
+ * the side's colours (blue for the good, red for the evil, green for a traveller), the character's
+ * portrait standing in it, twice the size on a tall screen. Marks its page as illuminated: the vine
+ * borders round the writing and the roundel at the foot (folio).
+ */
+export function miniature(role: string | undefined, team: 'good' | 'evil' | 'other', width: number): Row {
+	const S = (term?.rows ?? 0) >= 60 ? 2 : 1;
+	const aw = 16 * S + 8, ARCH = 10 * S, H = 2 + ARCH / 2 + 16 * S + 2;
 	return blockRow(Math.ceil(H / 2), (c) => {
-		const aw = Math.min(c.w, width) - 2, ax = c.x + Math.floor((c.w - aw) / 2), half = aw / 2;
-		const ground = team === 'evil' ? [96, 26, 26] : team === 'good' ? [30, 46, 96] : [44, 70, 48];
-		const diaper = team === 'evil' ? [150, 60, 40] : [190, 150, 66];
-		const GOLD = [204, 160, 66], INK = [240, 230, 206], CAP = [226, 182, 80];
-		// The pointed arch: two arcs, each struck from the far side's foot, flattened to ARCH pixels tall.
+		const ax = c.x + Math.floor((Math.min(c.w, width) - aw) / 2), half = aw / 2;
+		const [g1, g2] = team === 'evil' ? [[72, 20, 20], [96, 30, 26]] : team === 'good' ? [[24, 34, 72], [36, 52, 98]] : [[30, 52, 36], [44, 70, 48]];
+		const GOLD = [204, 160, 66];
 		const rise = (i: number) => { const x = Math.min(i + 0.5, aw - i - 0.5); return Math.sqrt(Math.max(0, aw * aw - (aw - x) ** 2)) / (0.866 * aw) * ARCH; };
 		const inside = (i: number, y: number) => i >= 0 && i < aw && y < H - 1 && y >= 2 + ARCH - rise(i);
-		const px: (number[] | null)[][] = Array.from({ length: H + 1 }, () => Array(aw).fill(null));
+		const px: number[][] = Array.from({ length: H + 1 }, () => Array(aw).fill(-1));
 		for (let y = 0; y < H; y++) for (let i = 0; i < aw; i++) {
 			if (!inside(i, y)) continue;
 			const edge = !inside(i - 1, y) || !inside(i + 1, y) || !inside(i, y - 1) || !inside(i, y + 1);
-			px[y][i] = edge ? GOLD : y % 4 === 1 && (i + (y % 8 === 1 ? 0 : 2)) % 4 === 0 ? diaper : ground;
+			// The diaper: tiles of two tones, a gold point where four meet.
+			const tile = (Math.floor(i / 4) + Math.floor(y / 4)) % 2;
+			px[y][i] = quant(edge ? GOLD : i % 4 === 0 && y % 4 === 0 ? [150, 118, 52] : tile ? g1 : g2);
 		}
-		// A finial at the point.
-		px[0][Math.floor(half)] = GOLD; px[1][Math.floor(half)] = GOLD; px[1][Math.floor(half) - 1] = GOLD; px[1][Math.ceil(half)] = GOLD;
-		lines.forEach((l, k) => {
-			const lx = Math.floor((aw - l!.w) / 2), ly = 2 + ARCH + 1 + k * LINE;
-			l!.at.forEach((r, y) => r.forEach((p, i) => { if (p) px[ly + y][lx + i] = p === 1 ? CAP : INK; }));
-		});
-		for (let y = 0; y < H; y += 2) for (let i = 0; i < aw; i++) {
-			const t = px[y][i], b = px[y + 1]?.[i] ?? null;
-			if (!t && !b) continue;
-			const under = c.g.get(ax + i, c.y + y / 2)?.bg ?? 0;
-			const ti = t ? quant(t) : under, bi = b ? quant(b) : under;
-			if (ti === bi) c.g.set(ax + i, c.y + y / 2, ' ', 4, ti);
-			else c.g.set(ax + i, c.y + y / 2, '▀', ti, bi);
+		const mid = Math.floor(half);
+		for (const [i, y] of [[mid, 0], [mid, 1], [mid - 1, 1], [mid, 2]]) px[y][i] = quant(GOLD);
+		// The portrait, standing on the arch's foot.
+		const pic = portraitOf(role);
+		if (pic) {
+			const top = H - 2 - 16 * S, left = Math.floor((aw - 16 * S) / 2);
+			pic.forEach((r, j) => r.forEach((rgb, i) => {
+				if (!rgb) return;
+				for (let dy = 0; dy < S; dy++) for (let dx = 0; dx < S; dx++) if (inside(left + i * S + dx, top + j * S + dy)) px[top + j * S + dy][left + i * S + dx] = quant(rgb);
+			}));
 		}
+		stampPixels(c.g, ax, c.y, px);
 	}, 'illum-' + team);
+}
+
+/**
+ * A character's name lettered large in the textura on one line, from the left like the writing, its
+ * capital an initial (red on a plate of blue). Condensed as far as it must be to fit the line; it may
+ * reach out over the margin rather than wrap. Null if the face lacks a letter.
+ */
+export function namePlate(name: string, indent = 0): Row | null {
+	if (!texturaPixels(name, 0)) return null;
+	return blockRow(6, (c) => {
+		// Within the writing if it can be (from the indent, or further left), condensed as little as will
+		// do; only the longest names reach out over the rule into the margin.
+		const start = c.x + indent, left = c.x, right = c.x + c.w;
+		let t = texturaPixels(name, 0)!;
+		for (const level of [1, 2, 3] as const) if (t.w + 1 > right - left) t = texturaPixels(name, level)!;
+		const x0 = t.w + 1 <= right - left ? Math.max(left + 1, Math.min(start + 1, right - t.w)) : Math.max(1, Math.floor((c.g.cols - t.w) / 2));
+		// The plate behind the capital: from the first column to the first column the capital leaves empty.
+		let cw = 0;
+		while (cw < t.w && t.at.some((r) => r[cw] === 1)) cw++;
+		const px: number[][] = Array.from({ length: 12 }, (_, y) => Array.from({ length: t.w + 1 }, (_, i) => (i <= cw && y < 11 ? INITIAL.bg : -1)));
+		t.at.forEach((r, y) => r.forEach((p, i) => { if (p) px[y][i + 1] = p === 1 ? INITIAL.fg : c.ink('plain'); }));
+		stampPixels(c.g, x0 - 1, c.y, px);
+	});
+}
+
+/** Buttons in the middle of the line, so the way on is plain to see. */
+export function centredButtons(buttons: Button[], width = COLS, gap = 2): Row[] {
+	return buttonRows(buttons, width, gap).map((r) => {
+		const used = r.segs.reduce((k, s) => k + segWidth(s), 0);
+		return { ...r, segs: [txt(' '.repeat(Math.max(0, Math.floor((width - used) / 2)))), ...r.segs] };
+	});
 }
 
 /** A name written large in the textura, at the left like the writing; null when it will not fit in `width` or has letters the face lacks. */
@@ -804,9 +828,9 @@ function cornerBosses(g: Grid, x0: number, y: number, width: number) {
 	g.set(x0 + width - 1, y, '◘', 6, 0);
 }
 
-/** A rubricated initial: the letter in the page's ground on a plate of red, so it stands out on light or dark. */
+/** An initial: the letter in red on a plate of deep blue, as the scribes painted them. */
 export function initial(g: Grid, x: number, y: number, ch: string) {
-	g.set(x, y, ch, 0, 8);
+	g.set(x, y, ch, INITIAL.fg, INITIAL.bg);
 }
 
 /** Stamp one row at (x, y); returns nothing. */
@@ -1197,7 +1221,7 @@ function folio(g: Grid, width: number, leaves: Leaf[]) {
 				const rim = Math.min(x / 6, (W - 1 - x) / 4, y / 6, (H - 1 - y) / 6, 1);
 				const gutter = x < 6 ? (6 - x) / 6 : 0;
 				// Inside the gold rule the vellum is kept clean for the writing; outside it is worn.
-				const inText = x >= x0 && x <= x1 && y > yTop && y < yBot;
+				const inText = x >= x0 - 1 && x <= x1 + 1 && y > yTop && y < yBot;
 				// (one even tone under the writing: a mottle finer than an ink step only stripes the rows)
 				let k = inText ? 0.99 : 0.95 + (m - 0.5) * 0.1 - (1 - rim) * 0.18 - gutter * 0.35;
 				const sx = x - W * 0.78, sy = (y - H * 0.18) * 1.2, sd = Math.hypot(sx, sy);
@@ -1213,8 +1237,9 @@ function folio(g: Grid, width: number, leaves: Leaf[]) {
 			for (let x = 0; x < W; x++) set(x, H - 1, C.edge);
 			// The text's frame: a ruled line of gold.
 			const gold = [176, 136, 62];
-			for (let x = x0 - 1; x <= x1 + 1; x++) { set(x, yTop, gold); set(x, yBot, gold); }
-			for (let y = yTop; y <= yBot; y++) { set(x0 - 1, y, gold); set(x1 + 1, y, gold); }
+			// (a column clear each side of the writing, so no line starts against the rule)
+			for (let x = x0 - 2; x <= x1 + 2; x++) { set(x, yTop, gold); set(x, yBot, gold); }
+			for (let y = yTop; y <= yBot; y++) { set(x0 - 2, y, gold); set(x1 + 2, y, gold); }
 			// Down each side margin, the book's own ornament (its look, src/ui/theme.ts):
 			//   medieval    a vine that sways, leaves on it, a flower every so often
 			//   grimm       a briar: a dark stem set with thorns, haws red as blood, now and then a pale toadstool
@@ -1223,13 +1248,10 @@ function folio(g: Grid, width: number, leaves: Leaf[]) {
 			const theme = themeOfKey(paletteKey());
 			const FLOWERS = [[178, 52, 40], [104, 70, 120], [70, 96, 150]];
 			const STEM: Record<string, number[]> = { medieval: [90, 110, 60], grimm: [74, 54, 42], clockwork: [64, 64, 70], lovecraft: [62, 98, 86] };
-			for (const side of [0, 1]) {
-				const mx = side ? x1 + 3 : 3;
-				if (side ? mx > W - 3 : mx > x0 - 2) continue;
-				// (an open book keeps its ornament to the outer margins: none down the spine)
-				if (!side && leaves.length > 1) continue;
+			/** The ornament running down from ya to yb at column mx; side 1 is a right-hand one (it turns its face to the left). */
+			const ornament = (mx: number, side: number, ya: number, yb: number) => {
 				const inward = side ? -1 : 1; // towards the writing
-				for (let y = yTop + 2; y < yBot - 1; y++) {
+				for (let y = ya; y < yb; y++) {
 					if (theme === 'grimm') {
 						const x = mx + Math.round(Math.sin(y / 4 + side * 2) * 0.8 + Math.sin(y / 11) * 0.5);
 						set(x, y, STEM.grimm);
@@ -1260,21 +1282,34 @@ function folio(g: Grid, width: number, leaves: Leaf[]) {
 						}
 					}
 				}
+			};
+			/** The look's small device, centred at (x, y): a flower, haws on a briar, a cog, an eye. */
+			const device = (x: number, y: number, k = 0) => {
+				if (theme === 'grimm') { for (const [dx, dy] of [[0, 0], [1, 1], [-1, 1]]) set(x + dx, y + dy, [150, 28, 28]); set(x, y - 1, [74, 54, 42]); set(x + 1, y - 1, [96, 120, 70]); }
+				else if (theme === 'clockwork') { for (const [dx, dy] of [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]]) set(x + dx, y + dy, [176, 136, 62]); for (const [dx, dy] of [[0, -2], [2, 0], [0, 2], [-2, 0]]) set(x + dx, y + dy, [140, 106, 44]); set(x, y, [70, 54, 30]); }
+				else if (theme === 'lovecraft') { for (const dx of [-1, 0, 1]) { set(x + dx, y - 1, [222, 214, 180]); set(x + dx, y + 1, [222, 214, 180]); } set(x - 2, y, [62, 98, 86]); set(x + 2, y, [62, 98, 86]); set(x - 1, y, [222, 214, 180]); set(x + 1, y, [222, 214, 180]); set(x, y, [30, 22, 18]); }
+				else { const c = FLOWERS[k % FLOWERS.length]; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) set(x + dx, y + dy, c); set(x, y, [212, 170, 70]); }
+			};
+			for (const side of [0, 1]) {
+				const mx = side ? x1 + 4 : 2;
+				if (side ? mx > W - 3 : mx > x0 - 3) continue;
+				// (an open book keeps its ornament to the outer margins: none down the spine)
+				if (!side && leaves.length > 1) continue;
+				ornament(mx, side, yTop + 2, yBot - 1);
 			}
-			// An illuminated page (who a player is: illuminatedName): the rule along its head and foot sprouts
-			// leaves, a flower now and then, and down the sides the ornament flowers thicker.
+			// An illuminated page (a player's, at night): its head and foot set with the look's device, and
+			// the ornament again inside the rule, either side of the block the writing stands in, a device
+			// at each of its corners.
 			if (pageIllum) {
 				const LEAF = theme === 'medieval' ? [110, 140, 70] : STEM[theme].map((v) => Math.min(255, v + 36));
 				for (let x = x0; x <= x1; x++) {
 					if (x % 3 === 0) { set(x, yTop - 1, LEAF); set(x + 1, yBot + 1, LEAF); }
-					if (x % 12 === 6) for (const dx of [0, 1, -1]) { set(x + dx, yTop - 1, dx ? FLOWERS[x % 3] : [212, 170, 70]); set(x + dx, yBot + 1, dx ? FLOWERS[(x + 1) % 3] : [212, 170, 70]); }
 				}
-				for (const gx of [x0 - 1, x1 + 1]) for (let y = yTop + 4; y < yBot - 3; y += 9) {
-					// (not down the spine of an open book)
-					if (leaves.length > 1 && gx < x0) continue;
-					const fx = gx + (gx < x0 ? -2 : 2);
-					set(fx, y, [212, 170, 70]); set(fx, y - 1, FLOWERS[y % 3]); set(fx, y + 1, FLOWERS[y % 3]); set(fx - 1, y, LEAF); set(fx + 1, y, LEAF);
-				}
+				for (let x = x0 + 6; x <= x1 - 6; x += 12) { device(x, yTop - 1 + (theme === 'medieval' ? 0 : 1), x); device(x + 6, yBot + 1 - (theme === 'medieval' ? 0 : 1), x + 1); }
+				const ya = yTop + 4, yb = yBot - reserve * 2 - 3;
+				ornament(x0 + 1, 0, ya, yb);
+				ornament(x1 - 1, 1, ya, yb);
+				for (const [x, y] of [[x0 + 1, ya - 1], [x1 - 1, ya - 1], [x0 + 1, yb], [x1 - 1, yb]]) device(x, y, x + y);
 			}
 			// Hares at the foot of the page, if the writing leaves room for them.
 			// Which of them, and in what order, is the page's own: each page has its own, the same each time it is turned to.
@@ -1523,7 +1558,9 @@ function frame(g: Grid) {
 			]);
 		} else ground(g, top.width, used, reserve, top.sig);
 	}
-	const ink = (t: Tone | undefined) => TONE[t ?? 'plain'];
+	// (by day gold writing is a shade under the gold of the pictures, to be read on the light page)
+	const dayBook = isBook() && !paletteKey().endsWith('-night');
+	const ink = (t: Tone | undefined) => (dayBook && t === 'gold' ? shade(6, 3) : TONE[t ?? 'plain']);
 	const under = !!extra?.(g);
 	// The topmost layer with rows is shown alone, as a page of its own. Over the town it is a
 	// sheet: the town fades to a ghost behind it and the sheet gets a ground of its own.

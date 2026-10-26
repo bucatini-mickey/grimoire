@@ -17,7 +17,7 @@ import type { LinkStatus, PlayerLink } from '../net/link.ts';
 import type { Announcement, ClockView, HostMsg, VoteView } from '../net/protocol.ts';
 import type { CharacterCard, PublicView, Wake } from '../net/views.ts';
 import type { SeatId } from '../core/index.ts';
-import { CARD_COLS, CARD_INNER, big, cardButtons, nextPage, note, wakeRows } from './wakepages.ts';
+import { CARD_COLS, CARD_INNER, big, cardButtons, characterRows, nextPage, note, wakeRows } from './wakepages.ts';
 import type { Page } from './wakepages.ts';
 import * as T from './timer.ts';
 import { villageOnPhone } from '../town/village.ts';
@@ -371,17 +371,7 @@ function overlay(): Row[] {
 		rows.push(endPanel(), blank(), ...cardButtons([btn('Done', () => { P.announce = null; render(); }, { style: 'primary' })]));
 		return rows;
 	}
-	if (P.cardOpen && !P.wake) {
-		const rows: Row[] = [blank(), rubric('Your character')];
-		if (!P.card) rows.push(...wrap('It will appear here once the Storyteller deals.', CARD_INNER - 2).map((l) => row(txt('  ' + l, 'dim'))));
-		else {
-			rows.push(row(txt('  ' + P.card.name, P.card.team === 'evil' ? 'evil' : 'good', 'heading')));
-			rows.push(row(txt('  ' + P.card.team === 'evil' ? 'Evil' : 'Good', 'dim')));
-			rows.push(...wrap(P.card.ability, CARD_INNER).map((l) => row(txt(l))));
-		}
-		rows.push(endPanel(), blank(), ...cardButtons([btn('Hide', () => { P.cardOpen = false; render(); }, { style: 'primary' })]));
-		return rows;
-	}
+	if (P.cardOpen && !P.wake) return characterRows(P.card, btn('Hide', () => { P.cardOpen = false; render(); }, { style: 'primary' }));
 	const w = P.wake;
 	if (!w) return [];
 	return wakeRows(w, P.page, P.picks, {
