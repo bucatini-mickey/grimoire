@@ -154,8 +154,10 @@ const all = process.argv.includes('--all');
 const figures = { ...old.figures };
 let made = 0;
 for (const c of ALL_CHARACTERS) if (all || !figures[c.id]) { figures[c.id] = portrait(c.id, c.team); made++; }
-const out = { ink: { ...INK, ...old.ink }, off: old.off ?? [], themes: old.themes ?? {}, figures };
-const pretty = (d) => '{\n\t"ink": ' + JSON.stringify(d.ink).replace(/,/g, ', ') + ',\n\t"off": ' + JSON.stringify(d.off) + ',\n\t"themes": ' + JSON.stringify(d.themes) + ',\n\t"figures": {\n' +
+// (who each is, for the editor's list: name, side, edition)
+const about = Object.fromEntries(ALL_CHARACTERS.map((c) => [c.id, `${c.name}|${c.team}|${c.edition}`]));
+const out = { ink: { ...INK, ...old.ink }, off: old.off ?? [], themes: old.themes ?? {}, about, figures };
+const pretty = (d) => '{\n\t"ink": ' + JSON.stringify(d.ink).replace(/,/g, ', ') + ',\n\t"off": ' + JSON.stringify(d.off) + ',\n\t"themes": ' + JSON.stringify(d.themes) + ',\n\t"about": ' + JSON.stringify(d.about).replace(/,"/g, ', "') + ',\n\t"figures": {\n' +
 	Object.entries(d.figures).map(([k, v]) => `\t\t"${k}": [\n${v.map((r) => `\t\t\t"${r}"`).join(',\n')}\n\t\t]`).join(',\n') + '\n\t}\n}\n';
 writeFileSync(FILE, pretty(out));
 console.log(`${made} portraits drawn, ${Object.keys(figures).length} in art/portraits.json`);
