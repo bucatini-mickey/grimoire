@@ -146,6 +146,9 @@ const ui = {
 	bellRung: -1,
 	/** Rearranging the circle: taps pick a player and swap them along; the arrows walk them round. */
 	rearrange: false,
+	/** Put away until asked for: the key to the grimoire's marks, and the rest of tonight's wakings. */
+	showKey: false,
+	showLater: false,
 	/** Choosing a new token for the inspected seat: first the character, then (Drunk) what they believe. */
 	retoken: null as null | 'character' | 'believes',
 	retokenTo: null as CharacterId | null,
@@ -1328,10 +1331,12 @@ rows.push(...prose(who ? `${who.name}, the ${charName(stepRole(kind, who.id))}${
 			]));
 		}
 	}
-	rows.push(blank(), ...buttonRows([btn('Skip', () => act({ type: 'skip', reason: 'Storyteller skipped' }), { style: 'quiet' })]));
-	rows.push(...storytellerTools());
 	const later = steps.filter((s) => !s.done && s.id !== step.id).map((s) => (s.seat === null ? groupLabel(s.kind).split(':')[0] : `${name(s.seat)} (${charName(stepRole(s.kind, s.seat))})`));
-	if (later.length) rows.push(blank(), ...prose(`Then: ${later.join(', ')}.`, 'dim'));
+	const quiet: Button[] = [btn('Skip', () => act({ type: 'skip', reason: 'Storyteller skipped' }), { style: 'quiet' })];
+	if (later.length) quiet.push(btn(ui.showLater ? 'Hide the rest' : `Later tonight (${later.length})`, () => { ui.showLater = !ui.showLater; render(); }, { style: ui.showLater ? 'on' : 'quiet' }));
+	rows.push(blank(), ...buttonRows(quiet));
+	if (later.length && ui.showLater) rows.push(...prose(`Then: ${later.join(', ')}.`, 'dim'));
+	rows.push(...storytellerTools());
 	return rows;
 }
 
@@ -1651,7 +1656,8 @@ function dayPanel(): Row[] {
 	const blockText = day.executed !== null
 		? `${name(day.executed)} has been executed.`
 		: day.block !== null ? `On the block: ${name(day.block)}, ${day.highest} votes` : 'Nobody is on the block.';
-	rows.push(rubric('The block'), row(txt('  ' + blockText, day.block !== null || day.executed !== null ? 'evil' : 'dim')));
+	// (until someone is nominated there is nothing to say of the block)
+	if (day.nominations.length || day.block !== null || day.executed !== null) rows.push(rubric('The block'), row(txt('  ' + blockText, day.block !== null || day.executed !== null ? 'evil' : 'dim')));
 
 	const nom = openNomination();
 	if (nom && f.speech) {
@@ -1806,6 +1812,16 @@ function fabledRows(day: boolean): Row[] {
 }
 
 /** Travellers: joining, exile, and the day abilities the Storyteller runs (the Gunslinger, the Judge). */
+/** A Traveller may join: the script has one not yet seated, and there is room at the table. */
+function travellerCanJoin(): boolean {
+	const pool = (script().travellers ?? []).filter((c) => !state.seats.some((x) => x.character === c.id));
+	return state.phase.kind !== 'setup' && state.phase.kind !== 'over' && !ui.travel && pool.length > 0 && state.seats.length < 20;
+}
+function travellerJoins() {
+	const n = (globalThis.prompt?.('The Traveller\u2019s name?') ?? '').trim();
+	if (n) { ui.travel = { name: n, character: null, alignment: null }; render(); }
+}
+
 function travellerRows(day: boolean): Row[] {
 	const rows: Row[] = [];
 	const pool = (script().travellers ?? []).filter((c) => !state.seats.some((x) => x.character === c.id));
@@ -1841,12 +1857,6 @@ function travellerRows(day: boolean): Row[] {
 			btn('Cancel', () => { ui.exile = null; render(); }, { style: 'quiet' })
 		]));
 		return rows;
-	}
-	if (pool.length && state.seats.length < 20) {
-		rows.push(blank(), ...buttonRows([btn('A Traveller joins', () => {
-			const n = (globalThis.prompt?.('The Traveller\u2019s name?') ?? '').trim();
-			if (n) { ui.travel = { name: n, character: null, alignment: null }; render(); }
-		}, { style: 'quiet' })]));
 	}
 	if (!day) return rows;
 	for (const x of state.seats.filter((y) => y.traveller && y.alive)) {
@@ -2799,10 +2809,14 @@ function circleRows(): Row[] {
 	} else if (ui.moving !== null) {
 		rows.push(rubric('Moving'), ...prose(`Tap the seat ${name(ui.moving)} moves to. The two players change places.`, 'gold'),
 			...buttonRows([btn('Cancel', () => { ui.moving = null; render(); }, { style: 'quiet' })]), endPanel());
-	} else if (state.phase.kind !== 'over') {
-		rows.push(buttonBlock([btn('Rearrange seats', () => { ui.rearrange = true; ui.inspect = null; render(); }, { style: 'quiet' })]));
+	} else {
+		const tools: Button[] = [btn('Key', () => { ui.showKey = !ui.showKey; render(); }, { style: ui.showKey ? 'on' : 'quiet' })];
+		if (state.phase.kind !== 'over') tools.push(btn('Rearrange seats', () => { ui.rearrange = true; ui.inspect = null; render(); }, { style: 'quiet' }));
+		if (travellerCanJoin()) tools.push(btn('Traveller joins', travellerJoins, { style: 'quiet' }));
+		rows.push(...buttonRows(tools));
 	}
-	rows.push(blank(), ...legend(), blank());
+	if (ui.showKey) rows.push(blank(), ...legend());
+	rows.push(blank());
 	return rows;
 }
 
