@@ -159,6 +159,14 @@ function marginThemes() {
 	try { return JSON.parse(readFileSync('art/margins.json', 'utf8')).themes ?? {}; } catch { return {}; }
 }
 
+/** The characters' portraits as drawn so far (art/portraits.json): inks by letter, each portrait rows of letters; empty ones left out. */
+function portraits() {
+	try {
+		const { ink, figures } = JSON.parse(readFileSync('art/portraits.json', 'utf8'));
+		return { ink, figures: Object.fromEntries(Object.entries(figures).filter(([, f]) => f.some((r) => /[^.]/.test(r)))) };
+	} catch { return null; }
+}
+
 /** The title: art/title.png, its alpha (0-255) by pixel; the page gilds and stains it. */
 function titleAlpha() {
 	try {
@@ -181,7 +189,7 @@ const options = {
 	write: false,
 	outdir: 'dist/.js',
 	loader: { '.tbp': 'text' },
-	define: { __LOGO__: JSON.stringify(logoPixels()), __TITLE__: JSON.stringify(titleAlpha()), __MARGINS__: JSON.stringify(margins()), __MARGIN_THEMES__: JSON.stringify(marginThemes()) },
+	define: { __LOGO__: JSON.stringify(logoPixels()), __TITLE__: JSON.stringify(titleAlpha()), __MARGINS__: JSON.stringify(margins()), __MARGIN_THEMES__: JSON.stringify(marginThemes()), __PORTRAITS__: JSON.stringify(portraits()) },
 	plugins: [inline],
 	logLevel: 'warning'
 };

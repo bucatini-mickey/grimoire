@@ -330,7 +330,7 @@ let parsed: { pal: Palette; rgb: number[][]; memo: Int16Array } | null = null;
 const INKS = 80;
 
 /**
- * The pictures' own colours (the margin figures, art/margin-*.png): every colour they are drawn in,
+ * The pictures' own colours (the margin figures, art/margin-*.png, and the portraits): every colour they are drawn in,
  * kept as the artist chose it rather than taken to the nearest of the book's inks, which turned blues
  * grey and browns green. Each page's palette carries them after its own inks, as the page would paint
  * them (paintedOn): laid on the vellum by day, by candlelight at night, a breath of the book's look.
@@ -339,6 +339,9 @@ const ART_HEX: string[] = (() => {
 	const seen = new Set<string>();
 	const M = typeof __MARGINS__ !== 'undefined' && __MARGINS__ ? Object.values(__MARGINS__) : [];
 	for (const m of M) for (const r of m.px) for (const c of r) if (c) seen.add(c.toLowerCase());
+	// (and the portraits')
+	const P = typeof __PORTRAITS__ !== 'undefined' ? __PORTRAITS__ : null;
+	if (P) for (const f of Object.values(P.figures)) for (const r of f) for (const ch of r) if (P.ink[ch]) seen.add(P.ink[ch].toLowerCase());
 	// (a cell's colours are keyed fg * 256 + bg in pterm: the palette stays under 256 entries)
 	return [...seen].slice(0, 256 - INKS - 4);
 })();
@@ -653,6 +656,17 @@ export function texturaPixels(word: string, tight: boolean | 0 | 1 | 2 | 3, capF
 	return { at, w };
 }
 
+declare const __PORTRAITS__: { ink: Record<string, string>; figures: Record<string, string[]> } | null | undefined;
+
+/** A character's portrait (art/portraits.json) as its colours by pixel, null where the ground shows; null if none is drawn yet. */
+function portraitOf(id: string | undefined): (string | null)[][] | null {
+	const P = typeof __PORTRAITS__ !== 'undefined' ? __PORTRAITS__ : null;
+	const f = id ? P?.figures[id] : undefined;
+	if (!P || !f) return null;
+	return f.map((r) => [...r].map((ch) => P.ink[ch] ?? null));
+}
+export const hasPortrait = (id: string | undefined) => !!portraitOf(id);
+
 /** Draw pixels (palette indices, or -1 for none) two to a cell at (x, y), over whatever is there. */
 function stampPixels(g: Grid, x: number, y: number, px: number[][]) {
 	for (let j = 0; j < px.length; j += 2) for (let i = 0; i < px[j].length; i++) {
@@ -663,6 +677,44 @@ function stampPixels(g: Grid, x: number, y: number, px: number[][]) {
 		if (ti === bi) g.set(x + i, y + j / 2, ' ', 4, ti);
 		else g.set(x + i, y + j / 2, '▀', ti, bi);
 	}
+}
+
+/**
+ * The miniature at the head of a player's page, if the character's portrait has been drawn: a pointed
+ * arch edged in gold, its ground a diaper of the side's colours (blue for the good, red for the evil,
+ * green for a traveller), the portrait standing in it in its own colours (paintedOn), twice the size on
+ * a tall screen.
+ */
+export function miniature(role: string | undefined, team: 'good' | 'evil' | 'other', width: number): Row | null {
+	const pic = portraitOf(role);
+	if (!pic) return null;
+	const S = (term?.rows ?? 0) >= 60 ? 2 : 1;
+	const aw = 16 * S + 8, ARCH = 10 * S, H = 2 + ARCH / 2 + 16 * S + 2;
+	return blockRow(Math.ceil(H / 2), (c) => {
+		const ax = c.x + Math.floor((Math.min(c.w, width) - aw) / 2), half = aw / 2;
+		// (deep and dark, so a figure in the side's own colours still stands out from it)
+		const [g1, g2] = team === 'evil' ? [[34, 14, 16], [48, 20, 22]] : team === 'good' ? [[16, 22, 38], [24, 32, 54]] : [[18, 32, 22], [26, 44, 30]];
+		const GOLD = [204, 160, 66];
+		const rise = (i: number) => { const x = Math.min(i + 0.5, aw - i - 0.5); return Math.sqrt(Math.max(0, aw * aw - (aw - x) ** 2)) / (0.866 * aw) * ARCH; };
+		const inside = (i: number, y: number) => i >= 0 && i < aw && y < H - 1 && y >= 2 + ARCH - rise(i);
+		const px: number[][] = Array.from({ length: H + 1 }, () => Array(aw).fill(-1));
+		for (let y = 0; y < H; y++) for (let i = 0; i < aw; i++) {
+			if (!inside(i, y)) continue;
+			const edge = !inside(i - 1, y) || !inside(i + 1, y) || !inside(i, y - 1) || !inside(i, y + 1);
+			// The diaper: tiles of two tones, a gold point where four meet.
+			const tile = (Math.floor(i / 4) + Math.floor(y / 4)) % 2;
+			px[y][i] = quant(edge ? GOLD : i % 4 === 0 && y % 4 === 0 ? [150, 118, 52] : tile ? g1 : g2);
+		}
+		const mid = Math.floor(half);
+		for (const [i, y] of [[mid, 0], [mid, 1], [mid - 1, 1], [mid, 2]]) px[y][i] = quant(GOLD);
+		// The portrait, standing on the arch's foot.
+		const top = H - 2 - 16 * S, left = Math.floor((aw - 16 * S) / 2);
+		pic.forEach((r, j) => r.forEach((hex, i) => {
+			if (!hex) return;
+			for (let dy = 0; dy < S; dy++) for (let dx = 0; dx < S; dx++) if (inside(left + i * S + dx, top + j * S + dy)) px[top + j * S + dy][left + i * S + dx] = artInk(hex);
+		}));
+		stampPixels(c.g, ax, c.y, px);
+	});
 }
 
 /**

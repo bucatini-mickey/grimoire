@@ -9,7 +9,7 @@
  * left as a book is, each heading and each paragraph opening on an initial (red on blue); the
  * character's name lettered large at its head; the way on in the middle at the foot. The leaf round the block is the book's to decorate (folio: the vines, the roundel).
  */
-import { COLS, INITIAL, blank, blockRow, btn, centredButtons, endPanel, initial, namePlate, pad, row, txt, wrap } from './ascii.ts';
+import { COLS, INITIAL, blank, blockRow, btn, centredButtons, endPanel, initial, miniature, namePlate, pad, row, txt, wrap } from './ascii.ts';
 import type { Button, Row, Tone } from './ascii.ts';
 import { ALL_CHARACTERS } from '../core/index.ts';
 import type { SeatId } from '../core/index.ts';
@@ -81,7 +81,9 @@ export function sectionRows(sections: Section[], role?: string): Row[] {
 		if (s.title === 'You are' && s.style === 'big' && s.lines.length === 1) {
 			const l = s.lines[0], name = l.replace(/^(now )?the /i, '');
 			const plate = namePlate(name, IND);
-			if (plate) { rows.push(blank(), line('You are ' + l.slice(0, l.length - name.length).trim(), 'dim'), plate, blank()); continue; }
+			// (the portrait in its arch above, once it has been drawn)
+			const arch = miniature(role, sideOf(role), CARD_COLS);
+			if (plate) { rows.push(...(arch ? [arch] : []), blank(), line('You are ' + l.slice(0, l.length - name.length).trim(), 'dim'), plate, blank()); continue; }
 		}
 		if (s.title) rows.push(heading(s.title));
 		for (const l of s.lines) {
