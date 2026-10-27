@@ -356,7 +356,7 @@ export function paintedOn(rgb: number[], theme: string, night: boolean): number[
 	const AIR: Record<string, number[]> = { grimm: [150, 162, 154], clockwork: [160, 132, 96], lovecraft: [118, 150, 136] };
 	if (AIR[theme]) c = c.map((v, k) => v + (AIR[theme][k] - v) * 0.08);
 	if (night) {
-		c = [c[0] * 0.8, c[1] * 0.74, c[2] * 0.64];
+		c = [c[0] * 0.84, c[1] * 0.8, c[2] * 0.76];
 		if (lum < 60) c = c.map((v, k) => v + ([92, 76, 58][k] - v) * (1 - lum / 60) * 0.85);
 	} else c = [c[0] * 0.97, c[1] * 0.95, c[2] * 0.9];
 	return c.map((v) => Math.max(0, Math.min(255, Math.round(v))));
