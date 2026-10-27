@@ -692,8 +692,8 @@ export function miniature(role: string | undefined, team: 'good' | 'evil' | 'oth
 	const aw = 16 * S + 8, ARCH = 10 * S, H = 2 + ARCH / 2 + 16 * S + 2;
 	return blockRow(Math.ceil(H / 2), (c) => {
 		const ax = c.x + Math.floor((Math.min(c.w, width) - aw) / 2), half = aw / 2;
-		// (deep and dark, so a figure in the side's own colours still stands out from it)
-		const [g1, g2] = team === 'evil' ? [[34, 14, 16], [48, 20, 22]] : team === 'good' ? [[16, 22, 38], [24, 32, 54]] : [[18, 32, 22], [26, 44, 30]];
+		// (near black, only a breath of the side's colour, so a figure in that colour still stands out from it)
+		const [g1, g2] = team === 'evil' ? [[14, 10, 10], [26, 14, 14]] : team === 'good' ? [[12, 16, 26], [20, 26, 42]] : [[12, 22, 16], [20, 34, 24]];
 		const GOLD = [204, 160, 66];
 		const rise = (i: number) => { const x = Math.min(i + 0.5, aw - i - 0.5); return Math.sqrt(Math.max(0, aw * aw - (aw - x) ** 2)) / (0.866 * aw) * ARCH; };
 		const inside = (i: number, y: number) => i >= 0 && i < aw && y < H - 1 && y >= 2 + ARCH - rise(i);
