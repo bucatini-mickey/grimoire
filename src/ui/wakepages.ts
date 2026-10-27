@@ -9,7 +9,7 @@
  * left as a book is, each heading and each paragraph opening on an initial (red on blue); the
  * character's name lettered large at its head; the way on in the middle at the foot. The leaf round the block is the book's to decorate (folio: the vines, the roundel).
  */
-import { COLS, INITIAL, blank, blockRow, btn, centredButtons, endPanel, initial, miniature, namePlate, pad, row, txt, wrap } from './ascii.ts';
+import { COLS, INITIAL, blank, blockRow, btn, center, centredButtons, endPanel, initial, miniature, namePlate, pad, row, txt, wrap } from './ascii.ts';
 import type { Button, Row, Tone } from './ascii.ts';
 import { ALL_CHARACTERS } from '../core/index.ts';
 import type { SeatId } from '../core/index.ts';
@@ -56,7 +56,7 @@ function para(text: string, tone?: Tone): Row[] {
 	const lines = wrap(text, BLOCK - 2);
 	return lines.map((l, k) => (k ? line(l, tone) : blockRow(1, (c) => {
 		const [first, ...rest] = [...l];
-		if (/\p{L}/u.test(first)) { c.g.set(c.x + IND, c.y, first, INITIAL.fg, INITIAL.bg); c.g.text(c.x + IND + 1, c.y, rest.join(''), c.ink(tone)); }
+		if (/\p{L}/u.test(first)) { c.g.set(c.x + IND, c.y, first, INITIAL.fg, INITIAL.bg); c.g.bold(c.x + IND, c.y); c.g.text(c.x + IND + 1, c.y, rest.join(''), c.ink(tone)); }
 		else c.g.text(c.x + IND, c.y, l, c.ink(tone));
 	})));
 }
@@ -83,7 +83,7 @@ export function sectionRows(sections: Section[], role?: string): Row[] {
 			const plate = namePlate(name, IND);
 			// (the portrait in its arch above, once it has been drawn)
 			const arch = miniature(role, sideOf(role), CARD_COLS);
-			if (plate) { rows.push(...(arch ? [arch] : []), blank(), line('You are ' + l.slice(0, l.length - name.length).trim(), 'dim'), plate, blank()); continue; }
+			if (plate) { rows.push(...(arch ? [arch] : [blank()]), row(txt(center('You are ' + l.slice(0, l.length - name.length).trim(), CARD_COLS), 'dim')), plate, blank()); continue; }
 		}
 		if (s.title) rows.push(heading(s.title));
 		for (const l of s.lines) {
@@ -129,7 +129,7 @@ export function wakeRows(w: Wake, page: Page, picks: SeatId[], h: PageHandlers):
 			const p = w.pick!;
 			rows.push(blank(), heading(p.count === 2 ? 'Choose two' : 'Choose one'), ...para(p.prompt, 'dim'), blank());
 			const seats = p.allowed.map((id) => btn(h.deadAtDusk(id) ? `${h.name(id)} †` : h.name(id), () => h.toggle(id), {
-				style: picks.includes(id) ? 'on' : undefined, width: 16
+				style: picks.includes(id) ? 'on' : undefined
 			}));
 			rows.push(...centredButtons(seats, CARD_COLS, 2));
 			rows.push(endPanel(), blank(), ...cardButtons([

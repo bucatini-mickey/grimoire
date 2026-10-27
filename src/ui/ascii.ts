@@ -433,7 +433,7 @@ export function drawButton(c: Ctx, x: number, y: number, w: number, b: Button) {
 		if (ground >= 0) g.text(lx, y + 1, label, ink, ground);
 		else g.text(lx, y + 1, label, ink);
 		const numeral = label.match(/^[IVXLC]+(?=\.)/)?.[0];
-		if (st !== 'off' && st !== 'on' && st !== 'quiet') for (let k = 0; k < (numeral?.length ?? (/\p{L}/u.test(label[0]) ? 1 : 0)); k++) g.set(lx + k, y + 1, label[k], INITIAL.fg, INITIAL.bg);
+		if (st !== 'off' && st !== 'on' && st !== 'quiet') for (let k = 0; k < (numeral?.length ?? (/\p{L}/u.test(label[0]) ? 1 : 0)); k++) { g.set(lx + k, y + 1, label[k], INITIAL.fg, INITIAL.bg); g.bold(lx + k, y + 1); }
 		// The vine: a stem off the frame's side, a leaf every few steps.
 		// (in each look its own: a leafy vine, a pine bough, a chain with its links, the sea and its bubbles)
 		const [run, knot] = ({ medieval: ['~', '♣'], grimm: ['~', '♠'], clockwork: ['-', '○'], lovecraft: ['≈', '°'] } as const)[themeOfKey(paletteKey())];
@@ -718,19 +718,19 @@ export function miniature(role: string | undefined, team: 'good' | 'evil' | 'oth
 }
 
 /**
- * A character's name lettered large in the textura on one line, from the left like the writing, its
+ * A character's name lettered large in the textura on one line, in the middle of the page, its
  * capital an initial (red on a plate of blue). Condensed as far as it must be to fit the line; it may
  * reach out over the margin rather than wrap. Null if the face lacks a letter.
  */
 export function namePlate(name: string, indent = 0): Row | null {
 	if (!texturaPixels(name, 0)) return null;
 	return blockRow(6, (c) => {
-		// Within the writing if it can be (from the indent, or further left), condensed as little as will
-		// do; only the longest names reach out over the rule into the margin.
-		const start = c.x + indent, left = c.x, right = c.x + c.w;
+		// In the middle of the writing, condensed as little as will do; only the longest names reach out
+		// over the rule into the margin.
+		const left = c.x, right = c.x + c.w;
 		let t = texturaPixels(name, 0)!;
 		for (const level of [1, 2, 3] as const) if (t.w + 1 > right - left) t = texturaPixels(name, level)!;
-		const x0 = t.w + 1 <= right - left ? Math.max(left + 1, Math.min(start + 1, right - t.w)) : Math.max(1, Math.floor((c.g.cols - t.w) / 2));
+		const x0 = t.w + 1 <= right - left ? left + 1 + Math.floor((right - left - 1 - t.w) / 2) : Math.max(1, Math.floor((c.g.cols - t.w) / 2));
 		// The plate behind the capital: from the first column to the first column the capital leaves empty.
 		let cw = 0;
 		while (cw < t.w && t.at.some((r) => r[cw] === 1)) cw++;
@@ -883,6 +883,7 @@ function cornerBosses(g: Grid, x0: number, y: number, width: number) {
 /** An initial: the letter in red on a plate of deep blue, as the scribes painted them. */
 export function initial(g: Grid, x: number, y: number, ch: string) {
 	g.set(x, y, ch, INITIAL.fg, INITIAL.bg);
+	g.bold(x, y);
 }
 
 /** Stamp one row at (x, y); returns nothing. */
@@ -992,7 +993,7 @@ function drawLayer(g: Grid, key: unknown, ink: (t: Tone | undefined) => number, 
 	const half = sheet ? 0 : spreadOf(g, L.width);
 	if (half) return drawSpread(g, key, L, pages, half, top, foot, ink);
 	const x0 = Math.max(0, Math.floor((g.cols - L.width) / 2));
-	let y = top;
+	let y = top + (sheet ? 0 : illumPad(g, L.rows));
 	const p = pages[L.page];
 	if (sheet) {
 		let h = 0;
@@ -1026,6 +1027,16 @@ function drawLayer(g: Grid, key: unknown, ink: (t: Tone | undefined) => number, 
 	} else pagesOf.set(key, 1);
 }
 const pagesOf = new Map<unknown, number>();
+
+/**
+ * An illuminated page (a player's card) that does not fill the leaf stands in the middle of it, above the
+ * roundel at its foot: the lines it is moved down by.
+ */
+function illumPad(g: Grid, rows: Row[]): number {
+	if (!rows.some((r) => r.cls?.startsWith('illum-'))) return 0;
+	const total = rows.reduce((k, r) => k + lineH(r), 0);
+	return Math.max(0, Math.floor((g.rows - 1 - total - 9) / 2));
+}
 
 /**
  * The book lying open on a wide screen: a long page's pages two at a time, left leaf and right, the
@@ -1349,19 +1360,22 @@ function folio(g: Grid, width: number, leaves: Leaf[]) {
 				if (!side && leaves.length > 1) continue;
 				ornament(mx, side, yTop + 2, yBot - 1);
 			}
-			// An illuminated page (a player's, at night): its head and foot set with the look's device, and
-			// the ornament again inside the rule, either side of the block the writing stands in, a device
-			// at each of its corners.
+			// An illuminated page (a player's card): leaves along the rule at its head and foot, the look's device
+			// thick on the margins' ornament.
 			if (pageIllum) {
 				const LEAF = theme === 'medieval' ? [110, 140, 70] : STEM[theme].map((v) => Math.min(255, v + 36));
 				for (let x = x0; x <= x1; x++) {
 					if (x % 3 === 0) { set(x, yTop - 1, LEAF); set(x + 1, yBot + 1, LEAF); }
 				}
-				for (let x = x0 + 6; x <= x1 - 6; x += 12) { device(x, yTop - 1 + (theme === 'medieval' ? 0 : 1), x); device(x + 6, yBot + 1 - (theme === 'medieval' ? 0 : 1), x + 1); }
-				const ya = yTop + 4, yb = yBot - reserve * 2 - 3;
-				ornament(x0 + 1, 0, ya, yb);
-				ornament(x1 - 1, 1, ya, yb);
-				for (const [x, y] of [[x0 + 1, ya - 1], [x1 - 1, ya - 1], [x0 + 1, yb], [x1 - 1, yb]]) device(x, y, x + y);
+				// The look's device on the vine in each margin, at the frame's corners and down its sides: all of it
+				// outside the gold rule, so nothing is drawn over the writing.
+				for (const side of [0, 1]) {
+					if (!side && leaves.length > 1) continue;
+					const mx = side ? x1 + 4 : 2;
+					if (side ? mx > W - 3 : mx > x0 - 3) continue;
+					for (let y = yTop + 3; y <= yBot - 3; y += 14) device(mx, y, y + side);
+					device(mx, yBot - 3, side);
+				}
 			}
 			// Hares at the foot of the page, if the writing leaves room for them.
 			// Which of them, and in what order, is the page's own: each page has its own, the same each time it is turned to.
@@ -1588,7 +1602,7 @@ function frame(g: Grid) {
 		// How much of the screen the page shown takes, and what its page-turns keep at the foot: the
 		// book's margins draw their pictures only where nothing is written.
 		const off = isBook() ? 1 : 0, total = top.rows.reduce((k, r) => k + lineH(r), 0);
-		let used = Math.min(g.rows, total + off), reserve = 0;
+		let used = Math.min(g.rows, total + off + illumPad(g, top.rows)), reserve = 0;
 		if (total > g.rows - off) {
 			const pages = paginate(top.rows, g.rows - off - 3 - (isBook() ? 2 : 0));
 			const p = pages[Math.max(0, Math.min(top.page, pages.length - 1))];
