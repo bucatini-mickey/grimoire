@@ -11,7 +11,7 @@
  */
 
 import { themeOfKey } from './theme.ts';
-import { Term, shade } from '../term/pterm.ts';
+import { Term, expand, shade } from '../term/pterm.ts';
 import type { Grid, Palette, Rect } from '../term/pterm.ts';
 
 export const COLS = 52;
@@ -326,6 +326,54 @@ let parsed: { pal: Palette; rgb: number[][]; memo: Int16Array } | null = null;
  * The palette entry nearest to an [r, g, b] colour (0-255), for drawing the town in the page's inks:
  * the 16 inks and their shade steps, so a light fading out stays its own hue. Memoised at 6 bits a channel.
  */
+/** The book's own inks and their shades: the first entries of every palette. */
+const INKS = 80;
+
+/**
+ * The pictures' own colours (the margin figures, art/margin-*.png): every colour they are drawn in,
+ * kept as the artist chose it rather than taken to the nearest of the book's inks, which turned blues
+ * grey and browns green. Each page's palette carries them after its own inks, as the page would paint
+ * them (paintedOn): laid on the vellum by day, by candlelight at night, a breath of the book's look.
+ */
+const ART_HEX: string[] = (() => {
+	const seen = new Set<string>();
+	const M = typeof __MARGINS__ !== 'undefined' && __MARGINS__ ? Object.values(__MARGINS__) : [];
+	for (const m of M) for (const r of m.px) for (const c of r) if (c) seen.add(c.toLowerCase());
+	// (a cell's colours are keyed fg * 256 + bg in pterm: the palette stays under 256 entries)
+	return [...seen].slice(0, 256 - INKS - 4);
+})();
+const ART_AT = new Map(ART_HEX.map((h, i) => [h, INKS + i]));
+
+/**
+ * A picture's colour as the page paints it: a little less bright than a screen's (pigment, not light),
+ * warmed by the vellum by day; by candlelight dimmer and warmer, the darkest lines lifted so they show
+ * on the dark leaf; and a breath of each look's air (the grimm wood's chill, the clockwork's soot, the
+ * sea's green). Hues are kept: a blue stays blue.
+ */
+export function paintedOn(rgb: number[], theme: string, night: boolean): number[] {
+	const lum = 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2];
+	let c = rgb.map((v) => v + (lum - v) * 0.14);
+	const AIR: Record<string, number[]> = { grimm: [150, 162, 154], clockwork: [160, 132, 96], lovecraft: [118, 150, 136] };
+	if (AIR[theme]) c = c.map((v, k) => v + (AIR[theme][k] - v) * 0.08);
+	if (night) {
+		c = [c[0] * 0.8, c[1] * 0.74, c[2] * 0.64];
+		if (lum < 60) c = c.map((v, k) => v + ([92, 76, 58][k] - v) * (1 - lum / 60) * 0.85);
+	} else c = [c[0] * 0.97, c[1] * 0.95, c[2] * 0.9];
+	return c.map((v) => Math.max(0, Math.min(255, Math.round(v))));
+}
+const hex2 = (c: number[]) => '#' + c.map((v) => v.toString(16).padStart(2, '0')).join('');
+const withArt = new Map<string, Palette>();
+/** A book page's palette: its inks and their shades, then the pictures' colours as that page paints them. */
+function bookPalette(key: string): Palette {
+	if (!withArt.has(key)) {
+		const night = key.endsWith('-night'), theme = themeOfKey(key);
+		withArt.set(key, [...expand(PALETTES[key]), ...ART_HEX.map((h) => hex2(paintedOn([1, 3, 5].map((k) => parseInt(h.slice(k, k + 2), 16)), theme, night)))]);
+	}
+	return withArt.get(key)!;
+}
+/** The palette entry of a picture's colour on a book's page (its own, else the nearest ink). */
+const artInk = (hex: string) => ART_AT.get(hex.toLowerCase()) ?? quant([1, 3, 5].map((k) => parseInt(hex.slice(k, k + 2), 16)));
+
 export function quant(c: number[]): number {
 	const pal = term?.palette ?? PALETTES['manuscript-night'];
 	if (!parsed || parsed.pal !== pal) parsed = { pal, rgb: pal.map((h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]), memo: new Int16Array(1 << 18).fill(-1) };
@@ -335,7 +383,7 @@ export function quant(c: number[]): number {
 	if (hit >= 0) return hit;
 	const [cr, cg, cb] = [r * 4 + 2, g * 4 + 2, b * 4 + 2];
 	let best = 0, bd = Infinity;
-	parsed.rgb.forEach((p, i) => {
+	parsed.rgb.slice(0, INKS).forEach((p, i) => {
 		const d = 2 * (p[0] - cr) ** 2 + 4 * (p[1] - cg) ** 2 + 3 * (p[2] - cb) ** 2;
 		if (d < bd) { bd = d; best = i; }
 	});
@@ -1302,11 +1350,11 @@ function folio(g: Grid, width: number, leaves: Leaf[]) {
 				for (const m of pick) {
 					const top = foot - 2 - m.h;
 					// By candlelight the black ink lines would sink into the dark page: they are drawn in a lighter brown.
-					const night = paletteKey().endsWith('-night');
+					// In its own colours, as the page paints them (paintedOn).
 					m.px.forEach((row, j) => row.forEach((c, i) => {
 						if (!c) return;
-						const rgb = [1, 3, 5].map((k) => parseInt(c.slice(k, k + 2), 16));
-						set(x + (leaf.mirror ? m.w - 1 - i : i), top + j, night && rgb[0] + rgb[1] + rgb[2] < 120 ? [96, 80, 60] : rgb);
+						const xx = x + (leaf.mirror ? m.w - 1 - i : i), yy = top + j;
+						if (xx >= 0 && yy >= 0 && xx < W && yy < H) px[(leaf.mirror ? leaf.x + W - 1 - xx : leaf.x + xx) + yy * GW] = artInk(c);
 					}));
 					x += m.w + 4;
 				}
@@ -1474,7 +1522,7 @@ export function illuminatedRow(lines: { t: string; tone?: Tone }[]): Row {
 function frame(g: Grid) {
 	// The town is lit for the dark: over it, the pages take their night inks.
 	const key = extra && extraShown() ? (paletteKey().startsWith('folio') ? 'map-' + themeOfKey(paletteKey()) : paletteKey().replace('-day', '-night')) : paletteKey();
-	term!.palette = PALETTES[key] ?? PALETTES['manuscript-night'];
+	term!.palette = key.startsWith('folio') ? bookPalette(key) : PALETTES[key] ?? PALETTES['manuscript-night'];
 	// The cover wants a margin of leather round its page: a few more columns (a touch smaller type).
 	// The cover is a picture, drawn fine: many more columns (small cells, two pixels each).
 	// A book on a wide screen lies open: room for two leaves.
