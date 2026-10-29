@@ -297,11 +297,11 @@ const PALETTES: Record<string, Palette> = {
 };
 
 /**
- * An important word (a main action, a tab's title): set on a ground of deep lapis, the word pale, its
- * first letter (or its numeral, "III.") gold and bold. Gold against pale differs in brightness as well
- * as hue, so the first letter stands out to any eyes, at a distance.
+ * An important word (a main action, a tab's title): laid on a band of the book's pale gold (its fawn
+ * ink), the word in the darkest ink, its first letter (or its numeral, "III.") in the deep red, bold.
+ * Light enough to sit with the page rather than against it; dark on light, so it reads at a distance.
  */
-export const HL = { get bg() { return shade(12, 1); }, get fg() { return paletteKey().endsWith('-night') ? 5 : 0; }, cap: 6 };
+export const HL = { bg: 15, get fg() { return paletteKey().endsWith('-night') ? 0 : 5; }, get cap() { return paletteKey().endsWith('-night') ? 9 : 8; } };
 /** Write a word highlighted (HL) at (x, y); returns the x after it. */
 export function highlight(g: Grid, x: number, y: number, text: string): number {
 	const chars = [...text];
@@ -842,6 +842,54 @@ export function wordBox(word: string, act: () => void, w = 24, h = 11): Row {
 		} else at(c.x + Math.floor((c.w - word.length) / 2), wy + 3, word, 5);
 		const fl = '-·♦·-';
 		c.g.text(c.x + Math.floor((c.w - fl.length) / 2), wy + 7, fl, 6);
+		c.hit({ x: x0, y: y0, w, h }, act);
+	});
+}
+
+/** A gothic arrow, pointing up: a broad head with barbs hooked back, a long banded shaft, a knotted tail. */
+const ARROW = [
+	'.....G.....',
+	'....GWG....',
+	'...GGWGG...',
+	'..GGGWGGG..',
+	'.GGGGWGGGG.',
+	'GGG.GDG.GGG',
+	'GG..GGG..GG',
+	'G...GDG...G',
+	'....GGG....',
+	'....GDG....',
+	'....GGG....',
+	'....GDG....',
+	'....GGG....',
+	'...G.G.G...',
+	'...GGGGG...',
+	'....G.G....'
+];
+
+/**
+ * An answer tapped from across the table (the vote's hand up, hand down), in a square box: a double
+ * rule of red set with gold lozenges, a gothic arrow gilt and edged in red pointing up or down, and
+ * under it what it means.
+ */
+export function arrowBox(dir: 'up' | 'down', label: string, act: () => void, w = 24, h = 12): Row {
+	return blockRow(h, (c) => {
+		const x0 = c.x + Math.floor((c.w - w) / 2), y0 = c.y;
+		const at = (x: number, y: number, ch: string, fg: number) => { const cl = c.g.get(x, y); c.g.set(x, y, ch, fg, cl ? cl.bg : 0); };
+		for (let i = 1; i < w - 1; i++) { at(x0 + i, y0, '═', 8); at(x0 + i, y0 + h - 1, '═', 8); }
+		for (let j = 1; j < h - 1; j++) { at(x0, y0 + j, '║', 8); at(x0 + w - 1, y0 + j, '║', 8); }
+		for (const [x, y] of [[x0, y0], [x0 + w - 1, y0], [x0, y0 + h - 1], [x0 + w - 1, y0 + h - 1], [x0 + (w >> 1), y0], [x0 + (w >> 1), y0 + h - 1], [x0, y0 + (h >> 1)], [x0 + w - 1, y0 + (h >> 1)]]) at(x, y, '♦', 6);
+		for (const [x, y] of [[x0 + 2, y0 + 1], [x0 + w - 3, y0 + 1], [x0 + 2, y0 + h - 2], [x0 + w - 3, y0 + h - 2]]) at(x, y, '·', 6);
+		// The arrow: gilt (its lights paler, its bands deeper), edged in red all round.
+		const art = dir === 'up' ? ARROW : [...ARROW].reverse();
+		const aw = art[0].length + 2, ah = art.length + 2;
+		const px: number[][] = Array.from({ length: ah + (ah % 2) }, () => Array(aw).fill(-1));
+		const GOLD = quant([210, 168, 70]), PALE = quant([238, 216, 150]), DEEP = quant([150, 112, 44]);
+		art.forEach((r, y) => [...r].forEach((p, i) => { if (p !== '.') px[y + 1][i + 1] = p === 'W' ? PALE : p === 'D' ? DEEP : GOLD; }));
+		const on = (y: number, i: number) => art[y - 1]?.[i - 1] !== undefined && art[y - 1][i - 1] !== '.';
+		for (let y = 0; y < ah; y++) for (let i = 0; i < aw; i++) if (px[y][i] === -1 && [[-1, 0], [1, 0], [0, -1], [0, 1]].some(([dy, dx]) => on(y + dy, i + dx))) px[y][i] = 8;
+		const ay = y0 + 1 + Math.max(0, Math.floor((h - 3 - px.length / 2) / 2));
+		stampPixels(c.g, c.x + Math.floor((c.w - aw) / 2), ay, px);
+		c.g.text(c.x + Math.floor((c.w - label.length) / 2), ay + px.length / 2, label, 8);
 		c.hit({ x: x0, y: y0, w, h }, act);
 	});
 }
