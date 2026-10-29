@@ -169,7 +169,7 @@ function portraits() {
 
 /** The book's ornaments (art/ornaments.json: the star that asks for the phone back): inks by letter, each rows of letters. */
 function ornaments() {
-	try { const { ink, figures } = JSON.parse(readFileSync('art/ornaments.json', 'utf8')); return { ink, figures }; } catch { return null; }
+	try { const { ink, figures, off = [] } = JSON.parse(readFileSync('art/ornaments.json', 'utf8')); return { ink, figures, off }; } catch { return null; }
 }
 
 /** The title: art/title.png, its alpha (0-255) by pixel; the page gilds and stains it. */

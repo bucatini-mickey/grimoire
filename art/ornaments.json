@@ -1,6 +1,6 @@
 {
-	"ink": {"Y":"#d6ac4a", "y":"#96702c", "W":"#ecd696", "r":"#b02822"},
-	"off": [],
+	"ink": {"Y":"#d6ac4a", "y":"#96702c", "W":"#ecd696", "r":"#b02822", "G":"#cca042", "m":"#1e2e60"},
+	"off": ["roundel"],
 	"themes": {},
 	"figures": {
 		"star": [
@@ -34,6 +34,23 @@
 			"..............Y..............",
 			"..............Y..............",
 			"............................."
+		],
+		"roundel": [
+			".......................",
+			".......GGGGGGGGGG......",
+			".....GGGmmmmmmmmGGG....",
+			"...GGGmmmmmmmmmmmmGGG..",
+			"...GGmmmmmmYmmmmmmmGG..",
+			"..GGmmmmmmmYmmmmmmmmGG.",
+			"..GmmmmmmmYmYmmmmmmmmG.",
+			".GGmmmmYYYmWmYYYmmmmmGG",
+			"..GmmmmmmmYmYmmmmmmmmG.",
+			"..GGmmmmmmmYmmmmmmmmGG.",
+			"...GGmmmmmmYmmmmmmmGG..",
+			"...GGGmmmmmmmmmmmmGGG..",
+			".....GGGmmmmmmmmGGG....",
+			".......GGGGGGGGGG......",
+			"......................."
 		]
 	}
 }

@@ -17,7 +17,7 @@
  */
 import * as G from '../core/index.ts';
 import type { Candidate, CharacterId, Command, GameEvent, GameState, Info, SeatId, Script, Lean } from '../core/index.ts';
-import { chapterRow, coverRow, gothicButton, illuminatedRow, texturaPixels, miniature, namePlate, navRow, tabStrip } from './ascii.ts';
+import { chapterRow, coverRow, illuminatedRow, texturaPixels, wordBox, miniature, namePlate, navRow, tabStrip } from './ascii.ts';
 import { HOW_TO_PLAY, INTERACTIONS, TIPS } from '../core/codex.ts';
 import type { CodexPage } from '../core/codex.ts';
 import { bookKey, themeOf } from './theme.ts';
@@ -2171,9 +2171,9 @@ function voteStage(): Row[] {
 		const master = G.butlerMaster(state);
 		if (G.hasWorkingAbility(state, id, 'butler') && master !== null) rows.push(mid(`Butler: only if ${name(master)} votes`, 'dim'));
 		// (the two the same width, one above the other)
-		// (condensed a touch, so they are not so broad)
-		const bw = Math.max(...['Hand up', 'Hand down'].map((w) => texturaPixels(w, 1)?.w ?? 0)) + 6;
-		rows.push(blank(), gothicButton('Hand up', () => answerVote(true), bw, 1), blank(), gothicButton('Hand down', () => answerVote(false), bw, 1));
+		// Up above Down, each in a square box the same size.
+		const bw = Math.max(24, ...['Up', 'Down'].map((w) => (texturaPixels(w, 0)?.w ?? 0) + 8)), bh = Math.round(bw * 0.45);
+		rows.push(blank(), wordBox('Up', () => answerVote(true), bw, bh), wordBox('Down', () => answerVote(false), bw, bh));
 	} else {
 		rows.push(blank(), flourish, mid('The count', 'rubric'), large(`${v.hands.length} hand${v.hands.length === 1 ? '' : 's'}`), blank(),
 			...cardButtons([btn('Record the vote', recordVote, { style: 'primary' })]));

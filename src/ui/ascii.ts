@@ -678,7 +678,14 @@ export function texturaPixels(word: string, tight: boolean | 0 | 1 | 2 | 3, capF
 }
 
 declare const __PORTRAITS__: { ink: Record<string, string>; figures: Record<string, string[]> } | null | undefined;
-declare const __ORNAMENTS__: { ink: Record<string, string>; figures: Record<string, string[]> } | null | undefined;
+declare const __ORNAMENTS__: { ink: Record<string, string>; figures: Record<string, string[]>; off?: string[] } | null | undefined;
+/** An ornament drawn in the art editor (art/ornaments.json) and on the pages, as its colours by pixel; null if not. */
+function ornamentArt(name: string): (string | null)[][] | null {
+	const O = typeof __ORNAMENTS__ !== 'undefined' ? __ORNAMENTS__ : null, f = O?.figures[name];
+	if (!O || !f || O.off?.includes(name)) return null;
+	const w = Math.max(...f.map((r) => r.length));
+	return f.map((r) => Array.from({ length: w }, (_, i) => O.ink[r[i]] ?? null));
+}
 
 /** A character's portrait (art/portraits.json) as its colours by pixel, null where the ground shows; null if none is drawn yet. */
 function portraitOf(id: string | undefined): (string | null)[][] | null {
@@ -795,13 +802,57 @@ export function chapterRow(title: string, subtitle: string, act: () => void): Ro
 	});
 }
 
+/**
+ * A word in a square box, an answer tapped from across the table (the vote's Up and Down): a double
+ * rule of red, a lozenge of gold at each corner and at the middle of each side, the word lettered in
+ * the textura with its capital gilt and edged in red, a small flourish under it. About square on the
+ * screen: 24 columns by 11 lines.
+ */
+export function wordBox(word: string, act: () => void, w = 24, h = 11): Row {
+	return blockRow(h, (c) => {
+		const x0 = c.x + Math.floor((c.w - w) / 2), y0 = c.y;
+		const at = (x: number, y: number, ch: string, fg: number) => { const cl = c.g.get(x, y); c.g.set(x, y, ch, fg, cl ? cl.bg : 0); };
+		for (let i = 1; i < w - 1; i++) { at(x0 + i, y0, '═', 8); at(x0 + i, y0 + h - 1, '═', 8); }
+		for (let j = 1; j < h - 1; j++) { at(x0, y0 + j, '║', 8); at(x0 + w - 1, y0 + j, '║', 8); }
+		for (const [x, y] of [[x0, y0], [x0 + w - 1, y0], [x0, y0 + h - 1], [x0 + w - 1, y0 + h - 1], [x0 + (w >> 1), y0], [x0 + (w >> 1), y0 + h - 1], [x0, y0 + (h >> 1)], [x0 + w - 1, y0 + (h >> 1)]]) at(x, y, '♦', 6);
+		// (a dot of gold in each inner corner)
+		for (const [x, y] of [[x0 + 2, y0 + 1], [x0 + w - 3, y0 + 1], [x0 + 2, y0 + h - 2], [x0 + w - 3, y0 + h - 2]]) at(x, y, '·', 6);
+		const t = texturaPixels(word, 0);
+		const wy = y0 + 1 + Math.max(0, Math.floor((h - 2 - 8) / 2));
+		if (t) {
+			// The capital gilt, edged in red; the rest in the page's ink.
+			const pw = t.w + 2, px: number[][] = Array.from({ length: 14 }, () => Array(pw).fill(-1));
+			t.at.forEach((r, y) => r.forEach((p, i) => { if (p) px[y + 1][i + 1] = p === 1 ? 6 : c.ink('plain'); }));
+			// (the edge only round the outside of the capital: its counters, the holes in a D or an O, stay clear)
+			const cap = (y: number, i: number) => t.at[y - 1]?.[i - 1] === 1;
+			const outside = Array.from({ length: 14 }, () => Array(pw).fill(false));
+			const todo: [number, number][] = [];
+			for (let y = 0; y < 14; y++) for (let i = 0; i < pw; i++) if ((y === 0 || i === 0 || y === 13 || i === pw - 1) && px[y][i] === -1) { outside[y][i] = true; todo.push([y, i]); }
+			while (todo.length) {
+				const [y, i] = todo.pop()!;
+				for (const [dy, dx] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+					const yy = y + dy, ii = i + dx;
+					if (yy >= 0 && ii >= 0 && yy < 14 && ii < pw && !outside[yy][ii] && px[yy][ii] === -1) { outside[yy][ii] = true; todo.push([yy, ii]); }
+				}
+			}
+			for (let y = 0; y < 14; y++) for (let i = 0; i < pw; i++) {
+				if (px[y][i] === -1 && outside[y][i] && [[-1, 0], [1, 0], [0, -1], [0, 1]].some(([dy, dx]) => cap(y + dy, i + dx))) px[y][i] = 8;
+			}
+			stampPixels(c.g, c.x + Math.floor((c.w - pw) / 2), wy, px);
+		} else at(c.x + Math.floor((c.w - word.length) / 2), wy + 3, word, 5);
+		const fl = '-·♦·-';
+		c.g.text(c.x + Math.floor((c.w - fl.length) / 2), wy + 7, fl, 6);
+		c.hit({ x: x0, y: y0, w, h }, act);
+	});
+}
+
 export function starRow(R = 13): Row {
 	// Drawn in the art editor (art/ornaments.json "star"), in its own colours; else drawn here.
-	const O = typeof __ORNAMENTS__ !== 'undefined' ? __ORNAMENTS__ : null, f = O?.figures.star;
-	if (O && f) {
-		const w = Math.max(...f.map((r) => r.length));
+	const f = ornamentArt('star');
+	if (f) {
+		const w = f[0].length;
 		return blockRow(Math.ceil(f.length / 2), (c) => {
-			const px = f.map((r) => Array.from({ length: w }, (_, i) => (O.ink[r[i]] ? artInk(O.ink[r[i]]) : -1)));
+			const px = f.map((r) => r.map((hex) => (hex ? artInk(hex) : -1)));
 			if (px.length % 2) px.push(Array(w).fill(-1));
 			stampPixels(c.g, c.x + Math.floor((c.w - w) / 2), c.y, px);
 		});
@@ -1506,17 +1557,18 @@ function folio(g: Grid, width: number, leaves: Leaf[]) {
 			// (above the page-turns, if the page has them)
 			const foot = yBot - reserve * 2;
 			const free = foot - (used * 2 + 2);
-			if (pageIllum && free >= 16) {
-				// An illuminated page has a roundel at its foot in place of figures: a gold ring, the colour of
-				// the player's side within it, a gilt flower of four petals at its heart.
-				const cx = Math.floor((x0 + x1) / 2), cy = foot - 9, R = 7;
-				const inner = pageIllum === 'evil' ? [96, 26, 26] : pageIllum === 'good' ? [30, 46, 96] : [44, 70, 48];
-				for (let dy = -R; dy <= R; dy++) for (let dx = -R * 1.5; dx <= R * 1.5; dx++) {
-					const d = Math.hypot(dx / 1.5, dy);
-					if (d <= R) set(cx + Math.round(dx), cy + dy, d > R - 1.2 ? [204, 160, 66] : inner);
+			if (pageIllum) {
+				// An illuminated page has no figures at its foot: the roundel drawn in the art editor
+				// (art/ornaments.json), if it is on the pages, in its own colours.
+				const r = ornamentArt('roundel');
+				if (r && free >= r.length + 2) {
+					const rx = Math.floor((x0 + x1 - r[0].length) / 2), ry = foot - 2 - r.length;
+					r.forEach((row, j) => row.forEach((hex, i) => {
+						if (!hex) return;
+						const xx = rx + (leaf.mirror ? r[0].length - 1 - i : i), yy = ry + j;
+						if (xx >= 0 && yy >= 0 && xx < W && yy < H) px[(leaf.mirror ? leaf.x + W - 1 - xx : leaf.x + xx) + yy * GW] = artInk(hex);
+					}));
 				}
-				for (const [dx, dy] of [[0, -3], [0, -2], [0, 2], [0, 3], [-3, 0], [-2, 0], [-4, 0], [2, 0], [3, 0], [4, 0], [0, 0], [-1, -1], [1, -1], [-1, 1], [1, 1]]) set(cx + dx, cy + dy, [214, 172, 70]);
-				set(cx, cy, [240, 226, 190]);
 			} else if (M.length && free >= 14) {
 				// As many as fit across the text's width.
 				const pick: typeof all[number][1][] = [];
