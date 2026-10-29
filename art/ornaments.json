@@ -1,5 +1,5 @@
 {
-	"ink": {"Y":"#d6ac4a", "y":"#96702c", "W":"#ecd696", "r":"#b02822", "G":"#cca042", "m":"#1e2e60"},
+	"ink": {"Y":"#d6ac4a", "y":"#96702c", "W":"#ecd696", "r":"#b02822", "G":"#cca042", "m":"#1e2e60", "A":"#8c2a22"},
 	"off": ["roundel"],
 	"themes": {},
 	"figures": {
@@ -38,17 +38,17 @@
 		"roundel": [
 			".......................",
 			".......GGGGGGGGGG......",
-			".....GGGmmmmmmmmGGG....",
+			".....GGGmmmGGmmmGGG....",
 			"...GGGmmmmmmmmmmmmGGG..",
-			"...GGmmmmmmYmmmmmmmGG..",
-			"..GGmmmmmmmYmmmmmmmmGG.",
-			"..GmmmmmmmYmYmmmmmmmmG.",
-			".GGmmmmYYYmWmYYYmmmmmGG",
-			"..GmmmmmmmYmYmmmmmmmmG.",
-			"..GGmmmmmmmYmmmmmmmmGG.",
-			"...GGmmmmmmYmmmmmmmGG..",
+			"...GGmmmmmAYYAmmmmmGG..",
+			"..GGmmGmmmAYYAmmmGmmGG.",
+			"..GmmmmAAmYAAYmAAmmmmG.",
+			".GGmGGmYYGGAAGGYYmGGmGG",
+			"..GmmmmAAmYAAYmAAmmmmG.",
+			"..GGmmGmmmAYYAmmmGmmGG.",
+			"...GGmmmmmAYYAmmmmmGG..",
 			"...GGGmmmmmmmmmmmmGGG..",
-			".....GGGmmmmmmmmGGG....",
+			".....GGGmmmGGmmmGGG....",
 			".......GGGGGGGGGG......",
 			"......................."
 		]
