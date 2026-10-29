@@ -585,6 +585,14 @@ function tapSeat(id: SeatId) {
 		return render();
 	}
 	if (state.phase.kind === 'setup') return tapDraftSeat(id);
+	// The day's two picks: who acts, then on whom (themselves, if the one who acts is tapped again);
+	// tapping the second again takes it back. Nothing happens until it is confirmed (dayPicker).
+	if (state.phase.kind === 'day' && ui.dayMode !== 'none') {
+		const [a, b] = ui.picks;
+		ui.picks = a === undefined ? [id] : b === undefined ? [a, id] : id === b ? [a] : [a, id];
+		ui.message = '';
+		return render();
+	}
 	if (ui.picks.includes(id)) ui.picks = ui.picks.filter((p) => p !== id);
 	else {
 		ui.picks.push(id);
@@ -592,11 +600,6 @@ function tapSeat(id: SeatId) {
 	}
 	ui.message = '';
 	ui.draftInfo = null;
-	if (state.phase.kind === 'day' && ui.picks.length === 2) {
-		const [a, b] = ui.picks;
-		if (ui.dayMode === 'nominate') return void act({ type: 'nominate', nominator: a, nominee: b });
-		if (ui.dayMode === 'slay') return void act({ type: 'slay', by: a, target: b });
-	}
 	render();
 }
 
@@ -1918,21 +1921,34 @@ function juggleRows(day: boolean): Row[] {
 function dayPicker(): Row[] {
 	const day = state.day!;
 	const nominating = ui.dayMode === 'nominate';
-	const first = ui.picks[0];
+	const [first, second] = ui.picks;
 	const order = state.order;
 	// Everyone stays where they are, round the circle: the one picked first lit (tap again to take it
 	// back), those who cannot be picked now greyed, so a name is never where another was a tap ago.
 	const can = (id: SeatId) => first === undefined
 		? state.seats[id].alive && (!nominating || !day.nominations.some((n) => n.nominator === id))
-		: id === first || (nominating ? !day.nominations.some((n) => n.nominee === id) : true);
+		: nominating ? !day.nominations.some((n) => n.nominee === id) : true;
+	const whom = (id: SeatId) => (id === first ? 'themselves' : name(id));
 	const prompt = first === undefined
 		? (nominating ? 'Who nominates?' : 'Who takes the shot?')
-		: (nominating ? `${name(first)} nominates...` : `${name(first)} shoots at...`);
+		: second === undefined
+			? (nominating ? `${name(first)} nominates... (tap them again for themselves)` : `${name(first)} shoots at... (tap them again for themselves)`)
+			: (nominating ? `${name(first)} nominates ${whom(second)}.` : `${name(first)} shoots at ${whom(second)}.`);
+	// Who acts lit gold, their target red; one who picks themselves, half of each.
+	const look = (id: SeatId) => (id === first && id === second ? 'split' : id === first ? 'on' : id === second ? 'target' : undefined);
+	const confirm = () => {
+		const [a, b] = ui.picks;
+		if (nominating) void act({ type: 'nominate', nominator: a, nominee: b });
+		else void act({ type: 'slay', by: a, target: b });
+	};
 	return [
 		rubric(nominating ? 'Nomination' : 'The Slayer\u2019s shot'),
 		...prose(prompt, 'gold'),
-		...buttonRows(order.map((id) => btn(state.seats[id].name, () => tapSeat(id), { width: 10, disabled: !can(id), style: ui.picks.includes(id) ? 'on' : undefined })), INNER, 0),
-		...buttonRows([btn(first === undefined ? 'Cancel' : 'Back', () => { if (first === undefined) ui.dayMode = 'none'; clearPicks(); render(); }, { style: 'quiet' })])
+		...buttonRows(order.map((id) => btn(state.seats[id].name, () => tapSeat(id), { width: 10, disabled: !can(id) && id !== first, style: look(id) })), INNER, 0),
+		...buttonRows([
+			...(second !== undefined ? [btn('Confirm', confirm, { style: 'primary' })] : []),
+			btn(first === undefined ? 'Cancel' : 'Back', () => { if (first === undefined) ui.dayMode = 'none'; ui.picks = ui.picks.slice(0, -1); render(); }, { style: 'quiet' })
+		])
 	];
 }
 

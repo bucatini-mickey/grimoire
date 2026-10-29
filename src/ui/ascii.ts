@@ -33,7 +33,8 @@ export interface Button {
 	label: string;
 	act: () => void;
 	/** primary = the main thing to do now; on = toggled/selected; danger = irreversible-ish. */
-	style?: 'primary' | 'on' | 'danger' | 'quiet';
+	/** 'on' chosen (gold); 'target' chosen as the one acted on (red); 'split' both at once (themselves). */
+	style?: 'primary' | 'on' | 'danger' | 'quiet' | 'target' | 'split';
 	disabled?: boolean;
 	/** Exact width in columns (label is padded/cut to fit). Used inside art. */
 	width?: number;
@@ -350,9 +351,10 @@ const ART_HEX: string[] = (() => {
 	const seen = new Set<string>();
 	const M = typeof __MARGINS__ !== 'undefined' && __MARGINS__ ? Object.values(__MARGINS__) : [];
 	for (const m of M) for (const r of m.px) for (const c of r) if (c) seen.add(c.toLowerCase());
-	// (and the portraits')
-	const P = typeof __PORTRAITS__ !== 'undefined' ? __PORTRAITS__ : null;
-	if (P) for (const f of Object.values(P.figures)) for (const r of f) for (const ch of r) if (P.ink[ch]) seen.add(P.ink[ch].toLowerCase());
+	// (and the portraits' and the ornaments')
+	for (const P of [typeof __PORTRAITS__ !== 'undefined' ? __PORTRAITS__ : null, typeof __ORNAMENTS__ !== 'undefined' ? __ORNAMENTS__ : null]) {
+		if (P) for (const f of Object.values(P.figures)) for (const r of f) for (const ch of r) if (P.ink[ch]) seen.add(P.ink[ch].toLowerCase());
+	}
 	// (a cell's colours are keyed fg * 256 + bg in pterm: the palette stays under 256 entries)
 	return [...seen].slice(0, 256 - INKS - 4);
 })();
@@ -429,7 +431,8 @@ export function drawButton(c: Ctx, x: number, y: number, w: number, b: Button) {
 		const [ink, rule, line, ground]: [number, number, 'single' | 'double', number] =
 			st === 'primary' ? [8, 8, 'double', -1]
 			: st === 'danger' ? [8, 8, 'single', -1]
-			: st === 'on' ? [paletteKey().endsWith('-night') || !paletteKey().startsWith('folio') ? 0 : 5, 6, 'double', 6]
+			: st === 'on' || st === 'split' ? [paletteKey().endsWith('-night') || !paletteKey().startsWith('folio') ? 0 : 5, 6, 'double', 6]
+			: st === 'target' ? [0, 8, 'double', 8]
 			: st === 'quiet' ? [3, 2, 'single', -1]
 			: st === 'off' ? [2, 1, 'single', -1]
 			: [5, 3, 'single', -1];
@@ -441,7 +444,13 @@ export function drawButton(c: Ctx, x: number, y: number, w: number, b: Button) {
 		for (let i = 1; i < bw - 1; i++) { at(x + i, y, h); at(x + i, y + 2, h); }
 		at(x, y, tl); at(x + bw - 1, y, tr); at(x, y + 2, bl); at(x + bw - 1, y + 2, br);
 		at(x, y + 1, v); at(x + bw - 1, y + 1, v);
-		if (st === 'primary' || st === 'danger') {
+		if (st === 'split') {
+			// Gold the half that acts, red the half acted on: a player who picks themselves.
+			const half = Math.floor(bw / 2);
+			g.fill({ x: x + 1, y: y + 1, w: half - 1, h: 1 }, ' ', ink, 6);
+			g.fill({ x: x + half, y: y + 1, w: bw - 1 - half, h: 1 }, ' ', 0, 8);
+			[...label].forEach((ch, i) => { const at = lx + i; g.set(at, y + 1, ch, at < x + half ? ink : 0, at < x + half ? 6 : 8); });
+		} else if (st === 'primary' || st === 'danger') {
 			// (the highlight fills the frame, a space either side of the words)
 			g.fill({ x: x + 1, y: y + 1, w: bw - 2, h: 1 }, ' ', HL.fg, HL.bg);
 			highlight(g, lx, y + 1, label);
@@ -458,13 +467,15 @@ export function drawButton(c: Ctx, x: number, y: number, w: number, b: Button) {
 	const [fg, bg, edge, cap, line]: [number, number, number, number, 'single' | 'double'] =
 		// Over the town in a game kept in the book, buttons are labels of parchment laid on the map.
 		onMap() ? (st === 'primary' ? [4, 8, 6, 4, 'double']
-			: st === 'on' ? [0, 6, 15, 9, 'double']
+			: st === 'on' || st === 'split' ? [0, 6, 15, 9, 'double']
+			: st === 'target' ? [0, 8, 9, 0, 'double']
 			: st === 'danger' ? [8, 4, 8, 8, 'single']
 			: st === 'quiet' ? [0, 3, 2, 0, 'single']
 			: st === 'off' ? [2, 1, 2, 2, 'single']
 			: [0, 4, 15, 8, 'single'])
 		: st === 'primary' ? [0, 8, 6, 0, 'double']
-		: st === 'on' ? [0, 6, 9, 9, 'double']
+		: st === 'on' || st === 'split' ? [0, 6, 9, 9, 'double']
+		: st === 'target' ? [0, 8, 9, 0, 'double']
 		: st === 'danger' ? [8, 1, 8, 8, 'single']
 		: st === 'quiet' ? [3, 1, 2, 3, 'single']
 		: st === 'off' ? [2, 1, 2, 2, 'single']
@@ -475,6 +486,8 @@ export function drawButton(c: Ctx, x: number, y: number, w: number, b: Button) {
 	const label = [...b.label].slice(0, room).join('');
 	const lx = x + 2 + Math.floor((room - [...label].length) / 2);
 	g.text(lx, y + 1, label, fg, bg);
+	// (one who picks themselves: the right half red)
+	if (st === 'split') for (let i = x + Math.floor(w / 2); i < x + w - 1; i++) { const cl = g.get(i, y + 1); if (cl) { cl.bg = 8; cl.fg = 0; } }
 	// The main one's first letter (or numeral) in its own colour, bold.
 	if (st === 'primary' || st === 'danger') {
 		const lead = label.match(/^[IVXLC]+(?=\.)/)?.[0].length ?? (/\p{L}/u.test(label[0] ?? '') ? 1 : 0);
@@ -665,6 +678,7 @@ export function texturaPixels(word: string, tight: boolean | 0 | 1 | 2 | 3, capF
 }
 
 declare const __PORTRAITS__: { ink: Record<string, string>; figures: Record<string, string[]> } | null | undefined;
+declare const __ORNAMENTS__: { ink: Record<string, string>; figures: Record<string, string[]> } | null | undefined;
 
 /** A character's portrait (art/portraits.json) as its colours by pixel, null where the ground shows; null if none is drawn yet. */
 function portraitOf(id: string | undefined): (string | null)[][] | null {
@@ -730,6 +744,16 @@ export function miniature(role: string | undefined, team: 'good' | 'evil' | 'oth
  * page of hours sets one over the words that end a rite: the sign that the phone goes back.
  */
 export function starRow(R = 13): Row {
+	// Drawn in the art editor (art/ornaments.json "star"), in its own colours; else drawn here.
+	const O = typeof __ORNAMENTS__ !== 'undefined' ? __ORNAMENTS__ : null, f = O?.figures.star;
+	if (O && f) {
+		const w = Math.max(...f.map((r) => r.length));
+		return blockRow(Math.ceil(f.length / 2), (c) => {
+			const px = f.map((r) => Array.from({ length: w }, (_, i) => (O.ink[r[i]] ? artInk(O.ink[r[i]]) : -1)));
+			if (px.length % 2) px.push(Array(w).fill(-1));
+			stampPixels(c.g, c.x + Math.floor((c.w - w) / 2), c.y, px);
+		});
+	}
 	const D = 2 * R + 3, H = D + (D % 2);
 	return blockRow(H / 2, (c) => {
 		const cx = R + 1, cy = R + 1;

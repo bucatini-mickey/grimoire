@@ -167,6 +167,11 @@ function portraits() {
 	} catch { return null; }
 }
 
+/** The book's ornaments (art/ornaments.json: the star that asks for the phone back): inks by letter, each rows of letters. */
+function ornaments() {
+	try { const { ink, figures } = JSON.parse(readFileSync('art/ornaments.json', 'utf8')); return { ink, figures }; } catch { return null; }
+}
+
 /** The title: art/title.png, its alpha (0-255) by pixel; the page gilds and stains it. */
 function titleAlpha() {
 	try {
@@ -189,7 +194,7 @@ const options = {
 	write: false,
 	outdir: 'dist/.js',
 	loader: { '.tbp': 'text' },
-	define: { __LOGO__: JSON.stringify(logoPixels()), __TITLE__: JSON.stringify(titleAlpha()), __MARGINS__: JSON.stringify(margins()), __MARGIN_THEMES__: JSON.stringify(marginThemes()), __PORTRAITS__: JSON.stringify(portraits()) },
+	define: { __LOGO__: JSON.stringify(logoPixels()), __TITLE__: JSON.stringify(titleAlpha()), __MARGINS__: JSON.stringify(margins()), __MARGIN_THEMES__: JSON.stringify(marginThemes()), __PORTRAITS__: JSON.stringify(portraits()), __ORNAMENTS__: JSON.stringify(ornaments()) },
 	plugins: [inline],
 	logLevel: 'warning'
 };

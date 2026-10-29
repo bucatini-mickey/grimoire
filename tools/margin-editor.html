@@ -38,7 +38,7 @@
 	#figures canvas { image-rendering: pixelated; width: 24px; height: 24px; margin-right: 8px; flex: none; background: #e4dccb; }
 	#figures li span { display: flex; align-items: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 	#figures li.blank span { color: var(--dim); }
-	body.portraits .figOnly, body:not(.portraits) .portraitOnly { display: none; }
+	body.portraits .figOnly, body:not(.portraits) .portraitOnly, body.ornaments .marginOnly { display: none; }
 	main { display: grid; grid-template-columns: 220px 1fr 380px; gap: 14px; padding: 14px; align-items: start; }
 	@media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
 	section, aside { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px; }
@@ -87,9 +87,9 @@
 		<p class="hint portraitOnly">Each portrait is 16 × 16. A character with none yet is greyed: pick it and start drawing. Empty portraits are not saved.</p>
 		<div class="figOnly">
 		<div class="row"><button id="new">New</button><button id="dup">Copy</button><button id="ren">Rename</button><button id="del">Delete</button></div>
-		<div class="row"><label><input id="onPage" type="checkbox"> On the pages</label></div>
-		<div class="row" id="books">In the books of: <label><input type="checkbox" value="medieval"> medieval</label> <label><input type="checkbox" value="grimm"> grimm</label> <label><input type="checkbox" value="clockwork"> clockwork</label> <label><input type="checkbox" value="lovecraft"> Lovecraft</label></div>
-		<p class="hint">Off the pages, a figure is kept here to work on but the app does not show it. Copy one to start a new figure from it (the imp is a start for demons).</p>
+		<div class="row marginOnly"><label><input id="onPage" type="checkbox"> On the pages</label></div>
+		<div class="row marginOnly" id="books">In the books of: <label><input type="checkbox" value="medieval"> medieval</label> <label><input type="checkbox" value="grimm"> grimm</label> <label><input type="checkbox" value="clockwork"> clockwork</label> <label><input type="checkbox" value="lovecraft"> Lovecraft</label></div>
+		<p class="hint marginOnly">Off the pages, a figure is kept here to work on but the app does not show it. Copy one to start a new figure from it (the imp is a start for demons).</p>
 		<h2>Size</h2>
 		<div class="row"><input id="w" type="number" min="1" max="52"> × <input id="h" type="number" min="1" max="60"><button id="resize">Set</button></div>
 		<p class="hint">Resizing keeps the feet where they are: rows come and go at the top, columns at the right. The page's writing is 52 wide; most pages have room for about 20 high.</p>
@@ -176,7 +176,8 @@ const undo = [], redo = [];
 /** The kinds of art: a file in art/ each. To add one, add it here (pictures: it also writes margin-*.png). */
 const KINDS = {
 	margins: { label: 'Margin figures', file: 'margins.json', pictures: true },
-	portraits: { label: 'Portraits', file: 'portraits.json', size: [16, 16] }
+	portraits: { label: 'Portraits', file: 'portraits.json', size: [16, 16] },
+	ornaments: { label: 'Ornaments', file: 'ornaments.json' }
 };
 let kind = 'margins';
 /** Each kind's drawing, kept while another is shown: its data, where it was, its unsaved changes, its undo. */
@@ -241,6 +242,7 @@ function draw() {
 		for (let y = 0; y <= H(); y++) { g.beginPath(); g.moveTo(0, y * z + 0.5); g.lineTo(c.width, y * z + 0.5); g.stroke(); }
 	}
 	document.body.classList.toggle('portraits', portraits());
+	document.body.classList.toggle('ornaments', kind === 'ornaments');
 	$('listHead').textContent = portraits() ? 'Characters' : 'Figures';
 	PAGE = PAGES[$('look').value];
 	drawKinds();
@@ -345,8 +347,16 @@ function drawPortrait(when) {
 	g.fillText(aboutOf(cur).name, 6 * K, 38 * K);
 	g.fillStyle = P[6]; g.fillRect(4 * K, 2 * K, K, 34 * K);
 }
+/** An ornament in the middle of a page, as the book paints it (the star: on the page that asks for the phone back). */
+function drawOrnament(when) {
+	const c = $(when), g = c.getContext('2d'), P = PAGE[when], K = 6, w = W(), h = H();
+	c.width = (w + 16) * K; c.height = (h + 8) * K;
+	g.fillStyle = P[0]; g.fillRect(0, 0, c.width, c.height);
+	grid().forEach((r, j) => [...r].forEach((ch, i) => { if (data.ink[ch]) { g.fillStyle = onPage(data.ink[ch], when); g.fillRect((8 + i) * K, (4 + j) * K, K, K); } }));
+}
 function drawPage(when) {
 	if (portraits()) return drawPortrait(when);
+	if (kind === 'ornaments') return drawOrnament(when);
 	const c = $(when), g = c.getContext('2d'), P = PAGE[when];
 	const figs = Object.entries(data.figures).filter(([n]) => n === cur || !data.off.includes(n));
 	const order = [cur, ...figs.map(([n]) => n).filter((n) => n !== cur)];
@@ -480,13 +490,14 @@ function pngBlob(f) {
 	f.forEach((row, y) => [...row].forEach((ch, x) => { if (data.ink[ch]) { g.fillStyle = data.ink[ch]; g.fillRect(x, y, 1, 1); } }));
 	return new Promise((r) => c.toBlob(r, 'image/png'));
 }
-function use(text) {
+/** Which kind a file is: a portraits file says who the characters are; else by its name; else the kind shown. */
+const kindOf = (d, filename = '') => (d.about ? 'portraits' : Object.keys(KINDS).find((k) => filename.includes(k)) ?? kind);
+function use(text, k) {
 	const d = JSON.parse(text);
 	if (!d.ink || !d.figures) throw new Error('not one of the art files');
 	d.off ??= [];
 	d.themes ??= {};
-	// (a portraits file says who the characters are)
-	const k = d.about ? 'portraits' : 'margins';
+	k ??= kindOf(d);
 	if (k !== kind) { kept[kind] = { data, cur, dirty, undo: [...undo], redo: [...redo] }; kind = k; }
 	data = d; undo.length = redo.length = 0; dirty = false; cur = firstName();
 	if (!data.figures[cur] && portraits()) data.figures[cur] = blankPortrait();
@@ -501,7 +512,7 @@ $('open').onclick = async () => {
 		for (const [k, v] of Object.entries(KINDS)) {
 			const fh = await d.getFileHandle(v.file).catch(() => null);
 			if (!fh) continue;
-			kind = k; use(await (await fh.getFile()).text()); found.push(v.file);
+			kind = k; use(await (await fh.getFile()).text(), k); found.push(v.file);
 			kept[k] = { data, cur, dirty: false, undo: [], redo: [] };
 		}
 		if (!found.length) return alert('There are no art files in that folder: pick Grimoire/art.');
@@ -539,7 +550,7 @@ async function saveKind(v, data) {
 }
 $('save').onclick = save;
 $('loadBtn').onclick = () => $('load').click();
-$('load').onchange = async (e) => { const f = e.target.files[0]; if (!f) return; try { use(await f.text()); status(`Loaded ${f.name}: download the files when you are done.`); } catch (err) { alert(err.message); } };
+$('load').onchange = async (e) => { const f = e.target.files[0]; if (!f) return; try { use(await f.text(), kindOf(JSON.parse(await f.text()), f.name)); status(`Loaded ${f.name}: download the files when you are done.`); } catch (err) { alert(err.message); } };
 const download = (name, blob) => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); };
 $('dlJson').onclick = () => download(file(), new Blob([pretty(data)], { type: 'application/json' }));
 $('dlPng').onclick = async () => { if (!KINDS[kind].pictures) return status('These need no pictures: the .json is all.'); for (const [n, f] of Object.entries(data.figures)) if (!data.off.includes(n)) download(`margin-${n}.png`, await pngBlob(f)); };
