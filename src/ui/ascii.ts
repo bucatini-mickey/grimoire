@@ -765,18 +765,18 @@ export function gothicButton(word: string, act: () => void): Row {
 }
 
 /**
- * A chapter's opening, as a manuscript sets one: a small line in red naming the chapter between
- * flourishes, the title lettered large in the textura (its capital gilt), a rule of gold ornament
- * under it, and the subtitle in the old manner ("wherein..."). The whole of it is tapped to open it.
+ * A chapter's opening, as a manuscript sets one: a small ornament in red, the title lettered large in
+ * the textura (its capital gilt), a rule of gold ornament under it, and a line on what it holds. The
+ * whole of it is tapped to open it.
  */
-export function chapterRow(chapter: string, title: string, subtitle: string, act: () => void): Row {
+export function chapterRow(title: string, subtitle: string, act: () => void): Row {
 	const t = texturaPixels(title, 0);
 	const lines = wrap(subtitle, INNER - 4);
 	const h = 1 + 6 + 1 + lines.length;
 	return blockRow(h, (c) => {
 		const mid = (s: string) => c.x + Math.floor((c.w - [...s].length) / 2);
-		// The chapter, small, in red, between flourishes.
-		const head = '~ ' + chapter + ' ~';
+		// A small ornament in red.
+		const head = '~ ♦ ~';
 		c.g.text(mid(head), c.y, head, 8);
 		// The title.
 		if (t) {

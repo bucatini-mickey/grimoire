@@ -730,10 +730,10 @@ function homeScreen(): Row[] {
 	// The first page: a game going to pick up, then Play and the Codex, lettered large.
 	if (ui.leaf === 'front') {
 		const rows = [...head, ...resumeRows(busy)];
-		// Its two chapters, opened as a manuscript opens one: a line in red, the title lettered large, a rule
-		// of gold, and what the chapter holds.
-		rows.push(blank(), chapterRow('The first chapter', 'Play', 'wherein a game is set out and played, by the Storyteller or by the players', toLeaf('contents')), blank(), blank());
-		rows.push(chapterRow('The second chapter', 'Codex', 'wherein the characters are set down, each with its craft, and the manner of the game made plain', () => { ui.leaf = 'codex'; ui.codex.page = 'index'; render(); }));
+		// Its two parts, opened as a manuscript opens a chapter: an ornament in red, the title lettered large,
+		// a rule of gold, and a plain word on what it holds.
+		rows.push(blank(), chapterRow('Play', 'Run a game, or join one.', toLeaf('contents')), blank(), blank());
+		rows.push(chapterRow('Codex', 'Characters, tips and how to play.', () => { ui.leaf = 'codex'; ui.codex.page = 'index'; render(); }));
 		return rows;
 	}
 	const rows: Row[] = [navRow('Back', toLeaf('front')), blank()];
