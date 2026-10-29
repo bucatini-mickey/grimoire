@@ -743,6 +743,27 @@ export function miniature(role: string | undefined, team: 'good' | 'evil' | 'oth
  * A great star of eight points, gilt, a jewel at its heart and fine rays between its points, as a
  * page of hours sets one over the words that end a rite: the sign that the phone goes back.
  */
+/**
+ * A great button lettered in the textura, framed in a double rule of red: the choices on the book's
+ * first page (Play, the Codex).
+ */
+export function gothicButton(word: string, act: () => void): Row {
+	return blockRow(8, (c) => {
+		const t = texturaPixels(word, 0);
+		if (!t) { drawButton(c, c.x, c.y + 2, c.w, { label: word, act, style: 'primary' }); return; }
+		const bw = t.w + 10, x0 = c.x + Math.floor((c.w - bw) / 2);
+		const at = (x: number, y: number, ch: string) => { const cl = c.g.get(x, y); c.g.set(x, y, ch, 8, cl ? cl.bg : 0); };
+		for (let i = 1; i < bw - 1; i++) { at(x0 + i, c.y, '═'); at(x0 + i, c.y + 7, '═'); }
+		for (let j = 1; j < 7; j++) { at(x0, c.y + j, '║'); at(x0 + bw - 1, c.y + j, '║'); }
+		at(x0, c.y, '╔'); at(x0 + bw - 1, c.y, '╗'); at(x0, c.y + 7, '╚'); at(x0 + bw - 1, c.y + 7, '╝');
+		// The word: the capital gilt, the rest in the page's ink.
+		const px: number[][] = Array.from({ length: 12 }, () => Array(t.w).fill(-1));
+		t.at.forEach((r, y) => r.forEach((p, i) => { if (p) px[y][i] = p === 1 ? 6 : c.ink('plain'); }));
+		stampPixels(c.g, x0 + 5, c.y + 1, px);
+		c.hit({ x: x0, y: c.y, w: bw, h: 8 }, act);
+	});
+}
+
 export function starRow(R = 13): Row {
 	// Drawn in the art editor (art/ornaments.json "star"), in its own colours; else drawn here.
 	const O = typeof __ORNAMENTS__ !== 'undefined' ? __ORNAMENTS__ : null, f = O?.figures.star;

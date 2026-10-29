@@ -17,7 +17,9 @@
  */
 import * as G from '../core/index.ts';
 import type { Candidate, CharacterId, Command, GameEvent, GameState, Info, SeatId, Script, Lean } from '../core/index.ts';
-import { coverRow, illuminatedRow, navRow, tabStrip } from './ascii.ts';
+import { coverRow, gothicButton, illuminatedRow, miniature, namePlate, navRow, tabStrip } from './ascii.ts';
+import { HOW_TO_PLAY, INTERACTIONS, TIPS } from '../core/codex.ts';
+import type { CodexPage } from '../core/codex.ts';
 import { bookKey, themeOf } from './theme.ts';
 import { LobbyVoice } from '../town/lobbyvoice.ts';
 import type { Tab as TabSpec } from './ascii.ts';
@@ -174,7 +176,9 @@ const ui = {
 	/** The home page starts as the book's shut cover; a tap opens it to the menu. */
 	coverOpen: false,
 	/** Which leaf of the opened book: its contents, the Storyteller's leaf, or the players'. */
-	leaf: 'contents' as 'contents' | 'st' | 'players',
+	leaf: 'front' as 'front' | 'contents' | 'st' | 'players' | 'codex',
+	/** Where the codex is open: its index, a page of it, the characters of a script, or one character. */
+	codex: { page: 'index' as 'index' | 'how' | 'meet' | 'list' | 'char', script: 'trouble-brewing', char: '' },
 	/** Second taps that confirm ending a game (home: host anew, play in person, end it). */
 	confirm: '' as '' | 'host' | 'grimoire' | 'table' | 'end',
 	showQr: false,
@@ -715,13 +719,29 @@ function hostNew() {
 function homeScreen(): Row[] {
 	const busy = saved.events.length > 0 || (saved.net?.lobby?.length ?? 0) > 0;
 	// Shut: the cover alone. Open: the first page, the illuminated G at its head.
-	if (!ui.coverOpen) return [coverRow(() => { ui.coverOpen = true; ui.leaf = 'contents'; render(); })];
+	if (!ui.coverOpen) return [coverRow(() => { ui.coverOpen = true; ui.leaf = 'front'; render(); })];
 	const toLeaf = (l: typeof ui.leaf) => () => { ui.leaf = l; ui.confirm = ''; render(); };
 	if (ui.leaf === 'st') return storytellerLeaf(busy, toLeaf('contents'));
 	if (ui.leaf === 'players') return playersLeaf(toLeaf('contents'));
-	const rows: Row[] = [navRow('Close the book', () => { ui.coverOpen = false; render(); }), illuminatedRow([
+	if (ui.leaf === 'codex') return codexRows(toLeaf('front'));
+	const head: Row[] = [navRow('Close the book', () => { ui.coverOpen = false; render(); }), illuminatedRow([
 		{ t: 'the book of the Storyteller' }, { t: 'for Blood on the Clocktower,' }, { t: 'wherein the game is kept,', tone: 'dim' }, { t: 'its nights and its dead.', tone: 'dim' }
 	]), blank()];
+	// The first page: a game going to pick up, then Play and the Codex, lettered large.
+	if (ui.leaf === 'front') {
+		const rows = [...head, ...resumeRows(busy)];
+		rows.push(blank(), gothicButton('Play', toLeaf('contents')), row(txt(center('Run a game, or join one.', INNER), 'dim')), blank());
+		rows.push(gothicButton('Codex', () => { ui.leaf = 'codex'; ui.codex.page = 'index'; render(); }), row(txt(center('The characters, and how the game is played.', INNER), 'dim')));
+		return rows;
+	}
+	const rows: Row[] = [navRow('Back', toLeaf('front')), blank()];
+	rows.push(...resumeRows(busy));
+	return contentsRows(rows, toLeaf);
+}
+
+/** A game going, to pick up from the book's first page or its contents. */
+function resumeRows(busy: boolean): Row[] {
+	const rows: Row[] = [];
 	// A game going: pick it up from here.
 	if (saved.net && busy) {
 		rows.push(rubric((saved.net.village ? 'Your game' : 'Your grimoire') + ' - ' + saved.net.room), ...prose(gameSummary(), 'dim'),
@@ -729,15 +749,90 @@ function homeScreen(): Row[] {
 	} else if (!saved.net && saved.events.length) {
 		rows.push(rubric('Your grimoire'), ...prose(gameSummary(), 'dim'), buttonBlock([btn('Open', () => go('#grimoire'), { style: 'primary', width: INNER })]), endPanel());
 	}
-	rows.push(rubric('Contents'));
+	return rows;
+}
+
+/** Play: the Storyteller's leaf and the players'. */
+function contentsRows(rows: Row[], toLeaf: (l: typeof ui.leaf) => () => void): Row[] {
+	rows.push(rubric('Play'));
 	rows.push(buttonBlock([btn('For the Storyteller', toLeaf('st'), { width: INNER })]), ...prose('Run a game: on your one phone, with every player\u2019s phone, or in the village online.', 'dim'), blank());
 	rows.push(buttonBlock([btn('For the players', toLeaf('players'), { width: INNER })]), ...prose('Join the Storyteller\u2019s game, or walk the village.', 'dim'));
 	return rows;
 }
 
+// ---- the codex ------------------------------------------------------------------------------------
+
+/** The scripts the codex lists characters from, then the Travellers and the Fabled. */
+function codexScripts(): { id: string; name: string; chars: { id: string; name: string; team: string; ability: string }[] }[] {
+	const scripts = Object.values(G.SCRIPTS).map((s) => ({ id: s.id, name: s.name, chars: s.characters.map((c) => ({ id: c.id, name: c.name, team: c.team as string, ability: c.ability })) }));
+	const seen = new Set<string>(), travellers: { id: string; name: string; team: string; ability: string }[] = [];
+	for (const s of Object.values(G.SCRIPTS)) for (const c of s.travellers ?? []) if (!seen.has(c.id)) { seen.add(c.id); travellers.push({ id: c.id, name: c.name, team: 'traveller', ability: c.ability }); }
+	return [...scripts, { id: 'travellers', name: 'Travellers', chars: travellers }, { id: 'fabled', name: 'Fabled', chars: G.FABLED.map((f) => ({ id: f.id, name: f.name, team: 'fabled', ability: f.ability })) }];
+}
+
+/**
+ * The Codex: how the game is played, how abilities meet, and every character of the scripts with
+ * its ability, its portrait if one has been drawn, and a few first thoughts for a new player.
+ */
+function codexRows(home: () => void): Row[] {
+	const cx = ui.codex;
+	const to = (page: typeof cx.page, more: Partial<typeof cx> = {}) => () => { Object.assign(cx, { page, ...more }); render(); };
+	if (cx.page === 'how' || cx.page === 'meet') return codexPage(cx.page === 'how' ? HOW_TO_PLAY : INTERACTIONS, to('index'));
+	const scripts = codexScripts();
+	const sc = scripts.find((s) => s.id === cx.script) ?? scripts[0];
+	if (cx.page === 'char') {
+		const at = sc.chars.findIndex((c) => c.id === cx.char), c = sc.chars[at];
+		if (!c) return codexRows(home);
+		const side = c.team === 'minion' || c.team === 'demon' ? 'evil' : c.team === 'townsfolk' || c.team === 'outsider' ? 'good' : 'other';
+		const TEAM: Record<string, string> = { townsfolk: 'Townsfolk', outsider: 'Outsider', minion: 'Minion', demon: 'Demon', traveller: 'Traveller', fabled: 'Fabled' };
+		const rows: Row[] = [navRow(sc.name, to('list'))];
+		const arch = miniature(c.id, side, COLS);
+		if (arch) rows.push(arch);
+		rows.push(namePlate(c.name) ?? row(txt(center(c.name, INNER), 'gold', 'heading')), row(txt(center(TEAM[c.team] ?? c.team, INNER), side === 'evil' ? 'evil' : 'good')), blank());
+		rows.push(rubric('Ability'), ...prose(c.ability), endPanel());
+		const tips = TIPS[c.id];
+		if (tips?.length) { rows.push(blank(), rubric('First thoughts')); for (const t of tips) rows.push(...prose(t, 'dim'), blank()); rows.push(endPanel()); }
+		const prev = sc.chars[at - 1], next = sc.chars[at + 1];
+		rows.push(blank(), ...buttonRows([
+			btn(prev ? '< ' + prev.name : '< Back', prev ? to('char', { char: prev.id }) : to('list'), { style: 'quiet' }),
+			...(next ? [btn(next.name + ' >', to('char', { char: next.id }), { style: 'primary' })] : [])
+		]));
+		return rows;
+	}
+	if (cx.page === 'list') {
+		const rows: Row[] = [navRow('Codex', to('index')), rubric('The characters')];
+		rows.push(...buttonRows(scripts.map((s) => btn(s.name, to('list', { script: s.id }), { style: s.id === sc.id ? 'on' : 'quiet' }))));
+		const TEAMS: [string, string][] = [['Townsfolk', 'townsfolk'], ['Outsiders', 'outsider'], ['Minions', 'minion'], ['Demons', 'demon'], ['Travellers', 'traveller'], ['Fabled', 'fabled']];
+		for (const [label, team] of TEAMS) {
+			const of = sc.chars.filter((c) => c.team === team);
+			if (!of.length) continue;
+			rows.push(blank(), rubric(label), ...buttonRows(of.map((c) => btn(c.name, to('char', { char: c.id })))), endPanel());
+		}
+		return rows;
+	}
+	return [
+		navRow('Back', home), rubric('The Codex'),
+		...prose('The book’s own guide: for a newcomer, and for anyone checking a rule.', 'dim'), blank(),
+		buttonBlock([btn(HOW_TO_PLAY.title, to('how'), { width: INNER, style: 'primary' })]), ...prose('The two sides, the night and the day, nominations and votes: the game in a few minutes.', 'dim'), blank(),
+		buttonBlock([btn('The characters', to('list'), { width: INNER })]), ...prose('Every character of each script: what they do, their portrait, and first thoughts on playing them.', 'dim'), blank(),
+		buttonBlock([btn(INTERACTIONS.title, to('meet'), { width: INNER })]), ...prose('Drunk and poisoned, registering, protection, the Demon’s death: the rules that surprise people.', 'dim')
+	];
+}
+
+/** A page of the codex: its headings in red, its paragraphs plain. */
+function codexPage(p: CodexPage, back: () => void): Row[] {
+	const rows: Row[] = [navRow('Codex', back), rubric(p.title)];
+	for (const l of p.lines) {
+		if (l.startsWith('## ')) rows.push(blank(), row(txt(l.slice(3), 'rubric', 'heading')));
+		else rows.push(...prose(l));
+	}
+	rows.push(endPanel());
+	return rows;
+}
+
 /** The Storyteller's leaf: the three ways to run a game (a game going asks before it is ended). */
 function storytellerLeaf(busy: boolean, back: () => void): Row[] {
-	const rows: Row[] = [navRow('Contents', back), rubric('For the Storyteller')];
+	const rows: Row[] = [navRow('Play', back), rubric('For the Storyteller')];
 	if (busy) rows.push(...prose('A game is going: starting another ends it. (End it here, or pick it up from the contents.)', 'dim'),
 		buttonBlock([btn(ui.confirm === 'end' ? 'Sure? End it' : 'End the game going', () => { if (ui.confirm === 'end') endSaved(); else { ui.confirm = 'end'; render(); } }, { style: 'danger' })]), blank());
 	const mode = (key: typeof ui.confirm, title: string, sub: string, start: () => void) => {
@@ -756,7 +851,7 @@ function storytellerLeaf(busy: boolean, back: () => void): Row[] {
 
 /** The players' leaf: join a game (or rejoin the last one), or walk the village alone. */
 function playersLeaf(back: () => void): Row[] {
-	const rows: Row[] = [navRow('Contents', back), rubric('For the players')];
+	const rows: Row[] = [navRow('Play', back), rubric('For the players')];
 	const mine = (() => { try { return { room: localStorage.getItem('grimoire.room') ?? '', name: localStorage.getItem('grimoire.name') ?? '' }; } catch { return { room: '', name: '' }; } })();
 	if (mine.room && mine.name) rows.push(buttonBlock([btn('Rejoin room ' + mine.room, () => go('#join=' + mine.room), { style: 'primary', width: INNER })]), ...prose('as ' + mine.name, 'dim'), blank());
 	rows.push(buttonBlock([btn('Join a game', () => go('#join'), { style: mine.room ? undefined : 'primary', width: INNER })]), ...prose('Type the four letters the Storyteller gives you.', 'dim'), blank());
