@@ -17,7 +17,7 @@
  */
 import * as G from '../core/index.ts';
 import type { Candidate, CharacterId, Command, GameEvent, GameState, Info, SeatId, Script, Lean } from '../core/index.ts';
-import { coverRow, gothicButton, illuminatedRow, miniature, namePlate, navRow, tabStrip } from './ascii.ts';
+import { chapterRow, coverRow, illuminatedRow, miniature, namePlate, navRow, tabStrip } from './ascii.ts';
 import { HOW_TO_PLAY, INTERACTIONS, TIPS } from '../core/codex.ts';
 import type { CodexPage } from '../core/codex.ts';
 import { bookKey, themeOf } from './theme.ts';
@@ -730,8 +730,10 @@ function homeScreen(): Row[] {
 	// The first page: a game going to pick up, then Play and the Codex, lettered large.
 	if (ui.leaf === 'front') {
 		const rows = [...head, ...resumeRows(busy)];
-		rows.push(blank(), gothicButton('Play', toLeaf('contents')), row(txt(center('Run a game, or join one.', INNER), 'dim')), blank());
-		rows.push(gothicButton('Codex', () => { ui.leaf = 'codex'; ui.codex.page = 'index'; render(); }), row(txt(center('The characters, and how the game is played.', INNER), 'dim')));
+		// Its two chapters, opened as a manuscript opens one: a line in red, the title lettered large, a rule
+		// of gold, and what the chapter holds.
+		rows.push(blank(), chapterRow('The first chapter', 'Play', 'wherein a game is set out and played, by the Storyteller or by the players', toLeaf('contents')), blank(), blank());
+		rows.push(chapterRow('The second chapter', 'Codex', 'wherein the characters are set down, each with its craft, and the manner of the game made plain', () => { ui.leaf = 'codex'; ui.codex.page = 'index'; render(); }));
 		return rows;
 	}
 	const rows: Row[] = [navRow('Back', toLeaf('front')), blank()];

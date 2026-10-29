@@ -764,6 +764,35 @@ export function gothicButton(word: string, act: () => void): Row {
 	});
 }
 
+/**
+ * A chapter's opening, as a manuscript sets one: a small line in red naming the chapter between
+ * flourishes, the title lettered large in the textura (its capital gilt), a rule of gold ornament
+ * under it, and the subtitle in the old manner ("wherein..."). The whole of it is tapped to open it.
+ */
+export function chapterRow(chapter: string, title: string, subtitle: string, act: () => void): Row {
+	const t = texturaPixels(title, 0);
+	const lines = wrap(subtitle, INNER - 4);
+	const h = 1 + 6 + 1 + lines.length;
+	return blockRow(h, (c) => {
+		const mid = (s: string) => c.x + Math.floor((c.w - [...s].length) / 2);
+		// The chapter, small, in red, between flourishes.
+		const head = '~ ' + chapter + ' ~';
+		c.g.text(mid(head), c.y, head, 8);
+		// The title.
+		if (t) {
+			const px: number[][] = Array.from({ length: 12 }, () => Array(t.w).fill(-1));
+			t.at.forEach((r, y) => r.forEach((p, i) => { if (p) px[y][i] = p === 1 ? 6 : c.ink('plain'); }));
+			stampPixels(c.g, c.x + Math.floor((c.w - t.w) / 2), c.y + 1, px);
+		} else c.g.text(mid(title), c.y + 3, title, c.ink('gold'));
+		// A rule of gold ornament under it: a lozenge at its heart, dots and dashes running out.
+		const rw = Math.min(c.w - 8, Math.max(20, (t?.w ?? title.length) + 10)), rx = c.x + Math.floor((c.w - rw) / 2);
+		for (let i = 0; i < rw; i++) { const d = Math.abs(i - (rw >> 1)); c.g.set(rx + i, c.y + 7, d === 0 ? '♦' : d % 4 === 2 ? '·' : d % 4 === 0 ? '♦' : '-', d === 0 ? 8 : 6); }
+		// The subtitle.
+		lines.forEach((l, k) => c.g.text(mid(l), c.y + 8 + k, l, c.ink('dim')));
+		c.hit({ x: c.x, y: c.y, w: c.w, h }, act);
+	});
+}
+
 export function starRow(R = 13): Row {
 	// Drawn in the art editor (art/ornaments.json "star"), in its own colours; else drawn here.
 	const O = typeof __ORNAMENTS__ !== 'undefined' ? __ORNAMENTS__ : null, f = O?.figures.star;
