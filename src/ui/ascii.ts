@@ -747,10 +747,10 @@ export function miniature(role: string | undefined, team: 'good' | 'evil' | 'oth
  * A great button lettered in the textura, framed in a double rule of red: the choices on the book's
  * first page (Play, the Codex).
  */
-export function gothicButton(word: string, act: () => void, width = 0): Row {
+export function gothicButton(word: string, act: () => void, width = 0, tight: 0 | 1 = 0): Row {
 	return blockRow(8, (c) => {
 		// Within the writing: condensed if it must be; as wide as asked (so a pair can match), else snug.
-		let t = texturaPixels(word, 0);
+		let t = texturaPixels(word, tight);
 		for (const level of [1, 2, 3] as const) if (t && t.w + 6 > c.w) t = texturaPixels(word, level);
 		if (!t) { drawButton(c, c.x, c.y + 2, c.w, { label: word, act, style: 'primary' }); return; }
 		const bw = Math.min(c.w, Math.max(width, t.w + 6)), x0 = c.x + Math.floor((c.w - bw) / 2);

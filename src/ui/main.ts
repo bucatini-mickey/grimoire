@@ -2148,7 +2148,9 @@ function voteStage(): Row[] {
 	// read them from across the room, and the two answers big, one above the other.
 	const mid = (t: string, tone?: Tone, face?: 'heading'): Row => row(txt(center(t, CARD_COLS), tone, face));
 	const large = (n: string) => namePlate(n) ?? mid(n, 'gold', 'heading');
-	const rows: Row[] = [blank(), mid(`${name(nom.nominator)} nominates`, 'rubric'), large(name(nom.nominee)),
+	// (an illuminated page, as a player's card is: the margins' vines and devices, the roundel at its foot)
+	const flourish = mid('-·-·-♦-·-·-', 'gold');
+	const rows: Row[] = [{ segs: [], cls: 'illum-other' }, blank(), mid(`${name(nom.nominator)} nominates`, 'rubric'), large(name(nom.nominee)),
 		mid(`${needed} needed${highest ? `, and more than ${highest}` : ''}`, 'dim'),
 		mid(`${v.hands.length} raised`, 'gold', 'heading'), blank()];
 	const marks = v.order.map((id, i) => {
@@ -2162,17 +2164,18 @@ function voteStage(): Row[] {
 	if (v.index < v.order.length) {
 		const id = v.order[v.index];
 		const s = state.seats[id];
-		rows.push(blank(), mid('Now', 'rubric'), large(s.name));
+		rows.push(blank(), flourish, mid('Now', 'rubric'), large(s.name));
 		const hand = phoneHand(id);
 		if (hand !== null) rows.push(mid(hand ? 'Hand UP on their phone' : 'Hand down on their phone', 'dim'));
 		if (!s.alive) rows.push(mid('(spends their ghost vote)', 'dim'));
 		const master = G.butlerMaster(state);
 		if (G.hasWorkingAbility(state, id, 'butler') && master !== null) rows.push(mid(`Butler: only if ${name(master)} votes`, 'dim'));
 		// (the two the same width, one above the other)
-		const bw = Math.max(...['Hand up', 'Hand down'].map((w) => texturaPixels(w, 0)?.w ?? 0)) + 6;
-		rows.push(blank(), gothicButton('Hand up', () => answerVote(true), bw), blank(), gothicButton('Hand down', () => answerVote(false), bw));
+		// (condensed a touch, so they are not so broad)
+		const bw = Math.max(...['Hand up', 'Hand down'].map((w) => texturaPixels(w, 1)?.w ?? 0)) + 6;
+		rows.push(blank(), gothicButton('Hand up', () => answerVote(true), bw, 1), blank(), gothicButton('Hand down', () => answerVote(false), bw, 1));
 	} else {
-		rows.push(blank(), mid('The count', 'rubric'), large(`${v.hands.length} hand${v.hands.length === 1 ? '' : 's'}`), blank(),
+		rows.push(blank(), flourish, mid('The count', 'rubric'), large(`${v.hands.length} hand${v.hands.length === 1 ? '' : 's'}`), blank(),
 			...cardButtons([btn('Record the vote', recordVote, { style: 'primary' })]));
 	}
 	rows.push(blank(), ...cardButtons([
