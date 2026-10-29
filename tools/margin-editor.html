@@ -287,6 +287,8 @@ function drawBookInks() {
 	}
 }
 function drawPalette() {
+	// (an ink chosen in another kind of art may not be in this one: take this one's first)
+	if (ink !== '.' && !data.ink[ink]) ink = Object.keys(data.ink)[0] ?? '.';
 	drawBookInks();
 	const p = $('palette');
 	p.innerHTML = '';
