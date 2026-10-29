@@ -17,7 +17,7 @@
  */
 import * as G from '../core/index.ts';
 import type { Candidate, CharacterId, Command, GameEvent, GameState, Info, SeatId, Script, Lean } from '../core/index.ts';
-import { chapterRow, coverRow, illuminatedRow, miniature, namePlate, navRow, tabStrip } from './ascii.ts';
+import { chapterRow, coverRow, gothicButton, illuminatedRow, texturaPixels, miniature, namePlate, navRow, tabStrip } from './ascii.ts';
 import { HOW_TO_PLAY, INTERACTIONS, TIPS } from '../core/codex.ts';
 import type { CodexPage } from '../core/codex.ts';
 import { bookKey, themeOf } from './theme.ts';
@@ -2144,30 +2144,36 @@ function voteStage(): Row[] {
 	const nom = openNomination()!;
 	const needed = Math.ceil(G.living(state).length / 2);
 	const highest = state.day!.highest;
-	// Names lettered large where they fit, so the table can read them from across the room.
-	const large = (n: string) => { const l = letteredRow(n, CARD_INNER); return l ? [l] : big(n); };
-	const rows: Row[] = [rubric(`${name(nom.nominator)} nominates`), ...large(name(nom.nominee)),
-		...note(`${needed} needed${highest ? `, and more than ${highest}` : ''}`),
-		row(txt(`  ${v.hands.length} raised`, 'gold', 'heading'))];
+	// Set out as a player's card is: everything in the middle, names lettered large so the table can
+	// read them from across the room, and the two answers big, one above the other.
+	const mid = (t: string, tone?: Tone, face?: 'heading'): Row => row(txt(center(t, CARD_COLS), tone, face));
+	const large = (n: string) => namePlate(n) ?? mid(n, 'gold', 'heading');
+	const rows: Row[] = [blank(), mid(`${name(nom.nominator)} nominates`, 'rubric'), large(name(nom.nominee)),
+		mid(`${needed} needed${highest ? `, and more than ${highest}` : ''}`, 'dim'),
+		mid(`${v.hands.length} raised`, 'gold', 'heading'), blank()];
 	const marks = v.order.map((id, i) => {
 		const mark = !G.canVote(state, id) ? '-' : v.hands.includes(id) ? '+' : i < v.index ? '.' : i === v.index ? '?' : ' ';
 		return [txt(mark, mark === '+' ? 'good' : mark === '?' ? 'gold' : 'dim'), txt(pad(state.seats[id].name.slice(0, 4), 5), state.seats[id].alive ? undefined : 'dim')];
 	});
-	for (let i = 0; i < marks.length; i += 6) rows.push(row(...marks.slice(i, i + 6).flat(), txt(' ')));
+	for (let i = 0; i < marks.length; i += 6) {
+		const line = marks.slice(i, i + 6);
+		rows.push(row(txt(' '.repeat(Math.max(0, Math.floor((CARD_COLS - line.length * 6) / 2)))), ...line.flat()));
+	}
 	if (v.index < v.order.length) {
 		const id = v.order[v.index];
 		const s = state.seats[id];
-		rows.push(rubric('Now'), ...large(s.name));
+		rows.push(blank(), mid('Now', 'rubric'), large(s.name));
 		const hand = phoneHand(id);
-		if (hand !== null) rows.push(...note(hand ? 'Hand UP on their phone' : 'Hand down on their phone'));
-		if (!s.alive) rows.push(...note('(spends their ghost vote)'));
+		if (hand !== null) rows.push(mid(hand ? 'Hand UP on their phone' : 'Hand down on their phone', 'dim'));
+		if (!s.alive) rows.push(mid('(spends their ghost vote)', 'dim'));
 		const master = G.butlerMaster(state);
-		if (G.hasWorkingAbility(state, id, 'butler') && master !== null) rows.push(...note(`Butler: only if ${name(master)} votes`));
-		const half = Math.floor((CARD_INNER - 1) / 2);
-		rows.push(endPanel(), buttonBlock([btn('Hand raised', () => answerVote(true), { style: 'primary', width: half }), btn('No hand', () => answerVote(false), { width: half })], CARD_INNER));
+		if (G.hasWorkingAbility(state, id, 'butler') && master !== null) rows.push(mid(`Butler: only if ${name(master)} votes`, 'dim'));
+		// (the two the same width, one above the other)
+		const bw = Math.max(...['Hand up', 'Hand down'].map((w) => texturaPixels(w, 0)?.w ?? 0)) + 6;
+		rows.push(blank(), gothicButton('Hand up', () => answerVote(true), bw), blank(), gothicButton('Hand down', () => answerVote(false), bw));
 	} else {
-		rows.push(rubric('The count'), ...big(`${v.hands.length} hand${v.hands.length === 1 ? '' : 's'}`), endPanel(),
-			buttonBlock([btn('Record the vote', recordVote, { style: 'primary' })], CARD_INNER));
+		rows.push(blank(), mid('The count', 'rubric'), large(`${v.hands.length} hand${v.hands.length === 1 ? '' : 's'}`), blank(),
+			...cardButtons([btn('Record the vote', recordVote, { style: 'primary' })]));
 	}
 	rows.push(blank(), ...cardButtons([
 		btn('Back', () => { v.index = Math.max(0, v.index - 1); while (v.index > 0 && !G.canVote(state, v.order[v.index])) v.index--; save(); render(); }, { style: 'quiet', disabled: v.index === 0 }),

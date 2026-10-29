@@ -747,11 +747,13 @@ export function miniature(role: string | undefined, team: 'good' | 'evil' | 'oth
  * A great button lettered in the textura, framed in a double rule of red: the choices on the book's
  * first page (Play, the Codex).
  */
-export function gothicButton(word: string, act: () => void): Row {
+export function gothicButton(word: string, act: () => void, width = 0): Row {
 	return blockRow(8, (c) => {
-		const t = texturaPixels(word, 0);
+		// Within the writing: condensed if it must be; as wide as asked (so a pair can match), else snug.
+		let t = texturaPixels(word, 0);
+		for (const level of [1, 2, 3] as const) if (t && t.w + 6 > c.w) t = texturaPixels(word, level);
 		if (!t) { drawButton(c, c.x, c.y + 2, c.w, { label: word, act, style: 'primary' }); return; }
-		const bw = t.w + 10, x0 = c.x + Math.floor((c.w - bw) / 2);
+		const bw = Math.min(c.w, Math.max(width, t.w + 6)), x0 = c.x + Math.floor((c.w - bw) / 2);
 		const at = (x: number, y: number, ch: string) => { const cl = c.g.get(x, y); c.g.set(x, y, ch, 8, cl ? cl.bg : 0); };
 		for (let i = 1; i < bw - 1; i++) { at(x0 + i, c.y, '═'); at(x0 + i, c.y + 7, '═'); }
 		for (let j = 1; j < 7; j++) { at(x0, c.y + j, '║'); at(x0 + bw - 1, c.y + j, '║'); }
@@ -759,7 +761,7 @@ export function gothicButton(word: string, act: () => void): Row {
 		// The word: the capital gilt, the rest in the page's ink.
 		const px: number[][] = Array.from({ length: 12 }, () => Array(t.w).fill(-1));
 		t.at.forEach((r, y) => r.forEach((p, i) => { if (p) px[y][i] = p === 1 ? 6 : c.ink('plain'); }));
-		stampPixels(c.g, x0 + 5, c.y + 1, px);
+		stampPixels(c.g, x0 + Math.floor((bw - t.w) / 2), c.y + 1, px);
 		c.hit({ x: x0, y: c.y, w: bw, h: 8 }, act);
 	});
 }
