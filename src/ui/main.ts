@@ -161,6 +161,8 @@ const ui = {
 	question: '',
 	/** The phone in a player's hands, page by page. */
 	show: null as Show | null,
+	/** What the Storyteller wrote for a character the app does not model (what they learn), for that step. */
+	wakeNote: { step: '', text: '' },
 	/** Something the whole room should hear, shown large until dismissed. */
 	banner: null as Banner[] | null,
 	/** Counting hands in the small, inline view rather than full screen. */
@@ -1414,6 +1416,12 @@ rows.push(...prose(who ? `${who.name}, the ${charName(stepRole(kind, who.id))}${
 	if (action === 'choose') {
 		rows.push(...chooseRows(kind, step.seat, hand('who')));
 	} else if (action === 'acknowledge') {
+		// A character the app does not model (the experimental ones): the Storyteller works its ability
+		// out, and may write what they learn, for their card to show.
+		if (who && !G.isModelled(stepRole(kind, who.id))) {
+			if (ui.wakeNote.step !== step.id) ui.wakeNote = { step: step.id, text: '' };
+			rows.push(field('wake-note', 'What they learn (shown on their card)', ui.wakeNote.text, (v) => { ui.wakeNote.text = v; render(); }, 60, 'tap to write, or leave empty'));
+		}
 		rows.push(...buttonRows([hand('who'), btn('Done without the phone', () => act({ type: 'acknowledge' }), { style: 'quiet' })]));
 	} else if (need && ui.picks.length < need) {
 		rows.push(...buttonRows([hand('who')]));
@@ -1440,9 +1448,15 @@ rows.push(...prose(who ? `${who.name}, the ${charName(stepRole(kind, who.id))}${
 	return rows;
 }
 
+/** A wake with what the Storyteller wrote for it (wakeNote), as a page of what they learn. */
+function withNote(w: V.Wake, step: G.NightStep): V.Wake {
+	const note = ui.wakeNote.step === step.id ? ui.wakeNote.text.trim() : '';
+	return note && !w.info ? { ...w, info: [{ title: 'You learn', lines: [note], style: 'big' }] } : w;
+}
+
 /** Send a night step to the player's own phone; in the village, the Storyteller goes to them. */
 function wakePhone(step: G.NightStep, phone: string, withAnswer: boolean) {
-	const w = V.wakeFor(state, step, withAnswer ? ui.draftInfo : null);
+	const w = withNote(V.wakeFor(state, step, withAnswer ? ui.draftInfo : null), step);
 	ui.remote = { wakeId: w.id, seat: step.seat!, answered: withAnswer && !!playerPicks(step.kind, state, step.seat) };
 	sendTo(phone, { t: 'wake', wake: w });
 	village?.visit(phone);
@@ -1679,7 +1693,7 @@ function showRows(): Row[] {
 	const sh = ui.show!;
 	const step = G.nextStep(state);
 	if (!step || step.id !== sh.step) { ui.show = null; return []; }
-	const w = V.wakeFor(state, step, ui.draftInfo);
+	const w = withNote(V.wakeFor(state, step, ui.draftInfo), step);
 	// First, whose turn it is; last, the phone back to the Storyteller.
 	if (sh.turn === 0) return handOverRows(step.seat === null ? groupLabel(step.kind).split(':')[0] : name(step.seat), () => { sh.turn = 1; render(); });
 	if (sh.page === 'done') return handBackRows(finishShow);

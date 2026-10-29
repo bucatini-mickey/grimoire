@@ -170,7 +170,9 @@ export function wakeRows(w: Wake, page: Page, picks: SeatId[], h: PageHandlers):
 				rows.push(row(txt(' '.repeat(IND) + pad(l.name, 9)), txt(pad(l.character, 13), l.evil ? 'evil' : 'good'), txt(l.flags.join('').slice(0, 3), 'gold')));
 				for (const n of l.notes) rows.push(line('  ' + n, 'dim'));
 			}
-			rows.push(blank(), heading('Not in play'), ...note('The Demon’s bluffs'), ...big(...g.bluffs), endPanel(), blank(), ...cardButtons([next('grimoire')]));
+			// (the bluffs, if the game has them: a small game has none)
+			if (g.bluffs.length) rows.push(blank(), heading('Not in play'), ...note('The Demon’s bluffs'), ...big(...g.bluffs));
+			rows.push(endPanel(), blank(), ...cardButtons([next('grimoire')]));
 			break;
 		}
 		case 'done':

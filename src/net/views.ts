@@ -278,6 +278,6 @@ export function wakeFor(state: GameState, step: G.NightStep, answer: Info | null
 		if (G.stepAction(kind) === 'tell') wake.followUp = true;
 	}
 	if (answer) wake.info = infoSections(state, kind, answer);
-	if (kind === 'spy') wake.grimoire = grimoire(state);
+	if (kind === 'spy' || kind === 'widow') wake.grimoire = grimoire(state);
 	return wake;
 }
