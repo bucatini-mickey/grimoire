@@ -33,7 +33,7 @@ import { startPlayer } from './player.ts';
 import { INKS, startVillage, villageForGame } from '../town/village.ts';
 import { AMNESIAC_IDEAS, savantPair, savantStatements } from './helpers.ts';
 import type { Extra, StActions, VillageHost } from '../town/village.ts';
-import { CARD_COLS, CARD_INNER, big, cardButtons, nextPage, note, wakeRows } from './wakepages.ts';
+import { CARD_COLS, CARD_INNER, big, cardButtons, handBackRows, handOverRows, nextPage, note, wakeRows } from './wakepages.ts';
 import type { Page } from './wakepages.ts';
 
 // ---- saved data -------------------------------------------------------------
@@ -1571,6 +1571,7 @@ interface Show {
 	step: string;
 	page: Page;
 	picks: SeatId[];
+	/** 0: the page naming who takes the phone; 1: their pages (and the hand-back page after them). */
 	turn: number;
 }
 
@@ -1579,6 +1580,9 @@ function showRows(): Row[] {
 	const step = G.nextStep(state);
 	if (!step || step.id !== sh.step) { ui.show = null; return []; }
 	const w = V.wakeFor(state, step, ui.draftInfo);
+	// First, whose turn it is; last, the phone back to the Storyteller.
+	if (sh.turn === 0) return handOverRows(step.seat === null ? groupLabel(step.kind).split(':')[0] : name(step.seat), () => { sh.turn = 1; render(); });
+	if (sh.page === 'done') return handBackRows(finishShow);
 	return wakeRows(w, sh.page, sh.picks, {
 		go: (page) => { sh.page = page; render(); },
 		toggle: (id) => {
@@ -1916,16 +1920,18 @@ function dayPicker(): Row[] {
 	const nominating = ui.dayMode === 'nominate';
 	const first = ui.picks[0];
 	const order = state.order;
-	const candidates = first === undefined
-		? order.filter((id) => state.seats[id].alive && (!nominating || !day.nominations.some((n) => n.nominator === id)))
-		: order.filter((id) => (nominating ? !day.nominations.some((n) => n.nominee === id) : id !== first));
+	// Everyone stays where they are, round the circle: the one picked first lit (tap again to take it
+	// back), those who cannot be picked now greyed, so a name is never where another was a tap ago.
+	const can = (id: SeatId) => first === undefined
+		? state.seats[id].alive && (!nominating || !day.nominations.some((n) => n.nominator === id))
+		: id === first || (nominating ? !day.nominations.some((n) => n.nominee === id) : true);
 	const prompt = first === undefined
 		? (nominating ? 'Who nominates?' : 'Who takes the shot?')
 		: (nominating ? `${name(first)} nominates...` : `${name(first)} shoots at...`);
 	return [
 		rubric(nominating ? 'Nomination' : 'The Slayer\u2019s shot'),
 		...prose(prompt, 'gold'),
-		...buttonRows(candidates.map((id) => btn(state.seats[id].name, () => tapSeat(id), { width: 10, style: ui.picks.includes(id) ? 'on' : undefined })), INNER, 0),
+		...buttonRows(order.map((id) => btn(state.seats[id].name, () => tapSeat(id), { width: 10, disabled: !can(id), style: ui.picks.includes(id) ? 'on' : undefined })), INNER, 0),
 		...buttonRows([btn(first === undefined ? 'Cancel' : 'Back', () => { if (first === undefined) ui.dayMode = 'none'; clearPicks(); render(); }, { style: 'quiet' })])
 	];
 }

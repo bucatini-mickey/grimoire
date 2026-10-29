@@ -295,8 +295,19 @@ const PALETTES: Record<string, Palette> = {
 	'victorian-day': ['#e2dcc0', '#d3cdae', '#8f9a82', '#66705e', '#1e2a22', '#0c150f', '#8a6a1a', '#9a5c20', '#8e2f24', '#6b1f18', '#3f5a28', '#a9b78e', '#2a5a66', '#b4c8c8', '#5e3f78', '#a89870']
 };
 
-/** An initial, as the scribes painted them: a red letter on a ground of deep blue (lighter by candlelight, to show on the dark page). */
-export const INITIAL = { fg: 7, get bg() { return paletteKey().endsWith('-night') ? shade(12, 2) : 12; } };
+/**
+ * An important word (a main action, a tab's title): set on a ground of deep lapis, the word pale, its
+ * first letter (or its numeral, "III.") gold and bold. Gold against pale differs in brightness as well
+ * as hue, so the first letter stands out to any eyes, at a distance.
+ */
+export const HL = { get bg() { return shade(12, 1); }, get fg() { return paletteKey().endsWith('-night') ? 5 : 0; }, cap: 6 };
+/** Write a word highlighted (HL) at (x, y); returns the x after it. */
+export function highlight(g: Grid, x: number, y: number, text: string): number {
+	const chars = [...text];
+	const lead = text.match(/^[IVXLC]+(?=\.)/)?.[0].length ?? (/\p{L}/u.test(chars[0] ?? '') ? 1 : 0);
+	chars.forEach((ch, i) => { g.set(x + i, y, ch, i < lead ? HL.cap : HL.fg, HL.bg); if (i < lead) g.bold(x + i, y); });
+	return x + chars.length;
+}
 
 const TONE: Record<Tone, number> = { plain: 4, rubric: 8, gold: 6, evil: 8, good: 12, dim: 3, title: 5, poison: 10, drunk: 14 };
 
@@ -411,8 +422,8 @@ export function drawButton(c: Ctx, x: number, y: number, w: number, b: Button) {
 	// under it, so it reads as writing and still shows where to tap.
 	if (isBook()) {
 		// On a leaf of the book a button is a ruled frame round its words: the main one in a double rule
-		// of red, a chosen one a plate of gold, a quiet one in a faint rule, and its first letter (or its
-		// numeral) on a red plate as a scribe would letter it. A wide button's spare room grows a vine.
+		// of red, its words highlighted (HL); a chosen one a plate of gold, a quiet one in a faint rule.
+		// A wide button's spare room grows a vine.
 		const label = [...b.label].slice(0, Math.max(1, w - 4)).join('');
 		const bw = Math.min(w, [...label].length + 4), lx = x + 2;
 		const [ink, rule, line, ground]: [number, number, 'single' | 'double', number] =
@@ -430,10 +441,12 @@ export function drawButton(c: Ctx, x: number, y: number, w: number, b: Button) {
 		for (let i = 1; i < bw - 1; i++) { at(x + i, y, h); at(x + i, y + 2, h); }
 		at(x, y, tl); at(x + bw - 1, y, tr); at(x, y + 2, bl); at(x + bw - 1, y + 2, br);
 		at(x, y + 1, v); at(x + bw - 1, y + 1, v);
-		if (ground >= 0) g.text(lx, y + 1, label, ink, ground);
+		if (st === 'primary' || st === 'danger') {
+			// (the highlight fills the frame, a space either side of the words)
+			g.fill({ x: x + 1, y: y + 1, w: bw - 2, h: 1 }, ' ', HL.fg, HL.bg);
+			highlight(g, lx, y + 1, label);
+		} else if (ground >= 0) g.text(lx, y + 1, label, ink, ground);
 		else g.text(lx, y + 1, label, ink);
-		const numeral = label.match(/^[IVXLC]+(?=\.)/)?.[0];
-		if (st !== 'off' && st !== 'on' && st !== 'quiet') for (let k = 0; k < (numeral?.length ?? (/\p{L}/u.test(label[0]) ? 1 : 0)); k++) { g.set(lx + k, y + 1, label[k], INITIAL.fg, INITIAL.bg); g.bold(lx + k, y + 1); }
 		// The vine: a stem off the frame's side, a leaf every few steps.
 		// (in each look its own: a leafy vine, a pine bough, a chain with its links, the sea and its bubbles)
 		const [run, knot] = ({ medieval: ['~', '♣'], grimm: ['~', '♠'], clockwork: ['-', '○'], lovecraft: ['≈', '°'] } as const)[themeOfKey(paletteKey())];
@@ -462,16 +475,11 @@ export function drawButton(c: Ctx, x: number, y: number, w: number, b: Button) {
 	const label = [...b.label].slice(0, room).join('');
 	const lx = x + 2 + Math.floor((room - [...label].length) / 2);
 	g.text(lx, y + 1, label, fg, bg);
-	// A leading Roman numeral ("III. The village") is marked whole; otherwise the first letter.
-	const numeral = label.match(/^[IVXLC]+(?=\.)/)?.[0];
-	if (numeral) {
-		// On the red plate of a main button the numeral takes a brass plate instead.
-		for (let k = 0; k < numeral.length; k++) {
-			if (st === 'primary') g.set(lx + k, y + 1, numeral[k], 0, 6);
-			else if (st === 'normal') initial(g, lx + k, y + 1, numeral[k]);
-			else g.set(lx + k, y + 1, numeral[k], cap, bg);
-		}
-	} else if (label && /\p{L}/u.test(label[0])) { if (st === 'normal') initial(g, lx, y + 1, label[0]); else g.set(lx, y + 1, label[0], cap, bg); }
+	// The main one's first letter (or numeral) in its own colour, bold.
+	if (st === 'primary' || st === 'danger') {
+		const lead = label.match(/^[IVXLC]+(?=\.)/)?.[0].length ?? (/\p{L}/u.test(label[0] ?? '') ? 1 : 0);
+		for (let k = 0; k < lead; k++) { g.set(lx + k, y + 1, [...label][k], cap === fg ? 6 : cap, bg); g.bold(lx + k, y + 1); }
+	}
 	if (!b.disabled) c.hit({ x, y, w, h: 3 }, b.act);
 }
 
@@ -718,8 +726,48 @@ export function miniature(role: string | undefined, team: 'good' | 'evil' | 'oth
 }
 
 /**
+ * A great star of eight points, gilt, a jewel at its heart and fine rays between its points, as a
+ * page of hours sets one over the words that end a rite: the sign that the phone goes back.
+ */
+export function starRow(R = 13): Row {
+	const D = 2 * R + 3, H = D + (D % 2);
+	return blockRow(H / 2, (c) => {
+		const cx = R + 1, cy = R + 1;
+		// The star's outline: eight points, the valleys between them a little under half way in.
+		const pts: [number, number][] = [];
+		for (let k = 0; k < 16; k++) { const a = -Math.PI / 2 + (k * Math.PI) / 8, r = k % 2 ? R * 0.42 : k % 4 ? R * 0.8 : R; pts.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]); }
+		const inStar = (x: number, y: number) => {
+			let on = false;
+			for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+				const [xi, yi] = pts[i], [xj, yj] = pts[j];
+				if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) on = !on;
+			}
+			return on;
+		};
+		const GOLD = quant([214, 172, 74]), DEEP = quant([150, 112, 44]), PALE = quant([236, 214, 150]), JEWEL = quant([176, 40, 34]);
+		const px: number[][] = Array.from({ length: H }, () => Array(D).fill(-1));
+		for (let y = 0; y < H; y++) for (let x = 0; x < D; x++) {
+			const fx = x + 0.5, fy = y + 0.5;
+			if (inStar(fx, fy)) {
+				const edge = !inStar(fx - 1, fy) || !inStar(fx + 1, fy) || !inStar(fx, fy - 1) || !inStar(fx, fy + 1);
+				// (lit from above left: the facets towards it pale, those away deep)
+				const lit = (fx - cx) * -0.6 + (fy - cy) * -0.8 > 0;
+				px[y][x] = edge ? DEEP : lit ? PALE : GOLD;
+			} else {
+				// Fine rays between the points.
+				const a = Math.atan2(fy - cy, fx - cx), d = Math.hypot(fx - cx, fy - cy);
+				const between = Math.abs(((a + Math.PI / 2) / (Math.PI / 8)) % 2 - 1) < 0.12;
+				if (between && d > R * 0.5 && d < R * 1.08) px[y][x] = DEEP;
+			}
+		}
+		for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1], [-1, 0], [0, -1]]) px[cy + dy][cx + dx] = JEWEL;
+		stampPixels(c.g, c.x + Math.floor((c.w - D) / 2), c.y, px);
+	});
+}
+
+/**
  * A character's name lettered large in the textura on one line, in the middle of the page, its
- * capital an initial (red on a plate of blue). Condensed as far as it must be to fit the line; it may
+ * capital gilt. Condensed as far as it must be to fit the line; it may
  * reach out over the margin rather than wrap. Null if the face lacks a letter.
  */
 export function namePlate(name: string, indent = 0): Row | null {
@@ -731,11 +779,9 @@ export function namePlate(name: string, indent = 0): Row | null {
 		let t = texturaPixels(name, 0)!;
 		for (const level of [1, 2, 3] as const) if (t.w + 1 > right - left) t = texturaPixels(name, level)!;
 		const x0 = t.w + 1 <= right - left ? left + 1 + Math.floor((right - left - 1 - t.w) / 2) : Math.max(1, Math.floor((c.g.cols - t.w) / 2));
-		// The plate behind the capital: from the first column to the first column the capital leaves empty.
-		let cw = 0;
-		while (cw < t.w && t.at.some((r) => r[cw] === 1)) cw++;
-		const px: number[][] = Array.from({ length: 12 }, (_, y) => Array.from({ length: t.w + 1 }, (_, i) => (i <= cw && y < 11 ? INITIAL.bg : -1)));
-		t.at.forEach((r, y) => r.forEach((p, i) => { if (p) px[y][i + 1] = p === 1 ? INITIAL.fg : c.ink('plain'); }));
+		// (the capital in gold, the rest in the page's ink)
+		const px: number[][] = Array.from({ length: 12 }, () => Array(t.w + 1).fill(-1));
+		t.at.forEach((r, y) => r.forEach((p, i) => { if (p) px[y][i + 1] = p === 1 ? 6 : c.ink('plain'); }));
 		stampPixels(c.g, x0 - 1, c.y, px);
 	});
 }
@@ -880,11 +926,6 @@ function cornerBosses(g: Grid, x0: number, y: number, width: number) {
 	g.set(x0 + width - 1, y, '◘', 6, 0);
 }
 
-/** An initial: the letter in red on a plate of deep blue, as the scribes painted them. */
-export function initial(g: Grid, x: number, y: number, ch: string) {
-	g.set(x, y, ch, INITIAL.fg, INITIAL.bg);
-	g.bold(x, y);
-}
 
 /** Stamp one row at (x, y); returns nothing. */
 function drawRow(g: Grid, r: Row, x0: number, y: number, width: number, h: number, ink: (t: Tone | undefined) => number) {
@@ -912,7 +953,6 @@ function drawRow(g: Grid, r: Row, x0: number, y: number, width: number, h: numbe
 			const tx = x0 + 2;
 			g.text(tx, y, '╡ ', 6, 0);
 			g.text(tx + 2, y, t, 5, 0);
-			initial(g, tx + 2, y, [...t][0]);
 			g.text(tx + 2 + [...t].length, y, ' ╞', 6, 0);
 		}
 		return;
@@ -1106,14 +1146,13 @@ export function tabStrip(tabs: Tab[], width = COLS): Row {
 			for (const t of tabs) {
 				const tw = [...t.label].length + padn + 2;
 				const lx = x + 1 + padn / 2;
+				// Each title highlighted (HL); the open one a ribbon of it hanging over the rule.
+				g.fill({ x, y: c.y + 1, w: tw, h: 1 }, ' ', HL.fg, HL.bg);
+				highlight(g, lx, c.y + 1, t.label);
 				if (t.on) {
-					g.fill({ x, y: c.y, w: tw, h: 2 }, ' ', 0, 8);
-					g.text(lx, c.y + 1, t.label, 0, 8);
+					g.fill({ x, y: c.y, w: tw, h: 1 }, ' ', HL.fg, HL.bg);
 					// Its end cut in a swallowtail: the two edges run on, the middle stops half a line short.
-					for (let i = 0; i < tw; i++) { if (i === 0 || i === tw - 1) g.set(x + i, c.y + 2, ' ', 0, 8); else g.set(x + i, c.y + 2, '▀', 8, 0); }
-				} else {
-					g.text(lx, c.y + 1, t.label, 4);
-					if (/\p{L}/u.test(t.label[0])) initial(g, lx, c.y + 1, t.label[0]);
+					for (let i = 0; i < tw; i++) { if (i === 0 || i === tw - 1) g.set(x + i, c.y + 2, ' ', 0, HL.bg); else g.set(x + i, c.y + 2, '▀', HL.bg, 0); }
 				}
 				c.hit({ x, y: c.y, w: tw, h: 3 }, t.act);
 				x += tw + gap;
@@ -1131,7 +1170,6 @@ export function tabStrip(tabs: Tab[], width = COLS): Row {
 			g.set(x, c.y + 1, t.on ? '║' : '│', edge, bg); g.set(x + tw - 1, c.y + 1, t.on ? '║' : '│', edge, bg);
 			const lx = x + 1 + padn / 2;
 			g.text(lx, c.y + 1, t.label, fg, bg);
-			if (!t.on && /\p{L}/u.test(t.label[0])) initial(g, lx, c.y + 1, t.label[0]);
 			// The open tab has no foot: it runs into the page below.
 			if (t.on) { g.set(x, c.y + 2, '╝', 6, 0); g.set(x + tw - 1, c.y + 2, '╚', 6, 0); for (let i = 1; i < tw - 1; i++) g.set(x + i, c.y + 2, ' ', 0, 0); }
 			else { g.set(x, c.y + 2, '╧', 2, 0); g.set(x + tw - 1, c.y + 2, '╧', 2, 0); }

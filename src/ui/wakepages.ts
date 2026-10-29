@@ -6,10 +6,12 @@
  * then what you learn, then (for the Spy) the grimoire, then a last page.
  *
  * Each is an illuminated page: what it says set in a block in the middle of the leaf, written from the
- * left as a book is, each heading and each paragraph opening on an initial (red on blue); the
- * character's name lettered large at its head; the way on in the middle at the foot. The leaf round the block is the book's to decorate (folio: the vines, the roundel).
+ * left as a book is, its headings in red; the character's portrait and name lettered large at its
+ * head; the way on in the middle at the foot. The leaf round the block is the book's to decorate
+ * (folio: the vines, the roundel). Handed over on the Storyteller's own phone, the pages come between
+ * a page naming who takes the phone and one asking for it back (main.ts).
  */
-import { COLS, INITIAL, blank, blockRow, btn, center, centredButtons, endPanel, initial, miniature, namePlate, pad, row, txt, wrap } from './ascii.ts';
+import { COLS, blank, btn, center, centredButtons, endPanel, miniature, namePlate, starRow, pad, row, txt, wrap } from './ascii.ts';
 import type { Button, Row, Tone } from './ascii.ts';
 import { ALL_CHARACTERS } from '../core/index.ts';
 import type { SeatId } from '../core/index.ts';
@@ -45,21 +47,10 @@ export const note = (text: string): Row[] => wrap(text, BLOCK - 2).map((l) => li
 /** The way on, in the middle at the foot. */
 export const cardButtons = (buttons: Button[]): Row[] => centredButtons(buttons, CARD_COLS);
 
-/** A heading: its first letter an initial, the rest in red. */
-const heading = (title: string): Row => blockRow(1, (c) => {
-	const [first, ...rest] = [...title];
-	initial(c.g, c.x + IND, c.y, first);
-	c.g.text(c.x + IND + 1, c.y, rest.join(''), c.ink('rubric'));
-});
-/** A paragraph: its first letter an initial. */
-function para(text: string, tone?: Tone): Row[] {
-	const lines = wrap(text, BLOCK - 2);
-	return lines.map((l, k) => (k ? line(l, tone) : blockRow(1, (c) => {
-		const [first, ...rest] = [...l];
-		if (/\p{L}/u.test(first)) { c.g.set(c.x + IND, c.y, first, INITIAL.fg, INITIAL.bg); c.g.bold(c.x + IND, c.y); c.g.text(c.x + IND + 1, c.y, rest.join(''), c.ink(tone)); }
-		else c.g.text(c.x + IND, c.y, l, c.ink(tone));
-	})));
-}
+/** A heading, in red. */
+const heading = (title: string): Row => line(title, 'rubric');
+/** A paragraph. */
+const para = (text: string, tone?: Tone): Row[] => wrap(text, BLOCK - 2).map((l) => line(l, tone));
 
 /** The side a character is on, for the colour of its arch and the roundel. */
 const sideOf = (role?: string): 'good' | 'evil' | 'other' => {
@@ -97,6 +88,34 @@ export function sectionRows(sections: Section[], role?: string): Row[] {
 }
 
 /** A player's own card, as they look it up by day: who they are and what they can do, as at night. */
+/** A line in the middle of the page. */
+const mid = (t: string, tone?: Tone): Row => row(txt(center(t, CARD_COLS), tone));
+
+/**
+ * Before a player's pages, on the Storyteller's own phone: whose turn it is, their name lettered as a
+ * character's is, and the button they press once they hold the phone (so no one else reads on).
+ */
+export function handOverRows(who: string, holding: () => void): Row[] {
+	return [
+		illumined(), blank(),
+		mid('The phone goes to', 'dim'),
+		namePlate(who) ?? mid(who, 'gold'),
+		blank(), mid('Everyone else, eyes closed.', 'dim'), blank(),
+		...cardButtons([btn('I am holding the phone', holding, { style: 'primary' })])
+	];
+}
+
+/** After them: the great star, "hand the phone back to the Storyteller", and the Storyteller's button. */
+export function handBackRows(holding: () => void): Row[] {
+	return [
+		illumined(), starRow(), blank(),
+		mid('Close your eyes, and hand the phone back to the', 'dim'),
+		namePlate('Storyteller') ?? mid('Storyteller', 'gold'),
+		blank(),
+		...cardButtons([btn('Storyteller: holding the phone', holding, { style: 'primary' })])
+	];
+}
+
 export function characterRows(card: { id: string; name: string; ability: string; team: 'good' | 'evil' } | null, hide: Button): Row[] {
 	if (!card) return [illumined(), blank(), heading('Your character'), ...para('It will appear here once the Storyteller deals.', 'dim'), endPanel(), blank(), ...cardButtons([hide])];
 	return [
