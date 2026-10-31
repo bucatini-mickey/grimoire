@@ -1,0 +1,56 @@
+{
+ "rule": "candidate-fits",
+ "detail": "Esme (seamstress), sober, is offered a truth under the Vortox: {\"kind\":\"same\",\"players\":[0,1],\"yes\":false}",
+ "seed": 6,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme"
+   ],
+   "scriptId": "sects-and-violets"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "vortox",
+    "oracle",
+    "artist",
+    "cerenovus",
+    "seamstress"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "clockmaker",
+    "dreamer",
+    "snake-charmer"
+   ],
+   "fabled": [
+    {
+     "id": "toymaker"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ],
+   "character": "clockmaker"
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  }
+ ]
+}

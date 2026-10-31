@@ -1,0 +1,221 @@
+{
+ "rule": "night-deaths-hidden",
+ "detail": "dawn says [Jory,Kit] died, but [Jory] did",
+ "seed": 81,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior",
+    "Maud",
+    "Ned"
+   ],
+   "scriptId": "bad-moon-rising"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "tea-lady",
+    "godfather",
+    "pacifist",
+    "fool",
+    "sailor",
+    "pukka",
+    "courtier",
+    "minstrel",
+    "devils-advocate",
+    "exorcist",
+    "gambler",
+    "professor",
+    "innkeeper",
+    "mastermind"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "chambermaid",
+    "grandmother",
+    "moonchild"
+   ],
+   "fabled": [
+    {
+     "id": "toymaker"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    11
+   ],
+   "drunk": 11
+  },
+  {
+   "type": "choose",
+   "character": "tea-lady"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "characters",
+    "characters": []
+   }
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    9
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    11
+   ],
+   "drunk": 11
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3,
+    12
+   ],
+   "drunk": 12
+  },
+  {
+   "type": "choose",
+   "targets": [
+    10
+   ],
+   "character": "chambermaid"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    9
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ]
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day",
+   "executionSurvives": true
+  },
+  {
+   "type": "choose",
+   "targets": [
+    13
+   ],
+   "drunk": 13
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2,
+    7
+   ],
+   "drunk": 7
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    12
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    10
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ],
+   "character": "innkeeper"
+  },
+  {
+   "type": "end-night"
+  }
+ ]
+}

@@ -55,7 +55,7 @@ export function reduce(prev: GameState, e: GameEvent): GameState {
 		case 'night-began':
 			s.phase = { kind: 'night', n: e.n };
 			s.night = {
-				n: e.n, done: [], deaths: [], demonMadeTonight: null, revived: [],
+				n: e.n, done: [], deaths: [], aliveAtDusk: s.seats.filter((x) => x.alive).map((x) => x.id), demonMadeTonight: null, revived: [],
 				dayDeaths: [...(s.day?.deaths ?? [])],
 				dayVoters: [...new Set((s.day?.nominations ?? []).flatMap((x) => x.voters ?? []))],
 				dayNominators: (s.day?.nominations ?? []).map((x) => x.nominator),

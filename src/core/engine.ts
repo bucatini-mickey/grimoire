@@ -21,7 +21,7 @@ import { allowedCompositions, charDef, getScript, teamAlignment, evilLearnEachOt
 import {
 	hasWorkingAbility, isDroisoned, judgeInfo, living, livingDemons, registrations, seat, teamOf,
 	canRegisterAsTeam, mustRegisterAsTeam, safeFromDemon, butlerMaster, abilityWorks, teaLadyProtects, inForce, reallyAlive,
-	livingNeighbours, vortoxWorks
+	livingNeighbours, livingResidents, vortoxWorks
 } from './rules.ts';
 import { FABLED } from './scripts/fabled.ts';
 import { REVEAL, MINION_INFO, DEMON_INFO, NEW_DEMON, GODFATHER_INFO, EXORCISED, LUNATIC_INFO, LUNATIC, TRAVELLER_INFO, nextStep, stepAction } from './night.ts';
@@ -935,7 +935,7 @@ function attemptDeath(tx: Tx, t: SeatId, d: Death): boolean {
 /** A player dies, and everything that follows from it. */
 function die(tx: Tx, t: SeatId, cause: DeathCause) {
 	const s = tx.state;
-	const aliveBefore = living(s).length + s.seats.filter((x) => x.undead).length;
+	const aliveBefore = livingResidents(s).length; // the Scarlet Woman counts the players alive, not the Travellers
 	const v = seat(s, t);
 	const wasDemon = teamOf(s, v.character) === 'demon';
 	const demonCharacter = v.character;
@@ -1006,7 +1006,7 @@ function scarletWomanCatches(s: GameState, aliveBefore: number): SeatId | null {
 
 function starpass(tx: Tx, imp: SeatId, chosen: SeatId | undefined) {
 	const s = tx.state;
-	const aliveBefore = living(s).length;
+	const aliveBefore = livingResidents(s).length;
 	const sw = scarletWomanCatches(s, aliveBefore);
 	if (sw !== null) {
 		if (chosen !== undefined && chosen !== sw) refuse('The Scarlet Woman catches the starpass; she must become the Imp.');

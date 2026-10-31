@@ -108,6 +108,8 @@ export interface NightState {
 	done: string[];
 	/** Who died tonight, in order. */
 	deaths: SeatId[];
+	/** Who was alive when night fell: what the room knows until dawn, whoever is killed or brought back in the night. */
+	aliveAtDusk: SeatId[];
 	/** A Minion who caught the Demon tonight (starpass) does not also kill tonight. */
 	demonMadeTonight: SeatId | null;
 	/** Who died the day before this night (the Zombuul wakes only if no one did; the Godfather if an Outsider did). */

@@ -30,6 +30,7 @@ import { COLS, INNER, Canvas, letteredRow, shade, titleRow, blank, blockRow, box
 import type { Button, Row, Seg, Tone } from './ascii.ts';
 import * as T from './timer.ts';
 import * as V from '../net/views.ts';
+import { announce } from '../net/announce.ts';
 import { hostRoom, newRoomCode } from '../net/link.ts';
 import type { HostLink, LinkStatus } from '../net/link.ts';
 import type { ClockView, HostMsg, PlayerMsg, VoteView } from '../net/protocol.ts';
@@ -285,53 +286,6 @@ function actAll(cmds: Command[]): boolean {
 	save();
 	render();
 	return true;
-}
-
-/**
- * What the room needs to hear from what just happened: deaths at dawn,
- * votes, executions, the Virgin and the Slayer, and the end of the game.
- * Only public facts: a Monk's save, a starpass or a Scarlet Woman taking
- * over are never announced.
- */
-function announce(prev: GameState, events: GameEvent[], next: GameState): Banner[] | null {
-	const out: Banner[] = [];
-	const nm = (id: SeatId) => next.seats[id]?.name ?? '?';
-	for (const e of events) {
-		switch (e.type) {
-			case 'day-began': {
-				const dead = prev.night?.deaths ?? [];
-				out.push({ title: `Day ${e.n} dawns`, lines: dead.length ? dead.map((d) => `${nm(d)} died in the night.`) : ['Nobody died in the night.'] });
-				break;
-			}
-			case 'vote-tallied': {
-				const block = next.day?.block ?? null;
-				const lines = [e.outcome === 'on-the-block' ? `${nm(e.nominee)} is about to die.`
-					: e.outcome === 'tied' ? 'A tie: nobody is about to die.' : `Not enough. ${e.needed} were needed.`];
-				if (e.outcome === 'not-enough' && block !== null) lines.push(`${nm(block)} is still about to die.`);
-				out.push({ title: `${e.votes} vote${e.votes === 1 ? '' : 's'} for ${nm(e.nominee)}`, lines });
-				break;
-			}
-			case 'executed': {
-				const virgin = events.some((x) => x.type === 'ability-spent' && x.ability === 'virgin');
-				const died = events.some((x) => x.type === 'died' && x.seat === e.seat);
-				out.push(virgin
-					? { title: 'The Virgin!', lines: [`${nm(e.seat)} nominated the Virgin.`, `${nm(e.seat)} is executed and dies.`] }
-					: { title: 'Execution', lines: [`${nm(e.seat)} is executed.`, died ? `${nm(e.seat)} dies.` : `${nm(e.seat)} was already dead.`] });
-				break;
-			}
-			case 'slayer-shot':
-				out.push({ title: 'The Slayer', lines: [`${nm(e.by)} shoots ${nm(e.target)}.`, e.hit ? `${nm(e.target)} dies.` : 'Nothing happens.'] });
-				break;
-			case 'game-over':
-				out.push({ title: e.winner === 'good' ? 'Good wins' : 'Evil wins', lines: [e.reason] });
-				break;
-		}
-	}
-	const dusk = events.some((e) => e.type === 'night-began') && prev.phase.kind === 'day';
-	if (dusk && !events.some((e) => e.type === 'executed') && prev.day?.executed === null) {
-		out.push({ title: 'Dusk', lines: ['Nobody is executed today.'] });
-	}
-	return out.length ? out : null;
 }
 
 function bannerRows(): Row[] {

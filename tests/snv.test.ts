@@ -4,7 +4,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { perform, nextStep, nightSteps, isDrunk, isPoisoned, abilityWorks } from '../src/core/index.ts';
+import { perform, nextStep, nightSteps, isDrunk, isPoisoned, abilityWorks, infoCandidates } from '../src/core/index.ts';
 import type { Command, GameState, SeatId } from '../src/core/index.ts';
 import { gameOn, autoNight, ok, refused } from './helpers.ts';
 
@@ -258,4 +258,16 @@ test('SNV-VIGORMORTIS-WITCH: a dead Witch kept by the Vigormortis still curses',
 	assert.ok(nightSteps(s).some((x) => x.id === 'witch:2' && x.done), 'the dead Witch woke');
 	s = ok(dawn(s), [{ type: 'open-nominations' }, { type: 'nominate', nominator: 6, nominee: 1 }]);
 	assert.equal(alive(s, 6), false, 'the curse works');
+});
+
+test('SNV-VORTOX-OFFERS: under a working Vortox the Storyteller is offered only false answers for a sober Townsfolk', () => {
+	// 0 vortox, 1 snake charmer, 2 witch, 3 oracle, 4 sage, 5 mutant, 6 flowergirl
+	const chars = ['vortox', 'snake-charmer', 'witch', 'oracle', 'sage', 'mutant', 'flowergirl'];
+	let s = execute(dawn(autoNight(gameOn(SNV, chars))), 6, 5); // the Flowergirl is executed, so the Oracle is the one to wake
+	s = autoNight(s, {}, 'oracle');
+	assert.equal(nextStep(s)?.kind, 'oracle');
+	const offered = infoCandidates(s, 'oracle', 3);
+	assert.ok(offered.length > 0, 'something to say');
+	assert.ok(offered.every((c) => !c.truthful), 'and every one false');
+	ok(s, { type: 'tell', info: offered[0].info });
 });

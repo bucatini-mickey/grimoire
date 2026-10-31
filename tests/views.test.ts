@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { nextStep } from '../src/core/index.ts';
+import { nextStep, nightSteps } from '../src/core/index.ts';
 import { publicView, cardFor, wakeFor } from '../src/net/views.ts';
 import { game, ok, playNight } from './helpers.ts';
 
@@ -64,4 +64,14 @@ test('the Drunk wakes as who they think they are', () => {
 	assert.ok(!JSON.stringify(w).toLowerCase().includes('drunk'));
 	assert.ok(w.info?.some((x) => x.lines.includes('Empath')));
 	s = s; // the Storyteller records it as usual
+});
+
+test('an evil Traveller’s wake is their own character and the Demon, and does not crash the pages', () => {
+	let s = playNight(base());
+	s = ok(s, [{ type: 'traveller-joins', name: 'Tess', character: 'gunslinger', alignment: 'evil', after: 0 }, { type: 'end-day' }]);
+	const step = nightSteps(s).find((x) => x.kind === 'traveller-info');
+	assert.ok(step, 'an evil Traveller wakes to learn the Demon');
+	const w = wakeFor(s, step);
+	assert.equal(w.role, 'gunslinger');
+	assert.deepEqual(w.sections.find((x) => x.title === 'Your Demon')?.lines, ['Ada']);
 });
