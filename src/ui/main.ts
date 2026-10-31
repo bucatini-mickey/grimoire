@@ -215,6 +215,10 @@ const ui = {
 	setup: 'script' as 'script' | 'players' | 'characters' | 'seats' | 'fabled',
 	/** Reading the book of characters (over whatever page it was opened from). */
 	reading: false,
+	/** Showing the shareable setup page (settings). */
+	sharing: false,
+	/** The share page just copied the summary. */
+	shareCopied: false,
 	/** A second tap to confirm starting again (settings). */
 	confirmRestart: '' as '' | 'same' | 'new',
 	/** The edition for a new game ('custom' to pick characters). */
@@ -624,7 +628,7 @@ function header(): Row[] {
 		p.kind === 'night' ? `Night ${p.n}` :
 		p.kind === 'day' ? `Day ${p.n}` : 'Game over';
 	const inSettings = ui.tab === 'settings' || ui.tab === 'options' || ui.tab === 'phones';
-	const tab = (t: Tab, label: string, on = ui.tab === t): TabSpec => ({ label, on, act: () => { ui.tab = t; ui.reading = false; ui.confirmRestart = ''; render(); } });
+	const tab = (t: Tab, label: string, on = ui.tab === t): TabSpec => ({ label, on, act: () => { ui.tab = t; ui.reading = false; ui.sharing = false; ui.confirmRestart = ''; render(); } });
 	return [
 		listRow(phase, 'rubric', [btn('Undo', undo, { disabled: !saved.marks.length, style: 'quiet' })], COLS),
 		tabStrip([
@@ -1296,6 +1300,37 @@ function readingPage(): Row[] {
 	return rows;
 }
 
+/** The script and player count of the setup as it stands, whether or not a game has begun. Never reads who is what. */
+function shareSource(): { sc: Script; players: number | null } {
+	if (state.seats.length) return { sc: script(), players: state.seats.filter((x) => !x.traveller).length };
+	let sc: Script | undefined;
+	try { sc = ui.scriptId === 'custom' ? G.getScript(G.customScriptId(ui.customIds)) : G.SCRIPTS[ui.scriptId]; } catch { sc = undefined; }
+	const n = ui.names.split('\n').filter((l) => l.trim()).length;
+	return { sc: sc ?? G.getScript('trouble-brewing'), players: n || null };
+}
+
+/** Settings: a summary of the setup to send to people (script JSON, counts, modifiers), as text or a file. */
+function sharePage(): Row[] {
+	const { sc, players } = shareSource();
+	const text = G.setupSummary(sc, players);
+	const rows: Row[] = [...pageHead('Share the setup', ['Settings', () => { ui.sharing = false; render(); }])];
+	rows.push(...prose('The script (in the official format other tools import), the number of players and the team counts. It holds no seats, no characters in play and no bluffs, so it is safe to send.', 'dim'), blank());
+	const preview = text.slice(0, text.indexOf('\n\nScript (official JSON'));
+	for (const l of preview.split('\n')) rows.push(...prose(l));
+	rows.push(blank(), ...prose(`The ${sc.characters.length}-character script in JSON goes in the copy and the file.`, 'dim'), blank());
+	rows.push(buttonBlock([btn(ui.shareCopied ? 'Copied' : 'Copy as text', () => {
+		void navigator.clipboard?.writeText(text).then(() => { ui.shareCopied = true; render(); setTimeout(() => { ui.shareCopied = false; render(); }, 2000); });
+	}, { width: INNER, style: 'primary' }), btn('Download as a file', () => {
+		const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+		const a = document.createElement('a');
+		a.href = url; a.download = G.summaryFileName(sc);
+		document.body.appendChild(a); a.click(); a.remove();
+		setTimeout(() => URL.revokeObjectURL(url), 1000);
+	}, { width: INNER })]));
+	rows.push(blank(), onward('Back', () => { ui.sharing = false; render(); }));
+	return rows;
+}
+
 /** The grimoire's settings, each thing a page of its own: the clocks, the phones, the characters, starting again, home. */
 function settingsScreen(): Row[] {
 	const rows: Row[] = [rubric('Settings')];
@@ -1304,6 +1339,7 @@ function settingsScreen(): Row[] {
 	entry('The clocks', 'How long the discussion, nominations and speeches run.', to('options'));
 	entry(link ? 'Players\u2019 phones (room open)' : 'Players\u2019 phones', 'Link each player\u2019s phone, and the village.', to('phones'));
 	entry('The characters', 'What each character of this script does.', () => { ui.reading = true; render(); });
+	entry('Share the setup', 'The script and the team counts, as text or a file to send. Nothing secret.', () => { ui.sharing = true; ui.shareCopied = false; render(); });
 	const names = state.seats.map((x) => x.name);
 	const sure = (k: typeof ui.confirmRestart, label: string, sub: string, run: () => void) =>
 		entry(ui.confirmRestart === k ? label + ': sure? This game ends' : label, ui.confirmRestart === k ? 'Tap again to start again.' : sub, () => { if (ui.confirmRestart === k) { ui.confirmRestart = ''; run(); } else { ui.confirmRestart = k; render(); } }, ui.confirmRestart === k ? 'danger' : undefined);
@@ -2897,6 +2933,7 @@ function phonesScreen(): Row[] {
 
 function screen(): Row[] {
 	if (ui.reading) return readingPage();
+	if (ui.sharing) return sharePage();
 	if (saved.net?.village && state.phase.kind === 'setup') {
 		return state.seats.length ? draftScreen(['Lobby', () => { undo(); ui.message = ''; }]) : hostLobbyPage();
 	}
@@ -2981,6 +3018,7 @@ let lastKind = state.phase.kind;
 
 function drawerScreen(): Row[] {
 	if (ui.reading) return readingPage();
+	if (ui.sharing) return sharePage();
 	const p = state.phase;
 	const phase = p.kind === 'setup' ? 'Setting the Table' : p.kind === 'night' ? `Night ${p.n}` : p.kind === 'day' ? `Day ${p.n}` : 'Game over';
 	const tab = ui.drawer ?? 'actions';

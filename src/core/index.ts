@@ -16,3 +16,4 @@ export { suggestInfo } from './suggest.ts';
 export { infoCandidates } from './candidates.ts';
 export type { Candidate, Lean } from './candidates.ts';
 export { ALL_CHARACTERS } from './scripts/night-order.ts';
+export * from './share.ts';
