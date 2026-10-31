@@ -846,29 +846,38 @@ export function wordBox(word: string, act: () => void, w = 24, h = 11): Row {
 	});
 }
 
-/** A gothic arrow, pointing up: a broad head with barbs hooked back, a long banded shaft, a knotted tail. */
-const ARROW = [
-	'.....G.....',
-	'....GWG....',
-	'...GGWGG...',
-	'..GGGWGGG..',
-	'.GGGGWGGGG.',
-	'GGG.GDG.GGG',
-	'GG..GGG..GG',
-	'G...GDG...G',
-	'....GGG....',
-	'....GDG....',
-	'....GGG....',
-	'....GDG....',
-	'....GGG....',
-	'...G.G.G...',
-	'...GGGGG...',
-	'....G.G....'
-];
+/**
+ * A hand-inked arrow, pointing up, as pixels (1 = wet ink, 2 = dry, thin ink): a pen stroke for the
+ * shaft that wavers a little and thins towards the tail, two barbs drawn as quick tapering strokes,
+ * and a small blot where the pen first touched. The wobble comes from a fixed hash, so it never shimmers.
+ */
+function inkedArrow(): number[][] {
+	const W = 15, H = 18, px: number[][] = Array.from({ length: H }, () => Array(W).fill(0));
+	const wob = (k: number) => (cellHash(k, 7) % 100) / 100 - 0.5;
+	// A stroke from (x0,y0) to (x1,y1), its half-width running from r0 to r1; edges are ragged, the thin end dry.
+	const stroke = (x0: number, y0: number, x1: number, y1: number, r0: number, r1: number, seed: number) => {
+		const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) * 2);
+		for (let s = 0; s <= n; s++) {
+			const t = s / n, r = r0 + (r1 - r0) * t + wob(seed + s) * 0.5;
+			const cx = x0 + (x1 - x0) * t + wob(seed * 3 + s) * 0.9, cy = y0 + (y1 - y0) * t;
+			for (let y = Math.floor(cy - r - 1); y <= Math.ceil(cy + r + 1); y++) for (let x = Math.floor(cx - r - 1); x <= Math.ceil(cx + r + 1); x++) {
+				if (x < 0 || y < 0 || x >= W || y >= H || Math.hypot(x - cx, y - cy) > r + 0.35) continue;
+				const v = r < 0.8 && cellHash(x + seed, y) % 3 === 0 ? 2 : 1;
+				if (px[y][x] === 0 || v === 1) px[y][x] = v;
+			}
+		}
+	};
+	stroke(7, 3, 7.6, 16.5, 1.3, 0.35, 11);   // the shaft: heavy at the head, a hair at the tail
+	stroke(7, 1.5, 2.2, 7, 1.1, 0.3, 23);   // the left barb
+	stroke(7, 1.5, 11.8, 6.6, 1.2, 0.3, 37); // the right barb, a touch shorter and heavier
+	stroke(7, 1.4, 7, 1.8, 1.7, 1.5, 41);   // the blot at the point
+	stroke(6.6, 16, 9.2, 17, 0.5, 0.4, 53); // a flick of the pen at the tail
+	return px;
+}
 
 /**
  * An answer tapped from across the table (the vote's hand up, hand down), in a square box: a double
- * rule of red set with gold lozenges, a gothic arrow gilt and edged in red pointing up or down, and
+ * rule of red set with gold lozenges, an arrow hand-inked in the page's ink pointing up or down, and
  * under it what it means.
  */
 export function arrowBox(dir: 'up' | 'down', label: string, act: () => void, w = 24, h = 12): Row {
@@ -879,14 +888,12 @@ export function arrowBox(dir: 'up' | 'down', label: string, act: () => void, w =
 		for (let j = 1; j < h - 1; j++) { at(x0, y0 + j, '║', 8); at(x0 + w - 1, y0 + j, '║', 8); }
 		for (const [x, y] of [[x0, y0], [x0 + w - 1, y0], [x0, y0 + h - 1], [x0 + w - 1, y0 + h - 1], [x0 + (w >> 1), y0], [x0 + (w >> 1), y0 + h - 1], [x0, y0 + (h >> 1)], [x0 + w - 1, y0 + (h >> 1)]]) at(x, y, '♦', 6);
 		for (const [x, y] of [[x0 + 2, y0 + 1], [x0 + w - 3, y0 + 1], [x0 + 2, y0 + h - 2], [x0 + w - 3, y0 + h - 2]]) at(x, y, '·', 6);
-		// The arrow: gilt (its lights paler, its bands deeper), edged in red all round.
-		const art = dir === 'up' ? ARROW : [...ARROW].reverse();
-		const aw = art[0].length + 2, ah = art.length + 2;
-		const px: number[][] = Array.from({ length: ah + (ah % 2) }, () => Array(aw).fill(-1));
-		const GOLD = quant([210, 168, 70]), PALE = quant([238, 216, 150]), DEEP = quant([150, 112, 44]);
-		art.forEach((r, y) => [...r].forEach((p, i) => { if (p !== '.') px[y + 1][i + 1] = p === 'W' ? PALE : p === 'D' ? DEEP : GOLD; }));
-		const on = (y: number, i: number) => art[y - 1]?.[i - 1] !== undefined && art[y - 1][i - 1] !== '.';
-		for (let y = 0; y < ah; y++) for (let i = 0; i < aw; i++) if (px[y][i] === -1 && [[-1, 0], [1, 0], [0, -1], [0, 1]].some(([dy, dx]) => on(y + dy, i + dx))) px[y][i] = 8;
+		// The arrow: hand-inked in the page's own ink (dry strokes in the dimmer ink), no gilding.
+		const art = inkedArrow();
+		if (dir === 'down') art.reverse();
+		const aw = art[0].length;
+		const wet = c.ink('plain'), dry = c.ink('dim');
+		const px: number[][] = art.map((r) => r.map((p) => (p === 1 ? wet : p === 2 ? dry : -1)));
 		const ay = y0 + 1 + Math.max(0, Math.floor((h - 3 - px.length / 2) / 2));
 		stampPixels(c.g, c.x + Math.floor((c.w - aw) / 2), ay, px);
 		c.g.text(c.x + Math.floor((c.w - label.length) / 2), ay + px.length / 2, label, 8);
