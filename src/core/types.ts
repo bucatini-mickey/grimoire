@@ -176,7 +176,11 @@ export type EffectKind =
 	/** The Thief's choice: their votes count minus one today. */
 	| 'vote-minus'
 	/** The Barista's choice: sober and healthy, with true information, until dusk. */
-	| 'sober';
+	| 'sober'
+	/** The Cannibal's loan: `note` is the character of the last player executed who died, with `evil:` before it if that player was evil. Replaced at the next such death. */
+	| 'cannibal-ability'
+	/** What the Storyteller told a poisoned Cannibal they have (`note`: a good character, or `nothing`). */
+	| 'cannibal-shown';
 export interface Effect {
 	kind: EffectKind;
 	target: SeatId;

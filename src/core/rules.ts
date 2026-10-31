@@ -172,6 +172,8 @@ export function reminders(state: GameState, id: SeatId): string[] {
 		if (e.kind === 'vote-x3') out.push('votes x3');
 		if (e.kind === 'vote-minus') out.push('votes -1');
 		if (e.kind === 'sober') out.push('sober');
+		if (e.kind === 'cannibal-ability') out.push(e.note?.startsWith('evil:') ? `lunch: ${e.note.slice(5)} (evil)` : `lunch: ${e.note}`);
+		if (e.kind === 'cannibal-shown') out.push(`told: ${e.note}`);
 	}
 	if (state.redHerring === id) out.push('red herring');
 	if (state.spent.includes(`${id}:slayer`)) out.push('shot used');
