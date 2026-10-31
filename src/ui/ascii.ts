@@ -10,7 +10,8 @@
  * Nothing here knows about the game.
  */
 
-import { themeOfKey } from './theme.ts';
+import { bookKey, themeOfKey } from './theme.ts';
+import type { Theme } from './theme.ts';
 import { Term, expand, shade } from '../term/pterm.ts';
 import type { Grid, Palette, Rect } from '../term/pterm.ts';
 
@@ -1903,4 +1904,50 @@ export function paint(root: unknown, rows: Row[], width = COLS) {
 	if (rows.length && !old?.rows.length) { const k = order.indexOf(root); if (k >= 0) order.splice(k, 1); }
 	if (!order.includes(root)) order.push(root);
 	t.draw();
+}
+
+// ---- the icon designer's pieces -----------------------------------------------------------------
+
+/** A book's sixteen inks as it is read by candlelight (the icon is drawn on a dark ground, so it takes these). */
+export const bookInks = (theme: Theme): string[] => [...PALETTES[bookKey(theme, true)]].slice(0, 16);
+
+/**
+ * A row of colour chips to choose from, two cells wide and two tall in the colour, three apiece to
+ * hit. The chosen one carries a star. Colours are drawn in the nearest of the page's inks.
+ */
+export function chipsRow(hexes: string[], on: string, pick: (hex: string) => void): Row {
+	const per = Math.floor(INNER / 3), lines = Math.ceil(hexes.length / per);
+	return blockRow(lines * 3, (c) => {
+		hexes.forEach((hex, i) => {
+			const x = c.x + (i % per) * 3, y = c.y + Math.floor(i / per) * 3;
+			const bg = quant([1, 3, 5].map((k) => parseInt(hex.slice(k, k + 2), 16)));
+			const lum = [1, 3, 5].reduce((a, k, j) => a + parseInt(hex.slice(k, k + 2), 16) * [0.3, 0.59, 0.11][j], 0);
+			const chosen = hex.toLowerCase() === on.toLowerCase();
+			c.g.fill({ x, y, w: 2, h: 2 }, ' ', 4, bg);
+			if (chosen) c.g.set(x, y, '*', lum > 110 ? 0 : 5, bg);
+			c.hit({ x, y, w: 3, h: 3 }, () => pick(hex));
+		});
+	});
+}
+
+/**
+ * An icon shown at several sizes, as pixels two to a cell: the first big, the others stacked beside it,
+ * so the eye can judge how it reads from the home screen down to a browser tab.
+ */
+export function pixelsRow(render: (size: number) => { w: number; h: number; rgba: Uint8Array }, sizes: number[]): Row {
+	const [big, ...small] = sizes;
+	const gap = 2, smallW = Math.max(0, ...small), total = big + (small.length ? gap + smallW : 0);
+	const stack = small.reduce((a, s) => a + Math.ceil(s / 2), 0) + Math.max(0, small.length - 1);
+	return blockRow(Math.max(Math.ceil(big / 2), stack), (c) => {
+		const put = (size: number, x: number, y: number) => {
+			const { w, h, rgba } = render(size);
+			const px = Array.from({ length: h }, (_, j) => Array.from({ length: w }, (_, i) => quant([rgba[(j * w + i) * 4], rgba[(j * w + i) * 4 + 1], rgba[(j * w + i) * 4 + 2]])));
+			stampPixels(c.g, x, y, px);
+			return Math.ceil(h / 2);
+		};
+		const x0 = c.x + Math.max(0, Math.floor((c.w - total) / 2));
+		put(big, x0, c.y);
+		let y = c.y;
+		for (const s of small) y += put(s, x0 + big + gap, y) + 1;
+	});
 }

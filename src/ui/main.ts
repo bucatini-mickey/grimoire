@@ -17,10 +17,13 @@
  */
 import * as G from '../core/index.ts';
 import type { Candidate, CharacterId, Command, GameEvent, GameState, Info, SeatId, Script, Lean } from '../core/index.ts';
-import { arrowBox, chapterRow, coverRow, illuminatedRow, miniature, namePlate, navRow, tabStrip } from './ascii.ts';
+import { arrowBox, bookInks, chapterRow, chipsRow, coverRow, illuminatedRow, miniature, namePlate, navRow, pixelsRow, tabStrip } from './ascii.ts';
+import { DEFAULT_ICON, SYMBOLS, applySaved, loadIcon, normalise, renderIcon, sameIcon, saveIcon } from './appicon.ts';
+import type { IconSpec } from './appicon.ts';
 import { HOW_TO_PLAY, INTERACTIONS, TIPS } from '../core/codex.ts';
 import type { CodexPage } from '../core/codex.ts';
-import { bookKey, themeOf } from './theme.ts';
+import { THEMES, bookKey, themeOf } from './theme.ts';
+import type { Theme } from './theme.ts';
 import { LobbyVoice } from '../town/lobbyvoice.ts';
 import type { Tab as TabSpec } from './ascii.ts';
 import { COLS, INNER, Canvas, letteredRow, shade, titleRow, blank, blockRow, boxRow, btn, buttonBlock, buttonRows, center, endPanel, field, frameBottom, frameTop, listRow, paint, paneled, pad, redraw, row, rubric, rule, segWidth, setDynamic, setExtra, setPalette, txt, wrap } from './ascii.ts';
@@ -131,7 +134,7 @@ const flow = () => saved.flow;
 
 // ---- passing screen state ------------------------------------------------------
 
-type Tab = 'grimoire' | 'log' | 'ties' | 'settings' | 'options' | 'phones';
+type Tab = 'grimoire' | 'log' | 'ties' | 'settings' | 'options' | 'phones' | 'icon';
 /** In a village game the grimoire is a drawer over the town; these are its tabs. */
 type DrawerTab = Tab | 'actions';
 type DayMode = 'none' | 'nominate' | 'slay';
@@ -178,7 +181,9 @@ const ui = {
 	/** The home page starts as the book's shut cover; a tap opens it to the menu. */
 	coverOpen: false,
 	/** Which leaf of the opened book: its contents, the Storyteller's leaf, or the players'. */
-	leaf: 'front' as 'front' | 'contents' | 'st' | 'players' | 'codex',
+	leaf: 'front' as 'front' | 'contents' | 'st' | 'players' | 'codex' | 'icon',
+	/** The app icon being designed (settings, or the first page): the design so far, the book whose inks are offered, and the script whose characters are listed. */
+	icon: { spec: loadIcon() ?? { ...DEFAULT_ICON }, theme: 'medieval' as Theme, script: 'trouble-brewing', note: '' },
 	/** Where the codex is open: its index, a page of it, the characters of a script, or one character. */
 	codex: { page: 'index' as 'index' | 'how' | 'meet' | 'list' | 'char', script: 'trouble-brewing', char: '' },
 	/** Second taps that confirm ending a game (home: host anew, play in person, end it). */
@@ -627,7 +632,7 @@ function header(): Row[] {
 		p.kind === 'setup' ? 'Setting the Table' :
 		p.kind === 'night' ? `Night ${p.n}` :
 		p.kind === 'day' ? `Day ${p.n}` : 'Game over';
-	const inSettings = ui.tab === 'settings' || ui.tab === 'options' || ui.tab === 'phones';
+	const inSettings = ui.tab === 'settings' || ui.tab === 'options' || ui.tab === 'phones' || ui.tab === 'icon';
 	const tab = (t: Tab, label: string, on = ui.tab === t): TabSpec => ({ label, on, act: () => { ui.tab = t; ui.reading = false; ui.sharing = false; ui.confirmRestart = ''; render(); } });
 	return [
 		listRow(phase, 'rubric', [btn('Undo', undo, { disabled: !saved.marks.length, style: 'quiet' })], COLS),
@@ -730,6 +735,7 @@ function homeScreen(): Row[] {
 	if (ui.leaf === 'st') return storytellerLeaf(busy, toLeaf('contents'));
 	if (ui.leaf === 'players') return playersLeaf(toLeaf('contents'));
 	if (ui.leaf === 'codex') return codexRows(toLeaf('front'));
+	if (ui.leaf === 'icon') return iconRows(navRow('Back', toLeaf('front')));
 	const head: Row[] = [navRow('Close the book', () => { ui.coverOpen = false; render(); }), illuminatedRow([
 		{ t: 'the book of the Storyteller' }, { t: 'for Blood on the Clocktower,' }, { t: 'wherein the game is kept,', tone: 'dim' }, { t: 'its nights and its dead.', tone: 'dim' }
 	]), blank()];
@@ -740,6 +746,7 @@ function homeScreen(): Row[] {
 		// a rule of gold, and a plain word on what it holds.
 		rows.push(blank(), chapterRow('Play', 'Run a game, or join one.', toLeaf('contents')), blank(), blank());
 		rows.push(chapterRow('Codex', 'Characters, tips and how to play.', () => { ui.leaf = 'codex'; ui.codex.page = 'index'; render(); }));
+		rows.push(blank(), ...buttonRows([btn('The app icon', toLeaf('icon'), { style: 'quiet' })]));
 		return rows;
 	}
 	const rows: Row[] = [navRow('Back', toLeaf('front')), blank()];
@@ -1338,6 +1345,7 @@ function settingsScreen(): Row[] {
 	const entry = (label: string, sub: string, act: () => void, style?: Button['style']) => rows.push(buttonBlock([btn(label, act, { width: INNER, style })]), ...prose(sub, 'dim'), blank());
 	entry('The clocks', 'How long the discussion, nominations and speeches run.', to('options'));
 	entry(link ? 'Players\u2019 phones (room open)' : 'Players\u2019 phones', 'Link each player\u2019s phone, and the village.', to('phones'));
+	entry('The app icon', 'Design the picture the app wears on a home screen.', to('icon'));
 	entry('The characters', 'What each character of this script does.', () => { ui.reading = true; render(); });
 	entry('Share the setup', 'The script and the team counts, as text or a file to send. Nothing secret.', () => { ui.sharing = true; ui.shareCopied = false; render(); });
 	const names = state.seats.map((x) => x.name);
@@ -2371,6 +2379,59 @@ function optionsScreen(): Row[] {
 	return rows;
 }
 
+// ---- the app icon ----------------------------------------------------------------------------------
+//
+// The icon on the home screen, designed here (src/ui/appicon.ts): a symbol and four colours from the
+// book's own inks. Kept in this browser and put on the page's icons and manifest at once; a phone
+// that already has the app on its home screen keeps the old picture until the app is added again.
+
+const ICON_SIZES = [28, 16, 12];
+const THEME_NAMES: Record<Theme, string> = { medieval: 'Medieval', grimm: 'Grimm', clockwork: 'Clockwork', lovecraft: 'Lovecraft' };
+
+function iconRows(back: Row): Row[] {
+	const ic = ui.icon, spec = ic.spec;
+	const set = (patch: Partial<IconSpec>) => { ic.spec = normalise({ ...ic.spec, ...patch }); ic.note = ''; render(); };
+	const rows: Row[] = [back, rubric('The app icon')];
+	rows.push(pixelsRow((n) => renderIcon(spec, n), ICON_SIZES));
+	rows.push(...prose('As the home screen, a list and a browser tab draw it (28, 16 and 12 pixels). Shown in the nearest of the page’s inks; the icon itself is exact.', 'dim'), endPanel());
+
+	rows.push(rubric('Symbol'), ...buttonRows(SYMBOLS.map((s) => btn(s.name, () => set({ symbol: s.id }), { style: spec.symbol === s.id ? 'on' : 'quiet' }))));
+	if (spec.symbol === 'token') {
+		const scripts = codexScripts(), sc = scripts.find((s) => s.id === ic.script) ?? scripts[0];
+		rows.push(blank(), ...prose('A character’s token: the capital of their name. Which one?', 'dim'));
+		rows.push(...buttonRows(scripts.map((s) => btn(s.name, () => { ic.script = s.id; render(); }, { style: s.id === sc.id ? 'on' : 'quiet' }))));
+		rows.push(blank(), ...buttonRows(sc.chars.map((c) => btn(c.name, () => set({ symbol: 'token', letter: c.name.match(/[A-Za-z]/)?.[0] ?? 'A', character: c.id }), { style: spec.character === c.id ? 'on' : 'quiet' }))));
+	}
+	rows.push(endPanel(), rubric('Colours'), ...prose('The inks of a book:', 'dim'));
+	rows.push(...buttonRows(THEMES.map((t) => btn(THEME_NAMES[t], () => { ic.theme = t; render(); }, { style: ic.theme === t ? 'on' : 'quiet' }))));
+	const choices = [...new Set([DEFAULT_ICON.bg, DEFAULT_ICON.leaf, DEFAULT_ICON.frame, DEFAULT_ICON.ink, ...bookInks(ic.theme)].map((h) => h.toLowerCase()))];
+	const roles: [string, 'bg' | 'leaf' | 'frame' | 'ink'][] = [['Ground', 'bg'], ['Leaf', 'leaf'], ['Frame', 'frame'], ['Ink', 'ink']];
+	for (const [label, key] of roles) rows.push(blank(), row(txt(label, 'gold')), chipsRow(choices, spec[key], (hex) => set({ [key]: hex })));
+	rows.push(endPanel());
+
+	const isDefault = sameIcon(spec, DEFAULT_ICON), kept = loadIcon();
+	const same = kept ? sameIcon(spec, kept) : isDefault;
+	rows.push(rubric('Keep it'));
+	rows.push(...buttonRows([
+		btn(same ? 'In use' : 'Use this icon', () => {
+			saveIcon(spec);
+			applySaved(isDefault ? null : spec);
+			ic.note = isDefault ? 'Back to the book’s own icon.' : 'Kept, and on this page’s icons now. Add the app to the home screen again to see it there.';
+			render();
+		}, { style: 'primary', disabled: same }),
+		btn('Start again', () => { ic.spec = { ...DEFAULT_ICON }; ic.note = ''; render(); }, { style: 'quiet', disabled: isDefault }),
+		...(kept ? [btn('Forget my design', () => { saveIcon(null); applySaved(null); ic.spec = { ...DEFAULT_ICON }; ic.note = 'Forgotten: the book’s own icon again.'; render(); }, { style: 'danger' })] : [])
+	]));
+	if (ic.note) rows.push(blank(), ...prose(ic.note, 'good'));
+	rows.push(endPanel(), rubric('On a home screen'));
+	rows.push(...prose('The page changes its own icons at once, but a phone copies the icon when the app is added, and keeps that copy:', 'dim'));
+	rows.push(...prose('iPhone and iPad (Safari): remove the app, then Share, Add to Home Screen.', 'dim'));
+	rows.push(...prose('Android (Chrome): uninstall the app, then Install app or Add to Home screen. Chrome may take days to refresh an app already installed.', 'dim'));
+	rows.push(...prose('Desktop Chrome or Edge: uninstall the app, then install it again.', 'dim'));
+	rows.push(...prose('The design lives in this browser only; another phone has its own.', 'dim'), endPanel());
+	return rows;
+}
+
 // ---- players' phones -----------------------------------------------------------------------
 //
 // The Storyteller's phone hosts a room; players' phones join it (see
@@ -2947,6 +3008,7 @@ function screen(): Row[] {
 	if (ui.tab === 'settings') return [...rows, ...settingsScreen()];
 	if (ui.tab === 'options') return [...rows, ...optionsScreen()];
 	if (ui.tab === 'phones') return [...rows, ...phonesScreen()];
+	if (ui.tab === 'icon') return [...rows, ...iconRows(settingsBack())];
 	rows.push(...circleRows(), ...messageRows(), ...inspectRows(), ...actionRows());
 	return rows;
 }
@@ -3023,7 +3085,7 @@ function drawerScreen(): Row[] {
 	const p = state.phase;
 	const phase = p.kind === 'setup' ? 'Setting the Table' : p.kind === 'night' ? `Night ${p.n}` : p.kind === 'day' ? `Day ${p.n}` : 'Game over';
 	const tab = ui.drawer ?? 'actions';
-	const inSettings = tab === 'settings' || tab === 'options' || tab === 'phones';
+	const inSettings = tab === 'settings' || tab === 'options' || tab === 'phones' || tab === 'icon';
 	const rows: Row[] = [
 		listRow(phase, 'rubric', [
 			btn('Undo', undo, { disabled: !saved.marks.length, style: 'quiet' }),
@@ -3036,6 +3098,7 @@ function drawerScreen(): Row[] {
 	if (tab === 'settings') return [...rows, ...settingsScreen()];
 	if (tab === 'options') return [...rows, ...optionsScreen()];
 	if (tab === 'phones') return [...rows, ...phonesScreen()];
+	if (tab === 'icon') return [...rows, ...iconRows(settingsBack())];
 	if (p.kind === 'setup') return state.seats.length ? draftScreen(['Lobby', () => { undo(); ui.message = ''; }]) : [...rows, ...namesScreen(), ...messageRows()];
 	if (tab === 'actions') return [...rows, ...messageRows(), ...actionRows()];
 	// The grimoire: the circle of seats and tokens, and whoever is tapped.
@@ -3117,6 +3180,9 @@ const dynamicText = (d: Record<string, string>): string | null => {
 };
 setDynamic(dynamicText);
 setInterval(tick, 250);
+
+// The Storyteller's own icon, if they have designed one, goes on the page's icons and manifest.
+if (loadIcon()) applySaved();
 
 // A player's phone (#join=CODE, or "Join a game") runs the player app instead.
 const joining = location.hash.match(/^#join(?:=([A-Za-z]{4}))?/);
