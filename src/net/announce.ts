@@ -36,9 +36,11 @@ export function announce(prev: GameState, events: GameEvent[], next: GameState):
 				// Why they are still there (the Fool, the Tea Lady...) is never said.
 				const dies = events.some((x) => (x.type === 'died' || x.type === 'seems-dead') && x.seat === e.seat);
 				const survives = events.some((x) => x.type === 'survived-execution' && x.seat === e.seat);
+				// A Zombuul who already seems dead and is saved looks, to the room, like a dead player executed: nothing is said that a dead player would not get.
+				const looksDead = !prev.seats[e.seat].alive;
 				const wasDead = !prev.seats[e.seat].alive && !prev.seats[e.seat].undead;
 				// Neither dies nor survives, and was alive: the game ended with the execution (the Mastermind's day, the Evil Twin), and the winner says the rest.
-				const fate = dies ? `${nm(e.seat)} dies.` : survives ? `${nm(e.seat)} does not die.` : wasDead ? `${nm(e.seat)} was already dead.` : null;
+				const fate = dies ? `${nm(e.seat)} dies.` : survives && looksDead ? `${nm(e.seat)} was already dead.` : survives ? `${nm(e.seat)} does not die.` : wasDead ? `${nm(e.seat)} was already dead.` : null;
 				out.push(virgin
 					? { title: 'The Virgin!', lines: [`${nm(e.seat)} nominated the Virgin.`, `${nm(e.seat)} is executed.`, ...(fate ? [fate] : [])] }
 					: { title: 'Execution', lines: [`${nm(e.seat)} is executed.`, ...(fate ? [fate] : [])] });

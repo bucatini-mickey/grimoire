@@ -67,3 +67,16 @@ test('someone dead at dusk and brought back in the night still shows dead until 
 	assert.ok(!/Dorn/.test(said), 'not a death');
 	assert.equal(publicView(ok(s, { type: 'end-night' })).seats[3].alive, true, 'and plain at dawn');
 });
+
+test("a Zombuul who seems dead, saved from execution, looks like a dead player executed: it does not say she does not die", () => {
+	// 0 zombuul, 1 devils-advocate, 2 sailor ...; the Zombuul has used her first death
+	let s = autoNight(gameOn(BMR, ["zombuul", "devils-advocate", "sailor", "chambermaid", "grandmother", "tinker", "exorcist"]));
+	s = { ...s, seats: s.seats.map((x) => (x.id === 0 ? { ...x, alive: false, undead: true } : x)) };
+	s = ok(ok(s, { type: "end-night" }), { type: "open-nominations" });
+	s = ok(s, { type: "nominate", nominator: 3, nominee: 0 });
+	s = ok(s, { type: "vote", voters: [1, 2, 3, 4, 5, 6] });
+	s = { ...s, effects: [...s.effects, { kind: "survives-execution", target: 0, by: 1, role: "devils-advocate", until: "dusk", whileSourceWorks: true } as never] };
+	const said = text(s, { type: "end-day" });
+	assert.match(said, /Ada is executed\. \/ Ada was already dead\./);
+	assert.ok(!/does not die/.test(said));
+});

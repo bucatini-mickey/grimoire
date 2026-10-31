@@ -776,7 +776,7 @@ export class Checker {
 				const was = b.lines.includes(`${names[e.seat]} was already dead.`);
 				if (dies && result.seats[e.seat].alive) this.fail('announce-execution', `the room is told ${names[e.seat]} dies, and they are alive`);
 				if (lives && !result.seats[e.seat].alive) this.fail('announce-execution', `the room is told ${names[e.seat]} does not die, and they are dead`);
-				if (was && (prev.seats[e.seat].alive || prev.seats[e.seat].undead)) this.fail('announce-execution', `the room is told ${names[e.seat]} was already dead, and they were not`);
+				if (was && (prev.seats[e.seat].alive || (prev.seats[e.seat].undead && !events.some((x) => x.type === "survived-execution" && x.seat === e.seat)))) this.fail('announce-execution', `the room is told ${names[e.seat]} was already dead, and they were not`);
 				// Unless the game ended with the execution (the Mastermind's day, the Evil Twin), the room is told what became of them.
 				if (!dies && !lives && !was && !(prev.seats[e.seat].alive && result.phase.kind === 'over')) this.fail('announce-execution', `no word of what became of ${names[e.seat]} when executed`);
 				if (lives) this.hit('the room is told an executed player does not die');
