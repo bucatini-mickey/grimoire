@@ -1792,7 +1792,8 @@ function timerControls(key: 'day' | 'nom' | 'speech'): Row[] {
 	const t = timerOf(key)!;
 	const now = Date.now();
 	return buttonRows([
-		btn(T.running(t) ? 'Pause' : 'Start', () => setTimer(key, T.toggle(timerOf(key)!, Date.now())), { style: T.running(t) ? undefined : 'primary' }),
+		// (Start on a clock at 0:00 does nothing, so it is shown as not available until time is added)
+		btn(T.running(t) ? 'Pause' : 'Start', () => setTimer(key, T.toggle(timerOf(key)!, Date.now())), { style: T.running(t) ? undefined : T.canStart(t, now) ? 'primary' : 'quiet', disabled: !T.running(t) && !T.canStart(t, now) }),
 		btn('Restart', () => setTimer(key, T.restart(timerOf(key)!, Date.now())), { style: 'quiet' }),
 		btn('-30s', () => setTimer(key, T.extend(timerOf(key)!, -30_000, Date.now())), { style: 'quiet', disabled: T.remaining(t, now) === 0 }),
 		btn('+30s', () => setTimer(key, T.extend(timerOf(key)!, 30_000, Date.now())), { style: 'quiet' })
@@ -3089,21 +3090,25 @@ function render() {
 
 /** Update the clocks in place, without redrawing; buzz once when one runs out. */
 const buzzed = new Set<string>();
+const faces = T.faceWatch();
 function tick() {
 	const now = Date.now();
 	let running = false;
+	let moved = false;
 	for (const key of ['day', 'nom', 'speech'] as const) {
 		const t = timerOf(key);
 		if (!t) continue;
 		running = true;
 		const left = T.remaining(t, now);
+		// (a clock's face changes once a second: only then is the page redrawn)
+		if (faces.changed(key, T.clock(left))) moved = true;
 		const id = key + ':' + flow().dayN + ':' + (state.day?.nominations.length ?? 0);
 		if (left === 0 && T.running(t) && !buzzed.has(id)) {
 			buzzed.add(id);
 			try { navigator.vibrate?.([200, 100, 200]); } catch { /* not supported */ }
 		}
 	}
-	if (running) redraw();
+	if (running && moved) redraw();
 }
 /** The clocks, drawn into the cells as they are laid out. */
 const dynamicText = (d: Record<string, string>): string | null => {
