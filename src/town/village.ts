@@ -35,6 +35,12 @@ import { css, FOG, fogAt, LANTERN, sunlight, lerp, level, lightMap, lookAt, luma
 import type { Rgb } from './look.ts';
 import { audio, startVoice } from './voice.ts';
 import { FACE_H, FACE_SAMPLES, FACE_W, FaceCam, cellOf, testFace } from './faces.ts';
+
+/**
+ * Faces in the village (faces.ts) are parked: twelve columns do not make a face anyone would know.
+ * The code stays, off; tools/ascii-face.html is the tuner for trying it again.
+ */
+const FACES = false;
 import type { Voice, VoiceMode } from './voice.ts';
 import CASTLE from '../../town/castle.tbp';
 import TALMBERG from '../../town/talmberg.tbp';
@@ -408,7 +414,7 @@ function startTicker() {
 	}, 150);
 	// Faces, a few times a second, each phone only those it may see (and only when that changes).
 	const faceSent = new Map<string, string>();
-	setInterval(() => {
+	if (FACES) setInterval(() => {
 		// Test villagers have drawn faces, so faces can be tried without a second phone.
 		let k = 0;
 		for (const id of S.bots.keys()) S.faces.set(id, testFace(k++, performance.now(), talking(S.people.get(id) ?? ({} as Person)) > 0.15));
@@ -903,7 +909,7 @@ function toolButtons(): Button[] {
 	if (door !== null) bs.push(btn(S.town!.locked.has(door) ? 'Unlock' : 'Lock', () => act('door')));
 	if (S.host) bs.push(btn('Menu', () => act('st-toggle'), { style: S.stOpen ? 'on' : undefined }));
 	bs.push(btn('People', () => act('people')));
-	return [...bs, ...later, btn('Faces', () => act('faces'), { style: S.sheet === 'faces' ? 'on' : undefined })];
+	return [...bs, ...later, ...(FACES ? [btn('Faces', () => act('faces'), { style: S.sheet === 'faces' ? 'on' : undefined })] : [])];
 }
 
 /** The bar: one row of the most wanted buttons that fit, the rest behind More. */
@@ -955,7 +961,7 @@ function villageCells(g: Grid): boolean {
 	// Nominations and votes: the council room, apart from the map.
 	if (S.phase === 'circle') councilRoom(g, mapY, mapH, now);
 	else mapCells(g, mapY, mapH, p, lvl(p), now);
-	faceStrip(g, mapY, mapH, p);
+	if (FACES) faceStrip(g, mapY, mapH, p);
 	// The line of what you can hear, and the passing notice.
 	const where = p.with ? 'Private with ' + nameOf(p.with) + ': nobody else hears you'
 		: S.phase === 'night' ? (p.st ? 'Night: whoever is in this room hears you' : 'Night: at home. Only the Storyteller may visit')
@@ -1336,7 +1342,7 @@ function councilRoom(g: Grid, y0: number, h: number, now: number) {
 	const top = named ? 7 : 1, foot = Math.min(3, S.caption.length) + 1;
 	// The faces keep the right edge: the room is centred in what is left.
 	const p = me();
-	const faceCol = S.showFaces && p && (S.host ? facesFor(p) : [...S.faces]).length ? FACE_W + 1 : 0;
+	const faceCol = FACES && S.showFaces && p && (S.host ? facesFor(p) : [...S.faces]).length ? FACE_W + 1 : 0;
 	const W = g.cols - faceCol;
 	const cx = Math.floor(W / 2), cy = y0 + top + Math.floor((h - top - foot) / 2);
 	// A cell is twice as tall as it is wide: the table is twice as many columns across as rows.
