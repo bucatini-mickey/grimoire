@@ -33,9 +33,11 @@ import { at, atSpeakingPlace, canWorkDoor, DOOR_REACH, doorLeaves, doorStepIn, d
 import type { P, Phase, Town } from './map.ts';
 import { css, FOG, fogAt, LANTERN, sunlight, lerp, level, lightMap, lookAt, luma, mul, noise, remembered, sky, sources } from './look.ts';
 import type { Rgb } from './look.ts';
-import { audio, bell, startVoice } from './voice.ts';
+import { audio, startVoice } from './voice.ts';
 import type { Voice, VoiceMode } from './voice.ts';
 import CASTLE from '../../town/castle.tbp';
+import TALMBERG from '../../town/talmberg.tbp';
+import KEEP_TBP from '../../town/keep.tbp';
 import SALTGRAVE from '../../town/victorian.tbp';
 import WOLFSGRUND from '../../town/grimm.tbp';
 import WHITECHAPEL from '../../town/whitechapel.tbp';
@@ -47,7 +49,7 @@ import { bookKey, THEMES, TOWN_LIST, themeOf } from '../ui/theme.ts';
 import type { Theme } from '../ui/theme.ts';
 
 /** Each town's blueprint, by its key in TOWN_LIST (src/ui/theme.ts). */
-const TOWN_TEXT: Record<string, string> = { castle: CASTLE, hamlet: ASHCOMBE, abbey: ABBEY, grimm: WOLFSGRUND, whitechapel: WHITECHAPEL, victorian: SALTGRAVE, liner: CARCOSA };
+const TOWN_TEXT: Record<string, string> = { talmberg: TALMBERG, keep: KEEP_TBP, castle: CASTLE, hamlet: ASHCOMBE, abbey: ABBEY, grimm: WOLFSGRUND, whitechapel: WHITECHAPEL, victorian: SALTGRAVE, liner: CARCOSA };
 /** The town a theme is played in: the one the Storyteller picked for it, else its first. */
 const themeTown = (th: Theme) => {
 	const picked = store.get('grimoire.townOf.' + th);
@@ -191,8 +193,6 @@ const store = {
 	get: (k: string) => { try { return localStorage.getItem(k); } catch { return null; } },
 	set: (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* private mode */ } }
 };
-/** The bell (and its buzz) at dusk: off unless this phone has turned it on. */
-const soundOn = () => store.get('grimoire.sound') === 'on';
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 const me = () => S.people.get(S.me);
 /** The level someone is on, as a town of its own (the ground holds them all). */
@@ -371,7 +371,9 @@ function openVillage(key?: string) {
 	}, PREFIX);
 	S.hostWire = { peer: link.peer, send: (id, m) => link.send(id, m), peers: () => [...link.peers.keys()] };
 	S.me = PREFIX + S.room;
-	addPerson(S.me, 'Storyteller', { st: true, ink: -1, seat: -1 });
+	// Dev mode as a player: the town as a player's phone shows it (walls stop you, you see what is near).
+	if (store.get('grimoire.devAs') === 'player') addPerson(S.me, lobbyName || 'You');
+	else addPerson(S.me, 'Storyteller', { st: true, ink: -1, seat: -1 });
 	startTicker();
 	enterMap();
 }
@@ -854,7 +856,7 @@ function toolButtons(): Button[] {
 	if (door !== null) bs.push(btn(S.town!.locked.has(door) ? 'Unlock' : 'Lock', () => act('door')));
 	if (S.host) bs.push(btn('Menu', () => act('st-toggle'), { style: S.stOpen ? 'on' : undefined }));
 	bs.push(btn('People', () => act('people')));
-	return [...bs, ...later, btn(soundOn() ? 'Bell: on' : 'Bell: off', () => act('sound'), { style: 'quiet' })];
+	return [...bs, ...later];
 }
 
 /** The bar: one row of the most wanted buttons that fit, the rest behind More. */
@@ -1138,6 +1140,28 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 			g.setWide(scr(cell.x), mapY + cell.y - y0, r.name[0]?.toUpperCase() ?? '?', r.dead ? 3 : personInk(r.seat)[0] || 4, r.dead ? 0 : personInk(r.seat)[1]);
 		}
 	}
+	// Everyone off the screen (or on another floor) is marked at its edge, an arrow and their letter
+	// pointing the way, so nobody is ever hard to find. Not at night: then the town is shut indoors.
+	if (S.phase !== 'night') {
+		const vw = Math.floor(cols / CW), mx = (vw - 1) / 2, my = (mapH - 1) / 2;
+		for (const q of S.people.values()) {
+			if (q.id === S.me || (q.st && !p.st && S.phase !== 'day')) continue;
+			const d = shownAt.get(q.id) ?? q;
+			const cx = Math.round(d.x) - x0, cy = Math.round(d.y) - y0;
+			const dz = (q.z ?? 0) - (p.z ?? 0);
+			const onScreen = cx >= 0 && cx < vw && cy >= 0 && cy < mapH;
+			if (onScreen && !dz) continue;
+			const dx = cx - mx, dy = cy - my;
+			const k = onScreen ? 1 : Math.min((mx - 1) / Math.max(Math.abs(dx), 0.01), (my - 0.5) / Math.max(Math.abs(dy), 0.01));
+			const ex = Math.round(mx + dx * k), ey = Math.round(my + dy * k);
+			const arrow = dz && onScreen ? (dz > 0 ? '^' : 'v') : Math.abs(dx) > Math.abs(dy) * 2 ? (dx > 0 ? '>' : '<') : dy > 0 ? 'v' : '^';
+			const [fg, bg] = markOf(q);
+			const ink = bg || fg;
+			const sx = ex * CW;
+			g.set(sx, mapY + ey, glyphOf(q), bg ? fg : 0, ink);
+			g.set(sx + (dx > 0 && !onScreen ? -1 : 1), mapY + ey, arrow, ink, 0);
+		}
+	}
 	if (S.route.length) {
 		const goal = S.route[S.route.length - 1];
 		for (let k = 0; k < CW; k++) {
@@ -1176,8 +1200,9 @@ function councilCells(g: Grid, mapY: number, mapH: number, t: Town) {
 		const dx = cell.x - c.at.x, dy = (cell.y - c.at.y) * 2, d = Math.hypot(dx, dy) || 1;
 		const ux = dx / d, uy = dy / d;
 		const label = (r.dead ? '+' : '') + r.name.slice(0, 7);
-		const ax = sx + (ux > 0 ? 1 : 0) + Math.round(ux * 4), ay = sy + Math.round(uy * 1.6);
-		const lx = Math.abs(ux) < 0.4 ? ax - Math.floor(label.length / 2) : ux < 0 ? ax - label.length + 1 : ax;
+		// Never more than a step or two from the seat itself (a label far from its seat reads as someone else's).
+		const ax = sx + (ux > 0 ? 2 : -1) * (Math.abs(ux) >= 0.4 ? 1 : 0), ay = sy + (Math.abs(ux) < 0.4 ? Math.sign(uy) : 0);
+		const lx = Math.abs(ux) < 0.4 ? sx + 1 - Math.floor(label.length / 2) : ux < 0 ? ax - label.length + 1 : ax;
 		g.text(lx, ay, label, r.dead ? 3 : v?.nominee === r.seat ? 8 : 5, 0);
 	}
 	if (S.caption.length) {
@@ -1256,7 +1281,7 @@ function sheetRows(): Row[] {
 	if (S.host && S.stOpen) {
 		const ph = (k: Phase, label: string) => btn(label, () => act('phase-' + k), { style: S.phase === k ? 'on' : undefined });
 		const rows: Row[] = [rubric('Storyteller')];
-		if (!S.game) rows.push(buttonBlock([ph('day', 'Day'), ph('dusk', 'Ring the bell'), ph('circle', 'The circle'), ph('night', 'Night')]));
+		if (!S.game) rows.push(buttonBlock([ph('day', 'Day'), ph('dusk', 'Dusk'), ph('circle', 'The circle'), ph('night', 'Night')]));
 		rows.push(buttonBlock([btn('All ears: ' + (me()?.ears ? 'on' : 'off'), () => act('ears'), { style: me()?.ears ? 'on' : undefined }), btn('+ Test villager', () => act('bot'))]));
 		if (S.game) rows.push(buttonBlock([btn('Open the grimoire', () => act('back-game'), { style: 'primary', width: INNER })]));
 		else rows.push(...prose('Players open ' + location.origin + location.pathname + '#village=' + S.room, 'dim'));
@@ -1279,7 +1304,7 @@ function drawChrome() {
 
 const BANNERS: Record<Phase, { title: string; line: string }> = {
 	day: { title: 'Dawn', line: 'Day. Wander, talk, conspire.' },
-	dusk: { title: 'The bell tolls', line: 'Dusk. Walk to the great hall and take your seat at the round table (My seat shows the way).' },
+	dusk: { title: 'Dusk falls', line: 'Dusk. Walk to the great hall and take your seat at the round table (My seat shows the way).' },
 	circle: { title: 'The council sits', line: 'The town sits at the round table in the great hall. Everyone there hears everyone.' },
 	night: { title: 'Night falls', line: 'You are at home and the doors are locked. The Storyteller may visit.' }
 };
@@ -1299,14 +1324,11 @@ function toast(text: string) {
 function announcePhase() {
 	document.documentElement.dataset.phase = S.phase === 'night' ? 'night' : 'day';
 	// A town with no council gathers in the square, in the old way.
-	const b = !S.town?.council && S.phase === 'dusk' ? { title: 'The bell tolls', line: 'Dusk. The town gathers round the market cross.' }
+	const b = !S.town?.council && S.phase === 'dusk' ? { title: 'Dusk falls', line: 'Dusk. The town gathers round the market cross.' }
 		: !S.town?.council && S.phase === 'circle' ? { title: 'The circle', line: 'The town gathers. Everyone sees and hears everyone.' } : BANNERS[S.phase];
 	// The Storyteller is not sent home: they go where they like.
 	showBanner(b.title, me()?.st && S.phase === 'night' ? 'The town sleeps behind locked doors. Walk through walls; People, then Visit, takes you to anyone.' : b.line);
-	if (S.phase === 'dusk' && soundOn()) {
-		try { bell(); } catch { /* no audio yet */ }
-		try { navigator.vibrate?.([300, 200, 300, 200, 300]); } catch { /* not supported */ }
-	}
+
 	S.asks = [];
 	drawChrome();
 	S.dirty = true;
@@ -1371,6 +1393,10 @@ let looping = false;
 function lobbyRows(): Row[] {
 	const rows: Row[] = [navRow('Home', () => act('back')), rubric('The Village'), ...prose('Walk the town on your own phone. Talk to whoever is near you: voices fade with distance and stop at walls.', 'dim')];
 	if (!lobbyCode) {
+		// Dev mode: walk any town alone, as the Storyteller (through walls, the menu) or as a player would.
+		const asPlayer = store.get('grimoire.devAs') === 'player';
+		const as = (v: string, label: string, on: boolean) => btn(label, () => { store.set('grimoire.devAs', v); drawChrome(); }, { style: on ? 'on' : undefined });
+		rows.push(row(txt('Walk as', 'dim')), buttonBlock([as('st', 'Storyteller', !asPlayer), as('player', 'A player', asPlayer)]));
 		// The towns, a row for each look, named quietly above it: all alike, none the main one.
 		const LOOK: Record<string, string> = { medieval: 'Medieval', grimm: 'Grimm fairy tale', clockwork: 'Clockwork London', lovecraft: 'Lovecraftian' };
 		THEMES.forEach((th) => {
@@ -1400,13 +1426,6 @@ function act(a: string, id = '') {
 		}
 		case 'back': location.hash = ''; location.reload(); break;
 		case 'ears': { const m = me(); if (m?.st) { m.ears = !m.ears; S.dirty = true; drawChrome(); } break; }
-		case 'sound': {
-			const on = !soundOn();
-			store.set('grimoire.sound', on ? 'on' : 'off');
-			if (on) { try { audio(); bell(1); } catch { /* no audio */ } }
-			drawChrome();
-			break;
-		}
 		case 'voice-mic': void voiceOn('mic'); break;
 		case 'voice-listen': void voiceOn('listen'); break;
 		case 'voice-stop': voiceOff(); break;
@@ -1445,7 +1464,7 @@ function act(a: string, id = '') {
 		case 'phase-night': setPhase('night'); break;
 		case 'bot': addBot(); break;
 		case 'st-toggle': S.stOpen = !S.stOpen; S.sheet = null; drawChrome(); break;
-		case 'town-castle': case 'town-hamlet': case 'town-abbey': case 'town-grimm': case 'town-whitechapel': case 'town-victorian': case 'town-liner': {
+		case 'town-talmberg': case 'town-keep': case 'town-castle': case 'town-hamlet': case 'town-abbey': case 'town-grimm': case 'town-whitechapel': case 'town-victorian': case 'town-liner': {
 			const key = a.slice(5), info = TOWN_LIST.find((t) => t.key === key)!;
 			store.set('grimoire.townOf.' + info.theme, key);
 			changeTown(TOWN_TEXT[key]);

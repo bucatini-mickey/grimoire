@@ -880,7 +880,7 @@ function playersLeaf(back: () => void): Row[] {
 	const mine = (() => { try { return { room: localStorage.getItem('grimoire.room') ?? '', name: localStorage.getItem('grimoire.name') ?? '' }; } catch { return { room: '', name: '' }; } })();
 	if (mine.room && mine.name) rows.push(buttonBlock([btn('Rejoin room ' + mine.room, () => go('#join=' + mine.room), { style: 'primary', width: INNER })]), ...prose('as ' + mine.name, 'dim'), blank());
 	rows.push(buttonBlock([btn('Join a game', () => go('#join'), { style: mine.room ? undefined : 'primary', width: INNER })]), ...prose('Type the four letters the Storyteller gives you.', 'dim'), blank());
-	rows.push(buttonBlock([btn('Walk the village alone', () => go('#village'), { width: INNER })]), ...prose('No game: wander the castle town or Saltgrave, to learn the way round.', 'dim'));
+	rows.push(buttonBlock([btn('Walk the village alone', () => go('#village'), { width: INNER })]), ...prose('No game: walk any town, as the Storyteller or as a player, to learn the way round.', 'dim'));
 	return rows;
 }
 

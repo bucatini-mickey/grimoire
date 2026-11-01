@@ -1,0 +1,203 @@
+tachyon-blueprint 1
+# The Keep, a castle's inside on three floors round an open court, for Grimoire's medieval games.
+# Made by town/make-keep.mjs; edit that and run it again. `label x y Name` names a place.
+name keep
+size 60 46 3
+key # wall stone block
+key s floor stone block
+key + floor wood
+key : floor cobble
+key c floor carpet
+key = floor slate
+key { stair-up stone block
+key } stair-down stone block
+key < stair-up wood
+key > stair-down wood
+key . floor wood | brazier
+key , floor wood | chair
+key ; floor stone block | oven
+key _ floor stone block | brazier
+key % floor stone block | candle
+key & floor stone block | altar
+key * floor wood | table
+key ~ floor stone block | pew
+key - floor stone block | table
+key ^ floor stone block | barrel
+key " floor wood | door
+key ' floor stone block | door
+key ` floor cobble | torch
+key ! floor cobble | chair
+key ? floor stone block | anvil
+key $ floor stone block | well
+key @ floor stone block | chest
+key A floor stone block | bed
+key B floor wood | candle
+key C floor wood | bookshelf
+key D floor stone block | torch
+key E floor stone block | rug
+key F floor wood | chest
+key G floor wood | bed
+key H floor carpet | chest
+key I floor carpet | bed
+key J floor carpet | candle
+key K floor carpet | door
+key L floor slate | candle
+key M floor carpet | bookshelf
+key N floor carpet | brazier
+key O floor carpet | table
+key P floor carpet | rug
+level 0
+############################################################
+############################################################
+############################################################
+###++++++++++++++++++++++++#sssssssssss#sssssssssssssssss###
+###+.+++++++,+,+,++++++++.+#s;;ssssss_s#ss%sssss&sssss%ss###
+###++++++++,+***+,+++++++++#sssssssssss#sssssssssssssssss###
+###+++++++,+*****+,++++++++#sssssssssss#sssssssssssssssss###
+###++++++++*******+++++++++#sssssssssss#sss~~~sssss~~~sss###
+###+++++++,*******,++++++++#sssss--ssss#sssssssssssssssss###
+###++++++++*******+++++++++#sssssssssss#sss~~~sssss~~~sss###
+###+++++++,+*****+,++++++++#sssssssssss#sssssssssssssssss###
+###++++++++,+***+,+++++++++#sssssssssss#sss~~~sssss~~~sss###
+###+++++++++,+,+,++++++++++#s^^ssssssss#sssssssssssssssss###
+###+.++++++++++++++++++++.+#sssssssssss#sssssssssssssssss###
+###++++++++++++++++++++++++#sssssssssss#sssssssssssssssss###
+#####################"""#########'######'###################
+###%sssssssssssss#{:`::::::::::::::::::`::#ssssssssssssss###
+###sssssssssss_ss#:::::::::!:!:!::::::::::#ssssssssssssss###
+###ss--ssssssssss#:::::::!:::::::!::::::::#ss?s_ssssss^ss###
+###ssssssssssssss#::::::::::::::::::::::::#sssssssssss^ss###
+###ssssssssssssss#::::::!:::::::::!:::::::#ssssssssssssss###
+###ssssssssssssss#::::::::::::::::::::::::#ssssssssssssss###
+###ssssssssssssss':::::::::::$::::::::::::'ssssssssssssss###
+###ssssssssssssss#::::::!:::::::::!:::::::#ssssssssssssss###
+###ssssssssssssss#::::::::::::::::::::::::#ssssssssssssss###
+###ssssssssssssss#::::::!:::::::::!:::::::#ssssssssssssss###
+###s^ssssssssssss#::::::::!:::::!:::::::::#sssssss@@sssss###
+###ssssssssssssss#`:::::::::!:!:::::::::::#ssssssssssssss###
+###ssssssssssssss#::::::::::::::::::::::::#ssssssssssssss###
+###Assssssssssss@#:::::::::::::::::::::`:{#ssssssssssssss###
+###################"########'''########"#######"############
+###++++++++++++++++++#ssssssssssssssss#+++++++++++++++++B###
+###+C+CCCC+CCCC+CCCC+#sDssssssssssssDs#++++++++++++++++++###
+###++++++++++++++++++#ssssssssssssssss#+++++++++++++++C++###
+###++++++++++++++++++#ssssssssssssssss#++++++++++++++++++###
+###++++++++++++++++++#ssssssssssssssss#++++++++++++++++++###
+###++++++++++++++++++#ssssssssssssssss#+++++**+++++++++++###
+###+++++**++++**+++++#ssssssssssssssss#++++++++++++++++++###
+###++++++++++++++++++#sssssssEssssssss#++++++++++++++++++###
+###++++++++++++++++++#ssssssssssssssss#++++++++++++++++++###
+###++++++++++++++++++#ssssssssssssssss#++++++++++++++++++###
+###+B++++++++++++++B+#sDssssssssssssDs#++++++++++++++++++###
+###++++++++++++++++++#ssssssssssssssss#F++++++++++++++++G###
+############################################################
+############################################################
+############################################################
+level 1
+                                                            
+                                                            
+  ########################################################  
+  #F++++++G#F++++++G#F++++++G#F++++++G#F++++++G#F+++++++G#  
+  #++++++++#++++++++#++++++++#++++++++#++++++++#+++++++++#  
+  #++++++++#++++++++#++++++++#++++++++#++++++++#+++++++++#  
+  #++++++++#++++++++#++++++++#++++++++#++++++++#+++++++++#  
+  #++++++++#++++++++#++++++++#++++++++#++++++++#+++++++++#  
+  #++++++++#++++++++#++++++++#++++++++#++++++++#+++++++++#  
+  #++++++++#++++++++#++++++++#++++++++#++++++++#+++++++++#  
+  #++++++++#++++++++#++++++++#++++++++#++++++++#+++++++++#  
+  #+++++++B#+++++++B#+++++++B#+++++++B#+++++++B#++++++++B#  
+  ####"########"########"########"########"#########"#####  
+  #+++++++++++++B++++++++++++++++++++++++++B+++++++++++++#  
+  #++++++++++++++++++++++++++++++++++++++++<+++++++++++++#  
+  ##############+++#######################++##############  
+  #B+++++++++++#++}                       ++#+++++++++++B#  
+  #++++++++++++#++                        ++#++++++++++++#  
+  #++++++++++++"++                        ++"++++++++++++#  
+  #++++++++++++#++                        ++#++++++++++++#  
+  #++++++++++++#++                        ++#++++++++++++#  
+  #G++++++++++F#++                        ++#F++++++++++G#  
+  ##############++                        ++##############  
+  #B+++++++++++#++                        ++#+++++++++++B#  
+  #++++++++++++#++                        ++#++++++++++++#  
+  #++++++++++++#++                        ++#++++++++++++#  
+  #++++++++++++"++                        ++"++++++++++++#  
+  #++++++++++++#++                        ++#++++++++++++#  
+  #++++++++++++#++                        ++#++++++++++++#  
+  #G++++++++++F#++                       }++#F++++++++++G#  
+  ##############++########################++##############  
+  #+++++++++++++<++++++++++++++++++++++++++++++++++++++++#  
+  #+++++++++++++B++++++++++++++++++++++++++B+++++++++++++#  
+  ####"########"########"########"########"#########"#####  
+  #+++++++B#+++++++B#+++++++B#+++++++B#+++++++B#++++++++B#  
+  #++++++++#++++++++#++++++++#++++++++#++++++++#+++++++++#  
+  #++++++++#++++++++#++++++++#++++++++#++++++++#+++++++++#  
+  #++++++++#++++++++#++++++++#++++++++#++++++++#+++++++++#  
+  #++++++++#++++++++#++++++++#++++++++#++++++++#+++++++++#  
+  #++++++++#++++++++#++++++++#++++++++#++++++++#+++++++++#  
+  #++++++++#++++++++#++++++++#++++++++#++++++++#+++++++++#  
+  #++++++++#++++++++#++++++++#++++++++#++++++++#+++++++++#  
+  #F++++++G#F++++++G#F++++++G#F++++++G#F++++++G#F+++++++G#  
+  ########################################################  
+                                                            
+                                                            
+level 2
+                                                            
+                                                            
+  ########################################################  
+  #HccccccccccI#HcccccccccccI#HcccccccccccI#HcccccccccccI#  
+  #cccccccccccc#ccccccccccccc#ccccccccccccc#ccccccccccccc#  
+  #cccccccccccc#ccccccccccccc#ccccccccccccc#ccccccccccccc#  
+  #cccccccccccc#ccccccccccccc#ccccccccccccc#ccccccccccccc#  
+  #cccccccccccc#ccccccccccccc#ccccccccccccc#ccccccccccccc#  
+  #cccccccccccc#ccccccccccccc#ccccccccccccc#ccccccccccccc#  
+  #cccccccccccc#ccccccccccccc#ccccccccccccc#ccccccccccccc#  
+  #cccccccccccc#ccccccccccccc#ccccccccccccc#ccccccccccccc#  
+  #cccccccccccJ#ccccccccccccJ#ccccccccccccJ#ccccccccccccJ#  
+  ######K#############K#############K#############K#######  
+  #+++++++++++++L=++++++++++++++++++++++++=L+++++++++++++#  
+  #+++++++++++++==++++++++++++++++++++++++=>+++++++++++++#  
+  ##############==########################==##############  
+  #Jccccccccccc#==                        ==#cccccccccccJ#  
+  #ccMMcccccccc#==                        ==#cccccccccccc#  
+  #cccccccccccc#==                        ==#cccccccccccc#  
+  #cccccccccccc#==                        ==#cccccccccccc#  
+  #cccccccccccc#==                        ==#cccccccccccc#  
+  #cccccccccccc#==                        ==#cccccccccccc#  
+  #ccccccccccccK==                        ==Kcccccccccccc#  
+  #cccccccccccc#==                        ==#cccccccccccc#  
+  #cccccccccccc#==                        ==#cccccccccccc#  
+  #cccccccccccc#==                        ==#cccccccccccc#  
+  #cccccccccccc#==                        ==#cccccccccccc#  
+  #cccccccccccc#==                        ==#cccccccccccc#  
+  #cccccccccccc#==                        ==#cccccccccccc#  
+  #IccccccccccH#==                        ==#HccccccccccI#  
+  ##############==########################==##############  
+  #+++++++++++++>=++++++++++++++++++++++++==+++++++++++++#  
+  #+++++++++++++L=++++++++++++++++++++++++=L+++++++++++++#  
+  ##############K##########################K##############  
+  #ccccccccccccccccccccccccccc#cccccccccccccccccccccccccJ#  
+  #cNcccccccccccccccccccccccJc#cccccccccccccccccccMcccccc#  
+  #ccccccccccccccccccccccccccc#cccccccccccccccccccccccccc#  
+  #cccccccOOccccccccOOcccccccc#cccccccccccccccccccccccccc#  
+  #ccccccccccccccccccccccccccc#cccccccccPcccccccccccccccc#  
+  #ccccccccccccccccccccccccccc#cccccccccccccccccccccccccc#  
+  #ccccccccccccccccccccccccccc#cccccccccccccccccccccccccc#  
+  #ccccccccccccccccccccccccccc#cccccccccccccccccccccccccc#  
+  #cMccMccMccMccMccMccMccMccMc#HccccccccccccccccccccccccI#  
+  ########################################################  
+                                                            
+                                                            
+label 27 16 Court
+label 3 2 Great Hall
+label 28 2 Kitchens
+label 40 2 Chapel
+label 3 16 Guardroom
+label 43 16 Armoury
+label 3 30 Library
+label 22 43 Entrance Hall
+label 39 43 Steward
+label 3 13 Gallery
+label 3 44 Solar
+label 31 44 Lord's Chambers
+label 18 31 Roof Walk
+end

@@ -5,10 +5,10 @@ Asked for by the user, not yet built. Newest first; tick off (move to "Done") as
 ## 2026-11-01 (playtest of a Trouble Brewing game with friends)
 
 **Maps: small enough to find people**
-- Ravensburg's castle town is too big. Go back to a smaller castle town, after Talmberg in Kingdom Come: Deliverance (reference: `references/grimoire-maps/talmberg-kcd-reference.webp`: one compact walled keep with two round towers, a dry moat with a bridge, a small walled upper village of a dozen houses, woods and a stream around). Every map follows the same idea: it should never be hard to find people.
+- Ravensburg's castle town is too big. Go back to a smaller castle town, after Talmberg in Kingdom Come: Deliverance (reference: `references/grimoire-maps/talmberg-kcd-reference.webp`: one compact walled keep with two round towers, a dry moat with a bridge, a small walled upper village of a dozen houses, woods and a stream around). Every map follows the same idea: it should never be hard to find people. **Done:** Talmberg (town/make-talmberg.mjs, 84x86 against Ravensburg's 120x128) is now Trouble Brewing's town; on every map, anyone off the screen or on another floor is marked at the screen's edge by their letter and an arrow (not at night).
 - The user is tempted to drop the village part and use a **castle interior map of 3 levels** instead (auto stairs). Build it.
-- **Dev mode**: walk any map alone as the Storyteller or as a player, without a game.
-- The round table: rounder, more like a table. One character's name was drawn far off in the distance (a label bug).
+- **Dev mode**: walk any map alone as the Storyteller or as a player, without a game. **Done:** Contents → For the players → Walk the village alone: "Walk as Storyteller / A player", then any town; Menu sets the phase and adds test villagers.
+- The round table: rounder, more like a table. One character's name was drawn far off in the distance (a label bug). **Done:** Talmberg's and the Keep's tables are round (sixteen chairs); each name at the table now sits right beside its seat. (The far-off label did not show again in testing.)
 - Keep a real (perhaps smaller) table in the map, but at the nomination/voting stage everyone moves to a **liminal zone** around the table: a shared meeting room where everyone discusses and votes together, in essence a larger-scale version of the map's table with a blank surround and more styling; a space of its own, free to hold the timer, the clock hands and other styling, everything more refined and better looking; if there is room, names in a more stylised gothic lettering.
 
 **Look**
@@ -16,6 +16,7 @@ Asked for by the user, not yet built. Newest first; tick off (move to "Done") as
 - Lighting is too shabby: go back to a brighter system, still atmospheric but less moody.
 - Reveals need flair: a death shows the name in large gothic word art; the same for the winning team.
 - Hovering (or tapping) a player's letter shows their full name as a banner in their colour. Each player keeps that colour everywhere: the grimoire circle, the circle and other views.
+- **Stable, consistent UI everywhere.** Use the space better, or move things into submenus with logical routes to them. Controls stay in fixed places and never move. Example, the codex on a wide (two-page) screen: the name and portrait on the left page, the information on the right page, "Previous character" fixed at the bottom of the left page, "Next character" fixed at the bottom of the right page. Apply the same thinking to every screen.
 
 **Players' menu** (like the Storyteller's, without roles)
 - The circle with names, at any time.
@@ -25,7 +26,7 @@ Asked for by the user, not yet built. Newest first; tick off (move to "Done") as
 - A setup option: a log of the information each player has received, which they can read back.
 
 **Village**
-- Remove the bell (redundant).
+- Remove the bell (redundant). **Done:** the Bell button and its sound are gone; the phase is called Dusk.
 - Private chat request with anyone; once accepted, a private waypoint or direction marker helps the two find each other.
 - **Faces in ASCII**: players' webcam faces as moving ASCII, tied to proximity chat (shown for people in earshot), always shown in the circle; an option in the menu. First a standalone example program the user can test themselves.
 
