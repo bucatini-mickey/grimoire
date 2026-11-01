@@ -708,32 +708,56 @@ function moveRoom(): string {
 	const room = newRoomCode();
 	const old = link;
 	if (old) for (const peer of old.peers.keys()) old.send(peer, { t: 'moved', room });
+	// The old room (open now, or shut while the book was on its home page) is opened again after the page
+	// reloads, for a while, to send on any phone still looking for it (forwardOldRoom).
+	const from = old?.room ?? saved.net?.room;
+	if (from) try { localStorage.setItem(FORWARD_KEY, JSON.stringify({ from, to: room, until: Date.now() + 20 * 60_000 })); } catch { /* private mode */ }
 	link = null;
 	village?.stop();
 	village = null;
 	phones.clear();
 	lastSent.clear();
-	// The old room stays open a while to send on any phone that was asleep and comes back to it.
-	if (old) { movedTo.set(old, room); setTimeout(() => { movedTo.delete(old); old.close(); }, 20 * 60_000); }
 	return room;
 }
-/** Rooms let go of for a new game, and the room each now sends its phones on to. */
-const movedTo = new Map<HostLink, string>();
+const FORWARD_KEY = 'grimoire.forward';
+
+/** A room let go of for a new game: open it again until its time is up, and send any phone that comes to it on. */
+function forwardOldRoom() {
+	let f: { from: string; to: string; until: number } | null = null;
+	try { f = JSON.parse(localStorage.getItem(FORWARD_KEY) ?? 'null'); } catch { /* none */ }
+	if (!f || f.until < Date.now() || f.from === saved.net?.room) return;
+	const { from, to, until } = f;
+	let tries = 0;
+	const open = () => {
+		const fw: HostLink = hostRoom(from, {
+			message: (peer) => fw.send(peer, { t: 'moved', room: to }),
+			joined: (peer) => fw.send(peer, { t: 'moved', room: to }),
+			left: () => {},
+			// The broker may still hold the code from before the reload: ask again in a moment.
+			status: (st, detail) => { if (st === 'error' && detail === 'unavailable-id' && tries++ < 10) { fw.close(); setTimeout(open, 3000); } }
+		});
+		setTimeout(() => fw.close(), until - Date.now());
+	};
+	open();
+}
 
 /** An in-person game where each player's own phone is linked: a room, then the grimoire. */
 function hostTable() {
+	const told = !!link;
 	saved = { events: [], marks: [], settings: saved.settings, flow: freshFlow(saved.settings), net: { room: moveRoom(), claims: {}, village: false } };
 	state = G.replay([]);
 	save();
-	go('#grimoire');
+	// A moment for the word to reach the phones before the page reloads.
+	setTimeout(() => go('#grimoire'), told ? 700 : 0);
 }
 
 /** A new online game: a fresh room and its lobby. */
 function hostNew() {
+	const told = !!link;
 	saved = { events: [], marks: [], settings: saved.settings, flow: freshFlow(saved.settings), net: { room: moveRoom(), claims: {}, village: true, lobby: [] } };
 	state = G.replay([]);
 	save();
-	go('#host');
+	setTimeout(() => go('#host'), told ? 700 : 0);
 }
 
 /**
@@ -2795,8 +2819,8 @@ function startHosting(room = saved.net?.room ?? newRoomCode()) {
 	save();
 	link?.close();
 	const me: HostLink = hostRoom(room, {
-		message: (peer, msg) => { if (movedTo.has(me)) me.send(peer, { t: 'moved', room: movedTo.get(me)! }); else fromPhone(peer, msg); },
-		joined: (peer) => { if (movedTo.has(me)) me.send(peer, { t: 'moved', room: movedTo.get(me)! }); else render(); },
+		message: (peer, msg) => { if (me === link) fromPhone(peer, msg); },
+		joined: () => { if (me === link) render(); },
 		left: (peer) => { if (me !== link) return; phones.delete(peer); lastSent.delete(peer); render(); },
 		status: (st, detail) => {
 			if (me !== link) return;
@@ -3146,6 +3170,7 @@ if (villageDemo) {
 	syncFlow();
 	render();
 	if (saved.net) startHosting(saved.net.room);
+	forwardOldRoom();
 } else {
 	ui.page = 'home';
 	if (location.hash) history.replaceState(null, '', location.pathname + location.search);
@@ -3154,3 +3179,6 @@ if (villageDemo) {
 
 // A different page in the address (typed, a link, back or forward): open that page afresh.
 window.addEventListener('hashchange', () => location.reload());
+
+// For trying things from the browser's console: __grim.act({ type: 'create', names: [...] }), __grim.hostTable().
+(globalThis as { __grim?: unknown }).__grim = { act, actAll, hostTable, wakePhone, peerOfSeat, state: () => state, ui, saved: () => saved, render, G };

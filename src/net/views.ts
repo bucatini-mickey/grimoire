@@ -202,7 +202,9 @@ export function logEntry(wake: Wake, night: number): LogEntry | null {
 	const lines: string[] = [];
 	for (const s of [...wake.sections.filter((x) => !skip.has(x.title)), ...(wake.info ?? [])]) {
 		const body = s.lines.join(', ');
-		if (body) lines.push(s.title ? `${s.title}: ${body}` : body);
+		// An answer under its question (a section with no title) goes on the question's line.
+		if (body && !s.title && lines.length) lines[lines.length - 1] += ': ' + body;
+		else if (body) lines.push(s.title ? `${s.title}: ${body}` : body);
 	}
 	if (wake.grimoire) lines.push('You saw the grimoire.');
 	if (!lines.length) return null;
