@@ -21,7 +21,7 @@ import { allowedCompositions, charDef, getScript, teamAlignment, evilLearnEachOt
 import {
 	hasWorkingAbility, isDroisoned, judgeInfo, living, livingDemons, registrations, seat, teamOf,
 	canRegisterAsTeam, mustRegisterAsTeam, safeFromDemon, butlerMaster, abilityWorks, teaLadyProtects, inForce, reallyAlive,
-	livingNeighbours, vortoxWorks
+	livingNeighbours, vortoxWorks, hasAbility
 } from './rules.ts';
 import { FABLED } from './scripts/fabled.ts';
 import { REVEAL, MINION_INFO, DEMON_INFO, NEW_DEMON, GODFATHER_INFO, EXORCISED, LUNATIC_INFO, LUNATIC, TRAVELLER_INFO, nextStep, stepAction } from './night.ts';
@@ -293,6 +293,7 @@ export function describeStep(state: GameState, kind: string, seatId: SeatId | nu
 	if (kind === TRAVELLER_INFO) return `an evil Traveller${who}, to learn the Demon`;
 	if (kind === LUNATIC_INFO) return `the Lunatic${who}, as if they were the Demon`;
 	if (kind === LUNATIC) return `the Lunatic${who}, choosing as the Demon`;
+	if (seatId !== null && state.seats[seatId].character === 'cannibal' && kind !== 'cannibal') return `the Cannibal${who}, with the ${charDef(getScript(state.scriptId), kind).name}’s ability (not told which)`;
 	return charDef(getScript(state.scriptId), kind).name + who;
 }
 
@@ -522,7 +523,7 @@ function remember(tx: Tx, by: SeatId, role: string, targets: SeatId[]) {
 }
 
 /** Does this ability, used now, work? (Drunk or poisoned, or not really this character: no.) */
-const works = (tx: Tx, by: SeatId, kind: string) => !isDroisoned(tx.state, by) && seat(tx.state, by).character === kind;
+const works = (tx: Tx, by: SeatId, kind: string) => !isDroisoned(tx.state, by) && hasAbility(tx.state, by, kind);
 
 /**
  * The Goon: the first player each night to choose them with their ability is
@@ -1100,7 +1101,7 @@ function nominate(tx: Tx, cmd: Extract<Command, { type: 'nominate' }>) {
 
 	// The Virgin: only her first nomination counts, working or not.
 	const v = seat(s, nominee);
-	if (v.character === 'virgin' && v.alive && !s.spent.includes(`${nominee}:virgin`)) {
+	if (hasAbility(s, nominee, 'virgin') && v.alive && !s.spent.includes(`${nominee}:virgin`)) {
 		emit(tx, { type: 'ability-spent', seat: nominee, ability: 'virgin' });
 		if (!isDroisoned(s, nominee)) {
 			let townsfolk = mustRegisterAsTeam(s, nominator, 'townsfolk');
@@ -1174,7 +1175,7 @@ function slay(tx: Tx, cmd: Extract<Command, { type: 'slay' }>) {
 			hit = cmd.targetIsDemon!;
 		}
 	}
-	if (slayer.character === 'slayer' || slayer.believes === 'slayer') emit(tx, { type: 'ability-spent', seat: by, ability: 'slayer' });
+	if (hasAbility(s, by, 'slayer') || slayer.believes === 'slayer') emit(tx, { type: 'ability-spent', seat: by, ability: 'slayer' });
 	emit(tx, { type: 'slayer-shot', by, target, hit });
 	if (hit) attemptDeath(tx, target, { cause: 'slayer' });
 }

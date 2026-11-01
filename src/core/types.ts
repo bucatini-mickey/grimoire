@@ -69,6 +69,8 @@ export interface Seat {
 	undead?: boolean;
 	/** Joined as a Traveller: exiled, never executed, and not counted for "two players left" (even after gaining another ability). */
 	traveller?: boolean;
+	/** The Cannibal: the last player executed who died, whose ability they now have (not told which). Evil: poisoned instead. */
+	eaten?: { character: CharacterId; evil: boolean; day: number };
 }
 
 export type Phase =
