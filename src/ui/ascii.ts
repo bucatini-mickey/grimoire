@@ -1721,10 +1721,22 @@ export function coverRow(open: () => void): Row {
 		let y = Math.max(2, Math.floor((H - titleRows - 4) / 2) - 3);
 		const lx = Math.floor((W - L.w * S) / 2);
 		void lx; void logoRows;
+		// On a desktop the book lies shut on a table, the cover the size of one of its pages (half the
+		// screen, as the book open shows two, frame() setting finer cells so the title fits); on a phone
+		// the cover is the screen.
+		const wide = wideScreen(), CW = wide ? Math.floor(W / 2) : W, X0 = Math.floor((W - CW) / 2);
 		// The leather itself, pixel by pixel: mottled calf, rubbed paler at its edges, two rules
 		// blind-tooled into it, brass fittings at the corners, and old stains soaked in.
-		pixels(g, 0, 0, W, H * 2, (px, py) => {
+		pixels(g, 0, 0, W, H * 2, (gx, py) => {
 			const HH = H * 2;
+			if (gx < X0 || gx >= X0 + CW) {
+				// The table: dark wood, its grain running across, a shadow under the book's edge.
+				const grain = vnoise(gx / 40, py / 3, 11) * 0.7 + vnoise(gx / 9, py / 1.5, 12) * 0.3;
+				const off = gx < X0 ? X0 - gx : gx - (X0 + CW - 1);
+				const shade = off <= 3 ? 0.55 + off * 0.1 : 1;
+				return quant([46, 32, 22].map((v) => v * (0.75 + grain * 0.4) * shade));
+			}
+			const px = gx - X0, W = CW;
 			const m = vnoise(px / 7, py / 5, 3) * 0.6 + vnoise(px / 2, py / 2, 4) * 0.4;
 			const edge = Math.min(px, W - 1 - px, py, HH - 1 - py);
 			let rgb = [74, 42, 27].map((v) => v * (0.9 + m * 0.18 + (edge < 3 ? 0.25 : 0)));
@@ -1831,7 +1843,7 @@ function frame(g: Grid) {
 	// The cover wants a margin of leather round its page: a few more columns (a touch smaller type).
 	// The cover is a picture, drawn fine: many more columns (small cells, two pixels each).
 	// A book on a wide screen lies open: room for two leaves.
-	term!.setCols(key === 'cover' ? 84 : key.startsWith('folio') ? (wideScreen() ? 2 * (COLS + 12) : COLS + 12) : key === 'leather' ? COLS + 6 : COLS);
+	term!.setCols(key === 'cover' ? (wideScreen() ? 184 : 84) : key.startsWith('folio') ? (wideScreen() ? 2 * (COLS + 12) : COLS + 12) : key === 'leather' ? COLS + 6 : COLS);
 	document.body.style.background = term!.palette[0];
 	document.documentElement.style.background = term!.palette[0];
 	g.clear(4, 0);
