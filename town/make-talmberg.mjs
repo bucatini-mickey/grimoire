@@ -31,30 +31,76 @@ for (let y = 52; y < H; y++) for (let dx = -1; dx <= 1; dx++) put(brookAt(y) + d
 for (let y = 52; y < H; y += 3) { const x = brookAt(y) + 2; if (get(x, y) === 'floor grass') thing(x, y, 'reeds', 'floor grass'); }
 label(4, 76, 'Brook');
 
-// ---- the upper village in its palisade, the well and its benches in the middle ----
+// ---- the upper village in its palisade: a green round the well, houses huddled anyhow ----
+// The palisade follows the hilltop, not a compass: an oval pushed in and out (but straight across the
+// south, where the gate is).
 const V = { x: 42, y: 21, rx: 30, ry: 16 };
-ring(V.x, V.y, V.rx, V.ry, (x, y, d) => { if (d <= 1) put(x, y, d > 0.9 ? 'wall paling' : 'floor soil'); });
+const reach = (x, y) => {
+	const a = Math.atan2(y - V.y, x - V.x);
+	const r = 1 + 0.07 * Math.sin(2 * a + 0.6) + 0.05 * Math.sin(4 * a) * Math.abs(Math.cos(a)) + 0.04 * Math.cos(3 * a);
+	return Math.hypot((x - V.x) / V.rx, (y - V.y) / V.ry) / r;
+};
+for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+	const d = reach(x, y);
+	if (d <= 1) put(x, y, d > 0.93 ? 'wall paling' : rnd() < 0.18 ? 'floor mud' : 'floor soil');
+}
 label(V.x - 6, V.y - V.ry - 2, 'Upper Village');
-// The well, fifteen benches round it.
-thing(V.x, V.y, 'well', 'floor gravel');
-disc(V.x, V.y, 6.5, (x, y) => { if (get(x, y) === 'floor soil') put(x, y, 'floor gravel'); });
+// The green: the well a little west of the middle, fifteen benches round it, its grass worn to gravel.
+const well = { x: V.x - 3, y: V.y - 1 };
+thing(well.x, well.y, 'well', 'floor gravel');
+disc(well.x, well.y, 7, (x, y) => { if (Math.hypot(x - well.x, y - well.y) < 6.6 || rnd() < 0.5) put(x, y, rnd() < 0.25 ? 'floor grass' : 'floor gravel'); });
 for (let k = 0; k < 15; k++) {
 	const a = (k / 15) * Math.PI * 2 - Math.PI / 2;
-	thing(Math.round(V.x + Math.cos(a) * 5.5), Math.round(V.y + Math.sin(a) * 5.5), 'chair', 'floor gravel');
+	thing(Math.round(well.x + Math.cos(a) * 5.5), Math.round(well.y + Math.sin(a) * 5.5), 'chair', 'floor gravel');
 }
-for (const [x, y] of [[V.x - 7, V.y], [V.x + 7, V.y], [V.x, V.y - 7]]) thing(x, y, 'torch', 'floor gravel');
-label(V.x + 2, V.y - 1, 'Well');
-// A dozen houses round the well, each with its loft.
-const homes = [
-	[28, 10, 's'], [36, 8, 's'], [44, 8, 's'], [51, 10, 's'], [21, 13, 's'], [58, 13, 's'],
-	[16, 19, 'e'], [62, 19, 'w'], [22, 25, 'n'], [56, 25, 'n'], [48, 28, 'n']
-];
-for (const [x0, y0, door] of homes) house(x0, y0, x0 + 6, y0 + 5, { door, loft: true, light: 'candle' });
-// The tavern by the gate, its hearth and barrels.
-house(30, 28, 36, 33, { door: 'n', light: 'brazier', loft: true, extra: [[31, 31, 'barrel']] });
-label(30, 34, 'Tavern');
-// The gate in the palisade's south, and the bridge over the dry moat.
-for (let y = V.y + V.ry - 2; y <= V.y + V.ry + 1; y++) for (const x of [V.x - 1, V.x, V.x + 1]) put(x, y, 'floor soil');
+for (const [x, y] of [[well.x - 7, well.y], [well.x + 7, well.y], [well.x, well.y - 7]]) thing(x, y, 'torch', 'floor gravel');
+label(well.x + 2, well.y - 1, 'Well');
+// The gate's lane, kept clear from the green down through the palisade.
+const lane = (x, y) => x >= V.x - 2 && x <= V.x + 2 && y >= well.y + 6;
+// Houses where they fit: sizes of their own, a gap of a step between them, clear of the green and the
+// lane, inside the palisade; each door on the side that looks most toward the well. Most have a loft.
+const placed = [];
+const fits = (x0, y0, x1, y1) => {
+	for (const [cx, cy] of [[x0, y0], [x1, y0], [x0, y1], [x1, y1]]) if (reach(cx, cy) > 0.9) return false;
+	for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (lane(x, y) || Math.hypot(x - well.x, (y - well.y) * 1.1) < 8.5) return false;
+	return !placed.some((p) => x0 <= p.x1 + 1 && x1 >= p.x0 - 1 && y0 <= p.y1 + 1 && y1 >= p.y0 - 1);
+};
+const doorToward = (x0, y0, x1, y1, tx, ty) => {
+	const mx = (x0 + x1) / 2, my = (y0 + y1) / 2, dx = tx - mx, dy = ty - my;
+	return Math.abs(dx) * (y1 - y0) > Math.abs(dy) * (x1 - x0) ? (dx > 0 ? 'e' : 'w') : dy > 0 ? 's' : 'n';
+};
+// The tavern first, the biggest, by the lane to the gate.
+house(V.x + 4, V.y + 7, V.x + 12, V.y + 12, { door: 'w', light: 'brazier', loft: true, extra: [[V.x + 10, V.y + 11, 'barrel'], [V.x + 9, V.y + 11, 'barrel']] });
+placed.push({ x0: V.x + 4, y0: V.y + 7, x1: V.x + 12, y1: V.y + 12 });
+label(V.x + 5, V.y + 13, 'Tavern');
+for (let tries = 0; tries < 4000 && placed.length < 20; tries++) {
+	const w = 4 + Math.floor(rnd() * 4), h = 4 + Math.floor(rnd() * 3);
+	const x0 = Math.round(V.x - V.rx + 2 + rnd() * (2 * V.rx - 4 - w)), y0 = Math.round(V.y - V.ry + 2 + rnd() * (2 * V.ry - 4 - h));
+	const x1 = x0 + w, y1 = y0 + h;
+	if (!fits(x0, y0, x1, y1)) continue;
+	const door = doorToward(x0, y0, x1, y1, well.x, well.y);
+	const wood = rnd() < 0.7;
+	house(x0, y0, x1, y1, { door, wall: wood ? 'wood' : 'stone block', floor: wood ? 'wood' : 'stone block', loft: w >= 5 && h >= 5 && rnd() < 0.8, light: 'candle' });
+	placed.push({ x0, y0, x1, y1 });
+	// Behind some, away from the well: a garden of crops in a little fence, or a woodpile.
+	const away = { n: [0, 1], s: [0, -1], e: [-1, 0], w: [1, 0] }[door];
+	if (rnd() < 0.3) {
+		const gx0 = away[0] > 0 ? x1 + 2 : away[0] < 0 ? x0 - 5 : x0, gy0 = away[1] > 0 ? y1 + 2 : away[1] < 0 ? y0 - 4 : y0;
+		const gx1 = gx0 + (away[0] ? 3 : Math.min(w, 5)), gy1 = gy0 + (away[1] ? 2 : Math.min(h, 4));
+		if (fits(gx0, gy0, gx1, gy1)) {
+			for (let y = gy0; y <= gy1; y++) for (let x = gx0; x <= gx1; x++) {
+				const edge = x === gx0 || x === gx1 || y === gy0 || y === gy1;
+				put(x, y, edge ? 'wall paling' : (x + y) % 2 ? 'floor tilled | crops' : 'floor tilled');
+			}
+			placed.push({ x0: gx0, y0: gy0, x1: gx1, y1: gy1 });
+		}
+	} else if (rnd() < 0.6) {
+		const bx = away[0] > 0 ? x1 + 1 : away[0] < 0 ? x0 - 1 : x0 + 1, by = away[1] > 0 ? y1 + 1 : away[1] < 0 ? y0 - 1 : y0 + 1;
+		if (get(bx, by) === 'floor soil' || get(bx, by) === 'floor mud') thing(bx, by, rnd() < 0.5 ? 'barrel' : 'hay bale', get(bx, by));
+	}
+}
+// The gate in the palisade's south, and the lane from the green.
+for (let y = well.y + 6; y <= V.y + V.ry + 1; y++) for (const x of [V.x - 1, V.x, V.x + 1]) put(x, y, 'floor soil');
 for (const x of [V.x - 2, V.x + 2]) thing(x, V.y + V.ry - 1, 'torch', 'floor soil');
 
 // ---- the keep: a walled court, two round towers, the ranges round it ----
@@ -112,19 +158,24 @@ for (const x of [51, 52, 53, 55]) thing(x, 61, 'pew', 'floor stone block');
 thing(51, 59, 'candle', 'floor stone block');
 label(50, 63, 'Chapel');
 
-// The great hall in the south-west: a round table, sixteen chairs round it, braziers in the corners.
-room(K.x0 + 2, 59, 44, K.y1 - 2, 'stone block', 'wood');
-for (const x of [38, 39, 40]) thing(x, 59, 'door', 'floor wood');
-const T = { x: 35, y: 66 };
-disc(T.x, T.y, 3.3, (x, y) => thing(x, y, 'table', 'floor wood'));
+// The great hall in the south-west, fifteen metres by nine (a square is a metre): an oval table, sixteen
+// chairs round it, braziers in the corners.
+room(K.x0 + 2, 62, 44, K.y1 - 2, 'stone block', 'wood');
+for (const x of [38, 39, 40]) thing(x, 62, 'door', 'floor wood');
+const T = { x: 36, y: 67 };
+for (let y = T.y - 3; y <= T.y + 3; y++) for (let x = T.x - 6; x <= T.x + 6; x++) if (Math.hypot((x - T.x) / 5, (y - T.y) / 2.3) <= 1) thing(x, y, 'table', 'floor wood');
 for (let k = 0; k < 16; k++) {
 	const a = (k / 16) * Math.PI * 2 - Math.PI / 2;
-	thing(Math.round(T.x + Math.cos(a) * 4.3), Math.round(T.y + Math.sin(a) * 4.3), 'chair', 'floor wood');
+	thing(Math.round(T.x + Math.cos(a) * 6), Math.round(T.y + Math.sin(a) * 3.5), 'chair', 'floor wood');
 }
-for (const [x, y] of [[29, 61], [42, 61], [29, 70], [42, 70]]) thing(x, y, 'brazier', 'floor wood');
-label(K.x0 + 3, 58, 'Great Hall');
+for (const [x, y] of [[29, 63], [43, 63], [29, 71], [43, 71]]) thing(x, y, 'brazier', 'floor wood');
+label(K.x0 + 3, 61, 'Great Hall');
 // The lord's chamber beside it: a bed, a chest, books; the solar above, reached by a stair.
-house(45, 64, K.x1 - 2, K.y1 - 2, { wall: 'stone block', floor: 'carpet', door: 'n', light: 'candle', loft: true, extra: [[47, 65, 'bookshelf'], [48, 65, 'bookshelf']] });
+house(45, 64, 50, K.y1 - 2, { wall: 'stone block', floor: 'carpet', door: 'n', light: 'candle', loft: true, extra: [[46, 65, 'bookshelf']] });
+// The solar beside it: the lord's day room, books and a hearth.
+room(50, 64, K.x1 - 2, K.y1 - 2, 'stone block', 'carpet');
+thing(53, 64, 'door', 'floor carpet');
+for (const [x, y, k] of [[51, 65, 'bookshelf'], [52, 65, 'bookshelf'], [53, 68, 'table'], [54, 68, 'table'], [55, 71, 'brazier'], [51, 71, 'candle']]) thing(x, y, k, 'floor carpet');
 label(46, K.y1 - 1, 'Lord\'s Chamber');
 // Stairs up to the wall-walk from the court.
 for (const x of [37, 47]) { stair(x, 46, 'stone block'); up(x, 45, 'floor stone block'); up(x, 44, 'floor stone block'); }

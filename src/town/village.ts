@@ -993,7 +993,29 @@ function villageCells(g: Grid): boolean {
 	return true;
 }
 
-const visMemo: { key: string; town: Town | null; vis: Set<number>; all: Set<number> | null } = { key: '', town: null, vis: new Set(), all: null };
+const visMemo: { key: string; town: Town | null; vis: Set<number>; all: Set<number> | null; soft: Map<number, number> } = { key: '', town: null, vis: new Set(), all: null, soft: new Map() };
+/** How far sight fades past its edge: the cells one, two and three steps beyond what is seen, and how much shows. */
+const SOFT = [0.55, 0.3, 0.12];
+/** The cells just beyond what is seen, and how much of each still shows (sight fades out rather than stopping). */
+function softEdge(t: Town, vis: Set<number>): Map<number, number> {
+	const soft = new Map<number, number>();
+	let ring = [...vis];
+	for (const k of SOFT) {
+		const next: number[] = [];
+		for (const i of ring) {
+			const x = i % t.w, y = (i - x) / t.w;
+			for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+				const nx = x + dx, ny = y + dy, j = nx + ny * t.w;
+				if (nx < 0 || ny < 0 || nx >= t.w || ny >= t.h || vis.has(j) || soft.has(j)) continue;
+				soft.set(j, k);
+				// A wall shows faintly, but sight does not fade on through it (into a room you cannot see).
+				if (t.cells[j].tile !== 'wall' && !t.locked.has(j)) next.push(j);
+			}
+		}
+		ring = next;
+	}
+	return soft;
+}
 /** Each level's cell looks, kept until a door changes (running water is looked at afresh). */
 const lookMemos = new WeakMap<Town, { locks: string; looks: (ReturnType<typeof lookAt> | undefined)[] }>();
 function looksFor(t: Town, locks: string) {
@@ -1098,6 +1120,7 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 		visMemo.vis = p.st ? (visMemo.town === t && visMemo.all ? visMemo.all : new Set(t.cells.map((_, i) => i))) : visibleCells(t, p, 'day');
 		if (p.st) visMemo.all = visMemo.vis;
 		for (const i of visMemo.vis) S.seen![i] = 1;
+		visMemo.soft = p.st ? new Map() : softEdge(t, visMemo.vis);
 		Object.assign(visMemo, { key: visKey, town: t });
 	}
 	const vis = visMemo.vis;
@@ -1121,10 +1144,12 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 			if (x < 0 || y < 0 || x >= t.w || y >= t.h) continue;
 			const i = x + y * t.w;
 			const shown = vis.has(i);
-			if (!shown && !S.seen![i]) continue;
+			// Just past the edge of sight: a little of the lit cell still shows, fading over a few steps.
+			const edge = shown ? 1 : visMemo.soft.get(i) ?? 0;
+			if (!shown && !S.seen![i] && !edge) continue;
 			const r = t.room[i];
 			const indoors = r >= 0 ? r !== t.outdoors : inside && touchesRoom(t, x, y, mine);
-			if (inside && !shown && !t.locked.has(i) && !(r >= 0 ? mine.includes(r) : touchesRoom(t, x, y, mine))) continue;
+			if (inside && !shown && !edge && !t.locked.has(i) && !(r >= 0 ? mine.includes(r) : touchesRoom(t, x, y, mine))) continue;
 			const rock = t.cells[i].mat === 'granite';
 			if (inCave && !shown && !rock) continue;
 			// A cell's look is fixed but for running water; the rest is kept until a door changes.
@@ -1151,13 +1176,18 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 				fg = look.emissive ? look.fg : mul(look.fg, l);
 				bg = mul(look.bg, l);
 			} else {
-				[fg, bg] = remembered(look.fg, look.bg);
+				[fg, bg] = S.seen![i] ? remembered(look.fg, look.bg) : [[0, 0, 0], [0, 0, 0]];
 				if (S.phase === 'night') [fg, bg] = [mul(fg, [0.5, 0.5, 0.6]), mul(bg, [0.5, 0.5, 0.6])];
 				if (t.locked.has(i)) [fg, bg] = [look.fg, mul(look.bg, [0.6, 0.6, 0.6])];
+				if (edge) {
+					const l = level(t, sk, dyn!, day, x, y);
+					fg = lerp(fg, look.emissive ? look.fg : mul(look.fg, l), edge);
+					bg = lerp(bg, mul(look.bg, l), edge);
+				}
 			}
-			const f = indoors ? (shown ? 0 : 0.2)
-				: inCave && rock ? fogAt(t, x, y, cam, S.phase, fogMs) * 0.25 * (shown ? 1 : 0.6) + (shown ? 0 : 0.35)
-				: fogAt(t, x, y, cam, S.phase, fogMs) * w.fog * (p.st ? 0.6 : 1) * (shown ? 1 : 0.6) + (shown ? 0 : 0.35) + (inCave ? 0.25 : 0);
+			const f = indoors ? 0.2 * (1 - edge)
+				: inCave && rock ? fogAt(t, x, y, cam, S.phase, fogMs) * 0.25 * (0.6 + 0.4 * edge) + 0.35 * (1 - edge)
+				: fogAt(t, x, y, cam, S.phase, fogMs) * w.fog * (p.st ? 0.6 : 1) * (0.6 + 0.4 * edge) + 0.35 * (1 - edge) + (inCave ? 0.25 : 0);
 			if (f > 0.01) fg = lerp(fg, fogBase, Math.min(1, f * 1.05));
 			let ch = fold(look.ch);
 			if (look.wall) {

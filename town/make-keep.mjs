@@ -1,23 +1,22 @@
 /**
- * make-keep.mjs - draws town/keep.tbp: the Keep, the inside of a castle on three floors, for Trouble Brewing
- * and the medieval games. No village: the whole game is played within the walls, so nobody is far away.
+ * make-keep.mjs - draws town/keep.tbp: the Keep, the inside of a minor castle on three floors, for Trouble
+ * Brewing and the medieval games. No village: the whole game is played within the walls, so nobody is far.
  *
- * The ground floor is four ranges round an open court: the great hall (its round table is where the town
- * sits in judgement), the kitchens and the chapel on the north; the guardroom west, the armoury east;
- * the library, the entrance hall and the steward's room on the south. In the court, fifteen benches round
- * the fountain (speak there and everyone in the court hears you). Stairs at two corners of the court climb
- * to the first floor: a gallery round the open court and sixteen bedchambers. Two more stairs climb to the
- * second floor: the solar, the lord's chambers and more bedchambers. Step on a stair and you climb it.
+ * A square is a metre, and the rooms are a small castle's: a great hall of fifteen metres by nine round its
+ * oval table (where the town sits in judgement), a kitchen and pantry, a chapel, a library, the steward's
+ * room, a guardroom and armoury, a bakehouse, the stables and the entrance hall, all round a court with the
+ * well and its benches (speak there and everyone in the court hears you). Stairs at two corners of the court
+ * climb to the first floor: a gallery round the open court and sixteen small bedchambers. A stair from the
+ * north corridor climbs on to the lord's chamber and the solar. Step on a stair and you climb it.
  *
  *   node town/make-keep.mjs
  */
 import { plan } from './gen.mjs';
 
-const W = 60, H = 46;
+const W = 41, H = 36;
 const P = plan(W, H, 'wall stone block', 77);
 const [G, F1, F2] = [P.on(0), P.on(1), P.on(2)];
 const { label } = P;
-const disc = (cx, cy, r, f) => { for (let y = Math.floor(cy - r); y <= Math.ceil(cy + r); y++) for (let x = Math.floor(cx - r); x <= Math.ceil(cx + r); x++) if (Math.hypot(x - cx, y - cy) <= r) f(x, y); };
 /** A bedchamber on level L: a bed in the far corner, a candle, a chest; its door on the side given. */
 const chamber = (L, x0, y0, x1, y1, door, { floor = 'wood', extra = [] } = {}) => {
 	L.room(x0, y0, x1, y1, 'stone block', floor);
@@ -30,107 +29,128 @@ const chamber = (L, x0, y0, x1, y1, door, { floor = 'wood', extra = [] } = {}) =
 	L.thing(fx, fy === y1 - 1 ? y0 + 1 : y1 - 1, 'candle', `floor ${floor}`);
 	for (const [ex, ey, k] of extra) L.thing(ex, ey, k, `floor ${floor}`);
 };
+/** Things on a level at (x, y), on its floor. */
+const put = (L, list, floor) => { for (const [x, y, k] of list) L.thing(x, y, k, floor); };
 
 // ---- the ground floor ----
-// The court, open to the sky: fifteen benches round the fountain, torches at its corners.
-const C = { x0: 18, x1: 41, y0: 16, y1: 29 }, mid = { x: 29, y: 22 };
+// The court, open to the sky: fifteen benches round the well.
+const C = { x0: 11, x1: 26, y0: 13, y1: 26 }, mid = { x: 18, y: 19 };
 G.fill(C.x0, C.y0, C.x1, C.y1, 'floor cobble');
 G.thing(mid.x, mid.y, 'well', 'floor stone block');
 for (let k = 0; k < 15; k++) {
 	const a = (k / 15) * Math.PI * 2 - Math.PI / 2;
 	G.thing(Math.round(mid.x + Math.cos(a) * 5.5), Math.round(mid.y + Math.sin(a) * 5.5), 'chair', 'floor cobble');
 }
-for (const [x, y] of [[C.x0 + 2, C.y0], [C.x1 - 2, C.y0], [C.x0, C.y1 - 2], [C.x1 - 2, C.y1]]) G.thing(x, y, 'torch', 'floor cobble');
+put(G, [[C.x0 + 2, C.y0, 'torch'], [C.x1 - 2, C.y0, 'torch'], [C.x0, C.y1 - 3, 'torch'], [C.x1 - 3, C.y1, 'torch'], [C.x1, C.y0 + 3, 'barrel'], [C.x0 + 4, C.y1, 'cart']], 'floor cobble');
 label(mid.x - 2, C.y0, 'Court');
 
-// The great hall: a round table and sixteen chairs, braziers in the corners.
-G.room(2, 2, 27, 15, 'stone block', 'wood');
-for (const x of [21, 22, 23]) G.thing(x, 15, 'door', 'floor wood');
-const T = { x: 14, y: 8 };
-disc(T.x, T.y, 3.3, (x, y) => G.thing(x, y, 'table', 'floor wood'));
+// The great hall, fifteen metres by nine: an oval table, sixteen chairs round it, braziers, the lord's chest.
+G.room(2, 2, 18, 12, 'stone block', 'wood');
+for (const x of [14, 15, 16]) G.thing(x, 12, 'door', 'floor wood');
+const T = { x: 10, y: 7 };
+for (let y = T.y - 3; y <= T.y + 3; y++) for (let x = T.x - 6; x <= T.x + 6; x++) if (Math.hypot((x - T.x) / 5, (y - T.y) / 2.3) <= 1) G.thing(x, y, 'table', 'floor wood');
 for (let k = 0; k < 16; k++) {
 	const a = (k / 16) * Math.PI * 2 - Math.PI / 2;
-	G.thing(Math.round(T.x + Math.cos(a) * 4.3), Math.round(T.y + Math.sin(a) * 4.3), 'chair', 'floor wood');
+	G.thing(Math.round(T.x + Math.cos(a) * 6), Math.round(T.y + Math.sin(a) * 3.5), 'chair', 'floor wood');
 }
-for (const [x, y] of [[4, 4], [25, 4], [4, 13], [25, 13]]) G.thing(x, y, 'brazier', 'floor wood');
+put(G, [[3, 3, 'brazier'], [17, 3, 'brazier'], [3, 11, 'brazier'], [17, 11, 'candle'], [17, 7, 'chest']], 'floor wood');
 label(3, 2, 'Great Hall');
-// The kitchens.
-G.room(27, 2, 39, 15, 'stone block', 'stone block');
-G.thing(33, 15, 'door', 'floor stone block');
-for (const [x, y, k] of [[29, 4, 'oven'], [30, 4, 'oven'], [33, 8, 'table'], [34, 8, 'table'], [29, 12, 'barrel'], [30, 12, 'barrel'], [37, 4, 'brazier']]) G.thing(x, y, k, 'floor stone block');
-label(28, 2, 'Kitchens');
-// The chapel.
-G.room(39, 2, 57, 15, 'stone block', 'stone block');
-G.thing(40, 15, 'door', 'floor stone block');
-G.thing(48, 4, 'altar', 'floor stone block');
-for (let y = 7; y <= 12; y += 2) for (const x of [43, 44, 45, 51, 52, 53]) G.thing(x, y, 'pew', 'floor stone block');
-for (const x of [42, 54]) G.thing(x, 4, 'candle', 'floor stone block');
-label(40, 2, 'Chapel');
-// The guardroom west (a bed for the watch), the armoury east.
-chamber(G, 2, 15, 17, 30, 'e', { floor: 'stone block', extra: [[5, 18, 'table'], [6, 18, 'table'], [4, 26, 'barrel'], [14, 17, 'brazier']] });
-label(3, 16, 'Guardroom');
-G.room(42, 15, 57, 30, 'stone block', 'stone block');
-G.thing(42, 22, 'door', 'floor stone block');
-for (const [x, y, k] of [[45, 18, 'anvil'], [47, 18, 'brazier'], [54, 18, 'barrel'], [54, 19, 'barrel'], [50, 26, 'chest'], [51, 26, 'chest']]) G.thing(x, y, k, 'floor stone block');
-label(43, 16, 'Armoury');
-// The south range: the library, the entrance hall, the steward's room.
-G.room(2, 30, 21, 43, 'stone block', 'wood');
-G.thing(19, 30, 'door', 'floor wood');
-for (let x = 4; x <= 19; x++) if (x % 5) G.thing(x, 32, 'bookshelf', 'floor wood');
-for (const [x, y, k] of [[8, 37, 'table'], [9, 37, 'table'], [14, 37, 'table'], [15, 37, 'table'], [4, 41, 'candle'], [19, 41, 'candle']]) G.thing(x, y, k, 'floor wood');
-label(3, 30, 'Library');
-G.room(21, 30, 38, 43, 'stone block', 'stone block');
-for (const x of [28, 29, 30]) G.thing(x, 30, 'door', 'floor stone block');
-G.thing(29, 38, 'rug', 'floor stone block');
-for (const [x, y] of [[23, 32], [36, 32], [23, 41], [36, 41]]) G.thing(x, y, 'torch', 'floor stone block');
-label(22, 43, 'Entrance Hall');
-chamber(G, 38, 30, 57, 43, 'n', { floor: 'wood', extra: [[44, 36, 'table'], [45, 36, 'table'], [54, 33, 'bookshelf']] });
-G.thing(39, 30, 'door', 'floor wood');
-label(39, 43, 'Steward');
-// The stairs up, at two corners of the court.
+// The kitchen and the pantry beside the hall.
+G.room(18, 2, 25, 8, 'stone block', 'stone block');
+put(G, [[19, 3, 'oven'], [20, 3, 'oven'], [24, 3, 'brazier'], [21, 5, 'table'], [22, 5, 'table'], [19, 7, 'barrel'], [24, 7, 'barrel']], 'floor stone block');
+G.thing(21, 8, 'door', 'floor stone block');
+G.room(18, 8, 25, 12, 'stone block', 'stone block');
+put(G, [[19, 9, 'barrel'], [20, 9, 'barrel'], [24, 9, 'barrel'], [19, 11, 'chest'], [24, 11, 'barrel']], 'floor stone block');
+G.thing(22, 12, 'door', 'floor stone block');
+label(19, 2, 'Kitchen');
+// The chapel: an altar, pews close together.
+G.room(25, 2, 34, 12, 'stone block', 'stone block');
+G.thing(26, 12, 'door', 'floor stone block');
+G.thing(29, 3, 'altar', 'floor stone block');
+for (let y = 5; y <= 10; y += 2) for (const x of [27, 28, 31, 32]) G.thing(x, y, 'pew', 'floor stone block');
+put(G, [[26, 3, 'candle'], [33, 3, 'candle']], 'floor stone block');
+label(26, 2, 'Chapel');
+// The north-east tower's undercroft, and the long store down the east wall.
+G.room(34, 2, 39, 8, 'stone block', 'stone block');
+G.thing(36, 8, 'door', 'floor stone block');
+put(G, [[35, 3, 'barrel'], [38, 3, 'barrel'], [38, 7, 'torch'], [35, 7, 'hay bale']], 'floor stone block');
+G.room(34, 8, 39, 27, 'stone block', 'stone block');
+for (let y = 10; y <= 25; y += 3) put(G, [[35, y, 'barrel'], [38, y, 'barrel'], [38, y + 1, 'hay bale']], 'floor stone block');
+G.thing(34, 16, 'door', 'floor stone block');
+label(35, 8, 'Store');
+// The east range: the guardroom (a bed for the watch) and the armoury.
+chamber(G, 27, 12, 34, 19, 'w', { floor: 'stone block', extra: [[31, 15, 'table'], [32, 15, 'table'], [29, 13, 'brazier']] });
+label(28, 12, 'Guardroom');
+G.room(27, 19, 34, 27, 'stone block', 'stone block');
+G.thing(27, 23, 'door', 'floor stone block');
+put(G, [[29, 20, 'anvil'], [30, 20, 'brazier'], [33, 20, 'barrel'], [33, 21, 'barrel'], [32, 25, 'chest'], [33, 25, 'chest'], [29, 25, 'barrel']], 'floor stone block');
+label(28, 27, 'Armoury');
+// The west range: the library and the steward's room.
+G.room(2, 12, 10, 20, 'stone block', 'wood');
+G.thing(10, 16, 'door', 'floor wood');
+for (let x = 3; x <= 9; x++) if (x !== 6) G.thing(x, 13, 'bookshelf', 'floor wood');
+put(G, [[5, 16, 'table'], [6, 16, 'table'], [3, 19, 'candle'], [9, 19, 'bookshelf']], 'floor wood');
+label(3, 12, 'Library');
+chamber(G, 2, 20, 10, 27, 'e', { floor: 'wood', extra: [[5, 23, 'table'], [4, 21, 'bookshelf']] });
+label(3, 27, 'Steward');
+// The south range: the bakehouse, the entrance hall, the stables.
+G.room(2, 27, 13, 33, 'stone block', 'stone block');
+G.thing(12, 27, 'door', 'floor stone block');
+put(G, [[3, 28, 'oven'], [4, 28, 'oven'], [6, 30, 'table'], [7, 30, 'table'], [12, 32, 'barrel'], [3, 32, 'hay bale']], 'floor stone block');
+label(3, 33, 'Bakehouse');
+G.room(13, 27, 25, 33, 'stone block', 'stone block');
+for (const x of [18, 19, 20]) G.thing(x, 27, 'door', 'floor stone block');
+put(G, [[14, 28, 'torch'], [24, 28, 'torch'], [19, 31, 'rug'], [14, 32, 'chest']], 'floor stone block');
+label(14, 33, 'Entrance Hall');
+G.room(25, 27, 39, 33, 'stone block', 'soil');
+G.thing(26, 27, 'door', 'floor soil');
+for (const x of [29, 32, 35]) for (let y = 28; y <= 30; y++) G.put(x, y, 'wall wood');
+put(G, [[30, 28, 'hay bale'], [33, 28, 'hay bale'], [36, 28, 'hay bale'], [38, 32, 'cart'], [27, 32, 'torch']], 'floor soil');
+label(26, 33, 'Stables');
+// Stairs up at two corners of the court.
 G.stair(C.x0, C.y0, 'stone block');
 G.stair(C.x1, C.y1, 'stone block');
 
-// ---- the first floor: a gallery round the open court, sixteen bedchambers ----
-// Corridors: north and south the width of the keep, west and east the galleries over the court.
-F1.fill(3, 13, 56, 14, 'floor wood');
-F1.fill(3, 31, 56, 32, 'floor wood');
-F1.fill(16, 13, 17, 32, 'floor wood');
-F1.fill(42, 13, 43, 32, 'floor wood');
-for (let x = 2; x <= 57; x++) for (const y of [12, 15, 30, 33]) if (!F1.get(x, y)) F1.put(x, y, 'wall stone block');
-for (let y = 12; y <= 33; y++) for (const x of [2, 57]) F1.put(x, y, 'wall stone block');
-// The stairs come up at the court's corners; a step of floor beside each.
-F1.put(C.x0, C.y0 - 1, 'floor wood'); F1.put(C.x1 + 1, C.y1, 'floor wood');
-// Rooms north (doors south onto the corridor) and south (doors north), two each side west and east.
-const north = [[2, 11], [11, 20], [20, 29], [29, 38], [38, 47], [47, 57]];
-for (const [x0, x1] of north) chamber(F1, x0, 2, x1, 12, 's');
-for (const [x0, x1] of north) chamber(F1, x0, 33, x1, 43, 'n');
-chamber(F1, 2, 15, 15, 22, 'e'); chamber(F1, 2, 22, 15, 30, 'e');
-chamber(F1, 44, 15, 57, 22, 'w'); chamber(F1, 44, 22, 57, 30, 'w');
-for (const [x, y] of [[16, 13], [43, 13], [16, 32], [43, 32]]) F1.thing(x, y, 'candle', 'floor wood');
+// ---- the first floor: a gallery round the open court, sixteen small bedchambers ----
+// The gallery: the court's edge, two wide, the middle open to the sky.
+for (let y = C.y0; y <= C.y1; y++) for (let x = C.x0 - 1; x <= C.x1; x++) {
+	if (x >= C.x0 + 2 && x <= C.x1 - 2 && y >= C.y0 + 2 && y <= C.y1 - 2) continue;
+	if (!F1.get(x, y)) F1.put(x, y, 'floor wood');
+}
+// The corridors: north (two wide) and south, the width of the keep, and west down to the gallery.
+F1.fill(3, 11, 33, 12, 'floor wood');
+F1.fill(3, 27, 33, 27, 'floor wood');
+F1.fill(9, 13, 9, 26, 'floor wood');
+// Bedchambers, each about four metres by five: six along the north, six along the south, two west, two east.
+for (let k = 0; k < 6; k++) {
+	const x0 = 2 + k * 5, x1 = x0 + 5;
+	chamber(F1, x0, 4, x1, 10, 's');
+	chamber(F1, x0, 28, x1, 34, 'n');
+}
+chamber(F1, 2, 13, 8, 19, 'e'); chamber(F1, 2, 19, 8, 26, 'e');
+chamber(F1, 27, 13, 33, 19, 'w'); chamber(F1, 27, 19, 33, 26, 'w');
+// Walls round the corridors where nothing else stands.
+for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+	if (F1.get(x, y)) continue;
+	const near = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => { const c = F1.get(x + dx, y + dy); return !!c && c.startsWith('floor'); });
+	const overCourt = x >= C.x0 + 2 && x <= C.x1 - 2 && y >= C.y0 + 2 && y <= C.y1 - 2;
+	if (near && !overCourt) F1.put(x, y, 'wall stone block');
+}
+for (const [x, y] of [[12, 12], [26, 12], [12, 27], [26, 27]]) F1.thing(x, y, 'candle', 'floor wood');
 
-// ---- the second floor: the solar, the lord's chambers, bedchambers, the roof walk ----
-F2.fill(3, 13, 56, 14, 'floor wood');
-F2.fill(3, 31, 56, 32, 'floor wood');
-F2.fill(16, 13, 17, 32, 'floor slate');
-F2.fill(42, 13, 43, 32, 'floor slate');
-for (let x = 2; x <= 57; x++) for (const y of [12, 15, 30, 33]) if (!F2.get(x, y)) F2.put(x, y, 'wall stone block');
-for (let y = 12; y <= 33; y++) for (const x of [2, 57]) F2.put(x, y, 'wall stone block');
-for (const [x0, x1] of [[2, 15], [15, 29], [29, 43], [43, 57]]) chamber(F2, x0, 2, x1, 12, 's', { floor: 'carpet' });
-chamber(F2, 2, 15, 15, 30, 'e', { floor: 'carpet', extra: [[5, 17, 'bookshelf'], [6, 17, 'bookshelf']] });
-chamber(F2, 44, 15, 57, 30, 'w', { floor: 'carpet' });
-// The solar: the lord's day room, books and a hearth.
-F2.room(2, 33, 30, 43, 'stone block', 'carpet');
-F2.thing(16, 33, 'door', 'floor carpet');
-for (let x = 4; x <= 28; x += 3) F2.thing(x, 42, 'bookshelf', 'floor carpet');
-for (const [x, y, k] of [[10, 37, 'table'], [11, 37, 'table'], [20, 37, 'table'], [21, 37, 'table'], [4, 35, 'brazier'], [28, 35, 'candle']]) F2.thing(x, y, k, 'floor carpet');
-chamber(F2, 30, 33, 57, 43, 'n', { floor: 'carpet', extra: [[40, 38, 'rug'], [50, 35, 'bookshelf']] });
-for (const [x, y] of [[16, 13], [43, 13], [16, 32], [43, 32]]) F2.thing(x, y, 'candle', P.on(2).get(x, y)?.split('|')[0].trim());
-// The stairs from the first floor on up (drawn last, over the second floor's corridors).
-F1.stair(43, 14, 'wood');
-F1.stair(16, 31, 'wood');
+// ---- the second floor: the lord's chamber and the solar, over the north range ----
+F2.fill(20, 12, 36, 12, 'floor wood');
+chamber(F2, 22, 5, 29, 11, 's', { floor: 'carpet', extra: [[24, 6, 'rug'], [27, 8, 'bookshelf']] });
+F2.room(29, 5, 36, 11, 'stone block', 'carpet');
+F2.thing(32, 11, 'door', 'floor carpet');
+put(F2, [[30, 6, 'bookshelf'], [31, 6, 'bookshelf'], [33, 8, 'table'], [34, 8, 'table'], [35, 6, 'brazier'], [30, 10, 'candle']], 'floor carpet');
+for (let x = 19; x <= 37; x++) for (const y of [11, 13]) if (!F2.get(x, y)) F2.put(x, y, 'wall stone block');
+F2.put(19, 12, 'wall stone block'); F2.put(37, 12, 'wall stone block');
+label(23, 4, 'Lord\'s Chamber');
+// The stair up from the first floor's north corridor (its upper lane, so the corridor's lower lane stays clear).
+F1.stair(21, 11, 'wood');
 
 P.write(new URL('./keep.tbp', import.meta.url), 'keep', [
-	'The Keep, a castle\'s inside on three floors round an open court, for Grimoire\'s medieval games.',
+	'The Keep, a minor castle\'s inside on three floors round an open court (a square is a metre), for Grimoire\'s medieval games.',
 	'Made by town/make-keep.mjs; edit that and run it again. `label x y Name` names a place.'
-], { 'wall stone block': '#', 'floor stone block': 's', 'floor wood': '+', 'floor cobble': ':', 'floor carpet': 'c', 'floor slate': '=', 'stair-up stone block': '{', 'stair-down stone block': '}', 'stair-up wood': '<', 'stair-down wood': '>' });
+], { 'wall stone block': '#', 'floor stone block': 's', 'floor wood': '+', 'floor cobble': ':', 'floor carpet': 'c', 'stair-up stone block': '{', 'stair-down stone block': '}', 'stair-up wood': '<', 'stair-down wood': '>' });

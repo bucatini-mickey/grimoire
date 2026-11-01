@@ -75,7 +75,13 @@ export function plan(W, H, ground, seed = 1) {
 			for (const [ex, ey, name] of extra) P.thing(ex, ey, name, `floor ${floor}`);
 			if (loft) {
 				P.upRoom(x0, y0, x1, y1, wall, floor);
-				P.stair(inX === x0 + 1 ? x0 + 1 : inX === x1 - 1 ? x1 - 1 : inX + (inX < x1 - 1 ? 1 : -1), inY === y0 + 1 ? y0 + 1 : inY === y1 - 1 ? y1 - 1 : inY, floor);
+				// The stair beside the way in, never on it: along the wall from the cell inside the door.
+				const sideways = d[1] === y0 || d[1] === y1;
+				const sx = sideways ? inX + (inX < x1 - 1 ? 1 : -1) : inX, sy = sideways ? inY : inY + (inY < y1 - 1 ? 1 : -1);
+				// Not on the bed or the light either: the other way along the wall if so.
+				const busy = (x, y) => P.get(x, y) !== `floor ${floor}`;
+				const [qx, qy] = busy(sx, sy) ? (sideways ? [inX - (sx - inX), inY] : [inX, inY - (sy - inY)]) : [sx, sy];
+				P.stair(qx, qy, floor);
 				P.up(fx, fy, `floor ${floor} | bed`);
 			}
 			return { door: d, inside: [inX, inY] };

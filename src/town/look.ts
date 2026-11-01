@@ -255,7 +255,42 @@ export interface Look { ch: string; fg: Rgb; bg: Rgb; emissive: boolean; wall?: 
 const FLOWERS: Rgb[] = [[214, 74, 82], [232, 196, 72], [168, 120, 214], [236, 230, 214], [96, 150, 226], [230, 140, 70]];
 
 /** `ms` moves the water: ripples on the pool, the waterfall pouring. */
+/** Grass, leaves, fields: living ground, which goes in patches of lush and sun-dried. */
+const LIVING = new Set(['grass', 'leaves', 'pasture', 'wheat', 'pine', 'tilled', 'reeds']);
+/** Earth: wetter and drier patches. */
+const EARTH = new Set(['soil', 'mud', 'gravel', 'snow', 'sand']);
+
+/**
+ * A cell's colour, varied: broad patches (slow noise) and a little from cell to cell (a hash), so the ground
+ * has texture and nothing is one flat colour. Living ground shifts between lush and sun-dried, earth between
+ * wet and dry, stone and timber take a little weathering and the odd stain of moss. Water and lights keep theirs.
+ */
+function vary(l: Look, mat: string, wall: boolean, x: number, y: number): Look {
+	if (mat === 'water' || l.emissive) return l;
+	const patch = noise(x * 0.13, y * 0.13, 21) - 0.5, fine = ((hash(x, y, 23) & 255) / 255 - 0.5);
+	const tone = (c: Rgb, k: number): Rgb => c.map((v) => v * k) as Rgb;
+	if (LIVING.has(mat)) {
+		const dry = Math.max(0, noise(x * 0.07 + 40, y * 0.07, 25) - 0.45) * 1.6;
+		const bg = lerp(tone(l.bg, 1 + patch * 0.36 + fine * 0.12), [l.bg[0] * 1.35 + 14, l.bg[1] * 1.12 + 6, l.bg[2] * 0.7], Math.min(0.6, dry));
+		return { ...l, bg, fg: lerp(tone(l.fg, 1 + patch * 0.3 + fine * 0.2), [l.fg[0] * 1.3 + 20, l.fg[1] * 1.1, l.fg[2] * 0.7], Math.min(0.5, dry)) };
+	}
+	if (EARTH.has(mat)) {
+		const wet = Math.max(0, noise(x * 0.1, y * 0.1 + 70, 27) - 0.55) * 1.8;
+		const bg = lerp(tone(l.bg, 1 + patch * 0.3 + fine * 0.14), tone(l.bg, 0.72), Math.min(0.6, wet));
+		return { ...l, bg, fg: tone(l.fg, 1 + fine * 0.25) };
+	}
+	// Built things: weathering, and now and then a little moss on stone outdoors.
+	const k = 1 + patch * (wall ? 0.14 : 0.18) + fine * 0.1;
+	const moss = !wall && (hash(x, y, 29) & 63) < 3 && /stone|cobble|slate|granite|limestone/.test(mat);
+	return { ...l, bg: moss ? lerp(tone(l.bg, k), [70, 92, 52], 0.35) : tone(l.bg, k), fg: tone(l.fg, 1 + fine * 0.12) };
+}
+
 export function lookAt(t: Town, x: number, y: number, ms = 0): Look {
+	const c = at(t, x, y)!;
+	return vary(lookAtPlain(t, x, y, ms), c.mat, c.tile === 'wall', x, y);
+}
+
+function lookAtPlain(t: Town, x: number, y: number, ms: number): Look {
 	const c = at(t, x, y)!;
 	const m = MATS[c.mat] ?? FALLBACK;
 	const joins = (dx: number, dy: number) => {
