@@ -267,8 +267,6 @@ function onUp(from: string, msg: Up) {
 		const q = S.people.get(msg.to);
 		if (!q || q.id === from) return;
 		if (!privateAllowed(p)) return sendTo(from, { t: 'notice', text: 'Private words wait for the day.' });
-		// A private word is with the Storyteller: a player and them, nobody else.
-		if (!p.st && !q.st) return sendTo(from, { t: 'notice', text: 'Private words are with the Storyteller.' });
 		if (p.with || q.with) return sendTo(from, { t: 'notice', text: `${q.with ? q.name : 'You'} ${q.with ? 'is' : 'are'} already talking privately.` });
 		sendTo(q.id, { t: 'asked', from });
 		sendTo(from, { t: 'notice', text: `Asked ${q.name}…` });
@@ -844,6 +842,9 @@ function toolButtons(): Button[] {
 	if (S.asks.some((id) => S.people.has(id))) return [btn('Talk', () => act('accept'), { style: 'primary' }), btn('Not now', () => act('decline'))];
 	const bs: Button[] = [];
 	if (p?.with) bs.push(btn('End', () => act('end')));
+	// Talking privately with another player: the way to them.
+	const mate = p?.with ? S.people.get(p.with) : null;
+	if (mate && !mate.st && !p?.st) bs.push(btn('Find ' + mate.name.slice(0, 8), () => act('find'), { style: 'primary' }));
 	const v = S.voice;
 	const later: Button[] = [];
 	if (v) {
@@ -1187,6 +1188,8 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 		const vw = Math.floor(cols / CW), mx = (vw - 1) / 2, my = (mapH - 1) / 2;
 		for (const q of S.people.values()) {
 			if (q.id === S.me || (q.st && !p.st && S.phase !== 'day')) continue;
+			// The one you are talking privately with is marked in gold, so the two of you find each other.
+			const mate = p.with === q.id;
 			const d = shownAt.get(q.id) ?? q;
 			const cx = Math.round(d.x) - x0, cy = Math.round(d.y) - y0;
 			const dz = (q.z ?? 0) - (p.z ?? 0);
@@ -1197,10 +1200,17 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 			const ex = Math.round(mx + dx * k), ey = Math.round(my + dy * k);
 			const arrow = dz && onScreen ? (dz > 0 ? '^' : 'v') : Math.abs(dx) > Math.abs(dy) * 2 ? (dx > 0 ? '>' : '<') : dy > 0 ? 'v' : '^';
 			const [fg, bg] = markOf(q);
-			const ink = bg || fg;
+			const ink = mate ? 6 : bg || fg;
 			const sx = ex * CW;
-			g.set(sx, mapY + ey, glyphOf(q), bg ? fg : 0, ink);
-			g.set(sx + (dx > 0 && !onScreen ? -1 : 1), mapY + ey, arrow, ink, 0);
+			g.set(sx, mapY + ey, glyphOf(q), bg && !mate ? fg : 0, ink);
+			g.set(sx + (dx > 0 && !onScreen ? -1 : 1), mapY + ey, arrow, ink, mate ? 0 : 0);
+		}
+		// On the screen and on your floor: a gold ring round the one you are meeting.
+		const mate = p.with ? S.people.get(p.with) : null;
+		if (mate && !mate.st && (mate.z ?? 0) === (p.z ?? 0)) {
+			const d = shownAt.get(mate.id) ?? mate;
+			const sx = (Math.round(d.x) - x0) * CW, sy = Math.round(d.y) - y0;
+			if (sy >= 0 && sy < mapH) { g.set(sx - 1, mapY + sy, '(', 6, 0); g.set(sx + CW, mapY + sy, ')', 6, 0); }
 		}
 	}
 	nameBanner(g, mapY, mapH, x0, y0);
@@ -1316,7 +1326,7 @@ function sheetRows(): Row[] {
 		for (const q of others) {
 			const bs: Button[] = [];
 			if (p?.st && !q.st) bs.push(btn('Visit', () => act('visit', q.id), { width: 9 }));
-			if (can && !q.with && (q.st || p?.st)) bs.push(btn('Ask', () => act('ask', q.id), { width: 7 }));
+			if (can && !q.with) bs.push(btn('Ask', () => act('ask', q.id), { width: 7 }));
 			rows.push(listRow((q.st ? 'Storyteller' : q.name) + (q.dead ? ' (dead)' : '') + (q.with ? ' (talking)' : ''), q.dead ? 'dim' : undefined, bs));
 		}
 		return [close('sheet-close'), ...rows, endPanel()];
@@ -1484,6 +1494,11 @@ function act(a: string, id = '') {
 		case 'more': S.sheet = S.sheet === 'more' ? null : 'more'; S.stOpen = false; drawChrome(); break;
 		case 'sheet-close': S.sheet = null; drawChrome(); break;
 		case 'ask': up({ t: 'ask', to: id }); S.sheet = null; drawChrome(); break;
+		case 'find': {
+			const q = me()?.with ? S.people.get(me()!.with!) : null;
+			if (q) { walkTo({ x: q.x, y: q.y, z: q.z } as P); toast('On the way to ' + q.name + '.'); }
+			break;
+		}
 		case 'visit': visit(id); break;
 		case 'accept':
 		case 'decline': {

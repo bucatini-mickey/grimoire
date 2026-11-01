@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { nextStep } from '../src/core/index.ts';
-import { publicView, cardFor, wakeFor } from '../src/net/views.ts';
+import { nextStep, nightSteps } from '../src/core/index.ts';
+import { publicView, cardFor, logEntry, scriptSheet, wakeFor } from '../src/net/views.ts';
+import { ALL_CHARACTERS } from '../src/core/index.ts';
 import { game, ok, playNight } from './helpers.ts';
 
 // 0 Ada imp, 1 Bram poisoner, 2 Cael drunk (thinks washerwoman), 3 Dorn empath, 4 Esme monk, 5 Fenn soldier, 6 Gwen fortune-teller
@@ -64,4 +65,22 @@ test('the Drunk wakes as who they think they are', () => {
 	assert.ok(!JSON.stringify(w).toLowerCase().includes('drunk'));
 	assert.ok(w.info?.some((x) => x.lines.includes('Empath')));
 	s = s; // the Storyteller records it as usual
+});
+
+test('the script sheet names characters, never a seat or who is which', () => {
+	const json = JSON.stringify(scriptSheet(base()));
+	for (const n of ['Ada', 'Bram', 'Cael', 'Dorn', 'Esme', 'Fenn', 'Gwen']) assert.ok(!json.includes(n), `sheet mentions ${n}`);
+	assert.ok(json.includes('Empath'));
+});
+
+test('a player’s log holds only what their own wake showed them', () => {
+	const s = base();
+	const names = ['Ada', 'Bram', 'Cael', 'Dorn', 'Esme', 'Fenn', 'Gwen'];
+	for (const step of nightSteps(s)) {
+		const w = wakeFor(s, step);
+		const e = JSON.stringify(logEntry(w, 1) ?? {});
+		const seen = JSON.stringify(w);
+		for (const c of ALL_CHARACTERS) if (e.includes(c.name)) assert.ok(seen.includes(c.name), step.kind + ' log names ' + c.name);
+		for (const n of names) if (e.includes(n)) assert.ok(seen.includes(n), step.kind + ' log names ' + n);
+	}
 });

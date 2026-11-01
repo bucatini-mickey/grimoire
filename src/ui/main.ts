@@ -47,6 +47,8 @@ interface Settings {
 	nominationsMs: number;
 	accusationMs: number;
 	defenceMs: number;
+	/** Keep, for each player, what they are shown at night, for them to read back on their phone. */
+	infoLog?: boolean;
 }
 
 const DEFAULT_SETTINGS: Settings = { dayMs: 5 * 60_000, nominationsMs: 3 * 60_000, accusationMs: 45_000, defenceMs: 45_000 };
@@ -96,6 +98,8 @@ interface Saved {
 	settings: Settings;
 	/** Hosting players' phones: the room code and each phone's seat, kept so a reload re-opens the room. */
 	net?: { room: string; claims: Record<string, SeatId>; village?: boolean; lobby?: { client: string; name: string }[] };
+	/** What each player's phone has been shown at night (views.ts logEntry), by seat. */
+	log?: Record<number, V.LogEntry[]>;
 }
 
 function freshFlow(settings: Settings): Flow {
@@ -1484,8 +1488,22 @@ function wakePhone(step: G.NightStep, phone: string, withAnswer: boolean) {
 	const w = withNote(V.wakeFor(state, step, withAnswer ? ui.draftInfo : null), step);
 	ui.remote = { wakeId: w.id, seat: step.seat!, answered: withAnswer && !!playerPicks(step.kind, state, step.seat) };
 	sendTo(phone, { t: 'wake', wake: w });
+	keepLog(step.seat, w);
 	village?.visit(phone);
 	render();
+}
+
+/** Keep what a wake showed its player, for their log (sent only when the Storyteller keeps logs). */
+function keepLog(seat: SeatId | null, w: V.Wake) {
+	if (seat === null || state.phase.kind !== 'night') return;
+	const e = V.logEntry(w, state.phase.n);
+	if (!e) return;
+	const list = ((saved.log ??= {})[seat] ??= []);
+	const at = list.findIndex((x) => x.id === e.id);
+	if (at >= 0) list[at] = e;
+	else list.push(e);
+	save();
+	updatePhones();
 }
 
 /** Can this step go to the phone before the Storyteller has decided anything? (Not an answer still to be chosen.) */
@@ -2342,7 +2360,7 @@ const settingsBack = (): Row => navRow('Settings', () => { if (ui.drawer) ui.dra
 function optionsScreen(): Row[] {
 	const st = saved.settings;
 	const rows: Row[] = [settingsBack(), rubric('The clocks')];
-	const line = (label: string, key: keyof Settings) => {
+	const line = (label: string, key: 'dayMs' | 'nominationsMs' | 'accusationMs' | 'defenceMs') => {
 		const step = key === 'dayMs' || key === 'nominationsMs' ? 60_000 : 15_000;
 		rows.push({ segs: [
 			txt(pad(label, 14)),
@@ -2562,6 +2580,8 @@ let linkDetail = '';
 const phones = new Map<string, string>();
 /** What each phone was last sent, so unchanged news is not resent. */
 const lastSent = new Map<string, string>();
+/** The script sheet and the log last sent to each phone. */
+const sheetSent = new Map<string, string>(), logSent = new Map<string, string>();
 
 const claims = () => saved.net?.claims ?? {};
 const seatOfClient = (clientId: string): SeatId | null => claims()[clientId] ?? null;
@@ -2625,6 +2645,8 @@ function welcome(peer: string) {
 	const taken = new Set(Object.entries(claims()).filter(([c]) => c !== client).map(([, seat]) => seat));
 	sendTo(peer, { t: 'welcome', room: link!.room, seats: state.order.map((id) => ({ id, name: state.seats[id].name, taken: taken.has(id) })), you: seatOfClient(client) });
 	lastSent.delete(peer);
+	sheetSent.delete(peer);
+	logSent.delete(peer);
 	updatePhones();
 }
 
@@ -2670,6 +2692,11 @@ function updatePhones() {
 	for (const [peer, client] of phones) {
 		const seat = seatOfClient(client);
 		if (seat === null) continue;
+		// The script's sheet when it changes; this player's own log when it grows (or is turned on or off).
+		if (sheetSent.get(peer) !== state.scriptId) { sheetSent.set(peer, state.scriptId); sendTo(peer, { t: 'script', chars: V.scriptSheet(state) }); }
+		const log = saved.settings.infoLog ? saved.log?.[seat] ?? [] : null;
+		const logKey = JSON.stringify(log);
+		if (logSent.get(peer) !== logKey) { logSent.set(peer, logKey); sendTo(peer, { t: 'log', entries: log }); }
 		const card = state.seats[seat] ? V.cardFor(state, seat) : null;
 		const news = JSON.stringify({ view, clock: clock && { ...clock, sentAt: 0, remainingMs: Math.round(clock.remainingMs / 1000) }, card, vote });
 		if (lastSent.get(peer) === news) continue;
@@ -2903,6 +2930,11 @@ function phonesScreen(): Row[] {
 	rows.push(...buttonRows(village
 		? [btn('Open the village', () => village?.open(), { style: 'primary' }), btn('Turn off', villageOff, { style: 'quiet' })]
 		: [btn('Play in the village', villageOn, { style: 'primary' })]), endPanel());
+	const logs = !!saved.settings.infoLog;
+	rows.push(rubric('Players’ logs'), ...prose(logs
+		? 'On: each player can read back, in their menu, everything they have been shown at night.'
+		: 'Off: what players are shown at night is not kept for them to read back.', 'dim'),
+	...buttonRows([btn(logs ? 'Stop keeping logs' : 'Keep a log for each player', () => { saved.settings.infoLog = !logs; save(); updatePhones(); render(); }, { style: logs ? 'on' : undefined })]), endPanel());
 	rows.push(rubric('Seats'));
 	const byseat = new Map<SeatId, string>();
 	for (const [client, seat] of Object.entries(claims())) byseat.set(seat, client);

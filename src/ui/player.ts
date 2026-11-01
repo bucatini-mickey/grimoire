@@ -10,12 +10,12 @@
  */
 import { navRow } from './ascii.ts';
 import { bookKey, themeOf } from './theme.ts';
-import { personInk, COLS, INNER, illuminatedRow, blank, blockRow, boxRow, btn, buttonBlock, buttonRows, center, endPanel, field, frameBottom, frameTop, listRow, paint, paneled, pad, redraw, row, rubric, setDynamic, setPalette, txt, wrap } from './ascii.ts';
+import { tickGrid, personInk, COLS, INNER, illuminatedRow, blank, blockRow, boxRow, btn, buttonBlock, buttonRows, center, endPanel, field, frameBottom, frameTop, listRow, paint, paneled, pad, redraw, row, rubric, setDynamic, setPalette, txt, wrap } from './ascii.ts';
 import type { Row } from './ascii.ts';
 import { joinRoom } from '../net/link.ts';
 import type { LinkStatus, PlayerLink } from '../net/link.ts';
 import type { Announcement, ClockView, HostMsg, VoteView } from '../net/protocol.ts';
-import type { CharacterCard, PublicView, Wake } from '../net/views.ts';
+import type { CharacterCard, LogEntry, PublicView, SheetEntry, Wake } from '../net/views.ts';
 import type { SeatId } from '../core/index.ts';
 import { CARD_COLS, CARD_INNER, big, cardButtons, characterRows, nextPage, note, revealRows, wakeRows } from './wakepages.ts';
 import type { Page } from './wakepages.ts';
@@ -42,6 +42,8 @@ function clientId(): string {
 	}
 }
 
+type Menu = null | 'home' | 'circle' | 'chars' | 'me' | 'log' | 'note';
+
 const P = {
 	code: '',
 	link: null as PlayerLink | null,
@@ -66,15 +68,37 @@ const P = {
 	/** The name I gave, and everyone in the room so far (in seating order). */
 	name: savedName(),
 	lobby: [] as string[],
-	lobbyYou: null as number | null
+	lobbyYou: null as number | null,
+	/** The script's characters (the sheet on the table), for the menu. */
+	chars: [] as SheetEntry[],
+	/** What I have been told, kept by the Storyteller's phone (null: they keep no log). */
+	log: null as LogEntry[] | null,
+	/** The player's menu, and which page of it is open (null: shut). */
+	menu: null as Menu,
+	/** The seat I am writing a note on. */
+	noteSeat: null as SeatId | null
 };
+
+/** A player's own notes on another (only on this phone): a guess at their character, marks, a line of words. */
+interface SeatNote { guess?: string; tags?: string[]; text?: string; }
+const TAGS = ['Good?', 'Evil?', 'Drunk?', 'Poisoned?', 'Trusted', 'Lying'];
+const notesKey = () => 'grimoire.notes.' + P.code;
+function notes(): Record<string, SeatNote> {
+	try { return JSON.parse(localStorage.getItem(notesKey()) ?? '{}'); } catch { return {}; }
+}
+function setNote(seat: SeatId, f: (n: SeatNote) => SeatNote) {
+	const all = notes();
+	all[seat] = f(all[seat] ?? {});
+	try { localStorage.setItem(notesKey(), JSON.stringify(all)); } catch { /* private mode: kept until the page closes */ }
+	render();
+}
 
 /**
  * The village's buttons for this player: their character; in the day,
  * Nominate (the Storyteller accepts it); during a vote, their hand.
  */
 function villageButtons(): Extra[] {
-	const out: Extra[] = [{ label: 'My character', act: () => { P.cardOpen = !P.cardOpen; render(); } }];
+	const out: Extra[] = [{ label: 'My character', act: () => { P.cardOpen = !P.cardOpen; render(); } }, { label: 'Menu', act: () => { P.menu = P.menu ? null : 'home'; render(); } }];
 	const v = P.view, me = P.seat;
 	if (!v || me === null || v.phase !== 'day') return out;
 	const mine = v.seats.find((s) => s.id === me);
@@ -151,9 +175,10 @@ function receive(msg: HostMsg) {
 				P.page = 'who';
 				P.picks = [];
 			}
-			// Your turn in the night comes before any announcement still showing from the day.
+			// Your turn in the night comes before any announcement still showing from the day (and the menu).
 			P.announce = null;
 			P.cardOpen = false;
+			P.menu = null;
 			buzz([120, 80, 120]);
 			break;
 		}
@@ -176,6 +201,12 @@ function receive(msg: HostMsg) {
 			location.hash = '#join=' + msg.room;
 			location.reload();
 			return;
+		case 'script':
+			P.chars = msg.chars;
+			break;
+		case 'log':
+			P.log = msg.entries;
+			break;
 		case 'denied':
 			P.message = msg.reason;
 			break;
@@ -282,8 +313,12 @@ function seatScreen(): Row[] {
 	];
 }
 
-/** The circle as the room knows it: names, who is dead. Your own token shows your character. */
-function ring(): Row[] {
+/**
+ * The circle as the room knows it: names, who is dead. Your own token shows your character. With `noting`,
+ * each other seat shows your own guess and marks on it, and a tap opens your note on them.
+ */
+function ring(noting = false): Row[] {
+	const mine0 = noting ? notes() : {};
 	const v = P.view!;
 	const n = v.order.length;
 	const alive = v.seats.filter((s) => s.alive).length;
@@ -319,6 +354,13 @@ function ring(): Row[] {
 			c.g.text(x, y, cut((s.alive ? '☺' : '†') + s.name), !s.alive ? fg : pf, !s.alive ? bg : pb || bg);
 			c.g.text(x, y + 1, cut(role), reveal ? (P.card!.team === 'evil' ? 8 : 12) : fg, bg);
 			if (!s.alive && !s.ghostVote) c.g.text(x, y + 2, cut('no vote'), 3, bg);
+			if (noting && !mine) {
+				const n = mine0[id];
+				if (n?.guess) c.g.text(x, y + 1, cut('?' + n.guess), 6, bg);
+				const tags = (n?.tags ?? []).map((t) => t[0]).join('') + (n?.text ? '*' : '');
+				if (tags) c.g.text(x + Math.max(0, tw - tags.length), y + 2, tags, n?.tags?.includes('Evil?') ? 8 : 12, bg);
+				c.hit({ x, y, w: tw, h: 3 }, () => { P.noteSeat = id; P.menu = 'note'; render(); });
+			}
 		});
 	}), cls: 'frame-mid' }, frameBottom()];
 }
@@ -352,7 +394,61 @@ function mainScreen(): Row[] {
 			rows.push(endPanel());
 		}
 	}
-	rows.push(blank(), ...buttonRows([btn('Not me: change seat', () => { P.link?.send({ t: 'leave-seat' }); P.seat = null; P.card = null; render(); }, { style: 'quiet' })]));
+	rows.push(blank(), ...buttonRows([btn('Menu', () => { P.menu = 'home'; render(); }, { style: 'primary' }), btn('Not me: change seat', () => { P.link?.send({ t: 'leave-seat' }); P.seat = null; P.card = null; render(); }, { style: 'quiet' })]));
+	return rows;
+}
+
+/**
+ * The player's menu (like the Storyteller's, without anyone's character): the circle with their own notes,
+ * the script's characters, their own character, and what they have been told (if the Storyteller keeps it).
+ */
+function menuRows(): Row[] {
+	const go = (m: Menu) => () => { P.menu = m; render(); };
+	const back = (label: string, m: Menu) => navRow(label, go(m));
+	const v = P.view;
+	const dim = (s: string) => wrap(s, CARD_INNER).map((l) => row(txt(l, 'dim')));
+	switch (P.menu) {
+		case 'circle':
+			if (!v) break;
+			return [back('Menu', 'home'), ...ring(true), ...dim('Tap a player to note your guess, marks and words about them. Only this phone sees them.')];
+		case 'note': {
+			const id = P.noteSeat;
+			if (id === null) break;
+			const n = notes()[id] ?? {};
+			const rows: Row[] = [back('The circle', 'circle'), rubric(nameOf(id), CARD_COLS), row(txt('Marks', 'dim'))];
+			rows.push(...tickGrid(TAGS.map((t) => ({ label: t, on: !!n.tags?.includes(t), act: () => setNote(id, (x) => ({ ...x, tags: x.tags?.includes(t) ? x.tags.filter((k) => k !== t) : [...(x.tags ?? []), t] })) })), 3, CARD_INNER));
+			rows.push(field('note-' + id, 'Words', n.text ?? '', (val) => setNote(id, (x) => ({ ...x, text: val.trim() })), 30, 'tap to write'));
+			rows.push(row(txt('Your guess at their character', 'dim')));
+			rows.push(...tickGrid(P.chars.filter((c) => c.team !== 'fabled').map((c) => ({ label: c.name, on: n.guess === c.name, tone: c.team === 'minion' || c.team === 'demon' ? ('evil' as const) : undefined, act: () => setNote(id, (x) => ({ ...x, guess: x.guess === c.name ? undefined : c.name })) })), 3, CARD_INNER));
+			return rows;
+		}
+		case 'chars': {
+			const rows: Row[] = [back('Menu', 'home')];
+			const TEAM: Record<string, string> = { townsfolk: 'Townsfolk', outsider: 'Outsiders', minion: 'Minions', demon: 'Demons', traveller: 'Travellers', fabled: 'Fabled' };
+			for (const team of Object.keys(TEAM)) {
+				const cs = P.chars.filter((c) => c.team === team);
+				if (!cs.length) continue;
+				rows.push(rubric(TEAM[team], CARD_COLS));
+				for (const c of cs) rows.push(row(txt(c.name, team === 'minion' || team === 'demon' ? 'evil' : 'good', 'heading')), ...dim(c.ability));
+			}
+			if (!P.chars.length) rows.push(...dim('The script comes once the Storyteller has chosen it.'));
+			return rows;
+		}
+		case 'me':
+			return characterRows(P.card, btn('Back', go('home'), { style: 'primary' }));
+		case 'log': {
+			const rows: Row[] = [back('Menu', 'home'), rubric('What you have been told', CARD_COLS)];
+			if (!P.log?.length) rows.push(row(txt('Nothing yet.', 'dim')));
+			for (const e of P.log ?? []) rows.push(row(txt(e.title, 'rubric')), ...e.lines.flatMap((l) => wrap(l, CARD_INNER).map((w) => row(txt('  ' + w)))));
+			return rows;
+		}
+	}
+	const rows: Row[] = [navRow('Close', () => { P.menu = null; render(); }), rubric('Menu', CARD_COLS)];
+	const entry = (label: string, sub: string, m: Menu) => rows.push(buttonBlock([btn(label, go(m), { width: INNER })]), ...dim(sub), blank());
+	if (v) entry('The circle', 'Everyone round the circle, with your own notes on them.', 'circle');
+	entry('The characters', 'This script’s characters and what they do.', 'chars');
+	entry('My character', 'Your character, its picture and ability.', 'me');
+	if (P.log) entry('What I have been told', 'Everything the Storyteller has shown you at night, to read back.', 'log');
 	return rows;
 }
 
@@ -374,6 +470,7 @@ function overlay(): Row[] {
 	if (P.announce) {
 		return [blank(), ...revealRows(P.announce), blank(), ...cardButtons([btn('Done', () => { P.announce = null; render(); }, { style: 'primary' })])];
 	}
+	if (P.menu && !P.wake) return menuRows();
 	if (P.cardOpen && !P.wake) return characterRows(P.card, btn('Hide', () => { P.cardOpen = false; render(); }, { style: 'primary' }));
 	const w = P.wake;
 	if (!w) return [];

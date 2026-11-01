@@ -18,16 +18,16 @@ Asked for by the user, not yet built. Newest first; tick off (move to "Done") as
 - Hovering (or tapping) a player's letter shows their full name as a banner in their colour. Each player keeps that colour everywhere: the grimoire circle, the circle and other views. **Done:** one colour per seat (src/ui/ascii.ts personInk), used by the map's letters, the council's names, the grimoire's circle and the players' circle.
 - **Stable, consistent UI everywhere.** Use the space better, or move things into submenus with logical routes to them. Controls stay in fixed places and never move. Example, the codex on a wide (two-page) screen: the name and portrait on the left page, the information on the right page, "Previous character" fixed at the bottom of the left page, "Next character" fixed at the bottom of the right page. Apply the same thinking to every screen.
 
-**Players' menu** (like the Storyteller's, without roles)
+**Players' menu** (like the Storyteller's, without roles). **Done:** a Menu button on the player's page and in the village's bar: The circle (with their own notes), The characters, My character (portrait and ability), and What I have been told when the Storyteller keeps logs. All through src/net/views.ts (scriptSheet, logEntry), leak-tested in tests/views.test.ts.
 - The circle with names, at any time.
 - The script's characters and their abilities.
 - Their own character, with portrait and ability.
-- On their own circle: their guesses, notes and statuses (private to them).
-- A setup option: a log of the information each player has received, which they can read back.
+- On their own circle: their guesses, notes and statuses (private to them). **Done:** tap a player on your circle: marks (Good?, Evil?, Drunk?, Poisoned?, Trusted, Lying), a line of words, a guess at their character; kept only on that phone.
+- A setup option: a log of the information each player has received, which they can read back. **Done:** Settings → Players' phones → Keep a log for each player.
 
 **Village**
 - Remove the bell (redundant). **Done:** the Bell button and its sound are gone; the phase is called Dusk.
-- Private chat request with anyone; once accepted, a private waypoint or direction marker helps the two find each other.
+- Private chat request with anyone; once accepted, a private waypoint or direction marker helps the two find each other. **Done:** People → Ask works for any player now; once accepted the other is marked in gold (at the screen's edge with an arrow when out of sight, ringed when in sight) and Find walks you to them.
 - **Faces in ASCII**: players' webcam faces as moving ASCII, tied to proximity chat (shown for people in earshot), always shown in the circle; an option in the menu. First a standalone example program the user can test themselves.
 
 **Bug**
