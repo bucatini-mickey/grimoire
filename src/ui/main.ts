@@ -17,7 +17,7 @@
  */
 import * as G from '../core/index.ts';
 import type { Candidate, CharacterId, Command, GameEvent, GameState, Info, SeatId, Script, Lean } from '../core/index.ts';
-import { arrowBox, chapterRow, coverRow, illuminatedRow, tickGrid, miniature, namePlate, navRow, tabStrip } from './ascii.ts';
+import { arrowBox, chapterRow, coverRow, footButtons, illuminatedRow, tickGrid, miniature, namePlate, navRow, tabStrip } from './ascii.ts';
 import { HOW_TO_PLAY, INTERACTIONS, TIPS } from '../core/codex.ts';
 import type { CodexPage } from '../core/codex.ts';
 import { bookKey, themeOf } from './theme.ts';
@@ -800,10 +800,10 @@ function codexRows(home: () => void): Row[] {
 		const tips = TIPS[c.id];
 		if (tips?.length) { rows.push(blank(), rubric('First thoughts')); for (const t of tips) rows.push(...prose(t, 'dim'), blank()); rows.push(endPanel()); }
 		const prev = sc.chars[at - 1], next = sc.chars[at + 1];
-		rows.push(blank(), ...buttonRows([
+		rows.push(blank(), footButtons(
 			btn(prev ? '< ' + prev.name : '< Back', prev ? to('char', { char: prev.id }) : to('list'), { style: 'quiet' }),
-			...(next ? [btn(next.name + ' >', to('char', { char: next.id }), { style: 'primary' })] : [])
-		]));
+			next ? btn(next.name + ' >', to('char', { char: next.id }), { style: 'primary' }) : undefined
+		));
 		return rows;
 	}
 	if (cx.page === 'list') {

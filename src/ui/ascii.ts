@@ -953,13 +953,30 @@ export function namePlate(name: string, indent = 0): Row | null {
 		const left = c.x, right = c.x + c.w;
 		let t = texturaPixels(name, 0)!;
 		for (const level of [1, 2, 3] as const) if (t.w + 1 > right - left) t = texturaPixels(name, level)!;
-		const x0 = t.w + 1 <= right - left ? left + 1 + Math.floor((right - left - 1 - t.w) / 2) : Math.max(1, Math.floor((c.g.cols - t.w) / 2));
+		const x0 = t.w + 1 <= right - left ? left + 1 + Math.floor((right - left - 1 - t.w) / 2) : Math.max(1, left + Math.floor((right - left - t.w) / 2));
 		// (the capital in gold, the rest in the page's ink)
 		const px: number[][] = Array.from({ length: 12 }, () => Array(t.w + 1).fill(-1));
 		t.at.forEach((r, y) => r.forEach((p, i) => { if (p) px[y][i + 1] = p === 1 ? 6 : c.ink('plain'); }));
 		stampPixels(c.g, x0 - 1, c.y, px);
 	});
 }
+
+/**
+ * The way back and the way on, pinned to the foot of the page (the last row of a page that fits on one
+ * leaf), each in the same place whatever it says: one at the left of the writing, one at the right.
+ */
+export function footButtons(back?: Button, on?: Button): Row {
+	return blockRow(3, (c) => {
+		const w = Math.min(24, Math.floor((c.w - 2) / 2));
+		const fit = (b: Button): Button => ({ ...b, label: [...b.label].length > w - 4 ? [...b.label].slice(0, w - 5).join('') + '…' : b.label });
+		if (back) drawButton(c, c.x, c.y, w, fit(back));
+		if (on) drawButton(c, c.x + c.w - w, c.y, w, fit(on));
+	}, 'foot');
+}
+/** A pinned row's place: at the foot of the page, if the writing above leaves room. */
+const pinned = (r: Row, y: number, bottom: number) => (r.cls === 'foot' ? Math.max(y, bottom - lineH(r)) : y);
+/** The height of a page's pinned foot row, if it has one. */
+const footH = (rows: Row[]) => (rows.length && rows[rows.length - 1].cls === 'foot' ? lineH(rows[rows.length - 1]) : 0);
 
 /** Buttons in the middle of the line, so the way on is plain to see. */
 export function centredButtons(buttons: Button[], width = COLS, gap = 2): Row[] {
@@ -1225,6 +1242,7 @@ function drawLayer(g: Grid, key: unknown, ink: (t: Tone | undefined) => number, 
 	}
 	for (let i = p.from; i < p.to; i++) {
 		const h = lineH(L.rows[i]);
+		if (pages.length === 1 && !sheet) y = pinned(L.rows[i], y, g.rows - foot);
 		drawRow(g, L.rows[i], x0, y, L.width, h, ink);
 		y += h;
 	}
@@ -1272,7 +1290,7 @@ function drawSpread(g: Grid, key: unknown, L: Layer, pages: { from: number; to: 
 			const t = L.rows[k].segs[0] && !isButton(L.rows[k].segs[0]) ? (L.rows[k].segs[0] as Text).t : '';
 			drawRow(g, { segs: [txt(t ? t + ' (cont.)' : '')], cls: 'frame-top' }, x0, y++, L.width, 1, ink);
 		}
-		for (let i = p.from; i < p.to; i++) { const h = lineH(L.rows[i]); drawRow(g, L.rows[i], x0, y, L.width, h, ink); y += h; }
+		for (let i = p.from; i < p.to; i++) { const h = lineH(L.rows[i]); if (!multi) y = pinned(L.rows[i], y, g.rows - foot); drawRow(g, L.rows[i], x0, y, L.width, h, ink); y += h; }
 		if (inFrame(L.rows[p.to - 1])) drawRow(g, { segs: [], cls: 'frame-bot' }, x0, y, L.width, 1, ink);
 	}
 	pagesOf.set(key, pages.length);
@@ -1854,7 +1872,8 @@ function frame(g: Grid) {
 		// How much of the screen the page shown takes, and what its page-turns keep at the foot: the
 		// book's margins draw their pictures only where nothing is written.
 		const off = isBook() ? 1 : 0, total = top.rows.reduce((k, r) => k + lineH(r), 0);
-		let used = Math.min(g.rows, total + off + illumPad(g, top.rows)), reserve = 0;
+		const pin = footH(top.rows);
+		let used = Math.min(g.rows, total - pin + off + illumPad(g, top.rows)), reserve = pin ? pin + (isBook() ? 2 : 0) : 0;
 		if (total > g.rows - off) {
 			const pages = paginate(top.rows, g.rows - off - 3 - (isBook() ? 2 : 0));
 			const p = pages[Math.max(0, Math.min(top.page, pages.length - 1))];
@@ -1871,7 +1890,7 @@ function frame(g: Grid) {
 			const usedOf = (p?: { from: number; to: number }) => { if (!p) return 0; let u = off + (inFrame(top.rows[p.from]) ? 1 : 0); for (let i = p.from; i < p.to; i++) u += lineH(top.rows[i]); return u; };
 			const r = pages ? 5 : 0;
 			ground(g, top.width, used, reserve, top.sig, [
-				{ x: 0, w: half, mirror: true, used: pages ? usedOf(pages[pl]) : used, reserve: r, seed: top.sig + '<' },
+				{ x: 0, w: half, mirror: true, used: pages ? usedOf(pages[pl]) : used, reserve: pages ? r : reserve, seed: top.sig + '<' },
 				{ x: half, w: g.cols - half, mirror: false, used: pages ? usedOf(pages[pl + 1]) : 0, reserve: r, seed: top.sig }
 			]);
 		} else ground(g, top.width, used, reserve, top.sig);
