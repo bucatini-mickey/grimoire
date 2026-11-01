@@ -1286,6 +1286,31 @@ function drawSpread(g: Grid, key: unknown, L: Layer, pages: { from: number; to: 
 	if (pages[L.page + 1]) g.text(rx + 2, by + 1, String(L.page + 2), 3);
 }
 
+/**
+ * A list to tick, set close: a line an item, in columns, a mark before each (■ on, ○ off), the
+ * whole line tapped to tick it. For long lists of choices where a button each would take pages.
+ */
+export function tickGrid(items: { label: string; on: boolean; tone?: Tone; act: () => void }[], cols = 0, width = COLS): Row[] {
+	// (three columns on a desktop, two on a phone)
+	cols ||= wideScreen() ? 3 : 2;
+	const rows: Row[] = [];
+	for (let k = 0; k < items.length; k += cols) {
+		const line = items.slice(k, k + cols);
+		// (a line each on a desktop; on a phone a line and a space, so a thumb finds it)
+		const h = wideScreen() ? 1 : 2;
+		rows.push(blockRow(h, (c) => {
+			const w = Math.floor(Math.min(c.w, width) / cols);
+			line.forEach((it, i) => {
+				const x = c.x + i * w;
+				c.g.set(x, c.y, it.on ? '■' : '○', it.on ? 8 : 3);
+				c.g.text(x + 2, c.y, [...it.label].slice(0, w - 3).join(''), c.ink(it.tone));
+				c.hit({ x, y: c.y, w: w - 1, h }, it.act);
+			});
+		}));
+	}
+	return rows;
+}
+
 /** A line of text on the middle of a 3-high row, with buttons at its right end. */
 export function listRow(text: string, tone: Tone | undefined, buttons: Button[], width = INNER): Row {
 	return blockRow(3, (c) => {

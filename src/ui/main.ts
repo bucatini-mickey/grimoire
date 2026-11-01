@@ -17,7 +17,7 @@
  */
 import * as G from '../core/index.ts';
 import type { Candidate, CharacterId, Command, GameEvent, GameState, Info, SeatId, Script, Lean } from '../core/index.ts';
-import { arrowBox, chapterRow, coverRow, illuminatedRow, miniature, namePlate, navRow, tabStrip } from './ascii.ts';
+import { arrowBox, chapterRow, coverRow, illuminatedRow, tickGrid, miniature, namePlate, navRow, tabStrip } from './ascii.ts';
 import { HOW_TO_PLAY, INTERACTIONS, TIPS } from '../core/codex.ts';
 import type { CodexPage } from '../core/codex.ts';
 import { bookKey, themeOf } from './theme.ts';
@@ -223,6 +223,8 @@ const ui = {
 	customIds: [] as CharacterId[],
 	/** The team the custom-script picker is showing. */
 	customTeam: 'townsfolk' as G.Team,
+	/** The custom script's own page is open (from the script page, or the lobby). */
+	customOpen: false,
 	nonstandard: false
 };
 
@@ -657,6 +659,7 @@ function tagsRow(_cls: string, items: { label: string; on: boolean; act: () => v
 
 /** The in-person grimoire's setup before the seats exist: the script, then the players' names. */
 function namesScreen(): Row[] {
+	if (ui.customOpen) return customPage();
 	if (ui.setup === 'players') return playersPage();
 	return [...pageHead('The script'), ...scriptPage()];
 }
@@ -903,6 +906,7 @@ function dealFromLobby() {
 
 /** The host's lobby, a page of its own: the code, who has joined, the script, then deal. */
 function hostLobbyPage(): Row[] {
+	if (ui.customOpen) return customPage();
 	const net = saved.net!;
 	const list = lobby();
 	const online = new Set([...phones.entries()].filter(([peer]) => link?.peers.get(peer)?.open).map(([, c]) => c));
@@ -969,34 +973,40 @@ function startCustom() {
 	const from = G.SCRIPTS[ui.scriptId];
 	if (!ui.customIds.length && from) ui.customIds = from.characters.map((c) => c.id);
 	ui.scriptId = 'custom';
+	ui.customOpen = true;
 	render();
 }
 
-/**
- * Building a custom script: start from one of the standard scripts (or nothing), then
- * take characters off and put others on, a team at a time. Gold ones the app runs;
- * the rest you resolve by hand.
- */
+/** Under the script, when it is a custom one: what is on it, and the way to its own page. */
 function customPicker(): Row[] {
 	if (ui.scriptId !== 'custom') return [];
 	const teams: [string, G.Team][] = [['Townsfolk', 'townsfolk'], ['Outsiders', 'outsider'], ['Minions', 'minion'], ['Demons', 'demon']];
+	const count = (t: G.Team) => ui.customIds.filter((id) => G.CATALOG.find((c) => c.id === id)?.team === t).length;
+	return [...prose(`${ui.customIds.length} characters: ${teams.map(([l, t]) => `${count(t)} ${l}`).join(', ')}.`, 'dim'),
+		buttonBlock([btn('Edit the custom script', () => { ui.customOpen = true; render(); })])];
+}
+
+/**
+ * Building a custom script, on a page of its own: start from one of the standard scripts (or
+ * nothing), then tick characters on and off, a team at a time, a line each in two columns. Gold
+ * ones the app runs; the rest you resolve by hand.
+ */
+function customPage(): Row[] {
+	const done = () => { ui.customOpen = false; render(); };
+	const teams: [string, G.Team][] = [['Townsfolk', 'townsfolk'], ['Outsiders', 'outsider'], ['Minions', 'minion'], ['Demons', 'demon']];
 	const on = new Set(ui.customIds);
 	const toggle = (id: CharacterId) => { ui.customIds = on.has(id) ? ui.customIds.filter((x) => x !== id) : [...ui.customIds, id]; render(); };
-	const rows: Row[] = [rubric('Custom script'), ...prose('Start from a script, then change it.', 'dim'),
-		buttonBlock([...Object.values(G.SCRIPTS).map((sc) => btn(sc.name, () => { ui.customIds = sc.characters.map((c) => c.id); render(); })),
-			btn('Empty', () => { ui.customIds = []; render(); }, { style: 'quiet' })])];
+	const rows: Row[] = [...pageHead('Custom script', ['Done', done])];
+	rows.push(row(txt('Start from: ', 'dim')), ...buttonRows([...Object.values(G.SCRIPTS).map((sc) => btn(sc.name, () => { ui.customIds = sc.characters.map((c) => c.id); render(); }, { style: 'quiet' })),
+		btn('Empty', () => { ui.customIds = []; render(); }, { style: 'quiet' })]));
 	const count = (t: G.Team) => ui.customIds.filter((id) => G.CATALOG.find((c) => c.id === id)?.team === t).length;
-	rows.push(...prose(`${ui.customIds.length} characters: ${teams.map(([l, t]) => `${count(t)} ${l}`).join(', ')}. Gold ones have their rules built in.`, 'dim'));
-	// One team at a time: what is on the script (tap to take off), then what could be added.
+	rows.push(...prose(`${ui.customIds.length} on the script. Tick a name to put it on or take it off; gold ones have their rules built in.`, 'dim'));
+	// One team at a time, a line a character in two columns: those on the script first.
 	const team = ui.customTeam;
-	rows.push(endPanel(), tabStrip(teams.map(([l, t]) => ({ label: `${l.slice(0, 5)} ${count(t)}`, on: team === t, act: () => { ui.customTeam = t; render(); } }))));
-	const of = G.CATALOG.filter((c) => c.team === team);
-	rows.push(rubric('On the script: tap to take off'));
-	const mine = of.filter((c) => on.has(c.id));
-	rows.push(...(mine.length ? [buttonBlock(mine.map((c) => btn(c.name, () => toggle(c.id), { style: 'on' })))] : prose('None yet.', 'dim')));
-	rows.push(rubric('Add'));
-	rows.push(buttonBlock(of.filter((c) => !on.has(c.id)).map((c) => btn(c.name, () => toggle(c.id), { style: G.isModelled(c.id) ? 'primary' : undefined }))));
-	rows.push(endPanel());
+	rows.push(tabStrip(teams.map(([l, t]) => ({ label: `${l.slice(0, 5)} ${count(t)}`, on: team === t, act: () => { ui.customTeam = t; render(); } }))));
+	const of = G.CATALOG.filter((c) => c.team === team).sort((a, b) => Number(on.has(b.id)) - Number(on.has(a.id)) || a.name.localeCompare(b.name));
+	rows.push(...tickGrid(of.map((c) => ({ label: c.name, on: on.has(c.id), tone: G.isModelled(c.id) ? 'gold' : undefined, act: () => toggle(c.id) }))));
+	rows.push(blank(), onward('Done', done));
 	return rows;
 }
 
@@ -1135,8 +1145,7 @@ function draftCharacters(back: [string, () => void]): Row[] {
 	const teams: [string, G.Team][] = [['Townsfolk', 'townsfolk'], ['Outsiders', 'outsider'], ['Minions', 'minion'], ['Demon', 'demon']];
 	for (const [label, team] of teams) {
 		rows.push(row(txt(label, 'dim')));
-		rows.push(...buttonRows(G.charactersOfTeam(sc, team).map((c) =>
-			btn(c.name, () => tapDraftCharacter(c.id), { style: d.selected.includes(c.id) ? 'on' : undefined }))));
+		rows.push(...tickGrid(G.charactersOfTeam(sc, team).map((c) => ({ label: c.name, on: d.selected.includes(c.id), act: () => tapDraftCharacter(c.id) }))));
 	}
 	rows.push(...buttonRows([btn('Random set', randomDraft), btn('Clear', () => { flow().draft = emptyDraft(); save(); render(); }, { style: 'quiet' }), btn('What they do', () => { ui.reading = true; render(); }, { style: 'quiet' })]));
 
