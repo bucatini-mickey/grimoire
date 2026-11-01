@@ -423,7 +423,15 @@ export function quant(c: number[]): number {
 export { shade };
 export const theTerm = () => term;
 
-const lineH = (r: Row) => (r.block ? r.block.h : r.segs.some(isButton) ? 3 : 1);
+const lineH = (r: Row) => (r.cls === 'leaf-break' ? 0 : r.block ? r.block.h : r.segs.some(isButton) ? 3 : 1);
+
+/**
+ * Where the right-hand leaf begins when the book lies open on a wide screen (what comes before is the
+ * left leaf). On one leaf alone (a phone) it is nothing.
+ */
+export const leafBreak = (): Row => ({ segs: [], cls: 'leaf-break' });
+/** Whether pages are shown as the open book's two leaves (so a page can be laid out for both). */
+export const twoLeaves = () => isBook() && wideScreen() && (term?.cols ?? 0) >= 2 * (COLS + 12);
 
 /**
  * Draw a button: a ruled cartouche three lines tall. The main action is a
@@ -1202,11 +1210,16 @@ const inFrame = (r: Row | undefined) => !!r?.cls?.includes('frame-mid');
  * a long one runs on to the next page, closed by a rule at the foot of one
  * and reopened at the head of the next, so no page is left half empty.
  */
-function paginate(rows: Row[], avail: number): { from: number; to: number }[] {
+function paginate(rows: Row[], avail: number, leaves = false): { from: number; to: number }[] {
 	const pages: { from: number; to: number }[] = [];
 	let from = 0, used = 0;
 	for (let i = 0; i < rows.length; i++) {
 		const r = rows[i], h = lineH(r);
+		// The right-hand leaf starts here (on the open book only).
+		if (r.cls === 'leaf-break') {
+			if (leaves && pages.length % 2 === 0) { pages.push({ from, to: i }); from = i + 1; used = 0; }
+			continue;
+		}
 		let need = h + (inFrame(r) ? 1 : 0);
 		if (r.cls === 'frame-top') {
 			let whole = 0;
@@ -1233,10 +1246,10 @@ function drawLayer(g: Grid, key: unknown, ink: (t: Tone | undefined) => number, 
 	const top = isBook() && !sheet ? 1 : 0;
 	// ...and its page-turns stand clear of the rule at the foot.
 	const foot = isBook() && !sheet ? 2 : 0;
-	let pages = paginate(L.rows, g.rows - top);
-	if (total > g.rows - top) pages = paginate(L.rows, g.rows - top - barH - foot);
-	L.page = Math.max(0, Math.min(L.page, pages.length - 1));
 	const half = sheet ? 0 : spreadOf(g, L.width);
+	let pages = paginate(L.rows, g.rows - top, !!half);
+	if (total > g.rows - top || pages.length > 2) pages = paginate(L.rows, g.rows - top - barH - foot, !!half);
+	L.page = Math.max(0, Math.min(L.page, pages.length - 1));
 	if (half) return drawSpread(g, key, L, pages, half, top, foot, ink);
 	const x0 = Math.max(0, Math.floor((g.cols - L.width) / 2));
 	let y = top + (sheet ? 0 : illumPad(g, L.rows));
@@ -1292,6 +1305,8 @@ function illumPad(g: Grid, rows: Row[]): number {
  */
 function drawSpread(g: Grid, key: unknown, L: Layer, pages: { from: number; to: number }[], half: number, top: number, foot: number, ink: (t: Tone | undefined) => number) {
 	const multi = pages.length > 1;
+	// Two pages are the two leaves at once: no page-turns, and each leaf's foot row stays at its foot.
+	const turns = pages.length > 2;
 	L.page = multi ? L.page & ~1 : 0;
 	const leaves: [boolean, { from: number; to: number } | undefined][] = multi ? [[true, pages[L.page]], [false, pages[L.page + 1]]] : [[true, pages[0]]];
 	for (const [left, p] of leaves) {
@@ -1304,11 +1319,11 @@ function drawSpread(g: Grid, key: unknown, L: Layer, pages: { from: number; to: 
 			const t = L.rows[k].segs[0] && !isButton(L.rows[k].segs[0]) ? (L.rows[k].segs[0] as Text).t : '';
 			drawRow(g, { segs: [txt(t ? t + ' (cont.)' : '')], cls: 'frame-top' }, x0, y++, L.width, 1, ink);
 		}
-		for (let i = p.from; i < p.to; i++) { const h = lineH(L.rows[i]); if (!multi) y = pinned(L.rows[i], y, g.rows - foot); drawRow(g, L.rows[i], x0, y, L.width, h, ink); y += h; }
+		for (let i = p.from; i < p.to; i++) { const h = lineH(L.rows[i]); if (!turns) y = pinned(L.rows[i], y, g.rows - foot); drawRow(g, L.rows[i], x0, y, L.width, h, ink); y += h; }
 		if (inFrame(L.rows[p.to - 1])) drawRow(g, { segs: [], cls: 'frame-bot' }, x0, y, L.width, 1, ink);
 	}
 	pagesOf.set(key, pages.length);
-	if (!multi) return;
+	if (!turns) return;
 	const by = g.rows - 3 - foot;
 	const ctx: Ctx = { g, x: 0, y: by, w: g.cols, ink, hit: (r, fn) => g.hit(r, fn) };
 	const lx = leafText({ x: 0, w: half, mirror: true }, L.width), rx = leafText({ x: half, w: g.cols - half, mirror: false }, L.width);

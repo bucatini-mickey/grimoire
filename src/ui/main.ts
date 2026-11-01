@@ -17,7 +17,7 @@
  */
 import * as G from '../core/index.ts';
 import type { Candidate, CharacterId, Command, GameEvent, GameState, Info, SeatId, Script, Lean } from '../core/index.ts';
-import { personInk, seatInk, arrowBox, chapterRow, coverRow, footButtons, illuminatedRow, tickGrid, miniature, namePlate, navRow, tabStrip } from './ascii.ts';
+import { leafBreak, twoLeaves, personInk, seatInk, arrowBox, chapterRow, coverRow, footButtons, illuminatedRow, tickGrid, miniature, namePlate, navRow, tabStrip } from './ascii.ts';
 import { HOW_TO_PLAY, INTERACTIONS, TIPS } from '../core/codex.ts';
 import type { CodexPage } from '../core/codex.ts';
 import { bookKey, themeOf } from './theme.ts';
@@ -839,14 +839,17 @@ function codexRows(home: () => void): Row[] {
 		const arch = miniature(c.id, side, COLS);
 		if (arch) rows.push(arch);
 		rows.push(namePlate(c.name) ?? row(txt(center(c.name, INNER), 'gold', 'heading')), row(txt(center(TEAM[c.team] ?? c.team, INNER), side === 'evil' ? 'evil' : 'good')), blank());
+		const prev = sc.chars[at - 1], next = sc.chars[at + 1];
+		const back = btn(prev ? '< ' + prev.name : '< Back', prev ? to('char', { char: prev.id }) : to('list'), { style: 'quiet' });
+		const on = next ? btn(next.name + ' >', to('char', { char: next.id }), { style: 'primary' }) : undefined;
+		// The open book: the name and portrait on the left leaf, the words on the right; the way back always
+		// at the foot of the left leaf, the way on at the foot of the right, wherever the words end.
+		const wide = twoLeaves();
+		if (wide) rows.push(footButtons(back), leafBreak(), blank());
 		rows.push(rubric('Ability'), ...prose(c.ability), endPanel());
 		const tips = TIPS[c.id];
 		if (tips?.length) { rows.push(blank(), rubric('First thoughts')); for (const t of tips) rows.push(...prose(t, 'dim'), blank()); rows.push(endPanel()); }
-		const prev = sc.chars[at - 1], next = sc.chars[at + 1];
-		rows.push(blank(), footButtons(
-			btn(prev ? '< ' + prev.name : '< Back', prev ? to('char', { char: prev.id }) : to('list'), { style: 'quiet' }),
-			next ? btn(next.name + ' >', to('char', { char: next.id }), { style: 'primary' }) : undefined
-		));
+		rows.push(blank(), wide ? footButtons(undefined, on) : footButtons(back, on));
 		return rows;
 	}
 	if (cx.page === 'list') {
