@@ -34,6 +34,7 @@ import type { P, Phase, Town } from './map.ts';
 import { css, FOG, fogAt, LANTERN, sunlight, lerp, level, lightMap, lookAt, luma, mul, noise, remembered, sky, sources } from './look.ts';
 import type { Rgb } from './look.ts';
 import { audio, startVoice } from './voice.ts';
+import { FACE_H, FACE_W, FaceCam, faceGlyph, testFace } from './faces.ts';
 import type { Voice, VoiceMode } from './voice.ts';
 import CASTLE from '../../town/castle.tbp';
 import TALMBERG from '../../town/talmberg.tbp';
@@ -120,7 +121,9 @@ type Down =
 	| { t: 'place'; x: number; y: number; z?: number }
 	/** Someone asks you for a private word. */
 	| { t: 'asked'; from: string }
-	| { t: 'notice'; text: string };
+	| { t: 'notice'; text: string }
+	/** The faces this phone may see now (faces.ts): those in earshot, or everyone in the circle. */
+	| { t: 'faces'; faces: [string, string][] };
 type Up =
 	| { t: 'hello'; name: string; clientId: string }
 	| { t: 'at'; x: number; y: number; z?: number }
@@ -128,7 +131,9 @@ type Up =
 	| { t: 'ask'; to: string }
 	| { t: 'reply'; to: string; yes: boolean }
 	| { t: 'end' }
-	| { t: 'door'; cell: number; x?: number; y?: number };
+	| { t: 'door'; cell: number; x?: number; y?: number }
+	/** My face now, as cells (faces.ts); null when my camera goes off. */
+	| { t: 'face'; f: string | null };
 
 /** Walkers' inks: bright, to read on a lit map; each person gets their own. */
 export const INKS = ['#f0705a', '#86a9de', '#8fd06a', '#d09ad8', '#e8b84a', '#6ccfd2', '#f0905a', '#b0b0ff', '#d8d86a', '#f07aa0', '#7ad08a', '#e0b080', '#8ac0f0', '#e07ae0', '#7ae0c0'];
@@ -175,9 +180,13 @@ const S = {
 	cell: 20,
 	dirty: true,
 	stOpen: false,
-	sheet: null as null | 'people' | 'more',
+	sheet: null as null | 'people' | 'more' | 'faces',
 	/** Requests for a private word, waiting for an answer. */
 	asks: [] as string[],
+	/** Faces as cell frames, by person (the host: everyone's; a phone: the ones it may see). */
+	faces: new Map<string, string>(),
+	/** Faces drawn over the map (the menu's Faces page turns them off). */
+	showFaces: true,
 	/** Whose full name shows as a banner over their letter (hovered, or tapped), and until when. */
 	named: null as { id: string; until: number } | null,
 	// host only
@@ -195,6 +204,7 @@ const store = {
 	get: (k: string) => { try { return localStorage.getItem(k); } catch { return null; } },
 	set: (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* private mode */ } }
 };
+S.showFaces = store.get('grimoire.faces') !== 'off';
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 const me = () => S.people.get(S.me);
 /** The level someone is on, as a town of its own (the ground holds them all). */
@@ -280,6 +290,10 @@ function onUp(from: string, msg: Up) {
 			sendTo(p.id, { t: 'notice', text: `Talking privately with ${q.name}.` });
 		} else if (!msg.yes) sendTo(q.id, { t: 'notice', text: `${p.name} would rather not.` });
 	} else if (msg.t === 'end') endPrivate(p);
+	else if (msg.t === 'face') {
+		if (msg.f && msg.f.length === FACE_W * FACE_H && /^[0-9a-f]+$/.test(msg.f)) S.faces.set(from, msg.f);
+		else S.faces.delete(from);
+	}
 	else if (msg.t === 'door') {
 		const c = msg.cell;
 		if (msg.x !== undefined && msg.y !== undefined && walkable(t, msg.x, msg.y, p.st)) { p.x = msg.x; p.y = msg.y; }
@@ -392,6 +406,34 @@ function startTicker() {
 		last = json;
 		for (const id of S.hostWire?.peers() ?? []) sendTo(id, { t: 'people', people, locked, caption: S.caption, vote: S.vote, ring: S.ring });
 	}, 150);
+	// Faces, a few times a second, each phone only those it may see (and only when that changes).
+	const faceSent = new Map<string, string>();
+	setInterval(() => {
+		// Test villagers have drawn faces, so faces can be tried without a second phone.
+		let k = 0;
+		for (const id of S.bots.keys()) S.faces.set(id, testFace(k++, performance.now(), talking(S.people.get(id) ?? ({} as Person)) > 0.15));
+		for (const id of S.hostWire?.peers() ?? []) {
+			const r = S.people.get(id);
+			if (!r) continue;
+			const list = facesFor(r);
+			const k = JSON.stringify(list);
+			if (faceSent.get(id) === k) continue;
+			faceSent.set(id, k);
+			sendTo(id, { t: 'faces', faces: list });
+		}
+	}, 300);
+}
+
+/** The faces someone may see: their own, and those of whoever they can hear (everyone, in the circle). Not at night. */
+function facesFor(r: Person): [string, string][] {
+	const out: [string, string][] = [];
+	if (S.phase === 'night' && !r.st) return S.faces.has(r.id) ? [[r.id, S.faces.get(r.id)!]] : [];
+	for (const [id, f] of S.faces) {
+		const q = S.people.get(id);
+		if (!q) continue;
+		if (id === r.id || S.phase === 'circle' || loudness(lvl(r), r, q, S.phase) > 0) out.push([id, f]);
+	}
+	return out;
 }
 
 function setPhase(phase: Phase) {
@@ -615,6 +657,7 @@ function onPlayerDown(msg: Down) {
 		S.phase = msg.phase;
 		announcePhase();
 	} else if (msg.t === 'off') hideVillage();
+	else if (msg.t === 'faces') S.faces = new Map(msg.faces);
 	else onDown(msg);
 	S.dirty = true;
 }
@@ -858,7 +901,7 @@ function toolButtons(): Button[] {
 	if (door !== null) bs.push(btn(S.town!.locked.has(door) ? 'Unlock' : 'Lock', () => act('door')));
 	if (S.host) bs.push(btn('Menu', () => act('st-toggle'), { style: S.stOpen ? 'on' : undefined }));
 	bs.push(btn('People', () => act('people')));
-	return [...bs, ...later];
+	return [...bs, ...later, btn('Faces', () => act('faces'), { style: S.sheet === 'faces' ? 'on' : undefined })];
 }
 
 /** The bar: one row of the most wanted buttons that fit, the rest behind More. */
@@ -912,6 +955,7 @@ function villageCells(g: Grid): boolean {
 		mapCells(g, mapY, mapH, p, lvl(p), now);
 		if (S.phase === 'circle') councilCells(g, mapY, mapH, t);
 	}
+	faceStrip(g, mapY, mapH, p);
 	// The line of what you can hear, and the passing notice.
 	const where = p.with ? 'Private with ' + nameOf(p.with) + ': nobody else hears you'
 		: S.phase === 'night' ? (p.st ? 'Night: whoever is in this room hears you' : 'Night: at home. Only the Storyteller may visit')
@@ -1223,6 +1267,49 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 	}
 }
 
+/**
+ * The faces this phone may see, along the top of the map: those talking first, as many as fit, each in
+ * ASCII under its owner's name in their colour (faces.ts).
+ */
+function faceStrip(g: Grid, mapY: number, mapH: number, p: Person) {
+	if (!S.showFaces) return;
+	const list = (S.host ? facesFor(p) : [...S.faces]).filter(([id]) => S.people.has(id));
+	if (!list.length || mapH < FACE_H + 4) return;
+	list.sort((a, b) => Number(b[0] === S.me) - Number(a[0] === S.me) || talking(S.people.get(b[0])!) - talking(S.people.get(a[0])!));
+	const tw = FACE_W + 2, n = Math.max(1, Math.floor(g.cols / tw));
+	const x0 = Math.max(0, Math.floor((g.cols - Math.min(n, list.length) * tw) / 2));
+	list.slice(0, n).forEach(([id, f], k) => {
+		const q = S.people.get(id)!;
+		const x = x0 + k * tw + 1, y = mapY + 1;
+		const [pf, pb] = markOf(q);
+		const loud = talking(q) > 0.15;
+		g.fill({ x: x - 1, y: y - 1, w: tw, h: FACE_H + 2 }, ' ', 4, 0);
+		for (let yy = 0; yy < FACE_H; yy++) for (let xx = 0; xx < FACE_W; xx++) {
+			const h = parseInt(f[xx + yy * FACE_W], 16);
+			g.set(x + xx, y + yy, faceGlyph(h), h < 5 ? 3 : h < 10 ? 4 : h < 13 ? 5 : 6, 0);
+		}
+		const label = (q.id === S.me ? 'You' : q.st ? 'Storyteller' : q.name).slice(0, FACE_W);
+		g.text(x + Math.floor((FACE_W - label.length) / 2), y + FACE_H, label, pb ? 0 : pf, pb || (loud ? 6 : 0));
+		if (loud) { g.set(x - 1, y + FACE_H, '>', 6, 0); g.set(x + FACE_W, y + FACE_H, '<', 6, 0); }
+	});
+}
+
+/** This phone's camera, sending its face a few times a second while on. */
+const faceCam = new FaceCam();
+let faceTimer: ReturnType<typeof setInterval> | null = null;
+async function faceCamToggle() {
+	if (faceCam.on) {
+		faceCam.stop();
+		if (faceTimer) clearInterval(faceTimer);
+		faceTimer = null;
+		up({ t: 'face', f: null });
+	} else {
+		if (!(await faceCam.start())) { toast('No camera (or it was refused).'); return; }
+		faceTimer = setInterval(() => { const f = faceCam.frame(); if (f) up({ t: 'face', f }); }, 300);
+	}
+	drawChrome();
+}
+
 /** Wall joins by mask (1 up, 2 right, 4 down, 8 left) as CP437 line glyphs. */
 const WALL_SINGLE = [' ', '│', '─', '└', '│', '│', '┌', '├', '─', '┘', '─', '┴', '┐', '┤', '┬', '┼'];
 const WALL_DOUBLE = [' ', '║', '═', '╚', '║', '║', '╔', '╠', '═', '╝', '═', '╩', '╗', '╣', '╦', '╬'];
@@ -1317,6 +1404,12 @@ function sheetRows(): Row[] {
 		const more = barButtons(theTerm()?.cols ?? 44).more;
 		// Each choice closes the page as it is made.
 		return [close('sheet-close'), rubric('More'), ...more.map((b) => buttonBlock([btn(b.label, () => { S.sheet = null; b.act(); drawChrome(); }, { style: b.style, width: INNER })])), endPanel()];
+	}
+	if (S.sheet === 'faces') {
+		const rows: Row[] = [rubric('Faces'), ...wrap('Faces in ASCII, from each phone’s camera: you see those you can hear, and everyone in the circle. Only small frames of letters are sent, never video.', INNER).map((l) => row(txt(l, 'dim')))];
+		rows.push(buttonBlock([btn(faceCam.on ? 'My camera: on' : 'My camera: off', () => { void faceCamToggle(); }, { style: faceCam.on ? 'on' : undefined, width: INNER })]));
+		rows.push(buttonBlock([btn(S.showFaces ? 'Show faces: on' : 'Show faces: off', () => act('faces-show'), { style: S.showFaces ? 'on' : undefined, width: INNER })]));
+		return [close('sheet-close'), ...rows, endPanel()];
 	}
 	if (S.sheet === 'people') {
 		const others = [...S.people.values()].filter((q) => q.id !== S.me).sort((a, b) => Number(!!b.st) - Number(!!a.st) || a.name.localeCompare(b.name));
@@ -1491,6 +1584,8 @@ function act(a: string, id = '') {
 			break;
 		}
 		case 'people': S.sheet = S.sheet === 'people' ? null : 'people'; S.stOpen = false; drawChrome(); break;
+		case 'faces': S.sheet = S.sheet === 'faces' ? null : 'faces'; S.stOpen = false; drawChrome(); break;
+		case 'faces-show': S.showFaces = !S.showFaces; store.set('grimoire.faces', S.showFaces ? 'on' : 'off'); drawChrome(); break;
 		case 'more': S.sheet = S.sheet === 'more' ? null : 'more'; S.stOpen = false; drawChrome(); break;
 		case 'sheet-close': S.sheet = null; drawChrome(); break;
 		case 'ask': up({ t: 'ask', to: id }); S.sheet = null; drawChrome(); break;
@@ -1755,3 +1850,6 @@ export function villageOnPhone(wire: PlayerWire, extra: () => Extra[]) {
 		choose: (title: string, options: { id: string; label: string }[], pick: (id: string) => void) => { S.choice = { title, options, pick }; S.sheet = null; drawChrome(); }
 	};
 }
+
+// For trying things from the browser's console (dev mode): __village.act('bot'), __village.act('phase-circle').
+(globalThis as { __village?: unknown }).__village = { act, S };

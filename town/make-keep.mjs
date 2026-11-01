@@ -108,7 +108,6 @@ for (const [x0, x1] of north) chamber(F1, x0, 33, x1, 43, 'n');
 chamber(F1, 2, 15, 15, 22, 'e'); chamber(F1, 2, 22, 15, 30, 'e');
 chamber(F1, 44, 15, 57, 22, 'w'); chamber(F1, 44, 22, 57, 30, 'w');
 for (const [x, y] of [[16, 13], [43, 13], [16, 32], [43, 32]]) F1.thing(x, y, 'candle', 'floor wood');
-label(3, 13, 'Gallery');
 
 // ---- the second floor: the solar, the lord's chambers, bedchambers, the roof walk ----
 F2.fill(3, 13, 56, 14, 'floor wood');
@@ -125,11 +124,8 @@ F2.room(2, 33, 30, 43, 'stone block', 'carpet');
 F2.thing(16, 33, 'door', 'floor carpet');
 for (let x = 4; x <= 28; x += 3) F2.thing(x, 42, 'bookshelf', 'floor carpet');
 for (const [x, y, k] of [[10, 37, 'table'], [11, 37, 'table'], [20, 37, 'table'], [21, 37, 'table'], [4, 35, 'brazier'], [28, 35, 'candle']]) F2.thing(x, y, k, 'floor carpet');
-label(3, 44, 'Solar');
 chamber(F2, 30, 33, 57, 43, 'n', { floor: 'carpet', extra: [[40, 38, 'rug'], [50, 35, 'bookshelf']] });
-label(31, 44, 'Lord\'s Chambers');
 for (const [x, y] of [[16, 13], [43, 13], [16, 32], [43, 32]]) F2.thing(x, y, 'candle', P.on(2).get(x, y)?.split('|')[0].trim());
-label(18, 31, 'Roof Walk');
 // The stairs from the first floor on up (drawn last, over the second floor's corridors).
 F1.stair(43, 14, 'wood');
 F1.stair(16, 31, 'wood');

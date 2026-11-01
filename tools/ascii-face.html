@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ASCII Face</title>
+<!--
+	ascii-face.html - the webcam as moving ASCII in character cells, the way Grimoire's village shows faces.
+	No libraries, nothing sent anywhere: open this file in a browser and allow the camera.
+
+	Each frame: the middle of the picture is cropped square, mirrored, and shrunk to a grid of cells (a cell
+	is twice as tall as it is wide, so the grid has half as many rows as columns). Each cell's brightness is
+	stretched to the frame's own range (so a dim room still reads), sharpened a little, then drawn as a glyph
+	from a ramp (dense glyphs for bright cells) in an ink of the same brightness. The grid is drawn the way
+	pterm draws (src/term/pterm.ts): a <pre>, one row of runs of same-coloured cells at a time.
+
+	In the game a face is sent as these cells (one hex digit each, about a hundred bytes a frame), not video.
+	No camera? It falls back to a moving test picture so the drawing can still be seen.
+-->
+<style>
+	:root { --bg: #15110d; --ink: #e9dcc0; --rule: #8a6a3a; --dim: #8d7f68; }
+	html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: 'Cascadia Mono', Consolas, 'DejaVu Sans Mono', monospace; }
+	body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; overflow: hidden; }
+	pre { margin: 0; line-height: 1.2; white-space: pre; user-select: none; }
+	#bar { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; max-width: 96vw; }
+	button { font: inherit; font-size: 14px; background: #241b12; color: var(--ink); border: 1px solid var(--rule); padding: 4px 10px; cursor: pointer; }
+	button.on { background: var(--rule); color: var(--bg); }
+	#note { color: var(--dim); font-size: 12px; text-align: center; max-width: 92vw; }
+	video, canvas { display: none; }
+</style>
+</head>
+<body>
+<pre id="face" aria-label="Your face drawn in ASCII"></pre>
+<div id="bar"></div>
+<div id="note">Starting the camera...</div>
+<video id="cam" playsinline muted></video>
+<canvas id="cv"></canvas>
+<script>
+'use strict';
+/** Glyphs from dark to bright: plain ASCII, denser as the cell gets brighter. */
+const RAMP = ' .,:;-=+*oa#%@';
+/** Inks from dark to bright (candlelit vellum), one per level. */
+const INKS = ['#1e1813', '#3a2d20', '#57412b', '#735634', '#8f6c3f', '#a8824c', '#bd975c', '#cfac72', '#dcbf8a', '#e6cfa2', '#efdcb8', '#f6e8cc', '#fbf1dd', '#fffaf0'];
+const LEVELS = RAMP.length;
+
+const S = { cols: 48, colour: true, invert: false, sharpen: true, fps: 12, test: false };
+const pre = document.getElementById('face'), note = document.getElementById('note');
+const video = document.getElementById('cam'), cv = document.getElementById('cv'), cx = cv.getContext('2d', { willReadFrequently: true });
+
+/** Shrink the middle square of the source to cols x rows brightness values in 0..1 (mirrored, like a mirror). */
+function sample(src, sw, sh, cols, rows) {
+	cv.width = cols; cv.height = rows;
+	const side = Math.min(sw, sh), sx = (sw - side) / 2, sy = (sh - side) / 2;
+	cx.save();
+	cx.translate(cols, 0); cx.scale(-1, 1);
+	cx.drawImage(src, sx, sy, side, side, 0, 0, cols, rows);
+	cx.restore();
+	const px = cx.getImageData(0, 0, cols, rows).data;
+	const v = new Float32Array(cols * rows);
+	for (let i = 0; i < v.length; i++) v[i] = (0.3 * px[i * 4] + 0.59 * px[i * 4 + 1] + 0.11 * px[i * 4 + 2]) / 255;
+	return v;
+}
+
+/** Brightness to levels: stretched to the frame's own 3rd..97th percentile, a little sharpened. */
+function levels(v, cols, rows) {
+	const sorted = Float32Array.from(v).sort();
+	const lo = sorted[Math.floor(v.length * 0.03)], hi = sorted[Math.floor(v.length * 0.97)];
+	const span = Math.max(0.08, hi - lo);
+	const out = new Uint8Array(v.length);
+	for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+		const i = x + y * cols;
+		let b = (v[i] - lo) / span;
+		if (S.sharpen) {
+			let s = 0, n = 0;
+			for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+				const xx = x + dx, yy = y + dy;
+				if (xx >= 0 && yy >= 0 && xx < cols && yy < rows) { s += (v[xx + yy * cols] - lo) / span; n++; }
+			}
+			b += (b - s / n) * 0.6;
+		}
+		b = Math.min(1, Math.max(0, b));
+		if (S.invert) b = 1 - b;
+		out[i] = Math.round(Math.pow(b, 0.9) * (LEVELS - 1));
+	}
+	return out;
+}
+
+/** Draw a grid of levels as cells: runs of the same ink in one span, a row at a time (as pterm does). */
+function draw(lv, cols, rows) {
+	const esc = (c) => (c === '<' ? '&lt;' : c === '>' ? '&gt;' : c === '&' ? '&amp;' : c);
+	const out = [];
+	for (let y = 0; y < rows; y++) {
+		let line = '', run = '', ink = -1;
+		const flush = () => { if (run) line += S.colour ? `<span style="color:${INKS[ink]}">${run}</span>` : run; run = ''; };
+		for (let x = 0; x < cols; x++) {
+			const k = lv[x + y * cols];
+			if (k !== ink) { flush(); ink = k; }
+			run += esc(RAMP[k]);
+		}
+		flush();
+		out.push(line);
+	}
+	pre.innerHTML = out.join('\n');
+}
+
+/** A cell frame as the game sends it: one hex digit a cell (levels squeezed into 0..15). */
+const encode = (lv) => Array.from(lv, (k) => Math.round((k * 15) / (LEVELS - 1)).toString(16)).join('');
+
+/** Fit the font so the grid fills most of the window. */
+function fit(cols, rows) {
+	const w = innerWidth * 0.94, h = (innerHeight - 110) * 0.98;
+	const font = Math.max(4, Math.min(w / (cols * 0.6), h / (rows * 1.2)));
+	pre.style.fontSize = font.toFixed(1) + 'px';
+}
+
+/** No camera: a face-like test picture, moving, so the drawing can be seen anyway. */
+const test = document.createElement('canvas');
+function testFrame(t) {
+	test.width = 160; test.height = 160;
+	const g = test.getContext('2d');
+	const grd = g.createRadialGradient(70 + Math.sin(t / 900) * 20, 60, 10, 80, 80, 110);
+	grd.addColorStop(0, '#fff'); grd.addColorStop(1, '#000');
+	g.fillStyle = grd; g.fillRect(0, 0, 160, 160);
+	g.fillStyle = '#e8d0b0'; g.beginPath(); g.ellipse(80, 82, 42, 54, 0, 0, Math.PI * 2); g.fill();
+	g.fillStyle = '#2a1a10';
+	const blink = (t / 3200) % 1 < 0.05 ? 1 : 7;
+	for (const ex of [64, 96]) { g.beginPath(); g.ellipse(ex + Math.sin(t / 700) * 3, 70, 7, blink, 0, 0, Math.PI * 2); g.fill(); }
+	g.beginPath(); g.ellipse(80, 112, 14, 4 + Math.abs(Math.sin(t / 300)) * 6, 0, 0, Math.PI * 2); g.fill();
+	g.fillStyle = '#3a2614'; g.fillRect(36, 22, 88, 18);
+	return test;
+}
+
+let last = 0, bytes = 0;
+function frame(t) {
+	requestAnimationFrame(frame);
+	if (t - last < 1000 / S.fps) return;
+	last = t;
+	const cols = S.cols, rows = Math.round(cols / 2);
+	const live = !S.test && video.readyState >= 2;
+	const v = live ? sample(video, video.videoWidth, video.videoHeight, cols, rows) : sample(testFrame(t), 160, 160, cols, rows);
+	const lv = levels(v, cols, rows);
+	draw(lv, cols, rows);
+	fit(cols, rows);
+	bytes = encode(lv).length;
+	note.textContent = `${live ? 'Camera' : 'Test picture (no camera)'} · ${cols}x${rows} cells · ${S.fps} frames a second · about ${bytes} bytes a frame as the game would send it, nothing leaves this page`;
+}
+
+function bar() {
+	const el = document.getElementById('bar');
+	el.innerHTML = '';
+	const b = (label, on, act) => { const x = document.createElement('button'); x.textContent = label; if (on) x.className = 'on'; x.onclick = () => { act(); bar(); }; el.appendChild(x); };
+	for (const c of [20, 32, 48, 64, 96]) b(c + ' cols', S.cols === c, () => { S.cols = c; });
+	b('Ink', S.colour, () => { S.colour = !S.colour; });
+	b('Invert', S.invert, () => { S.invert = !S.invert; });
+	b('Sharpen', S.sharpen, () => { S.sharpen = !S.sharpen; });
+	for (const f of [6, 12, 24]) b(f + ' fps', S.fps === f, () => { S.fps = f; });
+	b('Test picture', S.test, () => { S.test = !S.test; });
+}
+
+async function start() {
+	bar();
+	requestAnimationFrame(frame);
+	try {
+		const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240, facingMode: 'user' }, audio: false });
+		video.srcObject = stream;
+		await video.play();
+	} catch (e) {
+		S.test = true;
+		bar();
+		note.textContent = 'No camera (' + (e && e.name || 'refused') + '): showing a test picture.';
+	}
+}
+start();
+</script>
+</body>
+</html>
