@@ -688,10 +688,9 @@ function gameSummary(): string {
 	return `${p.kind === 'night' ? 'Night' : 'Day'} ${p.n} · ${state.seats.length} players`;
 }
 
-/** Throw away the saved game (and its room). */
-function endSaved() {
-	link?.close();
-	link = null;
+/** Throw away the saved game (and its room, unless a new room is about to take its phones). */
+function endSaved(keepLine = false) {
+	if (!keepLine) { link?.close(); link = null; }
 	saved = { events: [], marks: [], settings: saved.settings, flow: freshFlow(saved.settings) };
 	state = G.replay([]);
 	save();
@@ -699,10 +698,29 @@ function endSaved() {
 	render();
 }
 
+/**
+ * Let go of the old room for a new one. Phones still in the old room are told where the new
+ * game is, so players who left the page open follow the Storyteller into it.
+ */
+function moveRoom(): string {
+	const room = newRoomCode();
+	const old = link;
+	if (old) for (const peer of old.peers.keys()) old.send(peer, { t: 'moved', room });
+	link = null;
+	village?.stop();
+	village = null;
+	phones.clear();
+	lastSent.clear();
+	// The old room stays open a while to send on any phone that was asleep and comes back to it.
+	if (old) { movedTo.set(old, room); setTimeout(() => { movedTo.delete(old); old.close(); }, 20 * 60_000); }
+	return room;
+}
+/** Rooms let go of for a new game, and the room each now sends its phones on to. */
+const movedTo = new Map<HostLink, string>();
+
 /** An in-person game where each player's own phone is linked: a room, then the grimoire. */
 function hostTable() {
-	link?.close();
-	saved = { events: [], marks: [], settings: saved.settings, flow: freshFlow(saved.settings), net: { room: newRoomCode(), claims: {}, village: false } };
+	saved = { events: [], marks: [], settings: saved.settings, flow: freshFlow(saved.settings), net: { room: moveRoom(), claims: {}, village: false } };
 	state = G.replay([]);
 	save();
 	go('#grimoire');
@@ -710,8 +728,7 @@ function hostTable() {
 
 /** A new online game: a fresh room and its lobby. */
 function hostNew() {
-	link?.close();
-	saved = { events: [], marks: [], settings: saved.settings, flow: freshFlow(saved.settings), net: { room: newRoomCode(), claims: {}, village: true, lobby: [] } };
+	saved = { events: [], marks: [], settings: saved.settings, flow: freshFlow(saved.settings), net: { room: moveRoom(), claims: {}, village: true, lobby: [] } };
 	state = G.replay([]);
 	save();
 	go('#host');
@@ -846,7 +863,8 @@ function storytellerLeaf(busy: boolean, back: () => void): Row[] {
 		const sure = ui.confirm === key;
 		rows.push(buttonBlock([btn(sure ? 'End the game going and start?' : title, () => {
 			if (busy && !sure) { ui.confirm = key; render(); return; }
-			if (busy) endSaved();
+			// Phones in the old room follow into a new one (moveRoom), so the line stays up for that.
+			if (busy) endSaved(start === hostTable || start === hostNew);
 			start();
 		}, { style: sure ? 'danger' : undefined, width: INNER })]), ...prose(sure ? 'Your current game will end. Tap again.' : sub, 'dim'), blank());
 	};
@@ -2751,11 +2769,12 @@ function startHosting(room = saved.net?.room ?? newRoomCode()) {
 	if (!saved.net || saved.net.room !== room) saved.net = { room, claims: saved.net?.claims ?? {}, village: saved.net?.village };
 	save();
 	link?.close();
-	link = hostRoom(room, {
-		message: fromPhone,
-		joined: () => render(),
-		left: (peer) => { phones.delete(peer); lastSent.delete(peer); render(); },
+	const me: HostLink = hostRoom(room, {
+		message: (peer, msg) => { if (movedTo.has(me)) me.send(peer, { t: 'moved', room: movedTo.get(me)! }); else fromPhone(peer, msg); },
+		joined: (peer) => { if (movedTo.has(me)) me.send(peer, { t: 'moved', room: movedTo.get(me)! }); else render(); },
+		left: (peer) => { if (me !== link) return; phones.delete(peer); lastSent.delete(peer); render(); },
 		status: (st, detail) => {
+			if (me !== link) return;
 			linkStatus = st;
 			linkDetail = detail ?? '';
 			// Our code is still held (this phone reloaded and the broker has not let go yet):
@@ -2771,6 +2790,7 @@ function startHosting(room = saved.net?.room ?? newRoomCode()) {
 			render();
 		}
 	});
+	link = me;
 	linkStatus = 'connecting';
 	if (saved.net?.village) villageOn();
 	render();

@@ -57,6 +57,8 @@ export type HostMsg =
 	| { t: 'note'; text: string }
 	/** Mode 2 inside the game: the village (see src/town/village.ts). */
 	| { t: 'village'; m: VillageDown }
+	/** The Storyteller began a new game in a new room: follow them there. */
+	| { t: 'moved'; room: string }
 	/** Who is in the room so far, in seating order; `you` is this phone's place in it. */
 	| { t: 'lobby'; names: string[]; you: number | null; peers?: string[] };
 

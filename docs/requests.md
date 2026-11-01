@@ -2,6 +2,36 @@
 
 Asked for by the user, not yet built. Newest first; tick off (move to "Done") as they land.
 
+## 2026-11-01 (playtest of a Trouble Brewing game with friends)
+
+**Maps: small enough to find people**
+- Ravensburg's castle town is too big. Go back to a smaller castle town, after Talmberg in Kingdom Come: Deliverance (reference: `references/grimoire-maps/talmberg-kcd-reference.webp`: one compact walled keep with two round towers, a dry moat with a bridge, a small walled upper village of a dozen houses, woods and a stream around). Every map follows the same idea: it should never be hard to find people.
+- The user is tempted to drop the village part and use a **castle interior map of 3 levels** instead (auto stairs). Build it.
+- **Dev mode**: walk any map alone as the Storyteller or as a player, without a game.
+- The round table: rounder, more like a table. One character's name was drawn far off in the distance (a label bug).
+- Keep a real (perhaps smaller) table in the map, but at the nomination/voting stage everyone moves to a **liminal zone** around the table: a shared meeting room where everyone discusses and votes together, in essence a larger-scale version of the map's table with a blank surround and more styling; a space of its own, free to hold the timer, the clock hands and other styling, everything more refined and better looking; if there is room, names in a more stylised gothic lettering.
+
+**Look**
+- Desktop: the cells are too small for the screen. Zoom in (bigger cells, fewer columns, so smaller details read).
+- Lighting is too shabby: go back to a brighter system, still atmospheric but less moody.
+- Reveals need flair: a death shows the name in large gothic word art; the same for the winning team.
+- Hovering (or tapping) a player's letter shows their full name as a banner in their colour. Each player keeps that colour everywhere: the grimoire circle, the circle and other views.
+
+**Players' menu** (like the Storyteller's, without roles)
+- The circle with names, at any time.
+- The script's characters and their abilities.
+- Their own character, with portrait and ability.
+- On their own circle: their guesses, notes and statuses (private to them).
+- A setup option: a log of the information each player has received, which they can read back.
+
+**Village**
+- Remove the bell (redundant).
+- Private chat request with anyone; once accepted, a private waypoint or direction marker helps the two find each other.
+- **Faces in ASCII**: players' webcam faces as moving ASCII, tied to proximity chat (shown for people in earshot), always shown in the circle; an option in the menu. First a standalone example program the user can test themselves.
+
+**Bug**
+- Players had left the page open. The Storyteller made a new game and it did not take the players with it: they should follow the host into the new game. **Done:** the old room tells its phones the new room's code and they rejoin it under the same name; it stays open 20 minutes for phones that were asleep.
+
 ## 2026-10-25
 
 **Where things stand** (2026-10-25, evening): everything below is built. Still open:

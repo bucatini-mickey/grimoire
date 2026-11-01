@@ -169,6 +169,13 @@ function receive(msg: HostMsg) {
 			P.lobbyYou = msg.you;
 			lobbyVoice.setPeers(msg.peers ?? []);
 			break;
+		case 'moved':
+			// A new game in a new room: follow the Storyteller (a fresh page, the same name).
+			P.link?.close();
+			try { localStorage.setItem(ROOM_KEY, msg.room); } catch { /* fine */ }
+			location.hash = '#join=' + msg.room;
+			location.reload();
+			return;
 		case 'denied':
 			P.message = msg.reason;
 			break;
