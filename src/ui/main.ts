@@ -859,6 +859,8 @@ function codexRows(home: () => void): Row[] {
 		for (const [label, team] of TEAMS) {
 			const of = sc.chars.filter((c) => c.team === team);
 			if (!of.length) continue;
+			// The open book: the good on the left leaf, the evil and the rest on the right.
+			if (team === 'minion' && twoLeaves()) rows.push(leafBreak());
 			rows.push(blank(), rubric(label), ...buttonRows(of.map((c) => btn(c.name, to('char', { char: c.id })))), endPanel());
 		}
 		return rows;
@@ -1345,6 +1347,7 @@ function readingPage(): Row[] {
 	for (const [label, team] of teams) {
 		const of = chars.filter((c) => c.team === team);
 		if (!of.length) continue;
+		if (team === 'minion' && twoLeaves()) rows.push(leafBreak());
 		rows.push(blank(), rubric(label));
 		for (const c of of) rows.push(row(txt(c.name, toneFor(c.id))), ...prose(c.ability, 'dim'));
 	}
