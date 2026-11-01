@@ -1255,12 +1255,13 @@ function illumPad(g: Grid, rows: Row[]): number {
 
 /**
  * The book lying open on a wide screen: a long page's pages two at a time, left leaf and right, the
- * page-turns at the foot of each; a short page on the right-hand leaf.
+ * page-turns at the foot of each; a short page on the left-hand leaf, so the writing never jumps
+ * from one leaf to the other as a page grows or shrinks.
  */
 function drawSpread(g: Grid, key: unknown, L: Layer, pages: { from: number; to: number }[], half: number, top: number, foot: number, ink: (t: Tone | undefined) => number) {
 	const multi = pages.length > 1;
 	L.page = multi ? L.page & ~1 : 0;
-	const leaves: [boolean, { from: number; to: number } | undefined][] = multi ? [[true, pages[L.page]], [false, pages[L.page + 1]]] : [[false, pages[0]]];
+	const leaves: [boolean, { from: number; to: number } | undefined][] = multi ? [[true, pages[L.page]], [false, pages[L.page + 1]]] : [[true, pages[0]]];
 	for (const [left, p] of leaves) {
 		if (!p) continue;
 		const x0 = leafText({ x: left ? 0 : half, w: left ? half : g.cols - half, mirror: left }, L.width);
@@ -1864,14 +1865,14 @@ function frame(g: Grid) {
 		const half = spreadOf(g, top.width);
 		if (half) {
 			// The book open: a long page runs on from the left leaf to the right; a short one is written on
-			// the right, and the left faces it with its pictures alone.
+			// the left, and the right faces it with its pictures alone.
 			const pages = total > g.rows - off ? paginate(top.rows, g.rows - off - 5) : null;
 			const pl = pages ? Math.max(0, Math.min(top.page, pages.length - 1)) & ~1 : 0;
 			const usedOf = (p?: { from: number; to: number }) => { if (!p) return 0; let u = off + (inFrame(top.rows[p.from]) ? 1 : 0); for (let i = p.from; i < p.to; i++) u += lineH(top.rows[i]); return u; };
 			const r = pages ? 5 : 0;
 			ground(g, top.width, used, reserve, top.sig, [
-				{ x: 0, w: half, mirror: true, used: pages ? usedOf(pages[pl]) : 0, reserve: r, seed: top.sig + '<' },
-				{ x: half, w: g.cols - half, mirror: false, used: pages ? usedOf(pages[pl + 1]) : used, reserve: r, seed: top.sig }
+				{ x: 0, w: half, mirror: true, used: pages ? usedOf(pages[pl]) : used, reserve: r, seed: top.sig + '<' },
+				{ x: half, w: g.cols - half, mirror: false, used: pages ? usedOf(pages[pl + 1]) : 0, reserve: r, seed: top.sig }
 			]);
 		} else ground(g, top.width, used, reserve, top.sig);
 	}
