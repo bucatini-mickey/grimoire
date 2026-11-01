@@ -14,7 +14,12 @@
 	from a ramp (dense glyphs for bright cells) in an ink of the same brightness. The grid is drawn the way
 	pterm draws (src/term/pterm.ts): a <pre>, one row of runs of same-coloured cells at a time.
 
-	In the game a face is sent as these cells (one hex digit each, about a hundred bytes a frame), not video.
+	Shape glyphs (on by default, as in the game, src/town/faces.ts): each cell is sampled twice, its top and
+	bottom halves, and the glyph is picked by where the light falls in the cell (' " ` high, . , o low) as
+	well as how much: twice the detail from the same cells. "Game size" is the 12x6 face the village shows.
+	"Real picture" puts the camera's own picture beside the letters, to compare.
+
+	In the game a face is sent as these samples (one hex digit each, 144 bytes a frame), not video.
 	No camera? It falls back to a moving test picture so the drawing can still be seen.
 -->
 <style>
@@ -26,14 +31,16 @@
 	button { font: inherit; font-size: 14px; background: #241b12; color: var(--ink); border: 1px solid var(--rule); padding: 4px 10px; cursor: pointer; }
 	button.on { background: var(--rule); color: var(--bg); }
 	#note { color: var(--dim); font-size: 12px; text-align: center; max-width: 92vw; }
-	video, canvas { display: none; }
+	canvas { display: none; }
+	#row { display: flex; gap: 16px; align-items: center; justify-content: center; }
+	video { display: none; width: 240px; transform: scaleX(-1); border: 1px solid var(--rule); }
+	video.shown { display: block; }
 </style>
 </head>
 <body>
-<pre id="face" aria-label="Your face drawn in ASCII"></pre>
+<div id="row"><pre id="face" aria-label="Your face drawn in ASCII"></pre><video id="cam" playsinline muted></video></div>
 <div id="bar"></div>
 <div id="note">Starting the camera...</div>
-<video id="cam" playsinline muted></video>
 <canvas id="cv"></canvas>
 <script>
 'use strict';
@@ -43,7 +50,17 @@ const RAMP = ' .,:;-=+*oa#%@';
 const INKS = ['#1e1813', '#3a2d20', '#57412b', '#735634', '#8f6c3f', '#a8824c', '#bd975c', '#cfac72', '#dcbf8a', '#e6cfa2', '#efdcb8', '#f6e8cc', '#fbf1dd', '#fffaf0'];
 const LEVELS = RAMP.length;
 
-const S = { cols: 48, colour: true, invert: false, sharpen: true, fps: 12, test: false };
+const S = { cols: 12, colour: true, invert: false, sharpen: true, fps: 12, test: false, shape: true, real: false };
+/** The game's way (faces.ts faceCell): a cell from its top and bottom halves, levels 0..15. */
+const DENSE = ' .:-=+*#%@';
+function shapeCell(t, b) {
+	const level = Math.max(t, b);
+	if (level < 2) return [' ', level];
+	const d = t - b;
+	if (d >= 5) return [t >= 11 ? '"' : t >= 7 ? "'" : '`', level];
+	if (d <= -5) return [b >= 11 ? 'o' : b >= 7 ? ',' : '.', level];
+	return [DENSE[Math.round(((t + b) / 30) * (DENSE.length - 1))], level];
+}
 const pre = document.getElementById('face'), note = document.getElementById('note');
 const video = document.getElementById('cam'), cv = document.getElementById('cv'), cx = cv.getContext('2d', { willReadFrequently: true });
 
@@ -108,7 +125,7 @@ const encode = (lv) => Array.from(lv, (k) => Math.round((k * 15) / (LEVELS - 1))
 
 /** Fit the font so the grid fills most of the window. */
 function fit(cols, rows) {
-	const w = innerWidth * 0.94, h = (innerHeight - 110) * 0.98;
+	const w = innerWidth * 0.94 - (S.real ? 260 : 0), h = (innerHeight - 110) * 0.98;
 	const font = Math.max(4, Math.min(w / (cols * 0.6), h / (rows * 1.2)));
 	pre.style.fontSize = font.toFixed(1) + 'px';
 }
@@ -130,6 +147,25 @@ function testFrame(t) {
 	return test;
 }
 
+/** Shape glyphs: sample twice as many rows, then draw each cell from its two halves. */
+function drawShaped(src, sw, sh, cols, rows) {
+	const v = sample(src, sw, sh, cols, rows * 2);
+	const lv = levels(v, cols, rows * 2);
+	const h = (k) => Math.round((k * 15) / (LEVELS - 1));
+	const esc = (c) => (c === '<' ? '&lt;' : c === '>' ? '&gt;' : c === '&' ? '&amp;' : c === '"' ? '&quot;' : c);
+	const out = [];
+	for (let y = 0; y < rows; y++) {
+		let line = '';
+		for (let x = 0; x < cols; x++) {
+			const [ch, level] = shapeCell(h(lv[x + 2 * y * cols]), h(lv[x + (2 * y + 1) * cols]));
+			line += S.colour ? `<span style="color:${INKS[Math.round((level * (LEVELS - 1)) / 15)]}">${esc(ch)}</span>` : esc(ch);
+		}
+		out.push(line);
+	}
+	pre.innerHTML = out.join('\n');
+	return lv.length;
+}
+
 let last = 0, bytes = 0;
 function frame(t) {
 	requestAnimationFrame(frame);
@@ -137,11 +173,15 @@ function frame(t) {
 	last = t;
 	const cols = S.cols, rows = Math.round(cols / 2);
 	const live = !S.test && video.readyState >= 2;
-	const v = live ? sample(video, video.videoWidth, video.videoHeight, cols, rows) : sample(testFrame(t), 160, 160, cols, rows);
-	const lv = levels(v, cols, rows);
-	draw(lv, cols, rows);
+	const [src, sw, sh] = live ? [video, video.videoWidth, video.videoHeight] : [testFrame(t), 160, 160];
+	if (S.shape) bytes = drawShaped(src, sw, sh, cols, rows);
+	else {
+		const lv = levels(sample(src, sw, sh, cols, rows), cols, rows);
+		draw(lv, cols, rows);
+		bytes = encode(lv).length;
+	}
 	fit(cols, rows);
-	bytes = encode(lv).length;
+	video.className = S.real && live ? 'shown' : '';
 	note.textContent = `${live ? 'Camera' : 'Test picture (no camera)'} · ${cols}x${rows} cells · ${S.fps} frames a second · about ${bytes} bytes a frame as the game would send it, nothing leaves this page`;
 }
 
@@ -149,7 +189,10 @@ function bar() {
 	const el = document.getElementById('bar');
 	el.innerHTML = '';
 	const b = (label, on, act) => { const x = document.createElement('button'); x.textContent = label; if (on) x.className = 'on'; x.onclick = () => { act(); bar(); }; el.appendChild(x); };
+	b('Game size (12x6)', S.cols === 12, () => { S.cols = 12; });
 	for (const c of [20, 32, 48, 64, 96]) b(c + ' cols', S.cols === c, () => { S.cols = c; });
+	b('Shape glyphs', S.shape, () => { S.shape = !S.shape; });
+	b('Real picture', S.real, () => { S.real = !S.real; });
 	b('Ink', S.colour, () => { S.colour = !S.colour; });
 	b('Invert', S.invert, () => { S.invert = !S.invert; });
 	b('Sharpen', S.sharpen, () => { S.sharpen = !S.sharpen; });

@@ -34,7 +34,7 @@ import type { P, Phase, Town } from './map.ts';
 import { css, FOG, fogAt, LANTERN, sunlight, lerp, level, lightMap, lookAt, luma, mul, noise, remembered, sky, sources } from './look.ts';
 import type { Rgb } from './look.ts';
 import { audio, startVoice } from './voice.ts';
-import { FACE_H, FACE_W, FaceCam, faceGlyph, testFace } from './faces.ts';
+import { FACE_H, FACE_SAMPLES, FACE_W, FaceCam, cellOf, testFace } from './faces.ts';
 import type { Voice, VoiceMode } from './voice.ts';
 import CASTLE from '../../town/castle.tbp';
 import TALMBERG from '../../town/talmberg.tbp';
@@ -291,7 +291,7 @@ function onUp(from: string, msg: Up) {
 		} else if (!msg.yes) sendTo(q.id, { t: 'notice', text: `${p.name} would rather not.` });
 	} else if (msg.t === 'end') endPrivate(p);
 	else if (msg.t === 'face') {
-		if (msg.f && msg.f.length === FACE_W * FACE_H && /^[0-9a-f]+$/.test(msg.f)) S.faces.set(from, msg.f);
+		if (msg.f && msg.f.length === FACE_SAMPLES && /^[0-9a-f]+$/.test(msg.f)) S.faces.set(from, msg.f);
 		else S.faces.delete(from);
 	}
 	else if (msg.t === 'door') {
@@ -1274,24 +1274,28 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 function faceStrip(g: Grid, mapY: number, mapH: number, p: Person) {
 	if (!S.showFaces) return;
 	const list = (S.host ? facesFor(p) : [...S.faces]).filter(([id]) => S.people.has(id));
-	if (!list.length || mapH < FACE_H + 4) return;
+	if (!list.length || mapH < FACE_H + 2) return;
 	list.sort((a, b) => Number(b[0] === S.me) - Number(a[0] === S.me) || talking(S.people.get(b[0])!) - talking(S.people.get(a[0])!));
-	const tw = FACE_W + 2, n = Math.max(1, Math.floor(g.cols / tw));
-	const x0 = Math.max(0, Math.floor((g.cols - Math.min(n, list.length) * tw) / 2));
+	// Small, docked at the right edge of the map, one under another: as many as fit, the rest counted.
+	const tw = FACE_W + 1, th = FACE_H + 1;
+	const n = Math.max(1, Math.floor((mapH - (list.length * th > mapH ? 1 : 0)) / th));
+	const x = g.cols - FACE_W;
 	list.slice(0, n).forEach(([id, f], k) => {
 		const q = S.people.get(id)!;
-		const x = x0 + k * tw + 1, y = mapY + 1;
+		const y = mapY + k * th;
 		const [pf, pb] = markOf(q);
 		const loud = talking(q) > 0.15;
-		g.fill({ x: x - 1, y: y - 1, w: tw, h: FACE_H + 2 }, ' ', 4, 0);
+		g.fill({ x: x - 1, y, w: tw, h: th }, ' ', 4, 0);
 		for (let yy = 0; yy < FACE_H; yy++) for (let xx = 0; xx < FACE_W; xx++) {
-			const h = parseInt(f[xx + yy * FACE_W], 16);
-			g.set(x + xx, y + yy, faceGlyph(h), h < 5 ? 3 : h < 10 ? 4 : h < 13 ? 5 : 6, 0);
+			const c = cellOf(f, xx, yy);
+			g.set(x + xx, y + yy, c.ch, c.level < 6 ? 3 : c.level < 10 ? 4 : c.level < 13 ? 5 : 6, 0);
 		}
+		// The name under it, in their colour; a gold mark beside it while they talk.
 		const label = (q.id === S.me ? 'You' : q.st ? 'Storyteller' : q.name).slice(0, FACE_W);
-		g.text(x + Math.floor((FACE_W - label.length) / 2), y + FACE_H, label, pb ? 0 : pf, pb || (loud ? 6 : 0));
-		if (loud) { g.set(x - 1, y + FACE_H, '>', 6, 0); g.set(x + FACE_W, y + FACE_H, '<', 6, 0); }
+		g.text(x + Math.floor((FACE_W - label.length) / 2), y + FACE_H, label, pb ? 0 : pf, pb);
+		if (loud) g.set(x - 1, y + FACE_H, '>', 6, 0);
 	});
+	if (list.length > n) g.text(x, mapY + n * th, `+${list.length - n} more`.slice(0, FACE_W), 3, 0);
 }
 
 /** This phone's camera, sending its face a few times a second while on. */

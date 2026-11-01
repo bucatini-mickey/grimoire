@@ -211,9 +211,12 @@ export function lightMap(t: Town, srcs: Source[]): Uint8ClampedArray {
 export function level(t: Town, sk: Uint8Array, dyn: Uint8ClampedArray, day: Rgb, x: number, y: number): Rgb {
 	// Flames tell in the dark; by day a torch is a small thing beside the sky.
 	const flame = 1.3 * (1 - Math.min(0.7, (day[0] + day[1] + day[2]) / 3));
+	// Every room has windows: no floor is ever darker than this share of the daylight, and upstairs
+	// (lofts and chambers reached only by a stair, which no daylight flood reaches) more.
+	const least = t.z > 0 ? 0.75 : 0.4;
 	const sample = (i: number): Rgb => {
 		// Daylight carries well through doorways: rooms are dim, not black.
-		const s = (sk[i] / SKY_MAX) ** 1.2;
+		const s = Math.max(least, (sk[i] / SKY_MAX) ** 1.2);
 		return [0, 1, 2].map((c) => s * day[c] + (dyn[i * 3 + c] / 255) * flame) as Rgb;
 	};
 	let l: Rgb;

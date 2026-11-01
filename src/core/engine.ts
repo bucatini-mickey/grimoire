@@ -1030,7 +1030,7 @@ function checkWin(tx: Tx, ctx: { demonExecuted?: boolean } = {}) {
 	}
 	// Travellers do not count: a Traveller and two others alive, and evil has won.
 	const alive = s.seats.filter((x) => (x.alive || x.undead) && !x.traveller).length;
-	if (alive <= 2) {
+	if (alive <= 1) {
 		return emit(tx, { type: 'game-over', winner: 'evil', reason: 'Only two players are left alive.' });
 	}
 }
