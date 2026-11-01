@@ -320,6 +320,17 @@ const order: unknown[] = [];
 let dynamic: (d: Record<string, string>) => string | null = () => null;
 let paletteKey: () => string = () => 'manuscript-night';
 /** Anything drawn after the page layers (the village, set by main). */
+/**
+ * Each player's colour, by their place round the circle, the same on the map, the circle and the grimoire:
+ * [ink, ground]. The first seven are bright inks on the ground; the rest dark letters on a plate of colour.
+ */
+const PERSON: [number, number][] = [[8, 0], [12, 0], [10, 0], [14, 0], [6, 0], [7, 0], [5, 0], [0, 8], [0, 12], [0, 10], [0, 14], [0, 7], [0, 5], [0, 4], [4, 0]];
+export const personInk = (k: number): [number, number] => PERSON[((k % PERSON.length) + PERSON.length) % PERSON.length];
+/** A player's colour as one ink (the plate's, for those drawn on a plate). */
+export const seatInk = (k: number) => { const [f, b] = personInk(k); return b || f; };
+let hoverFn: ((cell: { x: number; y: number } | null) => void) | null = null;
+/** Where the mouse is over the grid (the village shows a name there). */
+export const setHover = (f: typeof hoverFn) => { hoverFn = f; };
 let extra: ((g: Grid) => boolean) | null = null;
 
 /** A leaf of the book (by day, or by candlelight at night): written on, not boxed. Over the town map
@@ -987,7 +998,7 @@ export function centredButtons(buttons: Button[], width = COLS, gap = 2): Row[] 
 }
 
 /** A name written large in the textura, at the left like the writing; null when it will not fit in `width` or has letters the face lacks. */
-export function letteredRow(word: string, width: number): Row | null {
+export function letteredRow(word: string, width: number, ink?: number, centred = false): Row | null {
 	const gl = texturaGlyphs(word);
 	if (!gl) return null;
 	const w = gl.reduce((k, g) => k + g.px[0].length + 1, -1);
@@ -997,10 +1008,10 @@ export function letteredRow(word: string, width: number): Row | null {
 		const at: (number | null)[][] = Array.from({ length: 12 }, () => Array(w).fill(null));
 		let x = 0;
 		for (const g of gl) {
-			g.px.forEach((r, y) => [...r].forEach((p, i) => { if (p === '#') at[y][x + i] = g.cap ? 8 : 4; }));
+			g.px.forEach((r, y) => [...r].forEach((p, i) => { if (p === '#') at[y][x + i] = g.cap ? (ink === 8 ? 6 : 8) : ink ?? 4; }));
 			x += g.px[0].length + 1;
 		}
-		const ox = c.x + 2;
+		const ox = centred ? c.x + Math.max(0, Math.floor((c.w - w) / 2)) : c.x + 2;
 		for (let y = 0; y < 12; y += 2) for (let i = 0; i < w; i++) {
 			const t = at[y][i], b = at[y + 1][i];
 			if (t === null && b === null) continue;
@@ -1862,6 +1873,9 @@ function frame(g: Grid) {
 	// The cover wants a margin of leather round its page: a few more columns (a touch smaller type).
 	// The cover is a picture, drawn fine: many more columns (small cells, two pixels each).
 	// A book on a wide screen lies open: room for two leaves.
+	// The town on a desktop: bigger cells, fewer of them, so its small things read.
+	if (extra && extraShown()) term!.setScale(34, 26);
+	else term!.setScale(22, 40);
 	term!.setCols(key === 'cover' ? (wideScreen() ? 184 : 84) : key.startsWith('folio') ? (wideScreen() ? 2 * (COLS + 12) : COLS + 12) : key === 'leather' ? COLS + 6 : COLS);
 	document.body.style.background = term!.palette[0];
 	document.documentElement.style.background = term!.palette[0];
@@ -1922,6 +1936,7 @@ function ensureTerm(): Term {
 		// Enough rows that a page holds a whole screen of the grimoire on a desktop too.
 		rows: 40,
 		onDraw: (t) => frame(t),
+		onHover: (c) => hoverFn?.(c),
 		onKey: (k) => {
 			for (let i = order.length - 1; i >= 0; i--) {
 				const L = layers.get(order[i]);

@@ -10,6 +10,8 @@ import type { VillageDown, VillageUp } from '../town/village.ts';
 export interface Announcement {
 	title: string;
 	lines: string[];
+	/** Words lettered large in the textura (a name that died, the winning team), each in its ink. */
+	big?: { text: string; ink: number }[];
 }
 
 /** A running clock, so phones can count down without a message every second. */

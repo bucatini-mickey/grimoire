@@ -10,14 +10,14 @@
  */
 import { navRow } from './ascii.ts';
 import { bookKey, themeOf } from './theme.ts';
-import { COLS, INNER, illuminatedRow, blank, blockRow, boxRow, btn, buttonBlock, buttonRows, center, endPanel, field, frameBottom, frameTop, listRow, paint, paneled, pad, redraw, row, rubric, setDynamic, setPalette, txt, wrap } from './ascii.ts';
+import { personInk, COLS, INNER, illuminatedRow, blank, blockRow, boxRow, btn, buttonBlock, buttonRows, center, endPanel, field, frameBottom, frameTop, listRow, paint, paneled, pad, redraw, row, rubric, setDynamic, setPalette, txt, wrap } from './ascii.ts';
 import type { Row } from './ascii.ts';
 import { joinRoom } from '../net/link.ts';
 import type { LinkStatus, PlayerLink } from '../net/link.ts';
 import type { Announcement, ClockView, HostMsg, VoteView } from '../net/protocol.ts';
 import type { CharacterCard, PublicView, Wake } from '../net/views.ts';
 import type { SeatId } from '../core/index.ts';
-import { CARD_COLS, CARD_INNER, big, cardButtons, characterRows, nextPage, note, wakeRows } from './wakepages.ts';
+import { CARD_COLS, CARD_INNER, big, cardButtons, characterRows, nextPage, note, revealRows, wakeRows } from './wakepages.ts';
 import type { Page } from './wakepages.ts';
 import * as T from './timer.ts';
 import { villageOnPhone } from '../town/village.ts';
@@ -314,7 +314,9 @@ function ring(): Row[] {
 			const fg = s.alive ? 4 : 3, bg = mine ? 1 : 0;
 			const cut = (t: string) => [...t].slice(0, tw).join('');
 			c.g.fill({ x, y, w: tw, h: 3 }, ' ', fg, bg);
-			c.g.text(x, y, cut((s.alive ? '☺' : '†') + s.name), mine ? 6 : fg, bg);
+			// Each player's name in their own colour (the same as their letter in the village).
+			const [pf, pb] = personInk(i);
+			c.g.text(x, y, cut((s.alive ? '☺' : '†') + s.name), !s.alive ? fg : pf, !s.alive ? bg : pb || bg);
 			c.g.text(x, y + 1, cut(role), reveal ? (P.card!.team === 'evil' ? 8 : 12) : fg, bg);
 			if (!s.alive && !s.ghostVote) c.g.text(x, y + 2, cut('no vote'), 3, bg);
 		});
@@ -370,13 +372,7 @@ function screen(): Row[] {
 
 function overlay(): Row[] {
 	if (P.announce) {
-		const rows: Row[] = [blank()];
-		for (const a of P.announce) {
-			rows.push(rubric(a.title));
-			for (const l of a.lines) rows.push(...wrap(l, CARD_INNER - 2).map((w) => row(txt('  ' + w, 'gold', 'heading'))));
-		}
-		rows.push(endPanel(), blank(), ...cardButtons([btn('Done', () => { P.announce = null; render(); }, { style: 'primary' })]));
-		return rows;
+		return [blank(), ...revealRows(P.announce), blank(), ...cardButtons([btn('Done', () => { P.announce = null; render(); }, { style: 'primary' })])];
 	}
 	if (P.cardOpen && !P.wake) return characterRows(P.card, btn('Hide', () => { P.cardOpen = false; render(); }, { style: 'primary' }));
 	const w = P.wake;

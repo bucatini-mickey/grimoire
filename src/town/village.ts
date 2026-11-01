@@ -22,7 +22,7 @@
  * is talking privately and which doors are locked; each phone moves its own
  * walker and asks the host for the rest.
  */
-import { INNER, onMap, btn, buttonBlock, buttonRows, drawButton, endPanel, field, isButton, listRow, paint, quant, redraw, shade, theTerm, paneled, setPalette, navRow, rubric, row, segWidth, setExtra, txt, wrap, center } from '../ui/ascii.ts';
+import { personInk, setHover, INNER, onMap, btn, buttonBlock, buttonRows, drawButton, endPanel, field, isButton, listRow, paint, quant, redraw, shade, theTerm, paneled, setPalette, navRow, rubric, row, segWidth, setExtra, txt, wrap, center } from '../ui/ascii.ts';
 import type { Button, Row } from '../ui/ascii.ts';
 import type { Grid } from '../term/pterm.ts';
 import { hostRoom, joinRoom, newRoomCode } from '../net/link.ts';
@@ -178,6 +178,8 @@ const S = {
 	sheet: null as null | 'people' | 'more',
 	/** Requests for a private word, waiting for an answer. */
 	asks: [] as string[],
+	/** Whose full name shows as a banner over their letter (hovered, or tapped), and until when. */
+	named: null as { id: string; until: number } | null,
 	// host only
 	clients: new Map<string, string>(),
 	bots: new Map<string, { route: P[]; rest: number }>(),
@@ -203,8 +205,7 @@ const nameOf = (id: string | null | undefined) => (id && S.people.get(id)?.name)
  * seven are bright letters on the dark; the rest are dark letters on a plate of colour, so
  * fifteen people never share a look.
  */
-const PERSON: [number, number][] = [[8, 0], [12, 0], [10, 0], [14, 0], [6, 0], [7, 0], [5, 0], [0, 8], [0, 12], [0, 10], [0, 14], [0, 7], [0, 5], [0, 4], [4, 0]];
-const personInk = (k: number): [number, number] => PERSON[((k % PERSON.length) + PERSON.length) % PERSON.length];
+
 const markOf = (q: Person): [number, number] => (q.st ? [6, 0] : personInk(q.ink));
 const glyphOf = (q: Person) => (q.st ? '✦' : q.name[0]?.toUpperCase() ?? '?');
 const privateAllowed = (from: Person) => S.phase === 'day' || S.phase === 'dusk' || (!!from.st && S.phase === 'night');
@@ -953,6 +954,43 @@ function looksFor(t: Town, locks: string) {
 /** Tap to walk: the cell under a tap in the map. */
 let view = { x0: 0, y0: 0 };
 
+/** Who stands at a screen cell of the map, as last drawn (on my level), if anyone. */
+function personAtScreen(sx: number, sy: number): Person | null {
+	const p = me();
+	if (!p || !S.town) return null;
+	const x = view.x0 + Math.floor(sx / CW), y = view.y0 + sy;
+	for (const q of S.people.values()) {
+		const d = shownAt.get(q.id) ?? q;
+		if ((q.z ?? 0) === (p.z ?? 0) && Math.round(d.x) === x && Math.round(d.y) === y) return q;
+	}
+	return null;
+}
+setHover((c) => {
+	const q = c && shown ? personAtScreen(c.x, c.y) : null;
+	const id = q?.id ?? null;
+	if ((S.named?.id ?? null) === id) return;
+	S.named = id ? { id, until: Infinity } : null;
+	S.dirty = true;
+});
+
+/** The banner over a person's letter: their whole name, on a plate of their colour. */
+function nameBanner(g: Grid, mapY: number, mapH: number, x0: number, y0: number) {
+	const n = S.named;
+	if (!n || n.until < performance.now()) { S.named = null; return; }
+	const q = S.people.get(n.id);
+	if (!q) return;
+	const d = shownAt.get(q.id) ?? q;
+	const sx = (Math.round(d.x) - x0) * CW, sy = Math.round(d.y) - y0;
+	if (sy < 0 || sy >= mapH) return;
+	const text = ' ' + (q.st ? 'Storyteller' : q.name) + (q.dead ? ' (dead)' : '') + ' ';
+	const [fg, bg] = markOf(q);
+	const ink = bg || fg;
+	const bx = Math.max(0, Math.min(g.cols - text.length, sx + 1 - Math.floor(text.length / 2)));
+	const by = mapY + (sy > 1 ? sy - 2 : sy + 2);
+	g.text(bx, by, text, ink === 0 || ink === 1 ? 4 : 0, ink);
+	g.set(bx + Math.floor(text.length / 2), by + (sy > 1 ? 1 : -1), sy > 1 ? 'v' : '^', ink, 0);
+}
+
 /**
  * A town cell is two columns wide, so it is square on screen and square buildings look
  * square: the glyph, then a second column that carries a wall's line on, or a little texture.
@@ -987,6 +1025,9 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 	g.hit({ x: 0, y: mapY, w: cols, h: mapH }, (sx, sy) => {
 		audio();
 		const cell = { x: x0 + Math.floor(sx / CW), y: y0 + (sy - mapY) };
+		// Tapping someone shows their whole name over them, in their colour.
+		const who = personAtScreen(sx, sy);
+		if (who && who.id !== S.me) { S.named = { id: who.id, until: performance.now() + 2500 }; setTimeout(redraw, 2550); S.dirty = true; return; }
 		// Tapping the stair you stand on takes it.
 		if (cell.x === p.x && cell.y === p.y && stairGoes(at(t, p.x, p.y))) { stairFrom.delete(p.id); climb(p); sendPos(p); S.dirty = true; return; }
 		const i = cell.x + cell.y * t.w;
@@ -1162,6 +1203,7 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 			g.set(sx + (dx > 0 && !onScreen ? -1 : 1), mapY + ey, arrow, ink, 0);
 		}
 	}
+	nameBanner(g, mapY, mapH, x0, y0);
 	if (S.route.length) {
 		const goal = S.route[S.route.length - 1];
 		for (let k = 0; k < CW; k++) {
@@ -1203,7 +1245,8 @@ function councilCells(g: Grid, mapY: number, mapH: number, t: Town) {
 		// Never more than a step or two from the seat itself (a label far from its seat reads as someone else's).
 		const ax = sx + (ux > 0 ? 2 : -1) * (Math.abs(ux) >= 0.4 ? 1 : 0), ay = sy + (Math.abs(ux) < 0.4 ? Math.sign(uy) : 0);
 		const lx = Math.abs(ux) < 0.4 ? sx + 1 - Math.floor(label.length / 2) : ux < 0 ? ax - label.length + 1 : ax;
-		g.text(lx, ay, label, r.dead ? 3 : v?.nominee === r.seat ? 8 : 5, 0);
+		const [pf, pb] = personInk(r.seat);
+		g.text(lx, ay, label, r.dead ? 3 : v?.nominee === r.seat ? 8 : pf, r.dead || v?.nominee === r.seat ? 0 : pb);
 	}
 	if (S.caption.length) {
 		const w = Math.min(g.cols - 2, Math.max(...S.caption.map((l) => l.length)) + 4);
@@ -1500,7 +1543,7 @@ function wire() {
 }
 
 /** The demo: #village. */
-export function startVillage(_appRoot: HTMLElement, code: string) {
+export function startVillage(_appRoot: HTMLElement, code: string, town?: string, as?: string) {
 	// Walking the town alone: the lobby a leaf of the town's own book by candlelight; the map in its own inks.
 	setPalette(() => bookKey(themeOfTown(S.townText), true));
 	document.body.classList.add('in-village');
@@ -1509,6 +1552,8 @@ export function startVillage(_appRoot: HTMLElement, code: string) {
 	lobbyCode = code;
 	lobbyCodeIn = code;
 	lobbyName = store.get('grimoire.villageName') ?? '';
+	if (as) store.set('grimoire.devAs', as);
+	if (town && TOWN_TEXT[town]) { openVillage(town); return; }
 	drawChrome();
 }
 

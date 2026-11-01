@@ -17,7 +17,7 @@
  */
 import * as G from '../core/index.ts';
 import type { Candidate, CharacterId, Command, GameEvent, GameState, Info, SeatId, Script, Lean } from '../core/index.ts';
-import { arrowBox, chapterRow, coverRow, footButtons, illuminatedRow, tickGrid, miniature, namePlate, navRow, tabStrip } from './ascii.ts';
+import { personInk, seatInk, arrowBox, chapterRow, coverRow, footButtons, illuminatedRow, tickGrid, miniature, namePlate, navRow, tabStrip } from './ascii.ts';
 import { HOW_TO_PLAY, INTERACTIONS, TIPS } from '../core/codex.ts';
 import type { CodexPage } from '../core/codex.ts';
 import { bookKey, themeOf } from './theme.ts';
@@ -29,13 +29,13 @@ import * as T from './timer.ts';
 import * as V from '../net/views.ts';
 import { hostRoom, newRoomCode } from '../net/link.ts';
 import type { HostLink, LinkStatus } from '../net/link.ts';
-import type { ClockView, HostMsg, PlayerMsg, VoteView } from '../net/protocol.ts';
+import type { Announcement, ClockView, HostMsg, PlayerMsg, VoteView } from '../net/protocol.ts';
 import { startPlayer } from './player.ts';
 
 import { INKS, startVillage, villageForGame } from '../town/village.ts';
 import { AMNESIAC_IDEAS, savantPair, savantStatements } from './helpers.ts';
 import type { Extra, StActions, VillageHost } from '../town/village.ts';
-import { CARD_COLS, CARD_INNER, big, cardButtons, handBackRows, handOverRows, nextPage, note, wakeRows } from './wakepages.ts';
+import { CARD_COLS, CARD_INNER, big, cardButtons, handBackRows, handOverRows, nextPage, note, revealRows, wakeRows } from './wakepages.ts';
 import type { Page } from './wakepages.ts';
 
 // ---- saved data -------------------------------------------------------------
@@ -238,10 +238,7 @@ function clearPicks() {
 	ui.charPick = null;
 }
 
-interface Banner {
-	title: string;
-	lines: string[];
-}
+type Banner = Announcement;
 
 /** Run a command. On refusal, show why; if it needs a decision, remember it. */
 function act(cmd: Command): boolean {
@@ -289,11 +286,13 @@ function actAll(cmds: Command[]): boolean {
 function announce(prev: GameState, events: GameEvent[], next: GameState): Banner[] | null {
 	const out: Banner[] = [];
 	const nm = (id: SeatId) => next.seats[id]?.name ?? '?';
+	// A death is written large in the dead player's own colour; the winners in their team's ink.
+	const named = (id: SeatId) => ({ text: nm(id), ink: seatInk(Math.max(0, next.order.indexOf(id))) });
 	for (const e of events) {
 		switch (e.type) {
 			case 'day-began': {
 				const dead = prev.night?.deaths ?? [];
-				out.push({ title: `Day ${e.n} dawns`, lines: dead.length ? dead.map((d) => `${nm(d)} died in the night.`) : ['Nobody died in the night.'] });
+				out.push({ title: `Day ${e.n} dawns`, lines: dead.length ? dead.map((d) => `${nm(d)} died in the night.`) : ['Nobody died in the night.'], big: dead.map(named) });
 				break;
 			}
 			case 'vote-tallied': {
@@ -309,14 +308,14 @@ function announce(prev: GameState, events: GameEvent[], next: GameState): Banner
 				const died = events.some((x) => x.type === 'died' && x.seat === e.seat);
 				out.push(virgin
 					? { title: 'The Virgin!', lines: [`${nm(e.seat)} nominated the Virgin.`, `${nm(e.seat)} is executed and dies.`] }
-					: { title: 'Execution', lines: [`${nm(e.seat)} is executed.`, died ? `${nm(e.seat)} dies.` : `${nm(e.seat)} was already dead.`] });
+					: { title: 'Execution', lines: [`${nm(e.seat)} is executed.`, died ? `${nm(e.seat)} dies.` : `${nm(e.seat)} was already dead.`], big: died ? [named(e.seat)] : [] });
 				break;
 			}
 			case 'slayer-shot':
-				out.push({ title: 'The Slayer', lines: [`${nm(e.by)} shoots ${nm(e.target)}.`, e.hit ? `${nm(e.target)} dies.` : 'Nothing happens.'] });
+				out.push({ title: 'The Slayer', lines: [`${nm(e.by)} shoots ${nm(e.target)}.`, e.hit ? `${nm(e.target)} dies.` : 'Nothing happens.'], big: e.hit ? [named(e.target)] : [] });
 				break;
 			case 'game-over':
-				out.push({ title: e.winner === 'good' ? 'Good wins' : 'Evil wins', lines: [e.reason] });
+				out.push({ title: e.winner === 'good' ? 'Good wins' : 'Evil wins', lines: [e.reason], big: [{ text: e.winner === 'good' ? 'Good' : 'Evil', ink: e.winner === 'good' ? 12 : 8 }, { text: 'wins', ink: e.winner === 'good' ? 12 : 8 }] });
 				break;
 		}
 	}
@@ -329,11 +328,7 @@ function announce(prev: GameState, events: GameEvent[], next: GameState): Banner
 
 function bannerRows(): Row[] {
 	const rows: Row[] = [blank()];
-	for (const b of ui.banner!) {
-		rows.push(rubric(b.title));
-		for (const l of b.lines) rows.push(...wrap(l, CARD_INNER - 2).map((w) => row(txt('  ' + w, 'gold', 'heading'))));
-	}
-	rows.push(endPanel(), blank(), ...cardButtons([btn('Done', () => { ui.banner = null; render(); }, { style: 'primary' })]));
+	rows.push(...revealRows(ui.banner!), blank(), ...cardButtons([btn('Done', () => { ui.banner = null; render(); }, { style: 'primary' })]));
 	return rows;
 }
 
@@ -498,7 +493,10 @@ function table(look: (id: SeatId) => SeatLook, centre: string[] = [], title = 'T
 				const cut = (t: string, w: number) => [...t].slice(0, w).join('');
 				const mid = (t: string, w: number) => x + Math.max(0, Math.floor((w - [...t].length) / 2));
 				const nm = cut((s.alive ? '' : '†') + s.name, tw);
-				c.g.text(mid(nm, tw), y, nm, on ? 6 : s.alive ? (lit ? 6 : 5) : 3);
+				// Each player's name in their own colour (the same as their letter in the village).
+				const [pf, pb] = personInk(i);
+				if (on || lit || !s.alive) c.g.text(mid(nm, tw), y, nm, on ? 6 : s.alive ? 6 : 3);
+				else c.g.text(mid(nm, tw), y, nm, pf, pb);
 				c.g.fill({ x, y: y + 1, w: tw, h: 1 }, ' ', 4, disc);
 				c.g.set(x, y + 1, lit ? '»' : '(', rim, disc);
 				c.g.set(x + tw - 1, y + 1, lit ? '«' : ')', rim, disc);
@@ -3106,9 +3104,10 @@ setInterval(tick, 250);
 
 // A player's phone (#join=CODE, or "Join a game") runs the player app instead.
 const joining = location.hash.match(/^#join(?:=([A-Za-z]{4}))?/);
-const villageDemo = location.hash.match(/^#village(?:=([A-Za-z]{4}))?/);
+// Dev mode: #village:keep (or :keep:player) walks that town straight away.
+const villageDemo = location.hash.match(/^#village(?:=([A-Za-z]{4}))?(?::(\w+))?(?::(st|player))?/);
 if (villageDemo) {
-	startVillage(root, (villageDemo[1] ?? '').toUpperCase());
+	startVillage(root, (villageDemo[1] ?? '').toUpperCase(), villageDemo[2], villageDemo[3]);
 } else if (joining) {
 	startPlayer(root, cardRoot, (joining[1] ?? '').toUpperCase());
 } else if ((location.hash === '#host' && saved.net?.village) || location.hash === '#grimoire') {

@@ -79,7 +79,7 @@ const KINDS: Record<string, Kind> = {
 const DOUBLE = ['■', '║', '═', '╚', '║', '║', '╔', '╠', '═', '╝', '═', '╩', '╗', '╣', '╦', '╬'];
 const SINGLE = ['o', '│', '─', '└', '│', '│', '┌', '├', '─', '┘', '─', '┴', '┐', '┤', '┬', '┼'];
 
-const SKY_MAX = 15, FALLOFF = 14, FALLOFF_DIAG = 20, AMBIENT = 0.05;
+const SKY_MAX = 15, FALLOFF = 10, FALLOFF_DIAG = 14, AMBIENT = 0.12;
 /** A walker's lantern after dark. */
 export const LANTERN: Rgb = [230, 190, 120];
 
@@ -100,8 +100,8 @@ export function daylight(hour: number): Rgb {
 }
 export const HOUR: Record<Phase, number> = { day: 12, dusk: 17.7, circle: 17.7, night: 0 };
 
-/** The village's weather: a grey, low-clouded day, a deep dusk, a dark night, so the torches tell. */
-const MOOD: Record<Phase, Rgb> = { day: [0.58, 0.6, 0.68], dusk: [0.5, 0.42, 0.46], circle: [0.5, 0.42, 0.46], night: [0.4, 0.45, 0.65] };
+/** The village's weather: a fair, bright day, a warm dusk, a moonlit night in which the torches still tell. */
+const MOOD: Record<Phase, Rgb> = { day: [0.98, 0.97, 0.96], dusk: [0.86, 0.74, 0.72], circle: [0.86, 0.74, 0.72], night: [0.9, 1, 1.35] };
 
 /** The fog's own colour by phase: grey-green by day, bruised at dusk, near black at night. */
 export const FOG: Record<Phase, Rgb> = { day: [64, 70, 74], dusk: [46, 38, 46], circle: [46, 38, 46], night: [10, 12, 18] };
@@ -122,8 +122,8 @@ export function noise(x: number, y: number, k = 0): number {
  * town, rolling slowly with time.
  */
 export function fogAt(t: Town, x: number, y: number, from: { x: number; y: number }, phase: Phase, ms: number): number {
-	const near = phase === 'night' ? 1.5 : phase === 'day' ? 4 : 3;
-	const far = phase === 'night' ? 9 : phase === 'day' ? 17 : 12;
+	const near = phase === 'night' ? 3 : phase === 'day' ? 8 : 5;
+	const far = phase === 'night' ? 14 : phase === 'day' ? 28 : 19;
 	const d = Math.hypot(x - from.x, y - from.y);
 	const drift = noise(x * 0.18 + ms * 0.00011, y * 0.24 - ms * 0.00004) * 0.6 + noise(x * 0.07 - ms * 0.00005, y * 0.09, 5) * 0.4;
 	const edge = Math.min(x, y, t.w - 1 - x, t.h - 1 - y);
@@ -212,7 +212,8 @@ export function level(t: Town, sk: Uint8Array, dyn: Uint8ClampedArray, day: Rgb,
 	// Flames tell in the dark; by day a torch is a small thing beside the sky.
 	const flame = 1.3 * (1 - Math.min(0.7, (day[0] + day[1] + day[2]) / 3));
 	const sample = (i: number): Rgb => {
-		const s = (sk[i] / SKY_MAX) ** 2;
+		// Daylight carries well through doorways: rooms are dim, not black.
+		const s = (sk[i] / SKY_MAX) ** 1.2;
 		return [0, 1, 2].map((c) => s * day[c] + (dyn[i * 3 + c] / 255) * flame) as Rgb;
 	};
 	let l: Rgb;
@@ -235,7 +236,7 @@ export const luma = (c: Rgb) => 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2];
 
 /** Seen before but not now: grey and dim (Tachyon's remembered()). */
 export function remembered(fg: Rgb, bg: Rgb): [Rgb, Rgb] {
-	const fl = luma(fg) * 0.32 + 18, bl = luma(bg) * 0.18;
+	const fl = luma(fg) * 0.42 + 26, bl = luma(bg) * 0.24;
 	return [[fl, fl, fl * 1.15], [bl, bl, bl * 1.2]];
 }
 
