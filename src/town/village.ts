@@ -1371,18 +1371,18 @@ let looping = false;
 function lobbyRows(): Row[] {
 	const rows: Row[] = [navRow('Home', () => act('back')), rubric('The Village'), ...prose('Walk the town on your own phone. Talk to whoever is near you: voices fade with distance and stop at walls.', 'dim')];
 	if (!lobbyCode) {
-		// One town for each script's look.
-		// The towns, a row for each look: medieval, grimm, clockwork, Lovecraftian.
-		THEMES.forEach((th, k) => {
+		// The towns, a row for each look, named quietly above it: all alike, none the main one.
+		const LOOK: Record<string, string> = { medieval: 'Medieval', grimm: 'Grimm fairy tale', clockwork: 'Clockwork London', lovecraft: 'Lovecraftian' };
+		THEMES.forEach((th) => {
 			const ts = TOWN_LIST.filter((t) => t.theme === th);
-			rows.push(buttonBlock(ts.map((t) => btn(t.name, () => { audio(); openVillage(t.key); }, { style: k ? undefined : 'primary', width: ts.length === 1 ? INNER : undefined }))));
+			rows.push(row(txt(LOOK[th] ?? th, 'dim')), buttonBlock(ts.map((t) => btn(t.name, () => { audio(); openVillage(t.key); }))));
 		});
 		rows.push(row(txt(center('or join one', INNER), 'dim')));
 	}
 	rows.push(field('v-name', 'Your name', lobbyName, (v) => { lobbyName = v.trim(); store.set('grimoire.villageName', lobbyName); drawChrome(); }, 14, 'tap to type'),
 		field('v-code', 'Village code', lobbyCodeIn, (v) => { lobbyCodeIn = v.trim().toUpperCase(); drawChrome(); }, 4, 'four letters'));
 	if (lobbyMsg) rows.push(row(txt(lobbyMsg, 'rubric')));
-	rows.push(buttonBlock([btn('Join', () => act('join'), { style: lobbyCode ? 'primary' : undefined })]));
+	rows.push(buttonBlock([btn('Join', () => act('join'), { style: 'primary' })]));
 	return rows;
 }
 let inLobby = false, lobbyCode = '', lobbyName = '', lobbyCodeIn = '', lobbyMsg = '';
@@ -1446,7 +1446,7 @@ function act(a: string, id = '') {
 		case 'bot': addBot(); break;
 		case 'st-toggle': S.stOpen = !S.stOpen; S.sheet = null; drawChrome(); break;
 		case 'town-castle': case 'town-hamlet': case 'town-abbey': case 'town-grimm': case 'town-whitechapel': case 'town-victorian': case 'town-liner': {
-			const key = id.slice(5), info = TOWN_LIST.find((t) => t.key === key)!;
+			const key = a.slice(5), info = TOWN_LIST.find((t) => t.key === key)!;
 			store.set('grimoire.townOf.' + info.theme, key);
 			changeTown(TOWN_TEXT[key]);
 			drawChrome();
