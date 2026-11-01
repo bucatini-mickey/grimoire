@@ -10,18 +10,28 @@
 	Edge (double-click the file is fine) and allow the camera. No camera? Open a video file, or use the
 	moving test picture.
 
-	The drawing, as in the game (src/town/faces.ts): the picture is cropped square (zoom and height below),
-	mirrored, and shrunk to a grid of samples, two per cell (a cell is twice as tall as wide, so its top half
-	and bottom half are sampled apart). The samples are stretched between a black point and a white point
-	(percentiles of the frame, so a dim room still reads), bent by gamma, sharpened, and squeezed to 16
-	levels (one hex digit each: what the game sends). Each cell's glyph comes from its two halves: when one
-	half is much brighter than the other (the shape threshold), a glyph whose ink sits high (` ' ") or low
-	(. , o) in the cell; otherwise a glyph from the density ramp. Its ink is the brighter half's level.
+	Finding the face (so the few cells go on the face, not the room):
+	  - the browser's own face detector where it has one (Chrome's FaceDetector, often behind a flag);
+	  - with tracking off, a click on your face pins the crop there (the Crop slider sets its size): most
+	    people sit still at a webcam, and a backlit face often has too little colour to track;
+	  - otherwise skin tone: every pixel of a small copy of the picture is tested in YCbCr (skin sits in a
+	    narrow band of Cb and Cr whatever its brightness), the largest patch of skin near where the face was
+	    last is taken as the face, and the crop follows it smoothly. "Margin" widens it to take in the head.
+	    Click your face on the camera view: that teaches it your skin's colour under this light and puts the
+	    crop there; after that it looks only near where the face was, so a skin-coloured wall cannot win.
+	Exposing for the face: the black and white points are read from the face's oval only, so a bright
+	window behind you no longer sets them. Fading the background: cells outside the oval fade to the ground.
+
+	The drawing, as in the game (src/town/faces.ts): the crop is mirrored and shrunk to a grid of samples,
+	two per cell (a cell is twice as tall as wide, so its top and bottom halves are sampled apart), stretched
+	between the black and white points, bent by gamma, sharpened, and squeezed to 16 levels (one hex digit
+	each: what the game sends). A cell's glyph comes from its two halves: ink high (` ' ") or low (. , o)
+	when one half is much brighter (the shape threshold), otherwise from the density ramp.
 
 	"Copy settings" gives the numbers to paste back to Claude, to make them the game's.
 -->
 <style>
-	:root { --bg: #15110d; --panel: #1f1812; --ink: #e9dcc0; --rule: #8a6a3a; --dim: #8d7f68; --accent: #c9a25a; }
+	:root { --bg: #15110d; --panel: #1f1812; --ink: #e9dcc0; --rule: #8a6a3a; --dim: #8d7f68; --accent: #c9a25a; --track: #6fcf8f; }
 	* { box-sizing: border-box; }
 	html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: 'Cascadia Mono', Consolas, 'DejaVu Sans Mono', monospace; }
 	body { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 12px; padding: 12px 16px; }
@@ -31,9 +41,9 @@
 	pre { margin: 0; line-height: 1.2; white-space: pre; user-select: none; }
 	#game { font-size: 16px; padding: 6px 8px; border: 1px solid var(--rule); background: #0d0a08; }
 	.cap { color: var(--dim); font-size: 11px; text-align: center; }
-	video { display: none; width: 220px; transform: scaleX(-1); border: 1px solid var(--rule); }
-	video.shown { display: block; }
-	canvas { display: none; }
+	#peek { width: 240px; border: 1px solid var(--rule); cursor: crosshair; }
+	#peek[hidden] { display: none; }
+	#cv, #an { display: none; }
 	#panel { background: var(--panel); border: 1px solid var(--rule); padding: 10px 12px; overflow-y: auto; font-size: 12px; display: flex; flex-direction: column; gap: 8px; }
 	#panel h2 { margin: 0; font-size: 13px; color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase; }
 	label.s { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; align-items: center; }
@@ -43,20 +53,23 @@
 	button { font: inherit; font-size: 12px; background: #241b12; color: var(--ink); border: 1px solid var(--rule); padding: 4px 8px; cursor: pointer; }
 	button.on { background: var(--rule); color: var(--bg); }
 	button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-	#note { color: var(--dim); font-size: 11px; }
-	textarea { width: 100%; height: 70px; background: #0d0a08; color: var(--ink); border: 1px solid var(--rule); font: inherit; font-size: 11px; }
+	#note { color: var(--dim); font-size: 11px; text-align: center; }
+	textarea { width: 100%; height: 80px; background: #0d0a08; color: var(--ink); border: 1px solid var(--rule); font: inherit; font-size: 11px; }
 </style>
 </head>
 <body>
 <div id="stage">
 	<div id="row">
 		<div><pre id="face" aria-label="Your face drawn in ASCII, large"></pre></div>
-		<video id="cam" playsinline muted></video>
+		<div><canvas id="peek" width="320" height="240" aria-label="The camera, with the face found marked"></canvas><div class="cap" id="peekcap"></div></div>
 	</div>
 	<div><pre id="game" aria-label="The same face at the game's size"></pre><div class="cap">as the village shows it (12x6 cells)</div></div>
 	<div id="note">Starting the camera...</div>
 </div>
 <div id="panel">
+	<h2>Find the face</h2>
+	<div class="toggles" id="toggles0"></div>
+	<div id="sliders0"></div>
 	<h2>Picture</h2>
 	<div id="sliders1"></div>
 	<h2>Drawing</h2>
@@ -66,33 +79,45 @@
 	<div class="toggles">
 		<button id="useCam" type="button">Camera</button>
 		<button id="useTest" type="button">Test picture</button>
-		<button id="pickFile" type="button">Video file...</button>
-		<input id="file" type="file" accept="video/*" hidden>
+		<button id="pickFile" type="button">Video or photo...</button>
+		<input id="file" type="file" accept="video/*,image/*" hidden>
 	</div>
 	<h2>Settings</h2>
 	<div class="toggles"><button id="copy" type="button">Copy settings</button><button id="reset" type="button">Reset</button></div>
 	<textarea id="out" readonly aria-label="Settings to paste back"></textarea>
 </div>
+<video id="cam" playsinline muted hidden></video>
 <video id="clip" playsinline muted loop hidden></video>
 <canvas id="cv"></canvas>
+<canvas id="an"></canvas>
 <script>
 'use strict';
-const DEFAULTS = { cols: 12, fps: 12, zoom: 0.8, lift: 0.06, black: 4, white: 96, gamma: 1, sharpen: 0.7, shape: 5, colour: true, invert: false, shaped: true, real: false };
+const DEFAULTS = {
+	cols: 32, fps: 12, zoom: 0.5, lift: 0.1, black: 2, white: 98, gamma: 0.8, sharpen: 1, shape: 5,
+	colour: true, invert: false, shaped: true, real: true,
+	track: false, margin: 1.5, skin: 1, follow: 0.25, faceExpose: true, fade: 0.8, oval: 1, mask: false
+};
 const SLIDERS = [
-	['sliders1', 'zoom', 'Crop (1 = whole picture)', 0.3, 1, 0.01],
+	['sliders0', 'margin', 'Margin round the face', 1, 3, 0.05],
+	['sliders0', 'skin', 'Skin tolerance', 0.4, 2, 0.05],
+	['sliders0', 'follow', 'Follow speed', 0.05, 1, 0.05],
+	['sliders0', 'fade', 'Fade the background', 0, 1, 0.05],
+	['sliders0', 'oval', 'Oval size', 0.6, 1.5, 0.05],
+	['sliders1', 'zoom', 'Crop, without tracking (1 = whole)', 0.3, 1, 0.01],
 	['sliders1', 'lift', 'Crop height (up +)', -0.3, 0.3, 0.01],
 	['sliders1', 'black', 'Black point (percentile)', 0, 30, 1],
 	['sliders1', 'white', 'White point (percentile)', 70, 100, 1],
-	['sliders1', 'gamma', 'Gamma (higher: darker mids)', 0.3, 2.5, 0.05],
+	['sliders1', 'gamma', 'Gamma (higher: darker mids)', 0.2, 2.5, 0.05],
 	['sliders2', 'cols', 'Columns (game: 12)', 6, 96, 1],
 	['sliders2', 'sharpen', 'Sharpen', 0, 2, 0.05],
 	['sliders2', 'shape', 'Shape threshold (levels)', 1, 15, 1],
 	['sliders2', 'fps', 'Frames a second', 2, 30, 1]
 ];
-const TOGGLES = [['shaped', 'Shape glyphs'], ['colour', 'Ink'], ['invert', 'Invert'], ['real', 'Real picture']];
+const TOGGLES0 = [['track', 'Track the face'], ['faceExpose', 'Expose for the face'], ['mask', 'Show what is skin']];
+const TOGGLES = [['shaped', 'Shape glyphs'], ['colour', 'Ink'], ['invert', 'Invert'], ['real', 'Camera view']];
 let S = { ...DEFAULTS };
-try { Object.assign(S, JSON.parse(localStorage.getItem('asciiFace') || '{}')); } catch (e) { /* none kept */ }
-const save = () => { try { localStorage.setItem('asciiFace', JSON.stringify(S)); } catch (e) { /* private mode */ } };
+try { Object.assign(S, JSON.parse(localStorage.getItem('asciiFace2') || '{}')); } catch (e) { /* none kept */ }
+const save = () => { try { localStorage.setItem('asciiFace2', JSON.stringify(S)); } catch (e) { /* private mode */ } };
 
 const RAMP = ' .,:;-=+*oa#%@';
 const DENSE = ' .:-=+*#%@';
@@ -100,17 +125,115 @@ const DENSE = ' .:-=+*#%@';
 const INKS = ['#15110d', '#2a2017', '#3d2e20', '#503c29', '#634a32', '#76593c', '#8a6a47', '#9d7b53', '#ae8c60', '#bd9c6f', '#cbad80', '#d7bd92', '#e2cda6', '#ecdcba', '#f4e9cf', '#fbf4e4'];
 
 const $ = (id) => document.getElementById(id);
-const pre = $('face'), game = $('game'), note = $('note'), cam = $('cam'), clip = $('clip'), cv = $('cv');
-const cx = cv.getContext('2d', { willReadFrequently: true });
+const pre = $('face'), game = $('game'), note = $('note'), cam = $('cam'), clip = $('clip'), cv = $('cv'), an = $('an'), peek = $('peek');
+const cx = cv.getContext('2d', { willReadFrequently: true }), ax = an.getContext('2d', { willReadFrequently: true }), px2 = peek.getContext('2d');
 let source = 'cam';
 
-/** The cropped, mirrored picture as w x h brightness samples (0..255). */
-function sample(src, sw, sh, w, h) {
+// ---- finding the face ----------------------------------------------------------------------------
+
+/** The face's square in the source picture (unmirrored), smoothed; null until one is found. */
+let box = null;
+let how = '';
+const AW = 80, AH = 60;
+let skinMask = new Uint8Array(AW * AH);
+const detector = 'FaceDetector' in window ? (() => { try { return new window.FaceDetector({ fastMode: true, maxDetectedFaces: 1 }); } catch (e) { return null; } })() : null;
+let detected = null, detecting = false;
+
+/** Skin's colour (Cb, Cr): a typical skin to start with; a click on the face teaches it this face's. */
+let skinRef = { cb: 106, cr: 152, taught: false };
+const ycc = (r, g, b) => ({ y: 0.299 * r + 0.587 * g + 0.114 * b, cb: 128 - 0.168736 * r - 0.331264 * g + 0.5 * b, cr: 128 + 0.5 * r - 0.418688 * g - 0.081312 * b });
+/** Skin in YCbCr: near skin's colour in Cb and Cr (brightness hardly matters); not blown out or black. */
+function isSkin(r, g, b) {
+	const c = ycc(r, g, b);
+	const d = Math.hypot((c.cb - skinRef.cb) / (skinRef.taught ? 9 : 20), (c.cr - skinRef.cr) / (skinRef.taught ? 7 : 16));
+	return c.y > 20 && c.y < 248 && d < S.skin;
+}
+/** The window the face is looked for in (analysis cells), round where it was; all of the picture until then. */
+function searchWindow(sw, sh) {
+	if (!box) return null;
+	const fx = AW / sw, fy = AH / sh, m = box.s * 0.9;
+	return { x0: (box.x - m) * fx, x1: (box.x + box.s + m) * fx, y0: (box.y - m) * fy, y1: (box.y + box.s + m) * fy };
+}
+
+/** Where the face is now: the largest patch of skin, favouring the one nearest the last face. */
+function skinBox(src, sw, sh) {
+	an.width = AW; an.height = AH;
+	ax.drawImage(src, 0, 0, sw, sh, 0, 0, AW, AH);
+	const d = ax.getImageData(0, 0, AW, AH).data;
+	const win = searchWindow(sw, sh);
+	for (let i = 0; i < AW * AH; i++) {
+		const x = i % AW, y = (i - x) / AW;
+		const near = !win || (x >= win.x0 && x <= win.x1 && y >= win.y0 && y <= win.y1);
+		skinMask[i] = near && isSkin(d[i * 4], d[i * 4 + 1], d[i * 4 + 2]) ? 1 : 0;
+	}
+	// Patches of skin, joined edge to edge.
+	const lab = new Int32Array(AW * AH).fill(-1);
+	let best = null, bestScore = 0;
+	const prev = box ? { x: (box.x + box.s / 2) * AW / sw, y: (box.y + box.s / 2) * AH / sh } : { x: AW / 2, y: AH / 2 };
+	for (let i = 0; i < AW * AH; i++) {
+		if (!skinMask[i] || lab[i] >= 0) continue;
+		const stack = [i];
+		lab[i] = i;
+		let n = 0, x0 = AW, x1 = 0, y0 = AH, y1 = 0, sx = 0, sy = 0;
+		while (stack.length) {
+			const k = stack.pop(), x = k % AW, y = (k - x) / AW;
+			n++; sx += x; sy += y;
+			if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+			for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+				const nx = x + dx, ny = y + dy, j = nx + ny * AW;
+				if (nx < 0 || ny < 0 || nx >= AW || ny >= AH || !skinMask[j] || lab[j] >= 0) continue;
+				lab[j] = i;
+				stack.push(j);
+			}
+		}
+		if (n < AW * AH * 0.006) continue;
+		const dist = Math.hypot(sx / n - prev.x, sy / n - prev.y);
+		const score = n / (1 + dist / 12);
+		if (score > bestScore) { bestScore = score; best = { x0, x1, y0, y1, cx: sx / n, cy: sy / n }; }
+	}
+	if (!best) return null;
+	// Back to the source picture: a square round the patch, a little above its middle (the patch misses hair).
+	const fx = sw / AW, fy = sh / AH;
+	const w = (best.x1 - best.x0 + 1) * fx, h = (best.y1 - best.y0 + 1) * fy;
+	return { cx: best.cx * fx, cy: best.cy * fy - h * 0.08, size: Math.max(w, h * 0.85) };
+}
+
+/** Move the crop toward the face found now (or keep it, if none is found this frame). */
+function track(src, sw, sh) {
+	let target = null;
+	if (detector && src !== testCanvas) {
+		if (!detecting) {
+			detecting = true;
+			detector.detect(src).then((fs) => { detected = fs[0]?.boundingBox ?? null; }).catch(() => { detected = null; }).finally(() => { detecting = false; });
+		}
+		if (detected) { target = { cx: detected.x + detected.width / 2, cy: detected.y + detected.height / 2, size: Math.max(detected.width, detected.height) }; how = 'browser face detector'; }
+	}
+	if (!target) { target = skinBox(src, sw, sh); if (target) how = 'skin tone'; }
+	else skinBox(src, sw, sh);
+	if (!target) { how = 'no face found: holding'; return; }
+	const s = Math.min(Math.min(sw, sh), target.size * S.margin);
+	const want = { x: Math.max(0, Math.min(sw - s, target.cx - s / 2)), y: Math.max(0, Math.min(sh - s, target.cy - s / 2)), s };
+	if (!box) box = want;
+	else for (const k of ['x', 'y', 's']) box[k] += (want[k] - box[k]) * S.follow;
+}
+
+/** Where a click on the camera view pinned the crop (used when not tracking), in the source picture. */
+let pin = null;
+/** The square to draw: the tracked face; else the pinned spot, sized by the crop slider; else the middle. */
+function crop(sw, sh) {
+	if (S.track && box) return box;
+	const s = Math.min(sw, sh) * S.zoom;
+	const at = pin ?? { x: sw / 2, y: sh / 2 - s * S.lift };
+	return { x: Math.max(0, Math.min(sw - s, at.x - s / 2)), y: Math.max(0, Math.min(sh - s, at.y - s / 2)), s };
+}
+
+// ---- the drawing -----------------------------------------------------------------------------------
+
+/** The crop, mirrored, as w x h brightness samples (0..255). */
+function sample(src, c, w, h) {
 	cv.width = w; cv.height = h;
-	const side = Math.min(sw, sh) * S.zoom;
-	const sx = (sw - side) / 2, sy = Math.max(0, Math.min(sh - side, (sh - side) / 2 - side * S.lift));
 	cx.save(); cx.translate(w, 0); cx.scale(-1, 1);
-	cx.drawImage(src, sx, sy, side, side, 0, 0, w, h);
+	cx.drawImage(src, c.x, c.y, c.s, c.s, 0, 0, w, h);
 	cx.restore();
 	const px = cx.getImageData(0, 0, w, h).data;
 	const v = new Float32Array(w * h);
@@ -118,10 +241,18 @@ function sample(src, sw, sh, w, h) {
 	return v;
 }
 
-/** Samples to levels 0..15: stretched black to white point, gamma, sharpened (the game's toFrame). */
+/** How far outside the face's oval a sample is (0 inside, rising to 1 a little beyond its edge). */
+function outside(x, y, w, h) {
+	const r = Math.hypot((x + 0.5 - w / 2) / (w * 0.36 * S.oval), (y + 0.5 - h * 0.48) / (h * 0.46 * S.oval));
+	return Math.min(1, Math.max(0, (r - 0.9) / 0.35));
+}
+
+/** Samples to levels 0..15: stretched black to white point (read from the face's oval if asked), gamma, sharpened, background faded. */
 function levels(v, w, h) {
-	const sorted = Float32Array.from(v).sort();
-	const lo = sorted[Math.floor((v.length - 1) * S.black / 100)], hi = sorted[Math.floor((v.length - 1) * S.white / 100)];
+	const inFace = [];
+	for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (!S.faceExpose || outside(x, y, w, h) < 0.5) inFace.push(v[x + y * w]);
+	const sorted = Float32Array.from(inFace.length > 8 ? inFace : v).sort();
+	const lo = sorted[Math.floor((sorted.length - 1) * S.black / 100)], hi = sorted[Math.floor((sorted.length - 1) * S.white / 100)];
 	const span = Math.max(12, hi - lo);
 	const n = (i) => Math.pow(Math.min(1, Math.max(0, (v[i] - lo) / span)), S.gamma);
 	const out = new Uint8Array(v.length);
@@ -134,6 +265,7 @@ function levels(v, w, h) {
 		}
 		let b = Math.min(1, Math.max(0, n(i) + (n(i) - s / k) * S.sharpen));
 		if (S.invert) b = 1 - b;
+		b *= 1 - S.fade * outside(x, y, w, h);
 		out[i] = Math.round(b * 15);
 	}
 	return out;
@@ -151,14 +283,14 @@ function cell(t, b) {
 
 const esc = (c) => (c === '<' ? '&lt;' : c === '>' ? '&gt;' : c === '&' ? '&amp;' : c);
 /** Draw cols x rows cells into a <pre>, runs of one ink in one span (as pterm draws). */
-function draw(el, src, sw, sh, cols) {
+function draw(el, src, c, cols) {
 	const rows = Math.max(1, Math.round(cols / 2));
 	let grid;
 	if (S.shaped) {
-		const lv = levels(sample(src, sw, sh, cols, rows * 2), cols, rows * 2);
+		const lv = levels(sample(src, c, cols, rows * 2), cols, rows * 2);
 		grid = (x, y) => cell(lv[x + 2 * y * cols], lv[x + (2 * y + 1) * cols]);
 	} else {
-		const lv = levels(sample(src, sw, sh, cols, rows), cols, rows);
+		const lv = levels(sample(src, c, cols, rows), cols, rows);
 		grid = (x, y) => { const k = lv[x + y * cols]; return [RAMP[Math.round((k * (RAMP.length - 1)) / 15)], k]; };
 	}
 	const out = [];
@@ -178,20 +310,40 @@ function draw(el, src, sw, sh, cols) {
 	return rows;
 }
 
-/** No camera: a face-like test picture, moving, so the drawing can be seen anyway. */
-const test = document.createElement('canvas');
+/** The camera beside the letters: mirrored, the face's square marked, skin tinted if asked. */
+function drawPeek(src, sw, sh, c) {
+	peek.hidden = !S.real;
+	if (!S.real) return;
+	peek.height = Math.round(peek.width * sh / sw);
+	const W = peek.width, H = peek.height;
+	px2.save(); px2.translate(W, 0); px2.scale(-1, 1);
+	px2.drawImage(src, 0, 0, sw, sh, 0, 0, W, H);
+	if (S.mask) {
+		px2.fillStyle = 'rgba(111,207,143,0.45)';
+		for (let y = 0; y < AH; y++) for (let x = 0; x < AW; x++) if (skinMask[x + y * AW]) px2.fillRect(x * W / AW, y * H / AH, W / AW + 0.5, H / AH + 0.5);
+	}
+	px2.strokeStyle = S.track ? '#6fcf8f' : '#c9a25a';
+	px2.lineWidth = 2;
+	px2.strokeRect(c.x * W / sw, c.y * H / sh, c.s * W / sw, c.s * H / sh);
+	px2.restore();
+	$('peekcap').textContent = S.track ? 'tracking by ' + how + (skinRef.taught ? '' : ' · click your face to teach it') : pin ? 'pinned where you clicked · Crop sets the size' : 'click your face to pin the crop there';
+}
+
+/** No camera: a face-like test picture, drifting about, so the tracking and drawing can be seen anyway. */
+const testCanvas = document.createElement('canvas');
 function testFrame(t) {
-	test.width = 160; test.height = 160;
-	const g = test.getContext('2d');
-	g.fillStyle = '#222'; g.fillRect(0, 0, 160, 160);
-	g.fillStyle = '#d8bfa0'; g.beginPath(); g.ellipse(80, 86, 42, 54, 0, 0, Math.PI * 2); g.fill();
-	g.fillStyle = '#3a2614'; g.beginPath(); g.ellipse(80, 50, 46, 26, 0, Math.PI, 0); g.fill();
+	testCanvas.width = 320; testCanvas.height = 240;
+	const g = testCanvas.getContext('2d');
+	g.fillStyle = '#c8c4bc'; g.fillRect(0, 0, 320, 240);
+	g.fillStyle = '#f8f8f0'; g.fillRect(220, 20, 90, 120);
+	const fx = 150 + Math.sin(t / 2100) * 50, fy = 120 + Math.sin(t / 1700) * 15;
+	g.fillStyle = '#3a3a44'; g.fillRect(fx - 60, fy + 50, 120, 80);
+	g.fillStyle = '#c99a7c'; g.beginPath(); g.ellipse(fx, fy, 30, 40, 0, 0, Math.PI * 2); g.fill();
 	g.fillStyle = '#2a1a10';
-	const blink = (t / 3200) % 1 < 0.05 ? 1 : 6;
-	for (const ex of [64, 96]) { g.beginPath(); g.ellipse(ex + Math.sin(t / 700) * 3, 76, 7, blink, 0, 0, Math.PI * 2); g.fill(); }
-	g.fillStyle = '#b89070'; g.fillRect(77, 80, 6, 18);
-	g.fillStyle = '#5a2a20'; g.beginPath(); g.ellipse(80, 114, 13, 3 + Math.abs(Math.sin(t / 300)) * 5, 0, 0, Math.PI * 2); g.fill();
-	return test;
+	const blink = (t / 3200) % 1 < 0.05 ? 1 : 4;
+	for (const ex of [-11, 11]) { g.beginPath(); g.ellipse(fx + ex, fy - 6, 5, blink, 0, 0, Math.PI * 2); g.fill(); }
+	g.fillStyle = '#5a2a20'; g.beginPath(); g.ellipse(fx, fy + 20, 9, 2 + Math.abs(Math.sin(t / 300)) * 4, 0, 0, Math.PI * 2); g.fill();
+	return testCanvas;
 }
 
 let last = 0;
@@ -200,36 +352,43 @@ function frame(t) {
 	if (t - last < 1000 / S.fps) return;
 	last = t;
 	const live = source === 'cam' && cam.readyState >= 2, file = source === 'file' && clip.readyState >= 2;
-	const [src, sw, sh] = live ? [cam, cam.videoWidth, cam.videoHeight] : file ? [clip, clip.videoWidth, clip.videoHeight] : [testFrame(t), 160, 160];
-	const rows = draw(pre, src, sw, sh, S.cols);
-	draw(game, src, sw, sh, 12);
+	const pic = source === 'photo' && photo.complete && photo.naturalWidth > 0;
+	const [src, sw, sh] = live ? [cam, cam.videoWidth, cam.videoHeight] : file ? [clip, clip.videoWidth, clip.videoHeight]
+		: pic ? [photo, photo.naturalWidth, photo.naturalHeight] : [testFrame(t), 320, 240];
+	lastSrc = [src, sw, sh];
+	if (S.track || S.mask) track(src, sw, sh);
+	const c = crop(sw, sh);
+	const rows = draw(pre, src, c, S.cols);
+	draw(game, src, c, 12);
+	drawPeek(src, sw, sh, c);
 	const w = innerWidth > 760 ? innerWidth - 360 : innerWidth - 40;
 	const h = innerHeight - 220;
-	pre.style.fontSize = Math.max(4, Math.min((w - (S.real ? 240 : 0)) / (S.cols * 0.6), h / (rows * 1.2))).toFixed(1) + 'px';
-	cam.className = S.real && live ? 'shown' : '';
-	note.textContent = `${live ? 'Camera' : file ? 'Video file' : 'Test picture'} · ${S.cols}x${rows} cells · ${S.cols * rows * (S.shaped ? 2 : 1)} bytes a frame as the game would send it · nothing leaves this page`;
+	pre.style.fontSize = Math.max(4, Math.min((w - (S.real ? 260 : 0)) / (S.cols * 0.6), h / (rows * 1.2))).toFixed(1) + 'px';
+	note.textContent = `${live ? 'Camera' : file ? 'Video file' : pic ? 'Photo' : 'Test picture'} · ${S.cols}x${rows} cells · ${S.cols * rows * (S.shaped ? 2 : 1)} bytes a frame as the game would send it · nothing leaves this page`;
 }
 
 function controls() {
-	for (const box of ['sliders1', 'sliders2']) $(box).innerHTML = '';
-	for (const [box, key, label, min, max, step] of SLIDERS) {
+	for (const box of ['sliders0', 'sliders1', 'sliders2']) $(box).innerHTML = '';
+	for (const [where, key, label, min, max, step] of SLIDERS) {
 		const l = document.createElement('label'); l.className = 's';
 		const id = 's-' + key;
 		l.innerHTML = `<span>${label}</span><output for="${id}">${S[key]}</output><input id="${id}" type="range" min="${min}" max="${max}" step="${step}" value="${S[key]}">`;
 		const input = l.querySelector('input'), out = l.querySelector('output');
 		input.addEventListener('input', () => { S[key] = +input.value; out.textContent = input.value; save(); settings(); });
-		$(box).appendChild(l);
+		$(where).appendChild(l);
 	}
-	const tg = $('toggles'); tg.innerHTML = '';
-	for (const [key, label] of TOGGLES) {
-		const b = document.createElement('button'); b.type = 'button'; b.textContent = label;
-		b.className = S[key] ? 'on' : '';
-		b.onclick = () => { S[key] = !S[key]; save(); controls(); settings(); };
-		tg.appendChild(b);
+	for (const [where, list] of [['toggles0', TOGGLES0], ['toggles', TOGGLES]]) {
+		const tg = $(where); tg.innerHTML = '';
+		for (const [key, label] of list) {
+			const b = document.createElement('button'); b.type = 'button'; b.textContent = label;
+			b.className = S[key] ? 'on' : '';
+			b.onclick = () => { S[key] = !S[key]; if (key === 'track' && !S[key]) box = null; save(); controls(); settings(); };
+			tg.appendChild(b);
+		}
 	}
 	$('useCam').className = source === 'cam' ? 'on' : '';
 	$('useTest').className = source === 'test' ? 'on' : '';
-	$('pickFile').className = source === 'file' ? 'on' : '';
+	$('pickFile').className = source === 'file' || source === 'photo' ? 'on' : '';
 }
 const settings = () => { $('out').value = JSON.stringify(S); };
 
@@ -238,20 +397,46 @@ $('copy').onclick = async () => {
 	try { await navigator.clipboard.writeText($('out').value); note.textContent = 'Settings copied.'; }
 	catch (e) { $('out').select(); note.textContent = 'Select the settings below and copy them.'; }
 };
-$('reset').onclick = () => { S = { ...DEFAULTS }; save(); controls(); settings(); };
-$('useTest').onclick = () => { source = 'test'; controls(); };
+$('reset').onclick = () => { S = { ...DEFAULTS }; box = null; skinRef = { cb: 106, cr: 152, taught: false }; save(); controls(); settings(); };
+$('useTest').onclick = () => { source = 'test'; box = null; controls(); };
 $('pickFile').onclick = () => $('file').click();
 $('file').onchange = () => {
 	const f = $('file').files[0];
 	if (!f) return;
-	clip.src = URL.createObjectURL(f);
-	clip.play().catch(() => {});
-	source = 'file'; controls();
+	if (f.type.startsWith('image/')) { photo.src = URL.createObjectURL(f); source = 'photo'; }
+	else { clip.src = URL.createObjectURL(f); clip.play().catch(() => {}); source = 'file'; }
+	box = null; controls();
 };
+const photo = new Image();
 $('useCam').onclick = startCam;
+/** A click on your face in the camera view: learn its colour there, and put the crop on it. */
+let lastSrc = null;
+peek.addEventListener('click', (ev) => {
+	if (!lastSrc) return;
+	const [src, sw, sh] = lastSrc;
+	const r = peek.getBoundingClientRect();
+	// The view is mirrored: back to the source picture's own side.
+	const fx = 1 - (ev.clientX - r.left) / r.width, fy = (ev.clientY - r.top) / r.height;
+	an.width = AW; an.height = AH;
+	ax.drawImage(src, 0, 0, sw, sh, 0, 0, AW, AH);
+	const d = ax.getImageData(0, 0, AW, AH).data;
+	const ax0 = Math.round(fx * AW), ay0 = Math.round(fy * AH);
+	let cb = 0, cr = 0, n = 0;
+	for (let y = ay0 - 2; y <= ay0 + 2; y++) for (let x = ax0 - 2; x <= ax0 + 2; x++) {
+		if (x < 0 || y < 0 || x >= AW || y >= AH) continue;
+		const i = (x + y * AW) * 4, c = ycc(d[i], d[i + 1], d[i + 2]);
+		cb += c.cb; cr += c.cr; n++;
+	}
+	if (!n) return;
+	pin = { x: fx * sw, y: fy * sh };
+	if (!S.track) return;
+	skinRef = { cb: cb / n, cr: cr / n, taught: true };
+	const s = Math.min(sw, sh) * 0.35;
+	box = { x: fx * sw - s / 2, y: fy * sh - s / 2, s };
+});
 
 async function startCam() {
-	source = 'cam'; controls();
+	source = 'cam'; box = null; controls();
 	if (cam.srcObject) return;
 	try {
 		cam.srcObject = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' }, audio: false });
