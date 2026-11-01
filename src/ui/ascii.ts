@@ -328,6 +328,9 @@ const PERSON: [number, number][] = [[8, 0], [12, 0], [10, 0], [14, 0], [6, 0], [
 export const personInk = (k: number): [number, number] => PERSON[((k % PERSON.length) + PERSON.length) % PERSON.length];
 /** A player's colour as one ink (the plate's, for those drawn on a plate). */
 export const seatInk = (k: number) => { const [f, b] = personInk(k); return b || f; };
+let townBig = () => true;
+/** Whether the town wants its big cells now (the village's council room does not). */
+export const setTownBig = (f: () => boolean) => { townBig = f; };
 let hoverFn: ((cell: { x: number; y: number } | null) => void) | null = null;
 /** Where the mouse is over the grid (the village shows a name there). */
 export const setHover = (f: typeof hoverFn) => { hoverFn = f; };
@@ -1874,7 +1877,7 @@ function frame(g: Grid) {
 	// The cover is a picture, drawn fine: many more columns (small cells, two pixels each).
 	// A book on a wide screen lies open: room for two leaves.
 	// The town on a desktop: bigger cells, fewer of them, so its small things read.
-	if (extra && extraShown()) term!.setScale(34, 26);
+	if (extra && extraShown() && townBig()) term!.setScale(34, 26);
 	else term!.setScale(22, 40);
 	term!.setCols(key === 'cover' ? (wideScreen() ? 184 : 84) : key.startsWith('folio') ? (wideScreen() ? 2 * (COLS + 12) : COLS + 12) : key === 'leather' ? COLS + 6 : COLS);
 	document.body.style.background = term!.palette[0];

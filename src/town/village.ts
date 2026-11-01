@@ -22,7 +22,7 @@
  * is talking privately and which doors are locked; each phone moves its own
  * walker and asks the host for the rest.
  */
-import { personInk, setHover, INNER, onMap, btn, buttonBlock, buttonRows, drawButton, endPanel, field, isButton, listRow, paint, quant, redraw, shade, theTerm, paneled, setPalette, navRow, rubric, row, segWidth, setExtra, txt, wrap, center } from '../ui/ascii.ts';
+import { setTownBig, personInk, seatInk as seatInkOf, texturaPixels, setHover, INNER, onMap, btn, buttonBlock, buttonRows, drawButton, endPanel, field, isButton, listRow, paint, quant, redraw, shade, theTerm, paneled, setPalette, navRow, rubric, row, segWidth, setExtra, txt, wrap, center } from '../ui/ascii.ts';
 import type { Button, Row } from '../ui/ascii.ts';
 import type { Grid } from '../term/pterm.ts';
 import { hostRoom, joinRoom, newRoomCode } from '../net/link.ts';
@@ -818,6 +818,8 @@ let shown = false;
 let banner: { title: string; line: string; until: number } | null = null;
 let toastMsg: { text: string; until: number } | null = null;
 setExtra(villageCells, () => shown);
+// The town in big cells on a desktop; the council room in the finer ones, so its table and lettering fit.
+setTownBig(() => S.phase !== 'circle');
 function touchesRoom(t: Town, x: number, y: number, rooms: number[]): boolean {
 	for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
 		const nx = x + dx, ny = y + dy;
@@ -950,11 +952,9 @@ function villageCells(g: Grid): boolean {
 	g.fill({ x: 0, y: 0, w: g.cols, h: 1 }, ' ', 5, 1);
 	g.text(1, 0, top.slice(0, g.cols - 2), 5, 1);
 	// The council sits in the great hall itself; a town without one shows the old ethereal ring.
-	if (S.phase === 'circle' && !t.council) circleCells(g, mapY, mapH);
-	else {
-		mapCells(g, mapY, mapH, p, lvl(p), now);
-		if (S.phase === 'circle') councilCells(g, mapY, mapH, t);
-	}
+	// Nominations and votes: the council room, apart from the map.
+	if (S.phase === 'circle') councilRoom(g, mapY, mapH, now);
+	else mapCells(g, mapY, mapH, p, lvl(p), now);
 	faceStrip(g, mapY, mapH, p);
 	// The line of what you can hear, and the passing notice.
 	const where = p.with ? 'Private with ' + nameOf(p.with) + ': nobody else hears you'
@@ -1320,65 +1320,94 @@ const WALL_DOUBLE = [' ', '║', '═', '╚', '║', '║', '╔', '╠', '═'
 
 
 /**
- * The council in the great hall, drawn over the map: each seat's name beside it, the
- * nominee on a red plate, raised hands green, counted ones gold, and the day's business
- * on a scroll at the top.
+ * The council room: where the whole town sits for nominations and votes, apart from the map. The map's
+ * own table drawn large, on a plain dark ground: a round table, a seat for each player round it in their
+ * colour, a clock in the middle of the table whose hand runs down the clock of the moment, the nominee
+ * lettered in the textura over the table, and the count drawn on the seats (the nominee on a red plate,
+ * raised hands green, counted gold, the count's place marked).
  */
-function councilCells(g: Grid, mapY: number, mapH: number, t: Town) {
-	const c = t.council!;
-	const ring = S.ring.length ? S.ring : [...S.people.values()].filter((q) => !q.st).map((q) => ({ seat: q.seat, name: q.name, dead: !!q.dead }));
-	// Screen cell of a town cell: x - view.x0, y - view.y0 (see mapCells).
-	const x0 = view.x0, y0 = view.y0;
-	const v = S.vote;
-	for (const r of ring) {
-		const cell = seatCell(t, r.seat);
-		if (!cell) continue;
-		const sx = (cell.x - x0) * CW, sy = cell.y - y0;
-		const here = g.get(sx, sy), next = g.get(sx + 1, sy);
-		if (!here || sy < mapY || sy >= mapY + mapH) continue;
-		const plate = v?.nominee === r.seat ? 8 : v?.raised.includes(r.seat) ? 10 : v?.counted.includes(r.seat) ? 6 : -1;
-		if (plate >= 0) for (const c of [here, next]) if (c) { c.fg = 0; c.bg = plate; }
-		if (v?.at === r.seat) { g.set(sx - 1, sy, '>', 6); }
-		// The name, out from the table along the seat's own direction, so the ring of names never crowds the ring of seats.
-		const dx = cell.x - c.at.x, dy = (cell.y - c.at.y) * 2, d = Math.hypot(dx, dy) || 1;
-		const ux = dx / d, uy = dy / d;
-		const label = (r.dead ? '+' : '') + r.name.slice(0, 7);
-		// Never more than a step or two from the seat itself (a label far from its seat reads as someone else's).
-		const ax = sx + (ux > 0 ? 2 : -1) * (Math.abs(ux) >= 0.4 ? 1 : 0), ay = sy + (Math.abs(ux) < 0.4 ? Math.sign(uy) : 0);
-		const lx = Math.abs(ux) < 0.4 ? sx + 1 - Math.floor(label.length / 2) : ux < 0 ? ax - label.length + 1 : ax;
-		const [pf, pb] = personInk(r.seat);
-		g.text(lx, ay, label, r.dead ? 3 : v?.nominee === r.seat ? 8 : pf, r.dead || v?.nominee === r.seat ? 0 : pb);
-	}
-	if (S.caption.length) {
-		const w = Math.min(g.cols - 2, Math.max(...S.caption.map((l) => l.length)) + 4);
-		const bx = Math.floor((g.cols - w) / 2);
-		const [ink, ground, rule] = onMap() ? [0, 4, 15] : [4, 1, 6];
-		g.fill({ x: bx, y: mapY, w, h: S.caption.length + 2 }, ' ', 5, ground);
-		g.box({ x: bx, y: mapY, w, h: S.caption.length + 2 }, rule, ground, '', rule, 'double');
-		S.caption.forEach((l, i) => g.text(bx + Math.floor((w - l.length) / 2), mapY + 1 + i, l, i === 0 ? (onMap() ? 9 : 8) : ink, ground));
-	}
-}
-
-/** The circle: everyone on one ring, the vote's hands raised. */
-function circleCells(g: Grid, y0: number, h: number) {
+function councilRoom(g: Grid, y0: number, h: number, now: number) {
 	const ring = S.ring.length ? S.ring : [...S.people.values()].filter((q) => !q.st).map((q) => ({ seat: q.seat, name: q.name, dead: !!q.dead }));
 	const n = Math.max(1, ring.length);
-	const cx = Math.floor(g.cols / 2), cy = y0 + Math.floor(h / 2);
-	const rx = Math.max(6, cx - 5), ry = Math.max(3, Math.floor(h / 2) - 2);
-	S.caption.forEach((line, i) => g.text(cx - Math.floor(line.length / 2), cy - Math.floor(S.caption.length / 2) + i, line.slice(0, g.cols - 2), i === 0 ? 8 : 3, 0));
 	const v = S.vote;
+	g.fill({ x: 0, y: y0, w: g.cols, h }, ' ', 3, 0);
+	// Room for the nominee's name over the table (six rows of lettering), the caption under it.
+	const named = v ? ring.find((r) => r.seat === v.nominee) : null;
+	const top = named ? 7 : 1, foot = Math.min(3, S.caption.length) + 1;
+	// The faces keep the right edge: the room is centred in what is left.
+	const p = me();
+	const faceCol = S.showFaces && p && (S.host ? facesFor(p) : [...S.faces]).length ? FACE_W + 1 : 0;
+	const W = g.cols - faceCol;
+	const cx = Math.floor(W / 2), cy = y0 + top + Math.floor((h - top - foot) / 2);
+	// A cell is twice as tall as it is wide: the table is twice as many columns across as rows.
+	const ty = Math.max(3, Math.min(Math.floor((h - top - foot) / 2) - 3, Math.floor((W / 2 - 10) / 2)));
+	const tx = ty * 2;
+	const inTable = (x: number, y: number) => Math.hypot(x / tx, y / ty) <= 1;
+	for (let y = -ty - 1; y <= ty + 1; y++) for (let x = -tx - 2; x <= tx + 2; x++) {
+		if (!inTable(x, y)) continue;
+		if (!inTable(x + 1, y) || !inTable(x - 1, y) || !inTable(x, y + 1) || !inTable(x, y - 1)) {
+			// The rim, its line following the curve.
+			const a = Math.atan2(y / ty, x / tx), s = Math.abs(Math.sin(a)), c = Math.abs(Math.cos(a));
+			const ch = s > 0.92 ? '=' : c > 0.85 ? '|' : (x > 0) === (y > 0) ? '\\' : '/';
+			g.set(cx + x, cy + y, ch, 6, 0);
+		} else g.set(cx + x, cy + y, (x + y * 3) % 7 ? ' ' : '-', shade(6, 1), shade(6, 0));
+	}
+	// The clock on the table: twelve marks, and a hand from noon round as the time runs out.
+	const c = S.clock?.get() ?? null;
+	const cr = Math.max(2, Math.min(5, ty - 2));
+	for (let k = 0; k < 12; k++) {
+		const a = (k / 12) * 2 * Math.PI;
+		g.set(cx + Math.round(Math.sin(a) * cr * 2), cy - Math.round(Math.cos(a) * cr), k % 3 ? '.' : 'o', 6, shade(6, 0));
+	}
+	const frac = c && c.total > 0 ? 1 - c.left / c.total : 0;
+	const ha = frac * 2 * Math.PI;
+	for (let r = 0.5; r < cr - 0.4; r += 0.5) {
+		const x = Math.round(Math.sin(ha) * r * 2), y = -Math.round(Math.cos(ha) * r);
+		const sl = Math.abs(Math.sin(ha)) < 0.38 ? '|' : Math.abs(Math.cos(ha)) < 0.38 ? '-' : Math.sin(ha) * Math.cos(ha) > 0 ? '/' : '\\';
+		g.set(cx + x, cy + y, sl, 8, shade(6, 0));
+	}
+	g.set(cx, cy, '*', 8, shade(6, 0));
+	if (c) {
+		const sec = Math.ceil(c.left / 1000);
+		const t = `${c.label ? c.label + ' ' : ''}${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+		g.text(cx - Math.floor(t.length / 2), cy + cr + 1, t, c.running ? 6 : 3, shade(6, 0));
+	}
+	// The seats round the table: each player's letter on their colour, their name outward from the table.
 	ring.forEach((r, i) => {
 		const a = (2 * Math.PI * i) / n;
-		const x = Math.round(cx + rx * Math.sin(a)), y = Math.round(cy - ry * Math.cos(a));
+		const sx = cx + Math.round(Math.sin(a) * (tx + 3)), sy = cy - Math.round(Math.cos(a) * (ty + 1.6));
 		const person = [...S.people.values()].find((q) => !q.st && q.seat === r.seat);
-		const [pf, pb] = person ? markOf(person) : [3, 0];
-		const ink = r.dead ? 3 : pf || pb;
-		const hand = v?.raised.includes(r.seat) ? '▲' : v?.counted.includes(r.seat) ? '•' : ' ';
-		const label = (hand + (r.dead ? '†' : '☺') + r.name).slice(0, 10);
-		const nominee = v?.nominee === r.seat;
-		g.text(x - Math.floor(label.length / 2), y, label, nominee ? 0 : ink, nominee ? 8 : 0);
+		const [pf, pb] = personInk(r.seat);
+		const plate = v?.nominee === r.seat ? 8 : v?.raised.includes(r.seat) ? 10 : v?.counted.includes(r.seat) ? 6 : -1;
+		const letter = (r.dead ? '+' : r.name[0]?.toUpperCase()) ?? '?';
+		if (plate >= 0) g.text(sx - 1, sy, ` ${letter} `, 0, plate);
+		else g.text(sx - 1, sy, r.dead ? ` ${letter} ` : `[${letter}]`, r.dead ? 3 : pb ? 0 : pf, r.dead ? 0 : pb);
+		if (v?.at === r.seat) g.set(sx - 2, sy, '>', 6, 0);
+		if (v?.raised.includes(r.seat)) g.set(sx + 2, sy, '^', 10, 0);
+		const s = Math.sin(a), up = Math.cos(a);
+		const label = (person?.voice && talking(person) > 0.15 ? '~' : '') + r.name.slice(0, 10);
+		const lx = Math.abs(s) < 0.3 ? sx - Math.floor(label.length / 2) : s > 0 ? sx + 3 : sx - 2 - label.length;
+		const ly = Math.abs(s) < 0.3 ? sy + (up > 0 ? -1 : 1) : sy;
+		g.text(Math.max(0, lx), ly, label, r.dead ? 3 : v?.nominee === r.seat ? 8 : pb || pf, 0);
 	});
+	// The nominee, lettered large over the table in the textura (in their colour), or plainly if it will not fit.
+	if (named) {
+		const px = texturaPixels(named.name, 0) ?? texturaPixels(named.name, 2);
+		if (px && px.w <= g.cols - 2) {
+			const ink = seatInkOf(named.seat), x0 = cx - Math.floor(px.w / 2);
+			for (let y = 0; y < 12; y += 2) for (let x = 0; x < px.w; x++) {
+				const t = px.at[y][x], b = px.at[y + 1][x];
+				if (!t && !b) continue;
+				const it = t === 1 ? 8 : ink, ib = b === 1 ? 8 : ink;
+				if (t && b && it === ib) g.set(x0 + x, y0 + y / 2, ' ', 0, it);
+				else g.set(x0 + x, y0 + y / 2, '▀', t ? it : 0, b ? ib : 0);
+			}
+		} else g.text(cx - Math.floor(named.name.length / 2), y0 + 2, named.name.toUpperCase(), 8, 0);
+	}
+	// The day's business under the table.
+	S.caption.slice(0, 3).forEach((line, i) => g.text(cx - Math.floor(Math.min(line.length, g.cols - 2) / 2), y0 + h - foot + i, line.slice(0, g.cols - 2), i === 0 ? 6 : 3, 0));
 }
+
 
 function hearList() {
 	const t = S.town, p = me();
@@ -1455,7 +1484,7 @@ function drawChrome() {
 const BANNERS: Record<Phase, { title: string; line: string }> = {
 	day: { title: 'Dawn', line: 'Day. Wander, talk, conspire.' },
 	dusk: { title: 'Dusk falls', line: 'Dusk. Walk to the great hall and take your seat at the round table (My seat shows the way).' },
-	circle: { title: 'The council sits', line: 'The town sits at the round table in the great hall. Everyone there hears everyone.' },
+	circle: { title: 'The council sits', line: 'The town sits at the council table for nominations and votes. Everyone there hears everyone.' },
 	night: { title: 'Night falls', line: 'You are at home and the doors are locked. The Storyteller may visit.' }
 };
 
