@@ -10,12 +10,15 @@ const things = (name: string) => town.cells.map((c, i) => (c.things.includes(nam
 const xy = (i: number) => ({ x: i % town.w, y: Math.floor(i / town.w) });
 const named = (text: string) => town.labels.find((l) => l.text === text);
 
-test('Ravensburg: a castle of two courts above its market town, after the plans', () => {
+test('Ravensburg: a castle of two courts above its outer court, and no village below', () => {
 	assert.equal(bp.d, 2);
-	for (const name of ['Great Hall', 'Great Chambers', 'Kitchens', 'Bakehouse', 'Gatehouse', 'Barbican', 'Moat', 'Dam', 'Outer Court', 'Stables', 'Outer Gatehouse', 'Market Cross'])
+	for (const name of ['Great Hall', 'Great Chambers', 'Kitchens', 'Bakehouse', 'Gatehouse', 'Barbican', 'Moat', 'Dam', 'Outer Court', 'Stables', 'Outer Gatehouse', 'Market Cross', 'Smithy', 'Orchard'])
 		assert.ok(named(name), `the ${name} is named`);
+	// The village is gone: no inn, no mill, no river, and the map ends below the outer court's wall.
+	for (const name of ['The Black Hart', 'Mill', 'The Wend']) assert.ok(!named(name), `no ${name}`);
+	assert.ok(town.h < 110, `${town.h} rows`);
 	// The market cross is the speaking place, in the middle of its benches.
-	const cross = xy(things('statue').map(xy).map((p) => p.x + p.y * town.w).find((i) => xy(i).y > 95)!);
+	const cross = xy(things('statue').map(xy).map((p) => p.x + p.y * town.w).find((i) => xy(i).y > 55)!);
 	assert.ok(atSpeakingPlace(town, { x: cross.x - 1, y: cross.y }));
 });
 
