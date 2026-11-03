@@ -11,6 +11,7 @@
  */
 
 import { themeOfKey } from './theme.ts';
+import { SIGHT } from '../town/map.ts';
 import { Term, expand, shade } from '../term/pterm.ts';
 import type { Grid, Palette, Rect } from '../term/pterm.ts';
 
@@ -1886,6 +1887,41 @@ export function illuminatedRow(lines: { t: string; tone?: Tone }[]): Row {
 	});
 }
 
+/** How far you see by day, and the steps the village fades it over past that edge (SOFT in village.ts): beyond this the map is dark. */
+export const ZONE_RADIUS = SIGHT.day + 3;
+/** The rows the village keeps for its own bars (the title, the info lines, the tool buttons). */
+const MAP_CHROME = 9;
+let ratioMemo = 0;
+/** The width of a glyph over its height at one size, measured as the terminal measures it. */
+function glyphRatio(): number {
+	if (ratioMemo) return ratioMemo;
+	const probe = document.createElement('span');
+	probe.style.cssText = `position:absolute;visibility:hidden;font:100px ${term!.pre.style.fontFamily};white-space:pre;`;
+	probe.textContent = '0'.repeat(20);
+	document.body.appendChild(probe);
+	ratioMemo = probe.getBoundingClientRect().width / 20 / 100 || 0.6;
+	probe.remove();
+	return ratioMemo;
+}
+/**
+ * The size of the town's cells for a screen of w by h pixels (a glyph is `ratio` wide for each unit of height).
+ * A desktop's cells are big but not so big as they were (34 px, now 28), and the village shows a few more rows.
+ * A phone held upright fits the grid to the limit of the occlusion zone: the map is only as many rows tall as
+ * sight and its fade reach (the rest is dark), so the cells grow until those rows fill the height; never smaller
+ * than the fit to the width of 52 columns, so a short screen is not made worse.
+ */
+export function townScale(w: number, h: number, ratio: number, wide: boolean): { maxFont: number; rows: number; cols: number } {
+	if (wide || w >= h) return { maxFont: 28, rows: 32, cols: COLS };
+	const zoneRows = 2 * ZONE_RADIUS + 1 + MAP_CHROME;
+	const byWidth = Math.floor(w / (COLS * ratio));
+	// (the terminal rounds a line to whole pixels, so count rows as it does)
+	let font = Math.max(8, byWidth);
+	while (Math.floor(h / Math.round(font * 1.2)) > zoneRows && font < 40) font++;
+	// No fewer than 36 columns: the map is as wide as the screen lets it be.
+	const capped = Math.min(font, Math.floor(w / (36 * ratio)));
+	return { maxFont: capped, rows: 10, cols: Math.floor(w / (capped * ratio)) };
+}
+
 function frame(g: Grid) {
 	// The town is lit for the dark: over it, the pages take their night inks.
 	const key = extra && extraShown() ? (paletteKey().startsWith('folio') ? 'map-' + themeOfKey(paletteKey()) : paletteKey().replace('-day', '-night')) : paletteKey();
@@ -1894,9 +1930,11 @@ function frame(g: Grid) {
 	// The cover is a picture, drawn fine: many more columns (small cells, two pixels each).
 	// A book on a wide screen lies open: room for two leaves.
 	// The town on a desktop: bigger cells, fewer of them, so its small things read.
-	if (extra && extraShown() && townBig()) term!.setScale(34, 26);
+	const town = !!extra && extraShown() && townBig();
+	const fit = town ? townScale(innerWidth, innerHeight, glyphRatio(), wideScreen()) : null;
+	if (fit) term!.setScale(fit.maxFont, fit.rows);
 	else term!.setScale(22, 40);
-	term!.setCols(key === 'cover' ? (wideScreen() ? 184 : 84) : key.startsWith('folio') ? (wideScreen() ? 2 * (COLS + 12) : COLS + 12) : key === 'leather' ? COLS + 6 : COLS);
+	term!.setCols(fit ? fit.cols : key === 'cover' ? (wideScreen() ? 184 : 84) : key.startsWith('folio') ? (wideScreen() ? 2 * (COLS + 12) : COLS + 12) : key === 'leather' ? COLS + 6 : COLS);
 	document.body.style.background = term!.palette[0];
 	document.documentElement.style.background = term!.palette[0];
 	g.clear(4, 0);
