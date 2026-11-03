@@ -326,6 +326,8 @@ let paletteKey: () => string = () => 'manuscript-night';
  */
 const PERSON: [number, number][] = [[8, 0], [12, 0], [10, 0], [14, 0], [6, 0], [7, 0], [5, 0], [0, 8], [0, 12], [0, 10], [0, 14], [0, 7], [0, 5], [0, 4], [4, 0]];
 export const personInk = (k: number): [number, number] => PERSON[((k % PERSON.length) + PERSON.length) % PERSON.length];
+/** The faint backing of a player's letter: a plate's own ground, or for a letter in a bright ink that ink's darkest shade, so it stands out of busy ground. */
+export const letterPlate = (fg: number, bg: number): number => bg || shade(fg, 0);
 /** A player's colour as one ink (the plate's, for those drawn on a plate). */
 export const seatInk = (k: number) => { const [f, b] = personInk(k); return b || f; };
 let townBig = () => true;

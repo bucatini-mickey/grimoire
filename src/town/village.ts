@@ -22,7 +22,7 @@
  * is talking privately and which doors are locked; each phone moves its own
  * walker and asks the host for the rest.
  */
-import { setTownBig, personInk, seatInk as seatInkOf, texturaPixels, setHover, INNER, onMap, btn, buttonBlock, buttonRows, drawButton, endPanel, field, isButton, listRow, paint, quant, redraw, shade, theTerm, paneled, setPalette, navRow, rubric, row, segWidth, setExtra, txt, wrap, center } from '../ui/ascii.ts';
+import { setTownBig, personInk, letterPlate, seatInk as seatInkOf, texturaPixels, setHover, INNER, onMap, btn, buttonBlock, buttonRows, drawButton, endPanel, field, isButton, listRow, paint, quant, redraw, shade, theTerm, paneled, setPalette, navRow, rubric, row, segWidth, setExtra, txt, wrap, center } from '../ui/ascii.ts';
 import type { Button, Row } from '../ui/ascii.ts';
 import type { Grid } from '../term/pterm.ts';
 import { hostRoom, joinRoom, newRoomCode } from '../net/link.ts';
@@ -1251,15 +1251,18 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 		// You are drawn reversed out of your ink; someone talking gets a gold plate.
 		const lit = bg ? bg : fg;
 		// A square plate: the letter and its second column share the ground.
-		const pf = mineQ ? 0 : talk ? 0 : fg, pb = mineQ ? lit : talk ? 6 : bg;
-		g.setWide(sx, mapY + sy, q.st ? '☼' : glyphOf(q), pf, pb || (g.get(sx, mapY + sy)?.bg ?? 0));
+		const pf = mineQ ? 0 : talk ? 0 : fg, pb = mineQ ? lit : talk ? 6 : letterPlate(fg, bg);
+		g.setWide(sx, mapY + sy, q.st ? '☼' : glyphOf(q), pf, pb);
+		g.bold(sx, mapY + sy);
 	}
 	if (S.game && (S.phase === 'dusk' || S.phase === 'circle') && gathering(t)) {
 		for (const r of S.ring) {
 			if ([...S.people.values()].some((q) => !q.st && q.seat === r.seat)) continue;
 			const cell = seatCell(t, r.seat);
 			if (!cell) continue;
-			g.setWide(scr(cell.x), mapY + cell.y - y0, r.name[0]?.toUpperCase() ?? '?', r.dead ? 3 : personInk(r.seat)[0] || 4, r.dead ? 0 : personInk(r.seat)[1]);
+			const [rf, rb] = personInk(r.seat);
+			g.setWide(scr(cell.x), mapY + cell.y - y0, r.name[0]?.toUpperCase() ?? '?', r.dead ? 3 : rf || 4, r.dead ? shade(3, 0) : letterPlate(rf, rb));
+			g.bold(scr(cell.x), mapY + cell.y - y0);
 		}
 	}
 	// Everyone off the screen (or on another floor) is marked at its edge, an arrow and their letter
@@ -1283,6 +1286,7 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 			const ink = mate ? 6 : bg || fg;
 			const sx = ex * CW;
 			g.set(sx, mapY + ey, glyphOf(q), bg && !mate ? fg : 0, ink);
+			g.bold(sx, mapY + ey);
 			g.set(sx + (dx > 0 && !onScreen ? -1 : 1), mapY + ey, arrow, ink, mate ? 0 : 0);
 		}
 		// On the screen and on your floor: a gold ring round the one you are meeting.
@@ -1417,7 +1421,8 @@ function councilRoom(g: Grid, y0: number, h: number, now: number) {
 		const plate = v?.nominee === r.seat ? 8 : v?.raised.includes(r.seat) ? 10 : v?.counted.includes(r.seat) ? 6 : -1;
 		const letter = (r.dead ? '+' : r.name[0]?.toUpperCase()) ?? '?';
 		if (plate >= 0) g.text(sx - 1, sy, ` ${letter} `, 0, plate);
-		else g.text(sx - 1, sy, r.dead ? ` ${letter} ` : `[${letter}]`, r.dead ? 3 : pb ? 0 : pf, r.dead ? 0 : pb);
+		else g.text(sx - 1, sy, r.dead ? ` ${letter} ` : `[${letter}]`, r.dead ? 3 : pb ? 0 : pf, r.dead ? shade(3, 0) : letterPlate(pf, pb));
+		g.bold(sx, sy); g.bold(sx - 1, sy); g.bold(sx + 1, sy);
 		if (v?.at === r.seat) g.set(sx - 2, sy, '>', 6, 0);
 		if (v?.raised.includes(r.seat)) g.set(sx + 2, sy, '^', 10, 0);
 		const s = Math.sin(a), up = Math.cos(a);
