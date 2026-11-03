@@ -166,11 +166,11 @@ for (let y = 46; y <= 97; y++) for (let x = 15; x <= 101; x++) {
 	for (let dy = -3; dy <= 3 && !near; dy++) for (let dx = -3; dx <= 3; dx++) if (get(x + dx, y + dy) === 'wall stone block' && (y + dy) > 48) { near = true; break; }
 	if (near && !(x > 22 && x < 94 && y > 51 && y < 88)) put(x, y, 'floor mud');
 }
-label(16, 94, 'Raised Ground');
 
 // The outer gatehouse, at the turn of the wall, and the road on from it.
 for (let y = 82; y <= 86; y++) for (let x = 86; x <= 90; x++) put(x, y, 'floor stone block');
-thing(88, 84, 'door', 'floor stone block');
+// The outer gate is shut: a barred wooden gate across the passage, and nothing beyond it.
+put(88, 84, 'wall wood');
 thing(86, 82, 'torch', 'floor stone block');
 label(90, 86, 'Outer Gatehouse');
 const road = (pts, spec = 'floor gravel', wdt = 2) => {
@@ -188,7 +188,7 @@ const road = (pts, spec = 'floor gravel', wdt = 2) => {
 	}
 };
 road([[57, 52], [57, 61]]); // the barbican down to the cross
-road([[62, 73], [85, 74], [88, 83]]); // the cross to the outer gate
+road([[62, 73], [85, 74], [87, 82]]); // the cross to the outer gate (shut)
 
 // ---- the market cross in the middle of the court, fifteen benches round it ----
 const mk = { x: 52, y: 66 };
@@ -220,7 +220,22 @@ for (let y = 0; y < H; y++) for (const x of [0, W - 1]) if (get(x, y) === 'floor
 P.clearDoorsteps((c) => c === 'wall leaves' || c.startsWith('floor grass |'), 'floor grass');
 P.connect(mk.x + 8, mk.y, { track: 'floor soil' });
 
+// Outside the walls there is nothing: the open ground beyond the court's wall and the castle's is shut off as
+// wood, and the map is cut to just round the walls (the moat and the pond stay as they are).
+const open = new Set(['floor grass', 'floor mud', 'floor gravel', 'floor soil', 'wall leaves']);
+const out = new Set(), todo = [];
+for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (x === 0 || y === 0 || x === W - 1 || y === H - 1) todo.push([x, y]);
+while (todo.length) {
+	const [x, y] = todo.pop();
+	// The barbican's way through the court's wall is not outside.
+	if (x < 0 || y < 0 || x >= W || y >= H || out.has(x + y * W) || !open.has(get(x, y).split('|')[0].trim()) || (x >= 56 && x <= 58 && y >= 49 && y <= 52)) continue;
+	out.add(x + y * W);
+	todo.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+}
+for (const i of out) put(i % W, Math.floor(i / W), 'wall leaves');
+const CROP = { x0: 14, y0: 0, x1: 102, y1: 98 };
+
 P.write(new URL('./castle.tbp', import.meta.url), 'castle', [
 	'Ravensburg, a moated castle of two courts above its outer court, for Grimoire\'s medieval games.',
 	'Made by town/make-castle.mjs; edit that and run it again. `label x y Name` names a place.'
-], { 'floor grass': ',', 'wall leaves': 'T', 'floor gravel': ':', 'floor soil': '.', 'wall wood': 'W', 'floor wood': '+', 'floor water': '~', 'wall stone block': '#', 'floor stone block': 's', 'stair-up wood': '<', 'stair-down wood': '>', 'stair-up stone block': '{', 'stair-down stone block': '}' });
+], { 'floor grass': ',', 'wall leaves': 'T', 'floor gravel': ':', 'floor soil': '.', 'wall wood': 'W', 'floor wood': '+', 'floor water': '~', 'wall stone block': '#', 'floor stone block': 's', 'stair-up wood': '<', 'stair-down wood': '>', 'stair-up stone block': '{', 'stair-down stone block': '}' }, CROP);

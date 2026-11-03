@@ -998,6 +998,13 @@ export function footButtons(back?: Button, on?: Button): Row {
 		if (on) drawButton(c, c.x + c.w - w, c.y, w, fit(on));
 	}, 'foot');
 }
+/** One small quiet button in the foot's right-hand corner (the Credits mark on the first page). */
+export function cornerButton(b: Button): Row {
+	return blockRow(3, (c) => {
+		const w = Math.min(c.w, Math.max(10, [...b.label].length + 4));
+		drawButton(c, c.x + c.w - w, c.y, w, { ...b, style: 'quiet' });
+	}, 'foot');
+}
 /** A pinned row's place: at the foot of the page, if the writing above leaves room. */
 const pinned = (r: Row, y: number, bottom: number) => (r.cls === 'foot' ? Math.max(y, bottom - lineH(r)) : y);
 /** The height of a page's pinned foot row, if it has one. */

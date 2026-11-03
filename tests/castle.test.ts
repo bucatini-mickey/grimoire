@@ -16,7 +16,7 @@ test('Ravensburg: a castle of two courts above its outer court, and no village b
 		assert.ok(named(name), `the ${name} is named`);
 	// The village is gone: no inn, no mill, no river, and the map ends below the outer court's wall.
 	for (const name of ['The Black Hart', 'Mill', 'The Wend']) assert.ok(!named(name), `no ${name}`);
-	assert.ok(town.h < 110, `${town.h} rows`);
+	assert.ok(town.h < 100, `${town.h} rows`);
 	// The market cross is the speaking place, in the middle of its benches.
 	const cross = xy(things('statue').map(xy).map((p) => p.x + p.y * town.w).find((i) => xy(i).y > 55)!);
 	assert.ok(atSpeakingPlace(town, { x: cross.x - 1, y: cross.y }));
@@ -35,5 +35,13 @@ test('the way in: over the moat by the barbican, through the gatehouse; the wall
 	const from = town.seats[0];
 	assert.ok(path(town, from, town.council!.seats[0]).length > 0, 'from the market to the great hall');
 	// The wall-walk runs round the curtain on the upper level.
-	assert.ok(walkable(upper, 50, 6) && walkable(upper, 30, 25));
+	assert.ok(walkable(upper, 36, 6) && walkable(upper, 16, 25));
+});
+
+test('the outer gate is shut, and there is no map beyond the walls', () => {
+	const gate = named('Outer Gatehouse')!;
+	// Nothing walkable lies outside the gatehouse's wall: the passage is barred.
+	assert.ok(!walkable(town, gate.x - 2, gate.y - 2), 'the shut gate cannot be walked through');
+	assert.ok(!named('Raised Ground'), 'the outer ground is cut away');
+	assert.ok(town.w < 95 && town.h < 100, `${town.w} by ${town.h}`);
 });

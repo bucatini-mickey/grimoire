@@ -138,7 +138,12 @@ export function plan(W, H, ground, seed = 1) {
 			}
 		},
 		/** Write the blueprint: one character a distinct cell, the same keys for both levels. */
-		write: (file, name, about, preferred = {}) => {
+		write: (file, name, about, preferred = {}, crop = null) => {
+			// `crop` {x0, y0, x1, y1} writes only that window of the map, labels moved to match.
+			const c0 = crop ?? { x0: 0, y0: 0, x1: W - 1, y1: H - 1 };
+			const cut = (a) => a.slice(c0.y0, c0.y1 + 1).map((r) => r.slice(c0.x0, c0.x1 + 1));
+			const g = cut(P.g), u = cut(P.u), u2 = cut(lv[2]);
+			const W = c0.x1 - c0.x0 + 1, H = c0.y1 - c0.y0 + 1;
 			const POOL = [...'.,:;_=+#%&*~-^"\'`!?$@ABCDEFGHIJKLMNOPQRSUVWXYZabcdefghijklmnopqrstuvwxyz0123456789()[]/|\\'];
 			const keyOf = new Map(Object.entries(preferred));
 			const used = new Set(keyOf.values());
@@ -162,7 +167,7 @@ export function plan(W, H, ground, seed = 1) {
 				...g.map((r) => r.map((sp) => keyOf.get(sp)).join('')),
 				...(twoLevels || three ? upper(u, 1) : []),
 				...(three ? upper(u2, 2) : []),
-				...labels.map(([x, y, nm]) => `label ${x} ${y} ${nm}`),
+				...labels.filter(([x, y]) => x >= c0.x0 && x <= c0.x1 && y >= c0.y0 && y <= c0.y1).map(([x, y, nm]) => `label ${x - c0.x0} ${y - c0.y0} ${nm}`),
 				'end',
 				''
 			].join('\n');
