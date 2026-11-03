@@ -114,6 +114,8 @@ export type Command =
 	/** The Judge pardons or condemns the latest nomination's nominee. */
 	| { type: 'judge'; by: SeatId; verdict: 'pardon' | 'condemn' }
 	| { type: 'note'; text: string }
+	/** The Storyteller shows a Cannibal poisoned by an evil meal a good character's ability (a false one: they are poisoned), or none. */
+	| { type: 'cannibal-tell'; seat: SeatId; character: CharacterId | null }
 	/**
 	 * The Storyteller moving tokens by hand: fixing a mistake, or ruling on
 	 * something the engine does not model. Logged, never checked against
@@ -265,6 +267,16 @@ function handle(tx: Tx, cmd: Command) {
 			attemptDeath(tx, cmd.seat, { cause: 'storyteller' });
 			return;
 		case 'note': return emit(tx, { type: 'note', text: cmd.text });
+		case 'cannibal-tell': {
+			validTarget(s, cmd.seat);
+			const eaten = s.seats[cmd.seat].eaten;
+			if (s.seats[cmd.seat].character !== 'cannibal' || !eaten?.evil) refuse('Only a Cannibal who has eaten an evil player is shown a false ability.');
+			if (cmd.character !== null) {
+				const def = getScript(s.scriptId).characters.find((c) => c.id === cmd.character);
+				if (!def || teamAlignment(def.team) !== 'good') refuse('The Cannibal is shown a good character’s ability.');
+			}
+			return emit(tx, { type: 'cannibal-told', seat: cmd.seat, character: cmd.character });
+		}
 		case 'adjust': return adjust(tx, cmd);
 		case 'set-poison':
 			if (!s.seats.length || !s.seats[0].character) refuse('Deal the characters first.');

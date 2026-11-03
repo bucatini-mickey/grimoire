@@ -214,6 +214,12 @@ export function reduce(prev: GameState, e: GameEvent): GameState {
 			break;
 		}
 
+		case 'cannibal-told': {
+			const eaten = s.seats[e.seat].eaten;
+			if (eaten) eaten.told = e.character;
+			break;
+		}
+
 		case 'poison-set':
 			// The Storyteller's hand: poison someone until dusk, or (null) cure all poison.
 			s.effects = s.effects.filter((x) => x.kind !== 'poisoned');

@@ -180,6 +180,8 @@ export function nightSteps(state: GameState): NightStep[] {
 		// The Cannibal who ate a good player also has their ability, and wakes when it would.
 		const held = [charDef(script, s.believes)];
 		if (s.character === 'cannibal' && s.eaten && !s.eaten.evil && s.alive) held.push(charDef(script, s.eaten.character));
+		// One who ate an evil player is poisoned, and wakes as the good ability the Storyteller showed them (what they learn is false).
+		if (s.character === 'cannibal' && s.eaten?.evil && s.eaten.told && s.alive) held.push(charDef(script, s.eaten.told));
 		for (const def of held) {
 			const eaten = def !== held[0];
 			// The Lunatic wakes at the Lunatic's place, as the Demon they think they are (each night it would act).

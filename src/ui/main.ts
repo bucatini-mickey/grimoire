@@ -2306,6 +2306,16 @@ function inspectRows(): Row[] {
 		rows.push(blank(), ...prose('The Drunk thinks they are:', 'gold'));
 		rows.push(...buttonRows(G.charactersOfTeam(script(), 'townsfolk').map((c) => btn(c.name, () => edit({ type: 'adjust', seat: id, character: 'drunk', believes: c.id })))));
 	} else {
+		// A Cannibal poisoned by an evil meal: the Storyteller may show them a good ability (false, they are poisoned), or none.
+		if (s.character === 'cannibal' && s.eaten?.evil) {
+			const told = s.eaten.told;
+			rows.push(blank(), ...prose('Ate an evil player: poisoned. Show them a good ability, or nothing:', 'gold'));
+			if (told !== undefined) rows.push(...prose(told ? `Shown: the ${charName(told)}.` : 'Shown: nothing.', 'dim'));
+			rows.push(...buttonRows([
+				btn('Nothing', () => edit({ type: 'cannibal-tell', seat: id, character: null }), { style: told === null ? 'on' : undefined }),
+				...[...G.charactersOfTeam(script(), 'townsfolk'), ...G.charactersOfTeam(script(), 'outsider')].map((c) => btn(c.name, () => edit({ type: 'cannibal-tell', seat: id, character: c.id }), { style: told === c.id ? 'on' : undefined }))
+			]));
+		}
 		rows.push(blank(), ...prose('By hand (logged):', 'dim'));
 		rows.push(...buttonRows([
 			btn(s.alive ? 'Kill' : 'Revive', () => edit({ type: 'adjust', seat: id, alive: !s.alive }), { style: s.alive ? 'danger' : undefined }),
@@ -2343,6 +2353,7 @@ function describe(e: GameEvent): string | null {
 		case 'executed': return `${name(e.seat)} is executed`;
 		case 'slayer-shot': return `${name(e.by)} shoots ${name(e.target)}: ${e.hit ? 'hit' : 'nothing happens'}`;
 		case 'adjusted': return `By hand: ${name(e.seat)}${e.alive !== undefined ? (e.alive ? ' revived' : ' killed') : ''}${e.character ? ` made the ${charName(e.character)}` : ''}${e.ghostVote !== undefined ? (e.ghostVote ? ' given a vote' : ' vote spent') : ''}`;
+		case 'cannibal-told': return e.character ? `The Cannibal ${name(e.seat)} is shown the ${charName(e.character)}'s ability (poisoned)` : `The Cannibal ${name(e.seat)} is shown nothing`;
 		case 'poison-set': return e.target === null ? 'By hand: poison cleared' : `By hand: ${name(e.target)} poisoned`;
 		case 'red-herring-set': return e.seat === null ? 'By hand: no red herring' : `By hand: ${name(e.seat)} is the red herring`;
 		case 'game-over': return `${e.winner.toUpperCase()} WINS. ${e.reason}`;

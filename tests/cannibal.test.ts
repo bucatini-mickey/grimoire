@@ -1,7 +1,7 @@
 /**
  * cannibal.test.ts - the Cannibal (EXP-CANNIBAL): has the ability of the last
  * player executed who died, and wakes when it would; an evil one leaves them
- * poisoned until a good player dies by execution.
+ * poisoned until a good player dies by execution; the Storyteller may show them a good ability meanwhile (cannibal-tell).
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -70,4 +70,32 @@ test('CANNIBAL-NONE: a day with no execution: nothing eaten', () => {
 	let s = start();
 	s = ok(s, { type: 'end-day' });
 	assert.equal(s.seats[C].eaten, undefined);
+});
+
+test('CANNIBAL-TELL: a poisoned Cannibal may be shown a good ability (it wakes, poisoned) or none', () => {
+	let s = execute(start(), 1, 6); // the Poisoner: evil
+	assert.ok(!nightSteps(s).some((x) => x.seat === C), 'shown nothing yet: no step');
+	s = ok(s, { type: 'cannibal-tell', seat: C, character: 'monk' });
+	assert.equal(s.seats[C].eaten?.told, 'monk');
+	assert.ok(wakesAs(s, 'monk'), 'woken as the Monk the Storyteller showed');
+	assert.equal(isPoisoned(s, C), true, 'still poisoned: nothing it does works');
+	const after = night(s, { [`monk:${C}`]: { type: 'choose', target: 6 } });
+	assert.ok(!after.effects.some((e) => e.kind === 'safe-from-demon' && e.by === C), 'no protection from a poisoned Cannibal');
+	// Or nothing at all.
+	s = ok(s, { type: 'cannibal-tell', seat: C, character: null });
+	assert.ok(!nightSteps(s).some((x) => x.seat === C), 'shown nothing: no step');
+});
+
+test('CANNIBAL-TELL: only after an evil meal, only a good character; a good meal later ends it', () => {
+	const fresh = start();
+	assert.throws(() => ok(fresh, { type: 'cannibal-tell', seat: C, character: 'monk' }), /evil/, 'nothing eaten');
+	let s = execute(fresh, 1, 6);
+	assert.throws(() => ok(s, { type: 'cannibal-tell', seat: C, character: 'imp' }), /good/, 'not an evil character');
+	assert.throws(() => ok(s, { type: 'cannibal-tell', seat: 3, character: 'monk' }), /Cannibal/, 'not a Cannibal');
+	s = ok(s, { type: 'cannibal-tell', seat: C, character: 'monk' });
+	s = ok(night(s), [{ type: 'end-night' }, { type: 'open-nominations' }]);
+	s = execute(s, 5, 6); // the Chef: good
+	assert.equal(s.seats[C].eaten?.told, undefined, 'a new meal clears what was shown');
+	assert.equal(isPoisoned(s, C), false);
+	assert.ok(wakesAs(s, 'chef'));
 });
