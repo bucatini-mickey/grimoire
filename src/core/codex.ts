@@ -49,6 +49,19 @@ export const INTERACTIONS: CodexPage = {
 };
 
 /** For each character: a few first thoughts for a new player. */
+/** The credits and disclaimer: whose game this is, and that the book is an unofficial fan tool. */
+export const CREDITS: CodexPage = {
+	title: 'Credits',
+	lines: [
+		'## Not an official product',
+		'Blood on the Clocktower is a game owned by The Pandemonium Institute, and its name, characters and rules belong to them. We do not own any rights to it.',
+		'This book is an unofficial fan project, made as a helper for Storytellers. It is not affiliated with, endorsed by or sponsored by The Pandemonium Institute.',
+		'## The words and the pictures',
+		'The ability text in this book is our own paraphrase, not the official wording. For the real thing, see the game’s own almanac and the official tools.',
+		'The drawings, the book’s binding and the village are made for this app. If you enjoy the game, please buy it and support its makers.'
+	]
+};
+
 export const TIPS: Record<string, string[]> = {
 	// ---- Trouble Brewing ----
 	washerwoman: ['You learn that one of two players is a particular Townsfolk. Share it early: it pins down two people at once.', 'If one of your two turns out to be evil, the other is very likely the Townsfolk you were shown.'],

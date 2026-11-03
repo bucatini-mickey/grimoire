@@ -18,7 +18,7 @@
 import * as G from '../core/index.ts';
 import type { Candidate, CharacterId, Command, GameEvent, GameState, Info, SeatId, Script, Lean } from '../core/index.ts';
 import { leafBreak, twoLeaves, personInk, seatInk, arrowBox, chapterRow, coverRow, footButtons, illuminatedRow, tickGrid, miniature, namePlate, navRow, tabStrip } from './ascii.ts';
-import { HOW_TO_PLAY, INTERACTIONS, TIPS } from '../core/codex.ts';
+import { CREDITS, HOW_TO_PLAY, INTERACTIONS, TIPS } from '../core/codex.ts';
 import type { CodexPage } from '../core/codex.ts';
 import { bookKey, themeOf } from './theme.ts';
 import { LobbyVoice } from '../town/lobbyvoice.ts';
@@ -182,7 +182,7 @@ const ui = {
 	/** The home page starts as the book's shut cover; a tap opens it to the menu. */
 	coverOpen: false,
 	/** Which leaf of the opened book: its contents, the Storyteller's leaf, or the players'. */
-	leaf: 'front' as 'front' | 'contents' | 'st' | 'players' | 'codex',
+	leaf: 'front' as 'front' | 'contents' | 'st' | 'players' | 'codex' | 'credits',
 	/** Where the codex is open: its index, a page of it, the characters of a script, or one character. */
 	codex: { page: 'index' as 'index' | 'how' | 'meet' | 'list' | 'char', script: 'trouble-brewing', char: '' },
 	/** Second taps that confirm ending a game (home: host anew, play in person, end it). */
@@ -772,6 +772,7 @@ function homeScreen(): Row[] {
 	if (ui.leaf === 'st') return storytellerLeaf(busy, toLeaf('contents'));
 	if (ui.leaf === 'players') return playersLeaf(toLeaf('contents'));
 	if (ui.leaf === 'codex') return codexRows(toLeaf('front'));
+	if (ui.leaf === 'credits') return codexPage(CREDITS, toLeaf('front'), 'Back');
 	const head: Row[] = [navRow('Close the book', () => { ui.coverOpen = false; render(); }), illuminatedRow([
 		{ t: 'the book of the Storyteller' }, { t: 'for Blood on the Clocktower,' }, { t: 'wherein the game is kept,', tone: 'dim' }, { t: 'its nights and its dead.', tone: 'dim' }
 	]), blank()];
@@ -782,6 +783,7 @@ function homeScreen(): Row[] {
 		// a rule of gold, and a plain word on what it holds.
 		rows.push(blank(), chapterRow('Play', 'Run a game, or join one.', toLeaf('contents')), blank(), blank());
 		rows.push(chapterRow('Codex', 'Characters, tips and how to play.', () => { ui.leaf = 'codex'; ui.codex.page = 'index'; render(); }));
+		rows.push(blank(), blank(), chapterRow('Credits', 'Whose game this is: an unofficial fan project.', toLeaf('credits')));
 		return rows;
 	}
 	const rows: Row[] = [navRow('Back', toLeaf('front')), blank()];
@@ -875,8 +877,8 @@ function codexRows(home: () => void): Row[] {
 }
 
 /** A page of the codex: its headings in red, its paragraphs plain. */
-function codexPage(p: CodexPage, back: () => void): Row[] {
-	const rows: Row[] = [navRow('Codex', back), rubric(p.title)];
+function codexPage(p: CodexPage, back: () => void, backLabel = 'Codex'): Row[] {
+	const rows: Row[] = [navRow(backLabel, back), rubric(p.title)];
 	for (const l of p.lines) {
 		if (l.startsWith('## ')) rows.push(blank(), row(txt(l.slice(3), 'rubric', 'heading')));
 		else rows.push(...prose(l));
