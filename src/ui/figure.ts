@@ -1,9 +1,9 @@
 /**
  * figure.ts - the page where a player makes their figure while they wait: the lobby, or the village.
  */
-import { FACES, HATS, defaultLook, loadLook, lookBust, lookGlyph, randomLook, saveLook } from '../town/avatar.ts';
+import { BODIES, HEADS, defaultLook, loadLook, lookBust, lookGlyph, randomLook, saveLook } from '../town/avatar.ts';
 import type { Look } from '../town/avatar.ts';
-import { blank, blockRow, btn, buttonBlock, buttonRows, endPanel, personInk, row, rubric, shade, txt, wrap } from './ascii.ts';
+import { blank, blockRow, btn, buttonBlock, buttonRows, endPanel, personInk, rubric, shade, wrap } from './ascii.ts';
 import type { Row } from './ascii.ts';
 
 /** `k`: their colour's number (a seat), or null if they have no seat yet. `changed` hears each new look. */
@@ -26,8 +26,8 @@ export function figureRows(name: string, k: number | null, changed: (l: Look) =>
 		c.g.text(x + 18, c.y + 2, ' . ,', 2);
 		wrap(k === null ? 'Your colour comes with your seat.' : 'Your colour stays: it is how they know you.', 30).forEach((l, i) => c.g.text(x, c.y + 4 + i, l, 3));
 	}));
-	rows.push(endPanel(), rubric('Face or body'), ...pick(FACES, look.f, (f) => ({ ...look, f })), endPanel());
-	rows.push(rubric('Head or headgear'), ...pick(HATS, look.h, (h) => ({ ...look, h })), ...wrap('For a little person: a body (Arms up, Star, Striding) and Dot head.', 44).map((l) => row(txt(l, 'dim'))), endPanel());
+	rows.push(endPanel(), rubric('Body'), ...pick(BODIES, look.b, (b) => ({ ...look, b })), endPanel());
+	rows.push(rubric('Head'), ...pick(HEADS, look.h, (h) => ({ ...look, h })), endPanel());
 	rows.push(blank(), buttonBlock([btn('Surprise me', () => set(randomLook()))]));
 	return rows;
 }

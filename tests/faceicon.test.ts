@@ -2,11 +2,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { faceOf, bannerStrength, bannerStep, NEAR_MAX, FACE_DEAD } from '../src/town/faceicon.ts';
 
-test('a player wears headgear of their own, the same all game; the dead are a dagger', () => {
+test('a player is a figure of their own, the same all game; the dead are a dagger', () => {
 	assert.equal(faceOf({}, 3), faceOf({}, 3), 'each keeps their own');
 	assert.notEqual(faceOf({}, 0), faceOf({}, 1));
-	assert.equal(faceOf({ look: { f: 5, h: 0 } }, 1), '\u00F8', 'the figure they made comes first');
-	assert.equal(faceOf({ dead: true, look: { f: 5, h: 0 } }, 1), FACE_DEAD);
+	assert.equal(faceOf({ look: { b: 4, h: 0 } }, 1), 'y\u0307', 'the figure they made comes first');
+	assert.equal(faceOf({ dead: true, look: { b: 4, h: 0 } }, 1), FACE_DEAD);
 	assert.equal(faceOf({ dead: true }, 3), FACE_DEAD);
 });
 

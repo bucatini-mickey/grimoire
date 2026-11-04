@@ -1,5 +1,5 @@
 /**
- * Players on the village map are townsfolk in their headgear: one glyph fills the person's whole
+ * Players on the village map are little figures, a head on a body: one glyph fills the person's whole
  * square, a bright ink on a dark plate of its own hue (never a dark figure), and each keeps theirs.
  * A faint name banner appears over anyone close to you and fades out with distance. (Off the screen
  * they are still marked at its edge by their letter.) Pure helpers, so they can be tested.
