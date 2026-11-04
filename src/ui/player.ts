@@ -98,7 +98,7 @@ function setNote(seat: SeatId, f: (n: SeatNote) => SeatNote) {
  * Nominate (the Storyteller accepts it); during a vote, their hand.
  */
 function villageButtons(): Extra[] {
-	const out: Extra[] = [{ label: 'My character', act: () => { P.cardOpen = !P.cardOpen; render(); } }, { label: 'Menu', act: () => { P.menu = P.menu ? null : 'home'; render(); } }];
+	const out: Extra[] = [{ label: 'My character', act: () => { P.cardOpen = !P.cardOpen; render(); } }, { label: 'Menu', pin: true, act: () => { P.menu = P.menu ? null : 'home'; render(); } }];
 	const v = P.view, me = P.seat;
 	if (!v || me === null || v.phase !== 'day') return out;
 	const mine = v.seats.find((s) => s.id === me);

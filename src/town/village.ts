@@ -22,7 +22,7 @@
  * is talking privately and which doors are locked; each phone moves its own
  * walker and asks the host for the rest.
  */
-import { setTownBig, personInk, letterPlate, seatInk as seatInkOf, texturaPixels, setHover, INNER, onMap, btn, buttonBlock, buttonRows, drawButton, endPanel, field, isButton, listRow, paint, quant, redraw, shade, theTerm, paneled, setPalette, navRow, rubric, row, segWidth, setExtra, txt, wrap, center } from '../ui/ascii.ts';
+import { setTownBig, personInk, letterPlate, seatInk as seatInkOf, texturaPixels, setHover, INNER, onMap, btn, buttonBlock, buttonRows, drawButton, endPanel, field, isButton, listRow, paint, quant, redraw, shade, theTerm, paneled, setPalette, navRow, rubric, row, segWidth, setExtra, txt, wrap, center, pickBar } from '../ui/ascii.ts';
 import type { Button, Row } from '../ui/ascii.ts';
 import type { Grid } from '../term/pterm.ts';
 import { hostRoom, joinRoom, newRoomCode } from '../net/link.ts';
@@ -93,7 +93,7 @@ export interface Person {
 }
 
 /** A button a game puts in the village. */
-export interface Extra { label: string; act: () => void; primary?: boolean; }
+export interface Extra { label: string; act: () => void; primary?: boolean; pin?: boolean; }
 
 /** A clock the village shows: time left of how long, whether it runs; the Storyteller may start or pause it. */
 export interface ClockSource {
@@ -903,7 +903,7 @@ function toolButtons(): Button[] {
 		else bs.push(btn(v.muted ? 'Unmute' : 'Mute', () => act('mute'), { style: v.muted ? 'on' : 'primary' }));
 	} else if (S.voiceBusy) bs.push(btn('Starting...', () => {}, { disabled: true }));
 	else { bs.push(btn('Talk', () => act('voice-mic'), { style: 'primary' })); later.push(btn('Listen only', () => act('voice-listen'))); }
-	for (const e of S.extra()) (e.primary ? bs : later).push(btn(e.label, e.act, { style: e.primary ? 'primary' : undefined }));
+	for (const e of S.extra()) (e.primary || e.pin ? bs : later).push(btn(e.label, e.act, { style: e.primary || e.pin ? 'primary' : undefined }));
 	if (S.phase === 'dusk' && (!S.game || S.town?.council) && p && !p.st && S.town && gathering(S.town)) bs.push(btn('My seat', () => act('seat'), { style: 'primary' }));
 	const door = doorBeside();
 	if (door !== null) bs.push(btn(S.town!.locked.has(door) ? 'Unlock' : 'Lock', () => act('door')));
@@ -914,13 +914,9 @@ function toolButtons(): Button[] {
 
 /** The bar: one row of the most wanted buttons that fit, the rest behind More. */
 function barButtons(cols: number): { bar: Button[]; more: Button[] } {
-	const all = toolButtons();
-	const fits = (bs: Button[]) => bs.reduce((k, b) => k + segWidth(b), 0) <= cols;
-	if (fits(all)) return { bar: all, more: [] };
 	const more = btn('More', () => act('more'), { style: S.sheet === 'more' ? 'on' : 'quiet' });
-	const bar: Button[] = [];
-	for (const b of all) if (fits([...bar, b, more])) bar.push(b); else break;
-	return { bar: [...bar, more], more: all.slice(bar.length) };
+	// The Menu (the way out of the walk) never falls behind More, however narrow the phone.
+	return pickBar(toolButtons(), cols, (b) => b.label === 'Menu', more);
 }
 
 /** Stamp wrapped buttons at (x, y) in `w` columns; returns the height used. */

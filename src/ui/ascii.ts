@@ -82,6 +82,25 @@ export function segWidth(s: Seg): number {
 	return s.width ?? [...s.label].length + 4;
 }
 
+/**
+ * The village's bottom bar: one row of the buttons that fit `cols`, in order, the rest behind `more`.
+ * A pinned button (the way out: the menu) is always on the bar, however narrow the phone; the others give way to it.
+ */
+export function pickBar(all: Button[], cols: number, pinned: (b: Button) => boolean, more: Button): { bar: Button[]; more: Button[] } {
+	const width = (bs: Button[]) => bs.reduce((k, b) => k + segWidth(b), 0);
+	if (width(all) <= cols) return { bar: all, more: [] };
+	const keep = new Set(all.filter(pinned));
+	let room = cols - segWidth(more) - width([...keep]);
+	const bar = new Set(keep);
+	for (const b of all) {
+		if (keep.has(b)) continue;
+		const w = segWidth(b);
+		if (w > room) break;
+		room -= w; bar.add(b);
+	}
+	return { bar: [...all.filter((b) => bar.has(b)), more], more: all.filter((b) => !bar.has(b)) };
+}
+
 export function center(text: string, width = COLS): string {
 	const len = [...text].length;
 	if (len >= width) return text;

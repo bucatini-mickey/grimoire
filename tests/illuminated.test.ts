@@ -40,3 +40,17 @@ test('the town\u2019s cell size: desktop smaller than before, phone fits the occ
 	// A phone on its side keeps the desktop\u2019s rule.
 	assert.deepEqual(townScale(844, 390, ratio, false), desk);
 });
+
+test('the village bar keeps the Menu on it at phone width, not behind More', async () => {
+	const { pickBar, btn, segWidth } = await import('../src/ui/ascii.ts');
+	const noop = () => {};
+	const all = ['Talk', 'End', 'People', 'Lower hand', 'Menu', 'Faces'].map((l) => btn(l, noop));
+	const more = btn('More', noop);
+	for (const cols of [30, 36, 44]) {
+		const { bar, more: rest } = pickBar(all, cols, (b) => b.label === 'Menu', more);
+		assert.ok(bar.some((b) => b.label === 'Menu'), `Menu on the bar at ${cols} columns`);
+		assert.ok(!rest.some((b) => b.label === 'Menu'));
+		assert.ok(bar.reduce((k, b) => k + segWidth(b), 0) <= cols, 'the bar fits');
+	}
+	assert.equal(pickBar(all, 200, (b) => b.label === 'Menu', more).more.length, 0);
+});
