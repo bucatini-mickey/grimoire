@@ -28,7 +28,7 @@ export const BODIES: { name: string; ch: string }[] = [
 	{ name: 'Striding', ch: '\u044F' },
 	{ name: 'Seated', ch: '\u0447' },
 	{ name: 'Broad', ch: '\u03C0' },
-	{ name: 'Bent', ch: '\0264' },
+	{ name: 'Bent', ch: 'ɤ' },
 	{ name: 'Wide', ch: '\u0448' },
 	{ name: 'Round-backed', ch: '\u03C9' }
 ];
