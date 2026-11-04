@@ -22,6 +22,7 @@
  * is talking privately and which doors are locked; each phone moves its own
  * walker and asks the host for the rest.
  */
+import { iconOf, bannerStrength, bannerStep } from './faceicon.ts';
 import { setTownBig, personInk, letterPlate, seatInk as seatInkOf, texturaPixels, setHover, INNER, onMap, btn, buttonBlock, buttonRows, drawButton, endPanel, field, isButton, listRow, paint, quant, redraw, shade, theTerm, paneled, setPalette, navRow, rubric, row, segWidth, setExtra, txt, wrap, center, pickBar } from '../ui/ascii.ts';
 import type { Button, Row } from '../ui/ascii.ts';
 import type { Grid } from '../term/pterm.ts';
@@ -850,7 +851,7 @@ const fold = (ch: string) => {
 	const m: Record<string, string> = { '·': '.', '∙': '.', '•': '.', '∼': '~', '○': 'o', '✶': '*', '✦': '*', '❀': '*', '↑': '^' };
 	return m[ch] ?? '*';
 };
-const KEEP = new Set([...'≈π╥Θ■ö¡Ω‡♠♣¶⌐◙╫≡═▬†¬╤▒▓░▲♪☼∩¥⌠¤♦█ôÖ']);
+const KEEP = new Set([...'≈π╥Θ■ö¡Ω‡♠♣¶⌐◙╫≡═▬†¬╤▒▓░▲♪☼☺☻∩¥⌠¤♦█ôÖ']);
 
 /** The map's frame: move people and the camera, light the town, and ask for a redraw only when something changed. */
 function tickMap() {
@@ -1041,6 +1042,28 @@ setHover((c) => {
 	S.named = id ? { id, until: Infinity } : null;
 	S.dirty = true;
 });
+
+/** A faint name over anyone near you, fading with distance (the tapped or hovered one gets the full banner). */
+function closeNames(g: Grid, mapY: number, mapH: number, x0: number, y0: number, people: Person[], p: Person) {
+	for (const q of people) {
+		if (q.id === S.me || S.named?.id === q.id || (q.z ?? 0) !== (p.z ?? 0)) continue;
+		const d = shownAt.get(q.id) ?? q;
+		const step = bannerStep(bannerStrength(Math.hypot(d.x - p.x, d.y - p.y)));
+		if (step < 0) continue;
+		const sy = Math.round(d.y) - y0;
+		const row = sy > 0 ? sy - 1 : sy + 1;
+		if (row < 0 || row >= mapH) continue;
+		const text = q.st ? 'Storyteller' : q.name;
+		const [fg, bg] = markOf(q);
+		const ink = shade(bg || fg, step);
+		const sx = (Math.round(d.x) - x0) * CW;
+		const bx = Math.max(0, Math.min(g.cols - text.length, sx + 1 - Math.floor(text.length / 2)));
+		for (let k = 0; k < text.length; k++) {
+			const cell = g.get(bx + k, mapY + row);
+			g.set(bx + k, mapY + row, text[k], ink, cell ? cell.bg : 0);
+		}
+	}
+}
 
 /** The banner over a person's letter: their whole name, on a plate of their colour. */
 function nameBanner(g: Grid, mapY: number, mapH: number, x0: number, y0: number) {
@@ -1248,9 +1271,14 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 		const lit = bg ? bg : fg;
 		// A square plate: the letter and its second column share the ground.
 		const pf = mineQ ? 0 : talk ? 0 : fg, pb = mineQ ? lit : talk ? 6 : letterPlate(fg, bg);
-		g.setWide(sx, mapY + sy, q.st ? '☼' : glyphOf(q), pf, pb);
+		// A small face in the left column, the initial (fallback, and the colour plate) in the right.
+		const [face, initial] = iconOf(q, mineQ);
+		g.set(sx, mapY + sy, face, pf, pb);
+		g.set(sx + 1, mapY + sy, initial, pf, pb);
 		g.bold(sx, mapY + sy);
+		g.bold(sx + 1, mapY + sy);
 	}
+	closeNames(g, mapY, mapH, x0, y0, people, p);
 	if (S.game && (S.phase === 'dusk' || S.phase === 'circle') && gathering(t)) {
 		for (const r of S.ring) {
 			if ([...S.people.values()].some((q) => !q.st && q.seat === r.seat)) continue;
