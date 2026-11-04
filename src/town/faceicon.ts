@@ -1,8 +1,8 @@
 /**
- * Players on the village map are small faces, not bare letters: one CP437 face in the left column
- * of the cell and the person's initial in the right (the fallback, and what the colour plate
- * carries). Your own face is the hollow one. A faint name banner appears over anyone close to you
- * and fades out with distance. Pure helpers, so they can be tested.
+ * Players on the village map are faces: one face fills the person's whole square, in their colour.
+ * Your own face is the hollow one. A faint name banner appears over anyone close to you and fades out
+ * with distance. (Off the screen they are still marked at its edge by their letter.) Pure helpers,
+ * so they can be tested.
  */
 
 /** How far (in cells) a name banner reaches, and where it starts to fade. */
@@ -10,12 +10,11 @@ export const NEAR_MAX = 5, NEAR_FULL = 2;
 
 export const FACE_ME = '\u263A', FACE_OTHER = '\u263B', FACE_TALK = '\u263B', FACE_DEAD = '\u2020', FACE_ST = '\u263C';
 
-/** The two columns of a person's cell: [face, initial]. */
-export function iconOf(q: { name: string; st?: boolean; dead?: boolean }, mine: boolean): [string, string] {
-	const initial = q.st ? '\u2726' : q.name[0]?.toUpperCase() ?? '?';
-	if (q.st) return [FACE_ST, initial];
-	if (q.dead) return [FACE_DEAD, initial];
-	return [mine ? FACE_ME : FACE_OTHER, initial];
+/** The face that fills a person's square. */
+export function faceOf(q: { st?: boolean; dead?: boolean }, mine: boolean): string {
+	if (q.st) return FACE_ST;
+	if (q.dead) return FACE_DEAD;
+	return mine ? FACE_ME : FACE_OTHER;
 }
 
 /** Banner strength 0..1 at a distance in cells: full up close, fading to nothing at NEAR_MAX. 0 for yourself. */

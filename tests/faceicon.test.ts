@@ -1,12 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { iconOf, bannerStrength, bannerStep, NEAR_MAX, FACE_ME, FACE_OTHER, FACE_DEAD } from '../src/town/faceicon.ts';
+import { faceOf, bannerStrength, bannerStep, NEAR_MAX, FACE_ME, FACE_OTHER, FACE_DEAD } from '../src/town/faceicon.ts';
 
 test('a player is a face with their initial beside it; yours is the hollow one', () => {
-	assert.deepEqual(iconOf({ name: 'ada' }, false), [FACE_OTHER, 'A']);
-	assert.deepEqual(iconOf({ name: 'ada' }, true), [FACE_ME, 'A']);
-	assert.equal(iconOf({ name: 'ada', dead: true }, false)[0], FACE_DEAD);
-	assert.equal(iconOf({ name: '', }, false)[1], '?');
+	assert.equal(faceOf({}, false), FACE_OTHER);
+	assert.equal(faceOf({}, true), FACE_ME);
+	assert.equal(faceOf({ dead: true }, false), FACE_DEAD);
 	assert.notEqual(FACE_ME, FACE_OTHER);
 });
 

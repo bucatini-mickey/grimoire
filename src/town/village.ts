@@ -22,7 +22,7 @@
  * is talking privately and which doors are locked; each phone moves its own
  * walker and asks the host for the rest.
  */
-import { iconOf, bannerStrength, bannerStep } from './faceicon.ts';
+import { faceOf, bannerStrength, bannerStep } from './faceicon.ts';
 import { setTownBig, personInk, letterPlate, seatInk as seatInkOf, texturaPixels, setHover, INNER, onMap, btn, buttonBlock, buttonRows, drawButton, endPanel, field, isButton, listRow, paint, quant, redraw, shade, theTerm, paneled, setPalette, navRow, rubric, row, segWidth, setExtra, txt, wrap, center, pickBar } from '../ui/ascii.ts';
 import type { Button, Row } from '../ui/ascii.ts';
 import type { Grid } from '../term/pterm.ts';
@@ -45,7 +45,6 @@ const FACES = false;
 import type { Voice, VoiceMode } from './voice.ts';
 import CASTLE from '../../town/castle.tbp';
 import TALMBERG from '../../town/talmberg.tbp';
-import KEEP_TBP from '../../town/keep.tbp';
 import SALTGRAVE from '../../town/victorian.tbp';
 import WOLFSGRUND from '../../town/grimm.tbp';
 import WHITECHAPEL from '../../town/whitechapel.tbp';
@@ -57,7 +56,7 @@ import { bookKey, THEMES, TOWN_LIST, themeOf } from '../ui/theme.ts';
 import type { Theme } from '../ui/theme.ts';
 
 /** Each town's blueprint, by its key in TOWN_LIST (src/ui/theme.ts). */
-const TOWN_TEXT: Record<string, string> = { talmberg: TALMBERG, keep: KEEP_TBP, castle: CASTLE, hamlet: ASHCOMBE, abbey: ABBEY, grimm: WOLFSGRUND, whitechapel: WHITECHAPEL, victorian: SALTGRAVE, liner: CARCOSA };
+const TOWN_TEXT: Record<string, string> = { talmberg: TALMBERG, castle: CASTLE, hamlet: ASHCOMBE, abbey: ABBEY, grimm: WOLFSGRUND, whitechapel: WHITECHAPEL, victorian: SALTGRAVE, liner: CARCOSA };
 /** The town a theme is played in: the one the Storyteller picked for it, else its first. */
 const themeTown = (th: Theme) => {
 	const picked = store.get('grimoire.townOf.' + th);
@@ -1271,12 +1270,8 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 		const lit = bg ? bg : fg;
 		// A square plate: the letter and its second column share the ground.
 		const pf = mineQ ? 0 : talk ? 0 : fg, pb = mineQ ? lit : talk ? 6 : letterPlate(fg, bg);
-		// A small face in the left column, the initial (fallback, and the colour plate) in the right.
-		const [face, initial] = iconOf(q, mineQ);
-		g.set(sx, mapY + sy, face, pf, pb);
-		g.set(sx + 1, mapY + sy, initial, pf, pb);
-		g.bold(sx, mapY + sy);
-		g.bold(sx + 1, mapY + sy);
+		// The face fills the square, both its columns.
+		g.setWide(sx, mapY + sy, faceOf(q, mineQ), pf, pb);
 	}
 	closeNames(g, mapY, mapH, x0, y0, people, p);
 	if (S.game && (S.phase === 'dusk' || S.phase === 'circle') && gathering(t)) {
@@ -1715,7 +1710,7 @@ function act(a: string, id = '') {
 		case 'phase-night': setPhase('night'); break;
 		case 'bot': addBot(); break;
 		case 'st-toggle': S.stOpen = !S.stOpen; S.sheet = null; drawChrome(); break;
-		case 'town-talmberg': case 'town-keep': case 'town-castle': case 'town-hamlet': case 'town-abbey': case 'town-grimm': case 'town-whitechapel': case 'town-victorian': case 'town-liner': {
+		case 'town-talmberg': case 'town-castle': case 'town-hamlet': case 'town-abbey': case 'town-grimm': case 'town-whitechapel': case 'town-victorian': case 'town-liner': {
 			const key = a.slice(5), info = TOWN_LIST.find((t) => t.key === key)!;
 			store.set('grimoire.townOf.' + info.theme, key);
 			changeTown(TOWN_TEXT[key]);

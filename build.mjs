@@ -62,8 +62,24 @@ function png(w, h, rgba) {
 	return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
 }
 
-/** The icon files: the default design (src/ui/appicon.ts draws it; the page can draw its own over it). */
-const icon = (size) => png(size, size, Buffer.from(renderIcon(DEFAULT_ICON, size).rgba));
+/**
+ * The icon files, the same for everyone: the first figure in art/app-icon.json (drawn in
+ * tools/margin-editor.html, "App icon"), each pixel a square block, its empty cells the first ink.
+ * Without that file, the default design that src/ui/appicon.ts draws.
+ */
+function icon(size) {
+	if (!existsSync('art/app-icon.json')) return png(size, size, Buffer.from(renderIcon(DEFAULT_ICON, size).rgba));
+	const { ink, figures } = JSON.parse(readFileSync('art/app-icon.json', 'utf8'));
+	const rows = Object.values(figures)[0];
+	const n = Math.max(rows.length, ...rows.map((r) => r.length));
+	const hex = (c) => ink[c] ?? Object.values(ink)[0];
+	const rgba = Buffer.alloc(size * size * 4);
+	for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+		const h = hex(rows[Math.floor((y * n) / size)]?.[Math.floor((x * n) / size)]);
+		rgba.write(h.slice(1) + 'ff', (y * size + x) * 4, 'hex');
+	}
+	return png(size, size, rgba);
+}
 
 function writeAppFiles() {
 	writeFileSync('dist/icon-192.png', icon(192));

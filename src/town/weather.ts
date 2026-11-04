@@ -34,7 +34,6 @@ const BY_TOWN: Record<string, Weather> = {
 	grimm: { ...CALM, snow: true, fog: 1.1, fogTint: [150, 160, 172] },
 	whitechapel: { ...CALM, fog: 1.7, fogTint: [86, 82, 58] },
 	castle: CALM,
-	keep: { ...CALM, fog: 0.4 },
 	hamlet: { ...CALM, graze: true, fog: 1.2, fogTint: [120, 128, 116] },
 	abbey: { ...CALM, fog: 1.25, fogTint: [128, 128, 122] },
 	liner: { ...CALM, rain: true, storm: true, fog: 1.3, fogTint: [70, 82, 84] }
