@@ -5,7 +5,7 @@ import { faceOf, bannerStrength, bannerStep, NEAR_MAX, FACE_DEAD } from '../src/
 test('a player is a figure of their own, the same all game; the dead are a dagger', () => {
 	assert.equal(faceOf({}, 3), faceOf({}, 3), 'each keeps their own');
 	assert.notEqual(faceOf({}, 0), faceOf({}, 1));
-	assert.equal(faceOf({ look: { b: 4, h: 0 } }, 1), '\u0434\u0307', 'the figure they made comes first');
+	assert.equal(faceOf({ look: { b: 3, h: 0 } }, 1), '\u00E6\u0307', 'the figure they made comes first');
 	assert.equal(faceOf({ dead: true, look: { b: 4, h: 0 } }, 1), FACE_DEAD);
 	assert.equal(faceOf({ dead: true }, 3), FACE_DEAD);
 });

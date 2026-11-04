@@ -22,7 +22,8 @@
  * is talking privately and which doors are locked; each phone moves its own
  * walker and asks the host for the rest.
  */
-import { cleanLook, loadLook } from './avatar.ts';
+import { PLAIN_FIGURE, cleanLook, loadLook } from './avatar.ts';
+import { canDraw } from '../ui/glyphs.ts';
 import type { Look } from './avatar.ts';
 import { figureRows } from '../ui/figure.ts';
 import { faceOf, bannerStrength, bannerStep } from './faceicon.ts';
@@ -1292,7 +1293,8 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 		// Always a bright figure on a dark plate of its own hue; you on a stronger plate; someone talking in gold.
 		const hue = q.dead ? 3 : talk ? 6 : bg || fg;
 		// (the figure fills the square, both its columns)
-		g.setWide(sx, mapY + sy, faceOf(q, q.ink), talk ? 5 : hue, shade(hue, mineQ || talk ? 1 : 0));
+		const figure = faceOf(q, q.ink);
+		g.setWide(sx, mapY + sy, canDraw(figure) ? figure : PLAIN_FIGURE, talk ? 5 : hue, shade(hue, mineQ || talk ? 1 : 0));
 	}
 	closeNames(g, mapY, mapH, x0, y0, people, p);
 	if (S.game && (S.phase === 'dusk' || S.phase === 'circle') && gathering(t)) {

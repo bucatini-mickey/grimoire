@@ -81,9 +81,9 @@ const ALPHABETS = [
 	['Symbols', R([0xa1, 0xbf], [0x2020, 0x2021], [0x2200, 0x22ff], [0x2300, 0x23ff], [0x2600, 0x26ff], [0x2190, 0x21ff])]
 ];
 const MARKS = R([0x300, 0x36f]).map((c) => String.fromCodePoint(c));
-const KINDS = { body: 'Bodies (take a head)', whole: 'Whole figures (no head)', head: 'Heads' };
+const KINDS = { body: 'Bodies (take a head)', whole: 'Whole figures (no head)', head: 'Heads', circle: 'Circle faces' };
 const VS = '︎';
-let picks = { body: [], whole: [], head: ['̇', '̊', '̂', '̃', '́', '̀', '̄', '̌'] };
+let picks = { circle: [], body: [], whole: [], head: ['̇', '̊', '̂', '̃', '́', '̀', '̄', '̌'] };
 let kind = 'body', alpha = 0, tryHead = '̇', showMissing = false;
 const $ = (id) => document.getElementById(id);
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -157,16 +157,16 @@ function drawGrid() {
 }
 function drawPicks() {
 	const n = picks.body.length, w = picks.whole.length, h = picks.head.length;
-	$('count').textContent = `${n} bodies, ${w} whole, ${h} heads`;
-	const all = [...picks.body.map((v) => [v, 'body']), ...picks.whole.map((v) => [v, 'whole'])];
+	$('count').textContent = `${n} bodies, ${w} whole, ${h} heads, ${picks.circle.length} circle faces`;
+	const all = kind === 'circle' ? picks.circle.map((v) => [v, 'circle']) : [...picks.body.map((v) => [v, 'body']), ...picks.whole.map((v) => [v, 'whole'])];
 	$('picks').innerHTML = all.length ? all.map(([v, k]) => `<span class="s">${esc(asShown(v, k))}</span>`).join('') : '<span class="lab">Your picks appear here at true map size.</span>';
-	$('out').value = JSON.stringify({ body: picks.body.join(' '), whole: picks.whole.join(' '), heads: picks.head.map((m) => 'U+' + m.codePointAt(0).toString(16)).join(' ') });
+	$('out').value = JSON.stringify({ body: picks.body.join(' '), whole: picks.whole.join(' '), heads: picks.head.map((m) => 'U+' + m.codePointAt(0).toString(16)).join(' '), circle: picks.circle.join(' ') });
 }
 const drawAll = () => { drawBars(); drawGrid(); drawPicks(); };
 document.addEventListener('click', (e) => {
 	const b = e.target.closest('button');
 	if (!b) return;
-	if (b.dataset.k) { kind = b.dataset.k; drawAll(); }
+	if (b.dataset.k) { kind = b.dataset.k; if (kind === 'circle') alpha = ALPHABETS.findIndex(([n]) => n === 'Symbols'); drawAll(); }
 	else if (b.dataset.h) { tryHead = b.dataset.h; drawBars(); drawGrid(); drawPicks(); }
 	else if (b.dataset.a) { alpha = +b.dataset.a; drawBars(); drawGrid(); scrollTo(0, 0); }
 	else if (b.dataset.v) { toggle(picks[kind], b.dataset.v); b.setAttribute('aria-pressed', picks[kind].includes(b.dataset.v)); if (kind === 'head') drawBars(); drawPicks(); saveSoon(); }
@@ -176,14 +176,14 @@ document.addEventListener('click', (e) => {
 		navigator.clipboard.writeText(text).then(() => { $('status').textContent = 'Copied'; }).catch(() => { $('out').hidden = false; $('out').select(); $('status').textContent = 'Select and copy the text above'; });
 	}
 });
-try { const s = JSON.parse(localStorage.getItem('figure-picks') || 'null'); if (s) picks = { body: s.body || [], whole: s.whole || [], head: s.head || picks.head }; } catch { /* private window */ }
+try { const s = JSON.parse(localStorage.getItem('figure-picks') || 'null'); if (s) picks = { circle: s.circle || [], body: s.body || [], whole: s.whole || [], head: s.head || picks.head }; } catch { /* private window */ }
 drawAll();
 (async () => {
 	db = await (window.claude?.use?.('db') ?? null);
 	if (!db) { $('status').textContent = 'Saved on this device only'; return; }
 	try {
 		const d = await db.doc('picks/mine').get();
-		if (d.exists) { const s = d.data(); picks = { body: s.body || [], whole: s.whole || [], head: s.head || picks.head }; drawAll(); }
+		if (d.exists) { const s = d.data(); picks = { circle: s.circle || [], body: s.body || [], whole: s.whole || [], head: s.head || picks.head }; drawAll(); }
 		$('status').textContent = 'Saved';
 	} catch { $('status').textContent = 'Could not load saved picks'; }
 })();

@@ -1,11 +1,10 @@
 /**
  * avatar.ts - a player's figure: a body and a head.
  *
- * It is one glyph, a letter for the body with a combining mark above it for the head, so any body can
- * take any head. The letters come from several alphabets, for their shapes: only short ones (a tall
- * one's head would be cut off by the top of the square), and only from alphabets phones can draw
- * (Georgian, Coptic and the like come out as empty boxes on some). The colour is not chosen: it comes
- * with the seat, and is how the others know you. Pure, so it can be tested.
+ * It is one glyph: a letter for the body with a combining mark above it for the head, so any body can
+ * take any head; or a whole figure, which stands alone. The letters were chosen by hand from many
+ * alphabets (tools/figure-picker.html). A phone without one draws something else (ui/glyphs.ts). The
+ * colour is not chosen: it comes with the seat, and is how the others know you. Pure, so it can be tested.
  */
 
 export interface Look {
@@ -13,25 +12,12 @@ export interface Look {
 	h: number;
 }
 
-/** The bodies, each a letter on the map. */
-export const BODIES: { name: string; ch: string }[] = [
-	{ name: 'Stout', ch: 'o' },
-	{ name: 'Thin', ch: '\u0131' },
-	{ name: 'Cloaked', ch: '\u028C' },
-	{ name: 'Robed', ch: '\u0467' },
-	{ name: 'Skirted', ch: '\u0434' },
-	{ name: 'Arms up', ch: '\u03C8' },
-	{ name: 'Waving', ch: '\u03B3' },
-	{ name: 'Arms out', ch: '\u03C4' },
-	{ name: 'Sprawling', ch: '\u0436' },
-	{ name: 'Leaping', ch: '\u03C7' },
-	{ name: 'Striding', ch: '\u044F' },
-	{ name: 'Seated', ch: '\u0447' },
-	{ name: 'Broad', ch: '\u03C0' },
-	{ name: 'Bent', ch: 'ɤ' },
-	{ name: 'Wide', ch: '\u0448' },
-	{ name: 'Round-backed', ch: '\u03C9' }
-];
+/** The bodies, each a letter that takes a head. */
+const TAKES_A_HEAD = "a c e æ g j n o p q r s t v w x y z ç ø ą ņ ĸ ƽ ư ƴ ƶ ƨ ơ ƣ ƿ ǌ ǝ ȼ ɀ ɉ ꝛ ꝿ ꝍ ꝋ ꞩ ꞹ ꭎ ꭅ ꭓ ꭥ ꭤ ꬻ ꞇ ꞅ ꬳ ꞓ ꞔ ɑ ɒ ɔ ɕ ɚ ɛ ɜ ɟ ɤ ᴉ ᴊ ᴇ ᴆ ᴅ ᴄ ᴃ ᴂ ᴁ ᴀ ᴕ ᴔ ᴖ ᴗ ᴘ ᴙ ᴛ ᴝ ᴠ ᴡ ᴥ ᴦ ᴧ ᴨ ᴩ ᴪ ᴫ ᴑ ᴐ ᴏ ᴌ ᴋ ᴒ ᴓ ʉ ᵼ ᵻ ᵾ ᵿ ᵴ ᵶ ᵳ ᵲ ᵱ ᵰ α ϗ γ ε ι κ μ ν π ρ ς σ τ υ χ ω ᛙ ¡ ≁ ⊧ ⊦ ⋏".split(' ');
+/** The whole figures, which take no head: some already wear a mark, and a second would be cut off. */
+const WHOLE = "ċ ė ǡ ȯ ḋ ḃ ẘ ớ ở ờ ợ ቾ ኖ ቶ ♟".split(' ');
+/** Every figure's letter. */
+export const BODIES: { ch: string; whole?: boolean }[] = [...TAKES_A_HEAD.map((ch) => ({ ch })), ...WHOLE.map((ch) => ({ ch, whole: true }))];
 
 /** The heads, each a mark above the body. */
 export const HEADS: { name: string; mark: string }[] = [
@@ -53,11 +39,11 @@ export const cleanLook = (raw: unknown): Look => {
 };
 
 /** The figure on the map: one glyph. */
-export const lookGlyph = (l: Look): string => BODIES[l.b].ch + HEADS[l.h].mark;
-/** Someone who has not chosen: a plain head on a body of their own, by their number. */
-export const defaultLook = (k: number): Look => ({ b: ((k % BODIES.length) + BODIES.length) % BODIES.length, h: 0 });
-/** Any figure at random. */
-export const randomLook = (rnd: () => number = Math.random): Look => ({ b: Math.floor(rnd() * BODIES.length), h: Math.floor(rnd() * HEADS.length) });
+export const lookGlyph = (l: Look): string => BODIES[l.b].ch + (BODIES[l.b].whole ? '' : HEADS[l.h].mark);
+/** What a phone that cannot draw someone's figure draws instead. */
+export const PLAIN_FIGURE = 'o\u0307';
+/** Someone who has not chosen: a plain head on a body of their own, by their number, from the plainest letters. */
+export const defaultLook = (k: number): Look => ({ b: ((k % 18) + 18) % 18, h: 0 });
 
 const KEY = 'grimoire.figure';
 /** This phone's figure, kept between games; null if never chosen. */
