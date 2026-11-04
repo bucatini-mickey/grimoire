@@ -20,61 +20,91 @@ import type { Phase, Town } from './map.ts';
 export type Rgb = [number, number, number];
 
 interface Mat { fg: Rgb; bg: Rgb; wall: string; floors: string[]; style?: 'double' | 'single'; }
+
+/**
+ * Colours from the real thing (docs/PALETTE.md, section 4: oak, weathered boards, teak, straw, turf, limestone,
+ * granite, slate, red brick), then two small steps, both applied once when the table is built:
+ *  - `lean`: a few per cent toward the dye the book is painted in (weld, madder, woad, verdigris, oak-gall,
+ *    vellum), so the village and the book feel related, with the lightness of the material kept as it was;
+ *  - `LIFT`: a shade brighter all round.
+ * Light, flicker and the day/night maths are untouched: this is only what colour a thing is before lighting.
+ */
+const DYE = {
+	weld: [216, 177, 58] as Rgb, madder: [181, 72, 58] as Rgb, woad: [47, 79, 127] as Rgb, verdigris: [62, 143, 122] as Rgb,
+	gall: [90, 65, 48] as Rgb, vellum: [232, 221, 196] as Rgb, green: [143, 156, 108] as Rgb
+};
+const LIFT = 1.07;
+const lean = (c: Rgb, dye: Rgb, k: number): Rgb => {
+	const lum = (v: Rgb) => 0.3 * v[0] + 0.59 * v[1] + 0.11 * v[2];
+	const m = c.map((v, i) => v + (dye[i] - v) * k) as Rgb, s = lum(c) / lum(m);
+	return m.map((v) => v * s) as Rgb;
+};
+const finish = (c: Rgb, dye?: Rgb, k = 0.08): Rgb => (dye ? lean(c, dye, k) : c).map((v) => Math.min(255, Math.round(v * LIFT))) as Rgb;
+/** A material: fg and bg as they are in nature, leaned toward a dye, lifted. */
+const mat = (fg: Rgb, bg: Rgb, wall: string, floors: string[], dye?: Rgb, style?: 'double' | 'single', k?: number): Mat =>
+	({ fg: finish(fg, dye, k), bg: finish(bg, dye, k), wall, floors, ...(style ? { style } : {}) });
+
 const MATS: Record<string, Mat> = {
-	grass: { fg: [84, 150, 58], bg: [26, 46, 18], wall: '"', floors: [',', '.', "'", '"', '`', ',', '.'] },
-	soil: { fg: [128, 92, 58], bg: [54, 38, 24], wall: '▒', floors: ['.', ',', '·', '.'] },
-	sand: { fg: [196, 180, 128], bg: [84, 74, 46], wall: '▒', floors: ['.', '·', ',', '.'] },
-	gravel: { fg: [150, 146, 140], bg: [60, 58, 56], wall: '▒', floors: [':', '·', '.', ':'] },
-	mud: { fg: [110, 84, 56], bg: [48, 34, 22], wall: '▒', floors: ['~', ',', '.', ','] },
-	clay: { fg: [170, 100, 70], bg: [78, 44, 30], wall: '▒', floors: ['.', ',', '·'] },
-	wood: { fg: [116, 104, 92], bg: [44, 38, 32], wall: 'O', floors: ['+'], style: 'single' },
-	leaves: { fg: [60, 134, 48], bg: [18, 44, 16], wall: '♣', floors: ['♣'] },
-	'stone block': { fg: [178, 176, 168], bg: [62, 60, 58], wall: '#', floors: ['+'], style: 'double' },
-	slate: { fg: [96, 104, 124], bg: [36, 40, 50], wall: '▓', floors: ['≡'] },
-	granite: { fg: [118, 116, 124], bg: [46, 44, 52], wall: '▓', floors: ['.', '·', '.', ','] },
-	water: { fg: [96, 150, 196], bg: [18, 44, 72], wall: '≈', floors: ['~', '≈', '~', '-'] },
-	glass: { fg: [170, 214, 232], bg: [44, 70, 84], wall: '░', floors: ['.'] },
-	// Saltgrave's: sooty brick terraces, wet cobbles, iron railings.
-	brick: { fg: [168, 92, 70], bg: [60, 30, 26], wall: '#', floors: ['+'], style: 'double' },
-	cobble: { fg: [124, 122, 120], bg: [40, 40, 42], wall: '▒', floors: ['∙', '·', ':', '∙', '.'] },
-	iron: { fg: [96, 102, 110], bg: [24, 26, 30], wall: '╫', floors: ['.'] },
-	ice: { fg: [200, 230, 244], bg: [70, 96, 112], wall: '░', floors: ['.', '-', '.'] },
-	// Wolfsgrund's: snow lying everywhere, and the pine wood.
-	snow: { fg: [214, 222, 232], bg: [128, 136, 150], wall: '▒', floors: ['.', '·', ',', '.', "'", ' '] },
-	pine: { fg: [46, 96, 62], bg: [10, 26, 18], wall: '♠', floors: ['♠'] },
-	// Ashcombe's: thatched cottages, wattle fences, standing wheat that the wind runs through, pasture, tilled plots.
-	thatch: { fg: [176, 146, 86], bg: [74, 58, 32], wall: '▒', floors: ['.'] },
-	paling: { fg: [130, 100, 66], bg: [34, 44, 22], wall: '┼', floors: ['.'], style: 'single' },
-	wheat: { fg: [196, 168, 92], bg: [86, 72, 36], wall: '"', floors: ['"', "'", ',', '"'] },
-	pasture: { fg: [96, 148, 66], bg: [30, 50, 22], wall: '"', floors: [',', '.', "'", ',', '.', ' '] },
-	tilled: { fg: [104, 136, 60], bg: [58, 40, 26], wall: '▒', floors: ['=', '≡', '='] },
+	// Sunlit turf has yellow in it; the sod beneath is dark and rich.
+	grass: mat([104, 152, 56], [34, 54, 20], '"', [',', '.', "'", '"', '`', ',', '.'], DYE.green),
+	// Bare soil, a little redder where it is brown earth (#5A4430 in the shade).
+	soil: mat([136, 100, 64], [66, 48, 32], '▒', ['.', ',', '·', '.'], DYE.gall, undefined, 0.06),
+	sand: mat([200, 182, 132], [88, 76, 48], '▒', ['.', '·', ',', '.']),
+	gravel: mat([152, 148, 140], [62, 60, 56], '▒', [':', '·', '.', ':']),
+	mud: mat([112, 86, 58], [50, 36, 24], '▒', ['~', ',', '.', ','], DYE.gall, undefined, 0.06),
+	clay: mat([176, 104, 72], [80, 46, 32], '▒', ['.', ',', '·'], DYE.madder),
+	// Weathered oak and warm-grey boards (#8A8579 over aged oak), not dull brown-grey.
+	wood: mat([156, 142, 120], [64, 50, 36], 'O', ['+'], DYE.gall, 'single'),
+	leaves: mat([66, 124, 50], [20, 46, 18], '♣', ['♣'], DYE.green),
+	// Stone block: warm grey masonry; limestone paler and cream, granite cooler and bluer.
+	'stone block': mat([190, 184, 172], [66, 62, 58], '#', ['+'], DYE.vellum, 'double', 0.06),
+	// Slate is blue-grey (#4F5961), wet slate bluer.
+	slate: mat([104, 118, 132], [38, 45, 54], '▓', ['≡'], DYE.woad),
+	granite: mat([124, 128, 136], [46, 49, 56], '▓', ['.', '·', '.', ','], DYE.woad, undefined, 0.06),
+	water: mat([100, 156, 196], [20, 50, 76], '≈', ['~', '≈', '~', '-'], DYE.woad, undefined, 0.1),
+	glass: mat([170, 214, 232], [44, 70, 84], '░', ['.']),
+	// Saltgrave's: sooty brick terraces (red clay, #9A4B35), wet cobbles, iron railings.
+	brick: mat([182, 96, 68], [68, 34, 28], '#', ['+'], DYE.madder, 'double'),
+	cobble: mat([128, 126, 122], [42, 42, 44], '▒', ['∙', '·', ':', '∙', '.']),
+	iron: mat([98, 104, 114], [24, 26, 30], '╫', ['.']),
+	ice: mat([200, 230, 244], [70, 96, 112], '░', ['.', '-', '.']),
+	// Wolfsgrund's: snow lying everywhere, and the pine wood (blue-green, nearly black in its shade).
+	snow: mat([214, 222, 232], [128, 136, 150], '▒', ['.', '·', ',', '.', "'", ' ']),
+	pine: mat([44, 94, 74], [10, 28, 24], '♠', ['♠'], DYE.verdigris),
+	// Ashcombe's: thatched cottages (new straw), wattle fences, standing wheat that the wind runs through, pasture, tilled plots.
+	thatch: mat([198, 162, 90], [86, 66, 36], '▒', ['.'], DYE.weld),
+	paling: mat([150, 124, 88], [36, 52, 24], '┼', ['.'], DYE.gall, 'single'),
+	wheat: mat([204, 172, 94], [90, 74, 36], '"', ['"', "'", ',', '"'], DYE.weld),
+	pasture: mat([120, 154, 64], [40, 56, 24], '"', [',', '.', "'", ',', '.', ' '], DYE.green),
+	tilled: mat([110, 138, 62], [64, 44, 30], '▒', ['=', '≡', '='], DYE.green),
 	// The abbey's: pale limestone, the garth's turf.
-	limestone: { fg: [196, 190, 172], bg: [72, 70, 62], wall: '#', floors: ['+'], style: 'double' },
-	// The liner's: teak decks, white-painted steel, black hull plates, the funnels.
-	teak: { fg: [168, 128, 84], bg: [62, 44, 28], wall: 'O', floors: ['='], style: 'single' },
-	steel: { fg: [206, 206, 198], bg: [70, 72, 74], wall: '#', floors: ['+'], style: 'double' },
-	hull: { fg: [74, 78, 84], bg: [16, 18, 22], wall: '▓', floors: ['.'] },
-	funnel: { fg: [176, 92, 54], bg: [40, 22, 16], wall: '█', floors: ['.'] },
-	carpet: { fg: [150, 60, 64], bg: [52, 22, 26], wall: '▒', floors: ['░', '.'] }
+	limestone: mat([208, 200, 176], [70, 67, 56], '#', ['+'], DYE.vellum, 'double'),
+	// The liner's: teak decks (golden-brown), white-painted steel, black hull plates, the funnels.
+	teak: mat([176, 134, 84], [68, 48, 28], 'O', ['='], DYE.gall, 'single', 0.06),
+	steel: mat([208, 208, 200], [70, 72, 74], '#', ['+'], undefined, 'double'),
+	hull: mat([74, 79, 86], [16, 18, 22], '▓', ['.']),
+	funnel: mat([180, 94, 54], [42, 23, 16], '█', ['.'], DYE.madder, undefined, 0.06),
+	carpet: mat([154, 62, 64], [54, 23, 27], '▒', ['░', '.'], DYE.madder)
 };
 const FALLBACK = MATS.soil;
 
 interface Kind { ch: string; fg: Rgb; light?: Rgb; flicker?: boolean; }
-const BROWN: Rgb = [176, 124, 72], STONE: Rgb = [190, 186, 178];
+/** Oak for doors and furniture: a richer honey than the weathered boards it stands on, so it reads against wood. */
+const BROWN: Rgb = [204, 144, 80], STONE: Rgb = [202, 198, 188];
 const KINDS: Record<string, Kind> = {
-	door: { ch: '◘', fg: BROWN }, table: { ch: 'π', fg: BROWN }, chair: { ch: '╥', fg: BROWN }, bed: { ch: 'Θ', fg: [190, 70, 64] },
-	chest: { ch: '■', fg: [150, 100, 52] }, bookshelf: { ch: '≡', fg: BROWN }, barrel: { ch: 'ö', fg: [150, 104, 56] },
+	door: { ch: '◘', fg: BROWN }, table: { ch: 'π', fg: BROWN }, chair: { ch: '╥', fg: BROWN }, bed: { ch: 'Θ', fg: [198, 74, 66] },
+	chest: { ch: '■', fg: [182, 122, 60] }, bookshelf: { ch: '≡', fg: BROWN }, barrel: { ch: 'ö', fg: [166, 112, 58] },
 	torch: { ch: '¡', fg: [255, 210, 110], light: [255, 176, 92], flicker: true },
 	brazier: { ch: 'Ω', fg: [230, 130, 50], light: [255, 150, 60], flicker: true },
 	candle: { ch: 'i', fg: [250, 240, 200], light: [170, 130, 70], flicker: true },
-	altar: { ch: '╤', fg: STONE }, pew: { ch: '═', fg: BROWN }, coffin: { ch: '▬', fg: [90, 60, 40] }, statue: { ch: '†', fg: STONE },
-	well: { ch: 'O', fg: STONE }, anvil: { ch: '¬', fg: [120, 120, 130] }, 'hay bale': { ch: '"', fg: [220, 200, 100] },
-	sign: { ch: '¶', fg: BROWN }, bell: { ch: ' ', fg: [214, 172, 92] }, oak: { ch: '♣', fg: [70, 120, 46] }, loom: { ch: '╫', fg: BROWN }, oven: { ch: '◙', fg: [200, 120, 70], light: [150, 80, 30] }, cart: { ch: '⌐', fg: BROWN }, clock: { ch: ' ', fg: [214, 172, 92] }, flowers: { ch: '*', fg: [220, 120, 160] }, waterfall: { ch: '¦', fg: [200, 228, 240] }, rug: { ch: '░', fg: [150, 50, 50] },
-	'gas lamp': { ch: '‡', fg: [214, 236, 196], light: [150, 186, 150] }, fern: { ch: '♠', fg: [72, 150, 96] },
+	altar: { ch: '╤', fg: STONE }, pew: { ch: '═', fg: BROWN }, coffin: { ch: '▬', fg: [140, 98, 66] }, statue: { ch: '†', fg: STONE },
+	well: { ch: 'O', fg: STONE }, anvil: { ch: '¬', fg: [128, 130, 140] }, 'hay bale': { ch: '"', fg: [226, 200, 104] },
+	sign: { ch: '¶', fg: BROWN }, bell: { ch: ' ', fg: [220, 178, 94] }, oak: { ch: '♣', fg: [78, 128, 48] }, loom: { ch: '╫', fg: BROWN }, oven: { ch: '◙', fg: [204, 122, 70], light: [150, 80, 30] }, cart: { ch: '⌐', fg: BROWN }, clock: { ch: ' ', fg: [220, 178, 94] }, flowers: { ch: '*', fg: [220, 120, 160] }, waterfall: { ch: '¦', fg: [204, 230, 242] }, rug: { ch: '░', fg: [158, 54, 54] },
+	'gas lamp': { ch: '‡', fg: [214, 236, 196], light: [150, 186, 150] }, fern: { ch: '♠', fg: [78, 152, 98] },
 	sigil: { ch: '✶', fg: [120, 230, 180], light: [50, 130, 100], flicker: true },
-	beacon: { ch: '☼', fg: [255, 244, 200], light: [255, 236, 180] }, 'plank bridge': { ch: '=', fg: [150, 110, 70] },
-	reeds: { ch: '⌠', fg: [150, 160, 84] }, 'bare tree': { ch: '¥', fg: [112, 96, 82] }, crops: { ch: '♣', fg: [96, 150, 70] },
-	rail: { ch: '■', fg: [120, 124, 130] }, lifeboat: { ch: '▬', fg: [222, 220, 210] }, wheel: { ch: '¤', fg: [214, 172, 92] }, piano: { ch: '╤', fg: [60, 44, 36] }, lamp: { ch: '♦', fg: [250, 226, 170], light: [190, 150, 90] }
+	beacon: { ch: '☼', fg: [255, 244, 200], light: [255, 236, 180] }, 'plank bridge': { ch: '=', fg: [164, 124, 80] },
+	reeds: { ch: '⌠', fg: [158, 164, 88] }, 'bare tree': { ch: '¥', fg: [126, 110, 94] }, crops: { ch: '♣', fg: [104, 154, 72] },
+	rail: { ch: '■', fg: [124, 128, 136] }, lifeboat: { ch: '▬', fg: [226, 224, 214] }, wheel: { ch: '¤', fg: [220, 178, 94] }, piano: { ch: '╤', fg: [20, 18, 22] }, lamp: { ch: '♦', fg: [250, 226, 170], light: [190, 150, 90] }
 };
 const DOUBLE = ['■', '║', '═', '╚', '║', '║', '╔', '╠', '═', '╝', '═', '╩', '╗', '╣', '╦', '╬'];
 const SINGLE = ['o', '│', '─', '└', '│', '│', '┌', '├', '─', '┘', '─', '┴', '┐', '┤', '┬', '┼'];
@@ -282,7 +312,7 @@ function vary(l: Look, mat: string, wall: boolean, x: number, y: number): Look {
 	// Built things: weathering, and now and then a little moss on stone outdoors.
 	const k = 1 + patch * (wall ? 0.14 : 0.18) + fine * 0.1;
 	const moss = !wall && (hash(x, y, 29) & 63) < 3 && /stone|cobble|slate|granite|limestone/.test(mat);
-	return { ...l, bg: moss ? lerp(tone(l.bg, k), [70, 92, 52], 0.35) : tone(l.bg, k), fg: tone(l.fg, 1 + fine * 0.12) };
+	return { ...l, bg: moss ? lerp(tone(l.bg, k), [76, 98, 54], 0.35) : tone(l.bg, k), fg: tone(l.fg, 1 + fine * 0.12) };
 }
 
 export function lookAt(t: Town, x: number, y: number, ms = 0): Look {
@@ -302,7 +332,7 @@ function lookAtPlain(t: Town, x: number, y: number, ms: number): Look {
 		// Rock: broken, uneven texture; other unjoined walls (hedges, trees) their own mark.
 		if (c.mat === 'granite') {
 			const h = hash(x, y, 11);
-			return { ch: ['▒', '▓', '▒', '░', '▲', '▒'][h % 6], fg: lerp(m.fg, [150, 146, 136], (h >> 4 & 7) / 10), bg: lerp(m.bg, [30, 30, 34], (h >> 8 & 3) / 4), emissive: false };
+			return { ch: ['▒', '▓', '▒', '░', '▲', '▒'][h % 6], fg: lerp(m.fg, [156, 156, 160], (h >> 4 & 7) / 10), bg: lerp(m.bg, [30, 30, 34], (h >> 8 & 3) / 4), emissive: false };
 		}
 		// A window: the wall's line carried through it, in pale glass.
 		if (isWindow(c)) {

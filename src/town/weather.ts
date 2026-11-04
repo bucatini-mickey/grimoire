@@ -31,13 +31,13 @@ export interface Weather {
 const CALM: Weather = { rain: false, storm: false, snow: false, fog: 1, fogTint: null, beam: false, graze: false };
 const BY_TOWN: Record<string, Weather> = {
 	victorian: { ...CALM, rain: true, storm: true, beam: true, fog: 1.15 },
-	grimm: { ...CALM, snow: true, fog: 1.1, fogTint: [150, 160, 172] },
-	whitechapel: { ...CALM, fog: 1.7, fogTint: [86, 82, 58] },
+	grimm: { ...CALM, snow: true, fog: 1.1, fogTint: [154, 164, 178] },
+	whitechapel: { ...CALM, fog: 1.7, fogTint: [96, 90, 62] },
 	castle: CALM,
 	keep: { ...CALM, fog: 0.4 },
-	hamlet: { ...CALM, graze: true, fog: 1.2, fogTint: [120, 128, 116] },
-	abbey: { ...CALM, fog: 1.25, fogTint: [128, 128, 122] },
-	liner: { ...CALM, rain: true, storm: true, fog: 1.3, fogTint: [70, 82, 84] }
+	hamlet: { ...CALM, graze: true, fog: 1.2, fogTint: [124, 132, 118] },
+	abbey: { ...CALM, fog: 1.25, fogTint: [134, 134, 126] },
+	liner: { ...CALM, rain: true, storm: true, fog: 1.3, fogTint: [76, 88, 90] }
 };
 export const weatherOf = (town: string): Weather => BY_TOWN[town] ?? CALM;
 export const animated = (w: Weather) => w.rain || w.snow || w.beam || w.storm || w.graze;
@@ -86,7 +86,7 @@ export function grazer(x: number, y: number, ms: number): { ch: string; c: Rgb }
 	if (h % 3 === 0) return null;
 	const px = bx * 7 + 3 + Math.round(Math.sin(ms / 9000 + (h & 255)) * 2), py = by * 7 + 3 + Math.round(Math.sin(ms / 13000 + ((h >> 8) & 255)) * 1.6);
 	if (px !== x || py !== y) return null;
-	return (h >> 16) % 3 ? { ch: 'ô', c: [226, 222, 206] } : { ch: 'Ö', c: [128, 82, 52] };
+	return (h >> 16) % 3 ? { ch: 'ô', c: [234, 228, 210] } : { ch: 'Ö', c: [142, 90, 56] };
 }
 
 /** Rain or snow over an open cell at this moment: a glyph and its colour, or null for none. */
@@ -95,7 +95,7 @@ export function fall(w: Weather, x: number, y: number, ms: number): { ch: string
 		// Rain drives in slanting: each drop steps down and along a cell every 70 ms.
 		const step = Math.floor(ms / 70);
 		const h = hash(x + step, y - step, 17) & 63;
-		if (h < 5) return { ch: h < 2 ? '/' : '\'', c: [150, 170, 196] };
+		if (h < 5) return { ch: h < 2 ? '/' : '\'', c: [160, 180, 206] };
 		return null;
 	}
 	if (w.snow) {
