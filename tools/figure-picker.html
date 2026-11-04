@@ -10,7 +10,7 @@
 	--tile: 40px;
 }
 * { box-sizing: border-box; }
-body { background: var(--bg); color: var(--fg); font: 14px/1.4 var(--mono); padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px)); padding-block: 0 170px; }
+body { background: var(--bg); color: var(--fg); font: 14px/1.4 var(--mono); padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px)); padding-block: 0 110px; }
 body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
 h1 { font-size: 17px; color: var(--gold); margin: 12px 0 2px; font-weight: 700; }
 p { margin: 0 0 8px; color: var(--dim); max-width: 65ch; }
@@ -30,19 +30,24 @@ button[aria-pressed="true"] { background: var(--on); color: var(--on-fg); border
 .g.bad { opacity: .5; outline: 1px dashed var(--dim); outline-offset: -1px; }
 .foot { position: fixed; inset: auto 0 0; z-index: 6; background: var(--panel); border-top: 1px solid var(--line); padding: 8px max(12px, env(safe-area-inset-right, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); display: grid; gap: 6px; }
 .foot .top { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
-#picks { display: flex; flex-wrap: wrap; gap: 1px; max-height: 60px; overflow-y: auto; min-height: 18px; }
+#picks { display: flex; gap: 1px; overflow-x: auto; min-height: 18px; scrollbar-width: none; }
+#picks .s { flex: none; }
 /* True size: how big a square is on a phone's map. */
 .s { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; font-size: 22px; line-height: 1; background: var(--plate); color: var(--gold); padding: 0; border: 0; border-radius: 0; font-family: var(--mono); }
 .foot .top { font-size: 12px; gap: 4px 8px; }
+.foot .top #count { flex: 1 1 100%; white-space: nowrap; }
+.foot .top #status { flex: 1 1 auto; }
+.foot button { white-space: nowrap; }
+@media (max-height: 620px) { .bar { position: static; } }
 .foot button { padding: 4px 8px; font-size: 12px; }
 #status { font-size: 12px; color: var(--good); }
 #out { width: 100%; height: 56px; background: var(--bg); color: var(--fg); border: 1px solid var(--line); font: 12px var(--mono); }
 </style>
 
 <h1>Figure picker</h1>
-<p>Tap every letter you want. Each one is drawn the way the map draws a figure, so what you see is what the game shows. Your picks save as you go.</p>
+<p>Tap to add, tap again to remove. Picks save as you go. Bodies wear a head on the map; whole figures and circle faces stand alone.</p>
 <div class="bar">
-	<div class="row" id="kinds" role="group" aria-label="What you are picking"></div>
+	<div class="row scroll" id="kinds" role="group" aria-label="What you are picking"></div>
 	<div class="row scroll" id="heads" aria-label="Head to try on"></div>
 	<div class="row scroll" id="alpha" aria-label="Alphabet"></div>
 </div>
@@ -81,9 +86,10 @@ const ALPHABETS = [
 	['Symbols', R([0xa1, 0xbf], [0x2020, 0x2021], [0x2200, 0x22ff], [0x2300, 0x23ff], [0x2600, 0x26ff], [0x2190, 0x21ff])]
 ];
 const MARKS = R([0x300, 0x36f]).map((c) => String.fromCodePoint(c));
-const KINDS = { body: 'Bodies (take a head)', whole: 'Whole figures (no head)', head: 'Heads', circle: 'Circle faces' };
+const KINDS = { body: 'Bodies', whole: 'Whole figures', head: 'Heads', circle: 'Circle faces' };
 const VS = '︎';
 let picks = { circle: [], body: [], whole: [], head: ['̇', '̊', '̂', '̃', '́', '̀', '̄', '̌'] };
+const alphaOf = { body: 0, whole: 0, circle: ALPHABETS.findIndex(([n]) => n === 'Symbols') };
 let kind = 'body', alpha = 0, tryHead = '̇', showMissing = false;
 const $ = (id) => document.getElementById(id);
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -136,7 +142,9 @@ function drawBars() {
 	$('heads').hidden = kind !== 'body';
 	$('heads').innerHTML = '<span class="lab">Try on:</span>' + hs.map((m) => `<button type="button" class="g" style="--tile:30px;width:30px" data-h="${m}" aria-pressed="${m === tryHead}">o${m}${VS}</button>`).join('');
 	$('alpha').hidden = kind === 'head';
-	$('alpha').innerHTML = ALPHABETS.map(([n], i) => `<button type="button" data-a="${i}" aria-pressed="${i === alpha}">${n}</button>`).join('');
+	const left = $('alpha').scrollLeft;
+	$('alpha').innerHTML = ALPHABETS.map(([n, cps], i) => { const got = picks[kind]?.filter((v) => cps.includes(v.codePointAt(0))).length ?? 0; return `<button type="button" data-a="${i}" aria-pressed="${i === alpha}">${n}${got ? ' ' + got : ''}</button>`; }).join('');
+	$('alpha').scrollLeft = left;
 }
 function drawGrid() {
 	const list = kind === 'head' ? MARKS : ALPHABETS[alpha][1].filter(usable).map((c) => String.fromCodePoint(c));
@@ -157,7 +165,7 @@ function drawGrid() {
 }
 function drawPicks() {
 	const n = picks.body.length, w = picks.whole.length, h = picks.head.length;
-	$('count').textContent = `${n} bodies, ${w} whole, ${h} heads, ${picks.circle.length} circle faces`;
+	$('count').textContent = `${n} bodies, ${w} whole, ${h} heads, ${picks.circle.length} faces`;
 	const all = kind === 'circle' ? picks.circle.map((v) => [v, 'circle']) : [...picks.body.map((v) => [v, 'body']), ...picks.whole.map((v) => [v, 'whole'])];
 	$('picks').innerHTML = all.length ? all.map(([v, k]) => `<span class="s">${esc(asShown(v, k))}</span>`).join('') : '<span class="lab">Your picks appear here at true map size.</span>';
 	$('out').value = JSON.stringify({ body: picks.body.join(' '), whole: picks.whole.join(' '), heads: picks.head.map((m) => 'U+' + m.codePointAt(0).toString(16)).join(' '), circle: picks.circle.join(' ') });
@@ -166,10 +174,10 @@ const drawAll = () => { drawBars(); drawGrid(); drawPicks(); };
 document.addEventListener('click', (e) => {
 	const b = e.target.closest('button');
 	if (!b) return;
-	if (b.dataset.k) { kind = b.dataset.k; if (kind === 'circle') alpha = ALPHABETS.findIndex(([n]) => n === 'Symbols'); drawAll(); }
+	if (b.dataset.k) { kind = b.dataset.k; if (kind !== 'head') alpha = alphaOf[kind]; drawAll(); scrollTo(0, 0); }
 	else if (b.dataset.h) { tryHead = b.dataset.h; drawBars(); drawGrid(); drawPicks(); }
-	else if (b.dataset.a) { alpha = +b.dataset.a; drawBars(); drawGrid(); scrollTo(0, 0); }
-	else if (b.dataset.v) { toggle(picks[kind], b.dataset.v); b.setAttribute('aria-pressed', picks[kind].includes(b.dataset.v)); if (kind === 'head') drawBars(); drawPicks(); saveSoon(); }
+	else if (b.dataset.a) { alpha = alphaOf[kind] = +b.dataset.a; drawBars(); drawGrid(); scrollTo(0, 0); }
+	else if (b.dataset.v) { toggle(picks[kind], b.dataset.v); b.setAttribute('aria-pressed', picks[kind].includes(b.dataset.v)); drawBars(); drawPicks(); saveSoon(); }
 	else if (b.id === 'show') { showMissing = !showMissing; drawGrid(); }
 	else if (b.id === 'copy') {
 		const text = $('out').value;
