@@ -92,12 +92,12 @@ export interface Kind { ch: string; fg: Rgb; light?: Rgb; flicker?: boolean; }
 /** Oak for doors and furniture: a richer honey than the weathered boards it stands on, so it reads against wood. */
 const BROWN: Rgb = [204, 144, 80], STONE: Rgb = [202, 198, 188];
 export const KINDS: Record<string, Kind> = {
-	door: { ch: '◘', fg: BROWN }, table: { ch: 'π', fg: BROWN }, chair: { ch: '╥', fg: BROWN }, bed: { ch: 'Θ', fg: [198, 74, 66] },
-	chest: { ch: '■', fg: [182, 122, 60] }, bookshelf: { ch: '≡', fg: BROWN }, barrel: { ch: 'ö', fg: [166, 112, 58] },
+	door: { ch: '◘', fg: BROWN }, table: { ch: 'π', fg: BROWN }, chair: { ch: '╥', fg: BROWN }, bed: { ch: 'Θ', fg: [226, 92, 112] },
+	chest: { ch: '■', fg: [198, 152, 64] }, bookshelf: { ch: '≡', fg: BROWN }, barrel: { ch: 'ö', fg: [166, 112, 58] },
 	torch: { ch: '¡', fg: [255, 210, 110], light: [255, 176, 92], flicker: true },
 	brazier: { ch: 'Ω', fg: [230, 130, 50], light: [255, 150, 60], flicker: true },
 	candle: { ch: 'i', fg: [250, 240, 200], light: [170, 130, 70], flicker: true },
-	altar: { ch: '╤', fg: STONE }, pew: { ch: '═', fg: BROWN }, coffin: { ch: '▬', fg: [140, 98, 66] }, statue: { ch: '†', fg: STONE },
+	altar: { ch: '╤', fg: STONE }, pew: { ch: '═', fg: BROWN }, coffin: { ch: '▬', fg: [166, 114, 76] }, statue: { ch: '†', fg: STONE },
 	well: { ch: 'O', fg: STONE }, anvil: { ch: '¬', fg: [128, 130, 140] }, 'hay bale': { ch: '"', fg: [226, 200, 104] },
 	sign: { ch: '¶', fg: BROWN }, bell: { ch: ' ', fg: [220, 178, 94] }, oak: { ch: '♣', fg: [78, 128, 48] }, loom: { ch: '╫', fg: BROWN }, oven: { ch: '◙', fg: [204, 122, 70], light: [150, 80, 30] }, cart: { ch: '⌐', fg: BROWN }, clock: { ch: ' ', fg: [220, 178, 94] }, flowers: { ch: '*', fg: [220, 120, 160] }, waterfall: { ch: '¦', fg: [204, 230, 242] }, rug: { ch: '░', fg: [158, 54, 54] },
 	'gas lamp': { ch: '‡', fg: [214, 236, 196], light: [150, 186, 150] }, fern: { ch: '♠', fg: [78, 152, 98] },

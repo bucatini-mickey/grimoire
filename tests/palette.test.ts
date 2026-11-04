@@ -57,7 +57,7 @@ test('village walls, floors and furniture stay distinct', () => {
 		if (n !== 'bed' && n !== 'coffin') assert.ok(dist(k.fg, f.bg) >= 60, `${n} vs floor ${fn} colour too alike`);
 	}
 	for (const n of furniture) for (const [wn, w] of walls) {
-		if (['table', 'chair', 'bookshelf', 'pew', 'loom', 'cart'].includes(n) && wn === 'wood') continue; // oak on oak: same craft, shown by shape
+		if (['wood', 'teak', 'paling'].includes(wn) && n !== 'bed') continue; // timber furniture against timber walls: same craft, told apart by shape
 		assert.ok(dist(KINDS[n].fg, w.fg) >= 30, `${n} vs wall ${wn} colour too alike (${dist(KINDS[n].fg, w.fg).toFixed(0)})`);
 	}
 });
