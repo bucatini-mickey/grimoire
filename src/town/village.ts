@@ -86,8 +86,9 @@ export interface Person {
 	st?: boolean;
 	/** The Storyteller's All ears: hears, and is heard by, everyone. */
 	ears?: boolean;
-	/** In a private conversation with. */
+	/** Paired with: meeting another player, or (`secret`) in a private word with the Storyteller. */
 	with?: string | null;
+	secret?: boolean;
 	/** Dead in the game: still walks and talks, faded. */
 	dead?: boolean;
 }
@@ -283,17 +284,21 @@ function onUp(from: string, msg: Up) {
 		const q = S.people.get(msg.to);
 		if (!q || q.id === from) return;
 		if (!privateAllowed(p)) return sendTo(from, { t: 'notice', text: 'Private words wait for the day.' });
-		if (p.with || q.with) return sendTo(from, { t: 'notice', text: `${q.with ? q.name : 'You'} ${q.with ? 'is' : 'are'} already talking privately.` });
+		if (!mayPair(p, q)) return sendTo(from, { t: 'notice', text: p.with ? 'Call off your meeting first.' : `${q.name} cannot just now.` });
 		sendTo(q.id, { t: 'asked', from });
 		sendTo(from, { t: 'notice', text: `Asked ${q.name}…` });
 	} else if (msg.t === 'reply') {
 		const q = S.people.get(msg.to);
 		if (!q) return;
-		if (msg.yes && !p.with && !q.with && privateAllowed(q)) {
+		if (msg.yes && mayPair(p, q) && privateAllowed(q)) {
+			// (a word with the Storyteller comes before a meeting)
+			if (p.with) endPrivate(p);
+			if (q.with) endPrivate(q);
 			p.with = q.id;
 			q.with = p.id;
-			sendTo(q.id, { t: 'notice', text: `${p.name} agreed. Only you two can hear each other.` });
-			sendTo(p.id, { t: 'notice', text: `Talking privately with ${q.name}.` });
+			p.secret = q.secret = !!(p.st || q.st);
+			sendTo(q.id, { t: 'notice', text: p.secret ? `${p.name} agreed. Only you two can hear each other.` : `${p.name} agreed. The gold marker shows the way.` });
+			sendTo(p.id, { t: 'notice', text: p.secret ? `Talking privately with ${q.name}.` : `Meeting ${q.name}. The gold marker shows the way.` });
 		} else if (!msg.yes) sendTo(q.id, { t: 'notice', text: `${p.name} would rather not.` });
 	} else if (msg.t === 'end') endPrivate(p);
 	else if (msg.t === 'face') {
@@ -317,12 +322,18 @@ function onUp(from: string, msg: Up) {
 	S.dirty = true;
 }
 
+/** Whether these two may be paired: never over a word with the Storyteller; two players only if neither is meeting someone; the Storyteller over a meeting. */
+const mayPair = (p: Person, q: Person) => !p.secret && !q.secret && (!!p.st || !!q.st || (!p.with && !q.with));
+
 function endPrivate(p: Person) {
 	const q = p.with ? S.people.get(p.with) : null;
+	const secret = p.secret;
 	p.with = null;
+	p.secret = false;
 	if (q) {
 		q.with = null;
-		sendTo(q.id, { t: 'notice', text: `${p.name} ended the private word.` });
+		q.secret = false;
+		sendTo(q.id, { t: 'notice', text: secret ? `${p.name} ended the private word.` : `${p.name} called off the meeting.` });
 	}
 }
 
@@ -362,7 +373,7 @@ function openVillage(key?: string) {
 				// The same phone again (it lost signal, or reloaded): give it back its walker.
 				const back = S.gone.get(msg.clientId);
 				if (!p && back) {
-					p = { ...back, id: peerId, with: null };
+					p = { ...back, id: peerId, with: null, secret: false };
 					S.gone.delete(msg.clientId);
 					S.people.set(peerId, p);
 				}
@@ -890,10 +901,11 @@ function tickMap() {
 /** Everything the bottom bar could offer, most wanted first. */
 function toolButtons(): Button[] {
 	const p = me();
-	if (S.asks.some((id) => S.people.has(id))) return [btn('Talk', () => act('accept'), { style: 'primary' }), btn('Not now', () => act('decline'))];
+	const asker = S.asks.map((id) => S.people.get(id)).find(Boolean);
+	if (asker) return [btn(asker.st || p?.st ? 'Talk' : 'Meet', () => act('accept'), { style: 'primary' }), btn('Not now', () => act('decline'))];
 	const bs: Button[] = [];
-	if (p?.with) bs.push(btn('End', () => act('end')));
-	// Talking privately with another player: the way to them.
+	if (p?.with) bs.push(btn(p.secret ? 'End' : 'Call off', () => act('end')));
+	// Meeting another player: the way to them.
 	const mate = p?.with ? S.people.get(p.with) : null;
 	if (mate && !mate.st && !p?.st) bs.push(btn('Find ' + mate.name.slice(0, 8), () => act('find'), { style: 'primary' }));
 	const v = S.voice;
@@ -909,6 +921,7 @@ function toolButtons(): Button[] {
 	if (door !== null) bs.push(btn(S.town!.locked.has(door) ? 'Unlock' : 'Lock', () => act('door')));
 	if (S.host) bs.push(btn('Menu', () => act('st-toggle'), { style: S.stOpen ? 'on' : undefined }));
 	bs.push(btn('People', () => act('people')));
+	if (!S.game && !S.host) later.push(btn('Leave the village', () => act('back')));
 	return [...bs, ...later, ...(FACES ? [btn('Faces', () => act('faces'), { style: S.sheet === 'faces' ? 'on' : undefined })] : [])];
 }
 
@@ -959,7 +972,7 @@ function villageCells(g: Grid): boolean {
 	else mapCells(g, mapY, mapH, p, lvl(p), now);
 	if (FACES) faceStrip(g, mapY, mapH, p);
 	// The line of what you can hear, and the passing notice.
-	const where = p.with ? 'Private with ' + nameOf(p.with) + ': nobody else hears you'
+	const where = p.secret ? 'Private with ' + nameOf(p.with) + ': nobody else hears you'
 		: S.phase === 'night' ? (p.st ? 'Night: whoever is in this room hears you' : 'Night: at home. Only the Storyteller may visit')
 		: inMeeting(t, p, S.phase) ? 'In the ring of seats: all in it hear you'
 		: atSpeakingPlace(t, p) ? 'At the market cross: the whole town hears you'
@@ -973,7 +986,7 @@ function villageCells(g: Grid): boolean {
 	let y = iy + 2;
 	if (stbar) { g.text(1, y, stbar.text.slice(0, g.cols - 2), 6, 0); y += 1 + stampButtons(g, 0, y + 1, g.cols, stBs) - 1; }
 	const from = S.asks.find((id) => S.people.has(id));
-	if (from) g.text(1, y, (nameOf(from) + ' asks for a private word.').slice(0, g.cols - 2), 6, 0);
+	if (from) g.text(1, y, (nameOf(from) + (S.people.get(from)?.st || p.st ? ' asks for a private word.' : ' asks to meet you.')).slice(0, g.cols - 2), 6, 0);
 	stampButtons(g, 0, g.rows - toolH, g.cols, tools);
 	if (banner && banner.until > now) {
 		const w = Math.min(g.cols - 2, Math.max(banner.title.length, banner.line.length) + 4);
@@ -1264,12 +1277,10 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 		const [fg, bg] = markOf(q);
 		const mineQ = q.id === S.me;
 		const talk = talking(q) > 0.15;
-		// You are drawn reversed out of your ink; someone talking gets a gold plate.
-		const lit = bg ? bg : fg;
-		// A square plate: the letter and its second column share the ground.
-		const pf = mineQ ? 0 : talk ? 0 : fg, pb = mineQ ? lit : talk ? 6 : letterPlate(fg, bg);
-		// The face fills the square, both its columns.
-		g.setWide(sx, mapY + sy, faceOf(q, mineQ), pf, pb);
+		// Always a bright figure on a dark plate of its own hue; you on a stronger plate; someone talking in gold.
+		const hue = q.dead ? 3 : talk ? 6 : bg || fg;
+		// (the figure fills the square, both its columns)
+		g.setWide(sx, mapY + sy, faceOf(q, q.ink), talk ? 5 : hue, shade(hue, mineQ || talk ? 1 : 0));
 	}
 	closeNames(g, mapY, mapH, x0, y0, people, p);
 	if (S.game && (S.phase === 'dusk' || S.phase === 'circle') && gathering(t)) {
@@ -1288,7 +1299,7 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 		const vw = Math.floor(cols / CW), mx = (vw - 1) / 2, my = (mapH - 1) / 2;
 		for (const q of S.people.values()) {
 			if (q.id === S.me || (q.st && !p.st && S.phase !== 'day')) continue;
-			// The one you are talking privately with is marked in gold, so the two of you find each other.
+			// The one you are meeting is marked in gold, so the two of you find each other.
 			const mate = p.with === q.id;
 			const d = shownAt.get(q.id) ?? q;
 			const cx = Math.round(d.x) - x0, cy = Math.round(d.y) - y0;
@@ -1504,14 +1515,18 @@ function sheetRows(): Row[] {
 	}
 	if (S.sheet === 'people') {
 		const others = [...S.people.values()].filter((q) => q.id !== S.me).sort((a, b) => Number(!!b.st) - Number(!!a.st) || a.name.localeCompare(b.name));
-		const can = p && privateAllowed(p) && !p.with;
+		const allowed = p && privateAllowed(p);
 		const rows: Row[] = [rubric('People')];
-		if (!can) rows.push(...wrap(p?.with ? 'You are already talking privately.' : 'Private words wait for the day.', INNER).map((l) => row(txt(l, 'dim'))));
+		rows.push(...wrap(!allowed ? 'Not until the day.'
+			: p.secret ? 'You are talking privately.'
+			: p.with ? 'You are meeting ' + nameOf(p.with) + '. Call it off to ask another; the Storyteller you may always ask.'
+			: p.st ? 'Ask a player for a private word: only you two will hear, wherever you are.'
+			: 'Ask to meet someone: a marker shows you each the way, and what you say carries as usual, so find somewhere quiet. With the Storyteller it is a private word, wherever you are.', INNER).map((l) => row(txt(l, 'dim'))));
 		for (const q of others) {
 			const bs: Button[] = [];
 			if (p?.st && !q.st) bs.push(btn('Visit', () => act('visit', q.id), { width: 9 }));
-			if (can && !q.with) bs.push(btn('Ask', () => act('ask', q.id), { width: 7 }));
-			rows.push(listRow((q.st ? 'Storyteller' : q.name) + (q.dead ? ' (dead)' : '') + (q.with ? ' (talking)' : ''), q.dead ? 'dim' : undefined, bs));
+			if (allowed && p && !p.secret && !q.secret && (p.st || q.st || !p.with)) bs.push(btn('Ask', () => act('ask', q.id), { width: 7 }));
+			rows.push(listRow((q.st ? 'Storyteller' : q.name) + (q.dead ? ' (dead)' : '') + (q.secret ? ' (talking)' : ''), q.dead ? 'dim' : undefined, bs));
 		}
 		return [close('sheet-close'), ...rows, endPanel()];
 	}
@@ -1519,6 +1534,7 @@ function sheetRows(): Row[] {
 		const ph = (k: Phase, label: string) => btn(label, () => act('phase-' + k), { style: S.phase === k ? 'on' : undefined });
 		const rows: Row[] = [rubric('Storyteller')];
 		if (!S.game) rows.push(buttonBlock([ph('day', 'Day'), ph('dusk', 'Dusk'), ph('circle', 'The circle'), ph('night', 'Night')]));
+		if (!S.game) rows.push(buttonBlock([btn('Leave the village', () => act('back'), { width: INNER })]));
 		rows.push(buttonBlock([btn('All ears: ' + (me()?.ears ? 'on' : 'off'), () => act('ears'), { style: me()?.ears ? 'on' : undefined }), btn('+ Test villager', () => act('bot'))]));
 		if (S.game) rows.push(buttonBlock([btn('Open the grimoire', () => act('back-game'), { style: 'primary', width: INNER })]));
 		else rows.push(...prose('Players open ' + location.origin + location.pathname + '#village=' + S.room, 'dim'));
@@ -1898,7 +1914,7 @@ function syncSeats(list: GameSeat[]) {
 		if (!q) {
 			const back = S.gone.get(`seat:${e.seat}`);
 			if (back) {
-				q = { ...back, id: e.peer, with: null };
+				q = { ...back, id: e.peer, with: null, secret: false };
 				S.gone.delete(`seat:${e.seat}`);
 				S.people.set(e.peer, q);
 			} else {

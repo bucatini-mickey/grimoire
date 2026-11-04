@@ -28,8 +28,10 @@ export interface Walker extends PZ {
 	id?: string;
 	/** The Storyteller: hears and is heard at night, in the room they visit. */
 	st?: boolean;
-	/** In a private conversation with this person: they hear only each other. */
+	/** Paired with this person: two players meeting (a marker shows each the way; their voices carry as usual), or a private word with the Storyteller (`secret`). */
 	with?: string | null;
+	/** A private word with the Storyteller: the two hear only each other, wherever they are. */
+	secret?: boolean;
 	/** The Storyteller's All ears: they hear, and are heard by, everyone. */
 	ears?: boolean;
 }
@@ -397,8 +399,8 @@ export function inMeeting(t: Town, p: P, phase: Phase): boolean {
  * player, nobody else.
  */
 export function loudness(t: Town, a: Walker, b: Walker, phase: Phase): number {
-	// A private word: the two hear each other wherever they are, and nobody else hears them.
-	if (a.with || b.with) return a.with === b.id && b.with === a.id ? 1 : 0;
+	// A private word with the Storyteller: the two hear each other wherever they are, and nobody else hears them.
+	if (a.secret || b.secret) return a.with === b.id && b.with === a.id ? 1 : 0;
 	if (phase === 'circle') return 1;
 	// Night: the town sleeps; only the Storyteller talks, to whoever is in the room they visit.
 	if (phase === 'night') return (a.st || b.st) && (a.z ?? 0) === (b.z ?? 0) && sameRoom(t, a, b) ? 1 : 0;

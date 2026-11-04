@@ -1,20 +1,22 @@
 /**
- * Players on the village map are faces: one face fills the person's whole square, in their colour.
- * Your own face is the hollow one. A faint name banner appears over anyone close to you and fades out
- * with distance. (Off the screen they are still marked at its edge by their letter.) Pure helpers,
- * so they can be tested.
+ * Players on the village map are townsfolk in their headgear: one glyph fills the person's whole
+ * square, a bright ink on a dark plate of its own hue (never a dark figure), and each keeps theirs.
+ * A faint name banner appears over anyone close to you and fades out with distance. (Off the screen
+ * they are still marked at its edge by their letter.) Pure helpers, so they can be tested.
  */
 
 /** How far (in cells) a name banner reaches, and where it starts to fade. */
 export const NEAR_MAX = 5, NEAR_FULL = 2;
 
-export const FACE_ME = '\u263A', FACE_OTHER = '\u263B', FACE_TALK = '\u263B', FACE_DEAD = '\u2020', FACE_ST = '\u263C';
+/** A peasant's hood, a burgher's soft cap, a head with eyes, a slouch hat, a coif, a felt hat. */
+export const HEADS = ['\u00F4', '\u00F5', '\u00F6', '\u00F3', '\u03A9', '\u00F2'];
+export const FACE_DEAD = '\u2020', FACE_ST = '\u263C';
 
-/** The face that fills a person's square. */
-export function faceOf(q: { st?: boolean; dead?: boolean }, mine: boolean): string {
+/** What fills a person's square; `k` is theirs for the game (their colour's number), so it never changes. */
+export function faceOf(q: { st?: boolean; dead?: boolean }, k: number): string {
 	if (q.st) return FACE_ST;
 	if (q.dead) return FACE_DEAD;
-	return mine ? FACE_ME : FACE_OTHER;
+	return HEADS[((k % HEADS.length) + HEADS.length) % HEADS.length];
 }
 
 /** Banner strength 0..1 at a distance in cells: full up close, fading to nothing at NEAR_MAX. 0 for yourself. */
