@@ -1054,13 +1054,11 @@ function closeNames(g: Grid, mapY: number, mapH: number, x0: number, y0: number,
 		if (row < 0 || row >= mapH) continue;
 		const text = q.st ? 'Storyteller' : q.name;
 		const [fg, bg] = markOf(q);
-		const ink = shade(bg || fg, step);
+		// Their colour on a plate of its darkest shade, so the map does not show through the name.
+		const ink = shade(bg || fg, step + 2), plate = shade(bg || fg, 0);
 		const sx = (Math.round(d.x) - x0) * CW;
 		const bx = Math.max(0, Math.min(g.cols - text.length, sx + 1 - Math.floor(text.length / 2)));
-		for (let k = 0; k < text.length; k++) {
-			const cell = g.get(bx + k, mapY + row);
-			g.set(bx + k, mapY + row, text[k], ink, cell ? cell.bg : 0);
-		}
+		g.text(bx, mapY + row, text, ink, plate);
 	}
 }
 
