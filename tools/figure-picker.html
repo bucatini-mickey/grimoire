@@ -7,10 +7,10 @@
 	--bg: #0b0d12; --panel: #161a22; --line: #2a3140; --fg: #cecfd4; --dim: #8b91a0;
 	--gold: #e8c460; --plate: #3a3118; --on: #e8c460; --on-fg: #16110c; --good: #8cc878;
 	--mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, "DejaVu Sans Mono", "Liberation Mono", monospace;
-	--tile: 40px;
+	--tile: 44px; --cell: 15px;
 }
 * { box-sizing: border-box; }
-body { background: var(--bg); color: var(--fg); font: 14px/1.4 var(--mono); padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px)); padding-block: 0 110px; }
+body { background: var(--bg); color: var(--fg); font: 14px/1.4 var(--mono); padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px)); padding-block: 0 220px; }
 body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
 h1 { font-size: 17px; color: var(--gold); margin: 12px 0 2px; font-weight: 700; }
 p { margin: 0 0 8px; color: var(--dim); max-width: 65ch; }
@@ -24,28 +24,32 @@ button[aria-pressed="true"] { background: var(--on); color: var(--on-fg); border
 .lab { color: var(--dim); font-size: 12px; flex: none; }
 #note { margin: 8px 0; font-size: 12px; color: var(--dim); }
 #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--tile), 1fr)); gap: 4px; }
-/* The tile is the map's square at a larger scale: same proportions of glyph to box, and it clips the same way. */
-.g { aspect-ratio: 1; width: 100%; max-width: 100%; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; padding: 0; border: 1px solid transparent; border-radius: 0; background: var(--plate); color: var(--gold); font-size: 1.25em; font-size: calc(var(--tile) * 1.25); line-height: 1; font-family: var(--mono); }
-.g[aria-pressed="true"] { background: var(--gold); color: var(--on-fg); border-color: var(--gold); }
+/* A tile is a big target round the game's own square: the same font, the same box of two cells by one line, the glyph half as big again as the text and clipped by the box, as pterm draws it. */
+.g { display: flex; align-items: center; justify-content: center; height: 44px; padding: 0; border: 1px solid transparent; background: none; }
+.g i { display: inline-flex; align-items: center; justify-content: center; overflow: hidden; font-style: normal; font-family: var(--mono); font-variant-ligatures: none; font-size: calc(var(--cell) * 1.5); line-height: 1; width: calc(var(--cell) * 1.2); height: calc(var(--cell) * 1.2); background: var(--plate); color: var(--gold); }
+.g[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); }
+.g[aria-pressed="true"] i { background: #16110c; }
 .g.bad { opacity: .5; outline: 1px dashed var(--dim); outline-offset: -1px; }
 .foot { position: fixed; inset: auto 0 0; z-index: 6; background: var(--panel); border-top: 1px solid var(--line); padding: 8px max(12px, env(safe-area-inset-right, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); display: grid; gap: 6px; }
 .foot .top { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
 #picks { display: flex; gap: 1px; overflow-x: auto; min-height: 18px; scrollbar-width: none; }
 #picks .s { flex: none; }
 /* True size: how big a square is on a phone's map. */
-.s { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; font-size: 22px; line-height: 1; background: var(--plate); color: var(--gold); padding: 0; border: 0; border-radius: 0; font-family: var(--mono); }
+.s { width: calc(var(--cell) * 1.2); height: calc(var(--cell) * 1.2); display: inline-flex; align-items: center; justify-content: center; overflow: hidden; font-size: calc(var(--cell) * 1.5); line-height: 1; background: var(--plate); color: var(--gold); font-family: var(--mono); font-variant-ligatures: none; }
 .foot .top { font-size: 12px; gap: 4px 8px; }
 .foot .top #count { flex: 1 1 100%; white-space: nowrap; }
 .foot .top #status { flex: 1 1 auto; }
 .foot button { white-space: nowrap; }
 @media (max-height: 620px) { .bar, .foot { position: static; } body { padding-block-end: 0; } }
 .foot button { padding: 4px 8px; font-size: 12px; }
+.pick { padding: 3px; flex: none; background: none; border: 0; }
+#picks { flex-wrap: wrap; overflow-x: visible; }
 #status { font-size: 12px; color: var(--good); }
 #out { width: 100%; height: 56px; background: var(--bg); color: var(--fg); border: 1px solid var(--line); font: 12px var(--mono); }
 </style>
 
 <h1>Figure picker</h1>
-<p>Tap to add, tap again to remove. Picks save as you go. Figures walk round the village; faces show at the voting table.</p>
+<p>30 of each. Drawn at the size and in the way the game draws them. Figures walk round the village; faces sit at the voting table.</p>
 <div class="bar">
 	<div class="row scroll" id="kinds" role="group" aria-label="What you are picking"></div>
 	<div class="row scroll" id="alpha" aria-label="Alphabet"></div>
@@ -53,7 +57,7 @@ button[aria-pressed="true"] { background: var(--on); color: var(--on-fg); border
 <div id="note"></div>
 <div id="grid"></div>
 <div class="foot">
-	<div class="top"><span id="count"></span><span id="status">Loading your picks...</span><button id="show" type="button">Show missing</button><button id="copy" type="button">Copy list</button></div>
+	<div class="top"><span id="count"></span><span id="status">Loading your picks...</span><button id="dot" type="button"></button><button id="show" type="button">Show missing</button><button id="copy" type="button">Copy list</button></div>
 	<div id="picks" aria-label="Your picks at true size"></div>
 	<textarea id="out" hidden readonly aria-label="Your picks as text"></textarea>
 </div>
@@ -88,7 +92,8 @@ const KINDS = { figure: 'Figures', face: 'Faces' };
 const VS = '︎';
 let picks = { figure: [], face: [] };
 const alphaOf = { figure: 0, face: ALPHABETS.findIndex(([n]) => n === 'Symbols') };
-let kind = 'figure', alpha = 0, showMissing = false;
+const MAX = 30, DOT = '\u0307';
+let kind = 'figure', alpha = 0, showMissing = false, dotHead = true;
 const $ = (id) => document.getElementById(id);
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 function usable(cp) {
@@ -103,10 +108,12 @@ function pixels(ch) {
 	cx.clearRect(0, 0, 24, 24); cx.font = '20px ' + getComputedStyle(document.body).fontFamily; cx.fillStyle = '#000'; cx.textBaseline = 'top'; cx.fillText(ch, 1, 1);
 	return cx.getImageData(0, 0, 24, 24).data.join(',');
 }
-const MISSING = new Set(['\u{10FFFE}', '￿', '͸', ''].map(pixels));
+// (a letter can pass alone and still fail with a dot on it, so it is tested as the game draws it)
+const NOT_THERE = ['\u{10FFFE}', '\uFFFF', '\u0378', '\uE000'];
+const missingFor = (g) => new Set(NOT_THERE.map((c) => pixels(c + (g.endsWith(DOT) ? DOT : ''))));
 const drawn = new Map();
 function canDraw(ch) {
-	if (!drawn.has(ch)) { const p = pixels(ch); drawn.set(ch, !MISSING.has(p) && /[1-9]/.test(p.replace(/(?:^|,)0(?=,|$)/g, ''))); }
+	if (!drawn.has(ch)) { const p = pixels(ch); drawn.set(ch, !missingFor(ch).has(p) && /[1-9]/.test(p.replace(/(?:^|,)0(?=,|$)/g, ''))); }
 	return drawn.get(ch);
 }
 let db = null, saving = false, again = false;
@@ -138,19 +145,22 @@ function drawGrid() {
 	const list = ALPHABETS[alpha][1].filter(usable).map((c) => String.fromCodePoint(c));
 	let hidden = 0, html = '';
 	for (const v of list) {
-		const ok = canDraw(v);
+		const g = kind === 'figure' && dotHead ? v + DOT : v;
+		const ok = canDraw(g);
 		if (!ok) hidden++;
 		if (!ok && !showMissing) continue;
-		html += `<button type="button" class="g${ok ? '' : ' bad'}" data-v="${esc(v)}" aria-pressed="${picks[kind].includes(v)}" title="U+${v.codePointAt(0).toString(16).toUpperCase()}">${esc(v + VS)}</button>`;
+		html += `<button type="button" class="g${ok ? '' : ' bad'}" data-v="${esc(g)}" aria-pressed="${picks[kind].includes(g)}" title="U+${v.codePointAt(0).toString(16).toUpperCase()}"><i>${esc(g + VS)}</i></button>`;
 	}
 	$('grid').innerHTML = html;
 	$('note').textContent = `${ALPHABETS[alpha][0]}: ${list.length - hidden} of ${list.length} drawn on this device.${hidden ? (showMissing ? ' The dashed ones are missing here.' : ` ${hidden} hidden because this device has no font for them.`) : ''}`;
 	$('show').textContent = showMissing ? 'Hide missing' : 'Show missing';
+	$('dot').textContent = dotHead ? 'Dot head: on' : 'Dot head: off';
+	$('dot').hidden = kind !== 'figure';
 }
 function drawPicks() {
-	$('count').textContent = `${picks.figure.length} figures, ${picks.face.length} faces`;
+	$('count').textContent = `${picks.figure.length} of ${MAX} figures, ${picks.face.length} of ${MAX} faces`;
 	const all = picks[kind];
-	$('picks').innerHTML = all.length ? all.map((v) => `<span class="s">${esc(v + VS)}</span>`).join('') : '<span class="lab">Your picks appear here at true size.</span>';
+	$('picks').innerHTML = all.length ? all.map((v) => `<button type="button" class="pick" data-pick="${esc(v)}" aria-label="Remove"><span class="s">${esc(v + VS)}</span></button>`).join('') : '<span class="lab">Your picks appear here at true size.</span>';
 	$('out').value = JSON.stringify({ figures: picks.figure.join(' '), faces: picks.face.join(' ') });
 }
 const drawAll = () => { drawBars(); drawGrid(); drawPicks(); };
@@ -159,8 +169,10 @@ document.addEventListener('click', (e) => {
 	if (!b) return;
 	if (b.dataset.k) { kind = b.dataset.k; alpha = alphaOf[kind]; drawAll(); scrollTo(0, 0); }
 	else if (b.dataset.a) { alpha = alphaOf[kind] = +b.dataset.a; drawBars(); drawGrid(); scrollTo(0, 0); }
-	else if (b.dataset.v) { if (!ready) { $('status').textContent = 'Still loading your picks...'; return; } toggle(picks[kind], b.dataset.v); b.setAttribute('aria-pressed', picks[kind].includes(b.dataset.v)); drawBars(); drawPicks(); saveSoon(); }
+	else if (b.dataset.v) { if (!ready) { $('status').textContent = 'Still loading your picks...'; return; } if (!picks[kind].includes(b.dataset.v) && picks[kind].length >= MAX) { $('status').textContent = 'That makes more than 30. Tap one below to remove it first.'; return; } toggle(picks[kind], b.dataset.v); b.setAttribute('aria-pressed', picks[kind].includes(b.dataset.v)); drawBars(); drawPicks(); saveSoon(); }
 	else if (b.id === 'show') { showMissing = !showMissing; drawGrid(); }
+	else if (b.id === 'dot') { dotHead = !dotHead; drawGrid(); }
+	else if (b.dataset.pick) { toggle(picks[kind], b.dataset.pick); drawAll(); saveSoon(); }
 	else if (b.id === 'copy') {
 		const text = $('out').value;
 		navigator.clipboard.writeText(text).then(() => { $('status').textContent = 'Copied'; }).catch(() => { $('out').hidden = false; $('out').select(); $('status').textContent = 'Select and copy the text above'; });

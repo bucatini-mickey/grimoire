@@ -10,7 +10,7 @@ import { blank, blockRow, btn, buttonBlock, endPanel, personInk, rubric, shade, 
 import type { Row } from './ascii.ts';
 
 /** A tile and the gap after it, across and down. */
-const TILE_W = 4, TILE_H = 2, WIDTH = 48;
+const TILE_W = 6, TILE_H = 3, WIDTH = 48;
 
 /** A block of tiles, as many to a line as fit: each shows a glyph, and a tap picks it. */
 function tiles(list: string[], at: number, ink: number, pick: (i: number) => void): Row {
@@ -20,8 +20,8 @@ function tiles(list: string[], at: number, ink: number, pick: (i: number) => voi
 		items.forEach(({ glyph, i }, n) => {
 			const x = c.x + (n % across) * TILE_W, y = c.y + Math.floor(n / across) * TILE_H;
 			const on = i === at, ground = shade(ink, on ? 2 : 0);
-			c.g.fill({ x, y, w: TILE_W - 1, h: 1 }, ' ', ink, ground);
-			c.g.setWide(x, y, filling(glyph), on ? 5 : ink, ground);
+			c.g.fill({ x, y, w: TILE_W - 2, h: TILE_H - 1 }, ' ', ink, ground);
+			c.g.setWide(x + 1, y, filling(glyph), on ? 5 : ink, ground);
 			c.hit({ x, y, w: TILE_W, h: TILE_H }, () => pick(i));
 		});
 	});

@@ -13,7 +13,7 @@ export interface Look {
 }
 
 /** What a phone that cannot draw someone's figure or face draws instead. */
-export const PLAIN_FIGURE = 'o', PLAIN_FACE = '\u00F6';
+export const PLAIN_FIGURE = 'o\u0307', PLAIN_FACE = '\u00F6';
 /** A glyph as it is put in its square: this marks it to fill the square, whatever its alphabet (pterm). */
 export const filling = (glyph: string) => glyph + '\uFE0E';
 
@@ -24,11 +24,9 @@ export const cleanLook = (raw: unknown): Look => {
 	return { figure: inRange(r.figure, FIGURES.length), face: inRange(r.face, FACES.length) };
 };
 
-/** How many of the plainest figures are handed out to those who have not chosen. */
-const PLAINEST = 18;
 const mod = (k: number, n: number) => ((k % n) + n) % n;
 /** Someone who has not chosen: a figure and a face of their own, by their number. */
-export const defaultLook = (k: number): Look => ({ figure: mod(k, Math.min(PLAINEST, FIGURES.length)), face: mod(k, FACES.length) });
+export const defaultLook = (k: number): Look => ({ figure: mod(k, FIGURES.length), face: mod(k, FACES.length) });
 
 const KEY = 'grimoire.figure';
 /** This phone's choice, kept between games; null if never chosen. */

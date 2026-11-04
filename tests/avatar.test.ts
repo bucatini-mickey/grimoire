@@ -9,9 +9,9 @@ test('a choice from a phone is always one that can be drawn', () => {
 	assert.deepEqual(cleanLook(null), { figure: 0, face: 0 });
 });
 
-test('every figure and every face is one glyph, none listed twice', () => {
+test('there are at most 30 of each, each one glyph, none listed twice', () => {
 	for (const list of [FIGURES, FACES]) {
-		assert.ok(list.length > 0);
+		assert.ok(list.length > 0 && list.length <= 30);
 		assert.equal(new Set(list).size, list.length);
 		for (const g of list) assert.ok(g.trim().length > 0 && !/\s/.test(g), 'no gaps: ' + g);
 	}
