@@ -120,7 +120,13 @@ export function wrap(text: string, width = INNER): string[] {
 	const out: string[] = [];
 	for (const para of text.split('\n')) {
 		let line = '';
-		for (const word of para.split(/\s+/).filter(Boolean)) {
+		for (let word of para.split(/\s+/).filter(Boolean)) {
+			// (a word longer than the line, a link, is cut to fit: it must not run off the screen)
+			while (word.length > width) {
+				if (line) { out.push(line); line = ''; }
+				out.push(word.slice(0, width));
+				word = word.slice(width);
+			}
 			if (!line) line = word;
 			else if (line.length + 1 + word.length <= width) line += ' ' + word;
 			else {
@@ -1964,7 +1970,8 @@ function frame(g: Grid) {
 	// The cover is a picture, drawn fine: many more columns (small cells, two pixels each).
 	// A book on a wide screen lies open: room for two leaves.
 	// The town on a desktop: bigger cells, fewer of them, so its small things read.
-	const town = !!extra && extraShown() && townBig();
+	// (a page or sheet over the town is written to its own width, so it takes the page's cells while it is open)
+	const town = !!extra && extraShown() && townBig() && !order.some((k) => layers.get(k)?.rows.length);
 	const fit = town ? townScale(innerWidth, innerHeight, glyphRatio(), wideScreen()) : null;
 	if (fit) term!.setScale(fit.maxFont, fit.rows);
 	else term!.setScale(22, 40);
