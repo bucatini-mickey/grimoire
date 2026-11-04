@@ -1,9 +1,11 @@
 /**
  * avatar.ts - a player's figure: a body and a head.
  *
- * On the map it is one glyph, a letter for the body with a combining mark above it for the head, so
- * any body can take any head; in the maker it is also drawn large, a whole figure in cells. The colour
- * is not chosen: it comes with the seat, and is how the others know you. Pure, so it can be tested.
+ * It is one glyph, a letter for the body with a combining mark above it for the head, so any body can
+ * take any head. The letters come from several alphabets, for their shapes: only short ones (a tall
+ * one's head would be cut off by the top of the square), and only from alphabets phones can draw
+ * (Georgian, Coptic and the like come out as empty boxes on some). The colour is not chosen: it comes
+ * with the seat, and is how the others know you. Pure, so it can be tested.
  */
 
 export interface Look {
@@ -11,32 +13,36 @@ export interface Look {
 	h: number;
 }
 
-/** The bodies: the letter on the map, and three lines of the figure (nine wide). */
-export const BODIES: { name: string; ch: string; art: [string, string, string] }[] = [
-	{ name: 'Stout', ch: 'o', art: ['   /|\\   ', '   (_)   ', '   / \\   '] },
-	{ name: 'Skirted', ch: 'a', art: ['   /|\\   ', '  /   \\  ', ' /_____\\ '] },
-	{ name: 'Cloaked', ch: 'e', art: ['   /|\\   ', '  / | \\  ', '  /_|_\\  '] },
-	{ name: 'Thin', ch: '\u0131', art: ['    |    ', '    |    ', '    |    '] },
-	{ name: 'Arms up', ch: 'y', art: ['  \\ | /  ', '   \\|/   ', '    |    '] },
-	// (only letters without ascenders: a tall one's head would be cut off by the top of the square)
-	{ name: 'Arms out', ch: 'τ', art: [' ---+--- ', '    |    ', '   / \\   '] },
-	{ name: 'Star', ch: 'x', art: ['  \\ | /  ', '    |    ', '  /   \\  '] },
-	{ name: 'Striding', ch: 'n', art: ['   /|\\   ', '    |    ', '   / \\_  '] },
-	{ name: 'Broad', ch: 'm', art: [' /=====\\ ', ' |     | ', ' |_____| '] },
-	{ name: 'Hunched', ch: 'r', art: ['   /|    ', '  / |    ', '   / \\   '] },
-	{ name: 'Waving', ch: 'w', art: ['   /|  / ', '  / |/   ', '   / \\   '] }
+/** The bodies, each a letter on the map. */
+export const BODIES: { name: string; ch: string }[] = [
+	{ name: 'Stout', ch: 'o' },
+	{ name: 'Thin', ch: '\u0131' },
+	{ name: 'Cloaked', ch: '\u028C' },
+	{ name: 'Robed', ch: '\u0467' },
+	{ name: 'Skirted', ch: '\u0434' },
+	{ name: 'Arms up', ch: '\u03C8' },
+	{ name: 'Waving', ch: '\u03B3' },
+	{ name: 'Arms out', ch: '\u03C4' },
+	{ name: 'Sprawling', ch: '\u0436' },
+	{ name: 'Leaping', ch: '\u03C7' },
+	{ name: 'Striding', ch: '\u044F' },
+	{ name: 'Seated', ch: '\u0447' },
+	{ name: 'Broad', ch: '\u03C0' },
+	{ name: 'Bent', ch: '\u0572' },
+	{ name: 'Wide', ch: '\u0448' },
+	{ name: 'Round-backed', ch: '\u03C9' }
 ];
 
-/** The heads: the mark on the map, and three lines of the figure. */
-export const HEADS: { name: string; mark: string; art: [string, string, string] }[] = [
-	{ name: 'Plain', mark: '\u0307', art: ['         ', '         ', '    @    '] },
-	{ name: 'Bald', mark: '\u030A', art: ['         ', '         ', '    O    '] },
-	{ name: 'Hood', mark: '\u0302', art: ['         ', '    ^    ', '   (@)   '] },
-	{ name: 'Soft cap', mark: '\u0303', art: ['         ', '   ~~~   ', '    @    '] },
-	{ name: 'Feather', mark: '\u0301', art: ['     /   ', '   _/    ', '    @    '] },
-	{ name: 'Slouch', mark: '\u0300', art: ['   \\     ', '    \\_   ', '    @    '] },
-	{ name: 'Flat cap', mark: '\u0304', art: ['         ', '   ===   ', '    @    '] },
-	{ name: 'Horned', mark: '\u030C', art: ['         ', '   \\ /   ', '    @    '] }
+/** The heads, each a mark above the body. */
+export const HEADS: { name: string; mark: string }[] = [
+	{ name: 'Plain', mark: '\u0307' },
+	{ name: 'Bald', mark: '\u030A' },
+	{ name: 'Hood', mark: '\u0302' },
+	{ name: 'Soft cap', mark: '\u0303' },
+	{ name: 'Feather', mark: '\u0301' },
+	{ name: 'Slouch', mark: '\u0300' },
+	{ name: 'Flat cap', mark: '\u0304' },
+	{ name: 'Horned', mark: '\u030C' }
 ];
 
 const inRange = (n: unknown, len: number) => (Number.isInteger(n) && (n as number) >= 0 && (n as number) < len ? (n as number) : 0);
@@ -52,8 +58,6 @@ export const lookGlyph = (l: Look): string => BODIES[l.b].ch + HEADS[l.h].mark;
 export const defaultLook = (k: number): Look => ({ b: ((k % BODIES.length) + BODIES.length) % BODIES.length, h: 0 });
 /** Any figure at random. */
 export const randomLook = (rnd: () => number = Math.random): Look => ({ b: Math.floor(rnd() * BODIES.length), h: Math.floor(rnd() * HEADS.length) });
-/** The figure drawn large, six lines nine wide. */
-export const lookBust = (l: Look): string[] => [...HEADS[l.h].art, ...BODIES[l.b].art];
 
 const KEY = 'grimoire.figure';
 /** This phone's figure, kept between games; null if never chosen. */

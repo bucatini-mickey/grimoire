@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { BODIES, HEADS, cleanLook, defaultLook, lookBust, lookGlyph } from '../src/town/avatar.ts';
+import { BODIES, HEADS, cleanLook, defaultLook, lookGlyph } from '../src/town/avatar.ts';
 
 test('a figure from a phone is always one that can be drawn', () => {
 	assert.deepEqual(cleanLook({ b: 2, h: 3 }), { b: 2, h: 3 });
@@ -9,13 +9,10 @@ test('a figure from a phone is always one that can be drawn', () => {
 	assert.deepEqual(cleanLook(null), { b: 0, h: 0 });
 });
 
-test('every body and head makes its own glyph on the map, and a figure nine wide', () => {
+test('every body and head makes its own glyph on the map', () => {
 	const seen = new Set<string>();
 	for (let b = 0; b < BODIES.length; b++) for (let h = 0; h < HEADS.length; h++) {
 		seen.add(lookGlyph({ b, h }));
-		const bust = lookBust({ b, h });
-		assert.equal(bust.length, 6);
-		for (const l of bust) assert.equal(l.length, 9, BODIES[b].name + ' ' + HEADS[h].name + ': ' + l);
 	}
 	assert.equal(seen.size, BODIES.length * HEADS.length);
 });
