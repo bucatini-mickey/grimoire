@@ -290,7 +290,7 @@ function joinScreen(): Row[] {
 /** Waiting in the room: the code, everyone so far (you marked), and what happens next. */
 function lobbyScreen(): Row[] {
 	const dealing = P.seats.length > 0;
-	if (P.figure) return [...head('Your figure', ['Done', () => { P.figure = false; render(); }]), ...figureRows(P.lobbyYou === null ? '' : P.lobby[P.lobbyYou], P.lobbyYou, () => render())];
+	if (P.figure) return [...head('Your figure and face', ['Done', () => { P.figure = false; render(); }]), ...figureRows(P.lobbyYou === null ? '' : P.lobby[P.lobbyYou], P.lobbyYou, () => render())];
 	return [
 		...head('Lobby', ['Leave', leave]),
 		rubric('Room code'),
@@ -301,7 +301,7 @@ function lobbyScreen(): Row[] {
 		...(P.lobby.length ? P.lobby.map((n, i) => row(txt((i === P.lobbyYou ? '> ' : '  ') + n + (i === P.lobbyYou ? ' (you)' : ''), i === P.lobbyYou ? 'gold' : undefined))) : [row(txt('Just you so far...', 'dim'))]),
 		endPanel(),
 		rubric('Voice'), ...wrap(lobbyVoice.line(), INNER).map((l) => row(txt(l, 'dim'))), buttonBlock(lobbyVoice.buttons()), endPanel(),
-		buttonBlock([btn('Make your figure', () => { P.figure = true; render(); })]),
+		buttonBlock([btn('Choose your figure and face', () => { P.figure = true; render(); })]),
 		buttonBlock([btn('Change my name', () => { lobbyVoice.stop(); P.link?.close(); P.status = 'closed'; render(); })])
 	];
 }

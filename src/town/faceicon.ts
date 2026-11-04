@@ -1,11 +1,11 @@
 /**
- * Players on the village map are little figures, a head on a body: one glyph fills the person's whole
- * square, a bright ink on a dark plate of its own hue (never a dark figure), and each keeps theirs.
- * A faint name banner appears over anyone close to you and fades out with distance. (Off the screen
- * they are still marked at its edge by their letter.) Pure helpers, so they can be tested.
+ * Players on the village map are figures: one glyph fills the person's whole square, a bright ink on a
+ * dark plate of its own hue (never a dark figure), and each keeps theirs. At the voting table they are
+ * faces. A faint name banner appears over anyone close to you and fades out with distance. (Off the
+ * screen they are still marked at its edge by their letter.) Pure helpers, so they can be tested.
  */
 
-import { defaultLook, lookGlyph } from './avatar.ts';
+import { FACES, FIGURES, defaultLook } from './avatar.ts';
 import type { Look } from './avatar.ts';
 
 /** How far (in cells) a name banner reaches, and where it starts to fade. */
@@ -13,11 +13,16 @@ export const NEAR_MAX = 5, NEAR_FULL = 2;
 
 export const FACE_DEAD = '\u2020', FACE_ST = '\u263C';
 
-/** What fills a person's square: the figure they made (avatar.ts), or one of their own by `k`, their colour's number. */
-export function faceOf(q: { st?: boolean; dead?: boolean; look?: Look }, k: number): string {
+/** Who walks for them: the figure they chose, or one of their own by `k`, their colour's number. */
+export function figureOf(q: { st?: boolean; dead?: boolean; look?: Look }, k: number): string {
 	if (q.st) return FACE_ST;
 	if (q.dead) return FACE_DEAD;
-	return lookGlyph(q.look ?? defaultLook(k));
+	return FIGURES[(q.look ?? defaultLook(k)).figure];
+}
+/** Who sits at the table for them: the face they chose, or one of their own by `k`. */
+export function faceOf(q: { dead?: boolean; look?: Look } | undefined, k: number, dead = q?.dead): string {
+	if (dead) return FACE_DEAD;
+	return FACES[(q?.look ?? defaultLook(k)).face];
 }
 
 /** Banner strength 0..1 at a distance in cells: full up close, fading to nothing at NEAR_MAX. 0 for yourself. */

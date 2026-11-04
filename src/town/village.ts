@@ -22,11 +22,11 @@
  * is talking privately and which doors are locked; each phone moves its own
  * walker and asks the host for the rest.
  */
-import { PLAIN_FIGURE, cleanLook, loadLook } from './avatar.ts';
+import { PLAIN_FACE, PLAIN_FIGURE, cleanLook, filling, loadLook } from './avatar.ts';
 import { canDraw } from '../ui/glyphs.ts';
 import type { Look } from './avatar.ts';
 import { figureRows } from '../ui/figure.ts';
-import { faceOf, bannerStrength, bannerStep } from './faceicon.ts';
+import { faceOf, figureOf, bannerStrength, bannerStep } from './faceicon.ts';
 import { setTownBig, personInk, letterPlate, seatInk as seatInkOf, texturaPixels, setHover, INNER, onMap, btn, buttonBlock, buttonRows, drawButton, endPanel, field, isButton, listRow, paint, quant, redraw, shade, theTerm, paneled, setPalette, navRow, rubric, row, segWidth, setExtra, txt, wrap, center, pickBar } from '../ui/ascii.ts';
 import type { Button, Row } from '../ui/ascii.ts';
 import type { Grid } from '../term/pterm.ts';
@@ -933,7 +933,7 @@ function toolButtons(): Button[] {
 	if (door !== null) bs.push(btn(S.town!.locked.has(door) ? 'Unlock' : 'Lock', () => act('door')));
 	if (S.host) bs.push(btn('Menu', () => act('st-toggle'), { style: S.stOpen ? 'on' : undefined }));
 	bs.push(btn('People', () => act('people')));
-	if (p && !p.st) later.push(btn('My figure', () => act('figure')));
+	if (p && !p.st) later.push(btn('My figure and face', () => act('figure')));
 	if (!S.game && !S.host) later.push(btn('Leave the village', () => act('back')));
 	return [...bs, ...later, ...(FACES ? [btn('Faces', () => act('faces'), { style: S.sheet === 'faces' ? 'on' : undefined })] : [])];
 }
@@ -1293,8 +1293,8 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 		// Always a bright figure on a dark plate of its own hue; you on a stronger plate; someone talking in gold.
 		const hue = q.dead ? 3 : talk ? 6 : bg || fg;
 		// (the figure fills the square, both its columns)
-		const figure = faceOf(q, q.ink);
-		g.setWide(sx, mapY + sy, canDraw(figure) ? figure : PLAIN_FIGURE, talk ? 5 : hue, shade(hue, mineQ || talk ? 1 : 0));
+		const figure = figureOf(q, q.ink);
+		g.setWide(sx, mapY + sy, filling(canDraw(figure) ? figure : PLAIN_FIGURE), talk ? 5 : hue, shade(hue, mineQ || talk ? 1 : 0));
 	}
 	closeNames(g, mapY, mapH, x0, y0, people, p);
 	if (S.game && (S.phase === 'dusk' || S.phase === 'circle') && gathering(t)) {
@@ -1454,17 +1454,17 @@ function councilRoom(g: Grid, y0: number, h: number, now: number) {
 		const t = `${c.label ? c.label + ' ' : ''}${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
 		g.text(cx - Math.floor(t.length / 2), cy + cr + 1, t, c.running ? 6 : 3, shade(6, 0));
 	}
-	// The seats round the table: each player's letter on their colour, their name outward from the table.
+	// The seats round the table: each player's face in their colour, their name outward from the table.
 	ring.forEach((r, i) => {
 		const a = (2 * Math.PI * i) / n;
 		const sx = cx + Math.round(Math.sin(a) * (tx + 3)), sy = cy - Math.round(Math.cos(a) * (ty + 1.6));
 		const person = [...S.people.values()].find((q) => !q.st && q.seat === r.seat);
 		const [pf, pb] = personInk(r.seat);
 		const plate = v?.nominee === r.seat ? 8 : v?.raised.includes(r.seat) ? 10 : v?.counted.includes(r.seat) ? 6 : -1;
-		const letter = (r.dead ? '+' : r.name[0]?.toUpperCase()) ?? '?';
-		if (plate >= 0) g.text(sx - 1, sy, ` ${letter} `, 0, plate);
-		else g.text(sx - 1, sy, r.dead ? ` ${letter} ` : `[${letter}]`, r.dead ? 3 : pb ? 0 : pf, r.dead ? shade(3, 0) : letterPlate(pf, pb));
-		g.bold(sx, sy); g.bold(sx - 1, sy); g.bold(sx + 1, sy);
+		// A bright face on a dark plate: of what is happening to them (nominated, hand up, counted), else of their colour.
+		const hue = r.dead ? 3 : plate >= 0 ? plate : pb || pf;
+		const face = faceOf(person, r.seat, r.dead);
+		g.setWide(sx - 1, sy, filling(canDraw(face) ? face : PLAIN_FACE), hue, shade(hue, plate >= 0 ? 1 : 0));
 		if (v?.at === r.seat) g.set(sx - 2, sy, '>', 6, 0);
 		if (v?.raised.includes(r.seat)) g.set(sx + 2, sy, '^', 10, 0);
 		const s = Math.sin(a), up = Math.cos(a);

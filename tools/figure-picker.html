@@ -45,10 +45,9 @@ button[aria-pressed="true"] { background: var(--on); color: var(--on-fg); border
 </style>
 
 <h1>Figure picker</h1>
-<p>Tap to add, tap again to remove. Picks save as you go. Bodies wear a head on the map; whole figures and circle faces stand alone.</p>
+<p>Tap to add, tap again to remove. Picks save as you go. Figures walk round the village; faces show at the voting table.</p>
 <div class="bar">
 	<div class="row scroll" id="kinds" role="group" aria-label="What you are picking"></div>
-	<div class="row scroll" id="heads" aria-label="Head to try on"></div>
 	<div class="row scroll" id="alpha" aria-label="Alphabet"></div>
 </div>
 <div id="note"></div>
@@ -61,7 +60,7 @@ button[aria-pressed="true"] { background: var(--on); color: var(--on-fg); border
 
 <script>
 const R = (...pairs) => pairs.flatMap(([a, b]) => Array.from({ length: b - a + 1 }, (_, i) => a + i));
-// Everything we might use, lowercase only where an alphabet has cases: a capital's head is cut off by the square.
+// Everything we might use, lowercase only where an alphabet has cases.
 const ALPHABETS = [
 	['Latin', R([0x61, 0x7a], [0xdf, 0xff])],
 	['Latin extended', R([0x100, 0x24f])],
@@ -85,14 +84,13 @@ const ALPHABETS = [
 	['Devanagari', R([0x905, 0x939])],
 	['Symbols', R([0xa1, 0xbf], [0x2020, 0x2021], [0x2200, 0x22ff], [0x2300, 0x23ff], [0x2600, 0x26ff], [0x2190, 0x21ff])]
 ];
-const MARKS = R([0x300, 0x36f]).map((c) => String.fromCodePoint(c));
-const KINDS = { body: 'Bodies', whole: 'Whole figures', head: 'Heads', circle: 'Circle faces' };
+const KINDS = { figure: 'Figures', face: 'Faces' };
 const VS = '︎';
-let picks = { circle: [], body: [], whole: [], head: ['̇', '̊', '̂', '̃', '́', '̀', '̄', '̌'] };
-const alphaOf = { body: 0, whole: 0, circle: ALPHABETS.findIndex(([n]) => n === 'Symbols') };
-let kind = 'body', alpha = 0, tryHead = '̇', showMissing = false;
+let picks = { figure: [], face: [] };
+const alphaOf = { figure: 0, face: ALPHABETS.findIndex(([n]) => n === 'Symbols') };
+let kind = 'figure', alpha = 0, showMissing = false;
 const $ = (id) => document.getElementById(id);
-const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 function usable(cp) {
 	const ch = String.fromCodePoint(cp);
 	if (!/\p{L}|\p{S}|\p{P}|\p{No}/u.test(ch)) return false;
@@ -105,20 +103,11 @@ function pixels(ch) {
 	cx.clearRect(0, 0, 24, 24); cx.font = '20px ' + getComputedStyle(document.body).fontFamily; cx.fillStyle = '#000'; cx.textBaseline = 'top'; cx.fillText(ch, 1, 1);
 	return cx.getImageData(0, 0, 24, 24).data.join(',');
 }
-// (a letter can pass alone and still fail with a head on it, so it is tested as the game draws it)
-const NOT_THERE = ['\u{10FFFE}', '￿', '͸', ''];
-const missingFor = new Map();
-const missing = (mark) => { if (!missingFor.has(mark)) missingFor.set(mark, new Set(NOT_THERE.map((c) => pixels(c + mark)))); return missingFor.get(mark); };
+const MISSING = new Set(['\u{10FFFE}', '￿', '͸', ''].map(pixels));
 const drawn = new Map();
-function canDraw(ch, mark = '') {
-	const key = ch + mark;
-	if (!drawn.has(key)) {
-		const p = pixels(key);
-		// (ink at all, and not the box this device draws for a letter it does not have, even alone)
-		const ok = !missing(mark).has(p) && /[1-9]/.test(p.replace(/(?:^|,)0(?=,|$)/g, ''));
-		drawn.set(key, ok && (!mark || canDraw(ch)));
-	}
-	return drawn.get(key);
+function canDraw(ch) {
+	if (!drawn.has(ch)) { const p = pixels(ch); drawn.set(ch, !MISSING.has(p) && /[1-9]/.test(p.replace(/(?:^|,)0(?=,|$)/g, ''))); }
+	return drawn.get(ch);
 }
 let db = null, saving = false, again = false;
 // Nothing can be changed until the saved picks are in, or a tap would save over them.
@@ -137,49 +126,38 @@ async function save() {
 let timer = 0;
 const saveSoon = () => { clearTimeout(timer); timer = setTimeout(save, 500); };
 /** The lists a save holds, as our own copies: what the store hands back cannot be changed. */
-const fromSaved = (s) => ({ circle: [...(s.circle || [])], body: [...(s.body || [])], whole: [...(s.whole || [])], head: [...(s.head || picks.head)] });
+const fromSaved = (s) => ({ figure: [...new Set(s.figure || [...(s.body || []), ...(s.whole || [])])], face: [...new Set(s.face || s.circle || [])] });
 function toggle(list, v) { const i = list.indexOf(v); if (i < 0) list.push(v); else list.splice(i, 1); }
-const asShown = (v, k) => (k === 'body' ? v + tryHead : k === 'head' ? 'o' + v : v) + VS;
 function drawBars() {
-	$('kinds').innerHTML = Object.entries(KINDS).map(([k, t]) => `<button type="button" data-k="${k}" aria-pressed="${k === kind}">${t}</button>`).join('');
-	const hs = picks.head.length ? picks.head : ['̇'];
-	$('heads').hidden = kind !== 'body';
-	$('heads').innerHTML = '<span class="lab">Try on:</span>' + hs.map((m) => `<button type="button" class="g" style="--tile:30px;width:30px" data-h="${m}" aria-pressed="${m === tryHead}">o${m}${VS}</button>`).join('');
-	$('alpha').hidden = kind === 'head';
+	$('kinds').innerHTML = Object.entries(KINDS).map(([k, t]) => `<button type="button" data-k="${k}" aria-pressed="${k === kind}">${t} ${picks[k].length}</button>`).join('');
 	const left = $('alpha').scrollLeft;
-	$('alpha').innerHTML = ALPHABETS.map(([n, cps], i) => { const got = picks[kind]?.filter((v) => cps.includes(v.codePointAt(0))).length ?? 0; return `<button type="button" data-a="${i}" aria-pressed="${i === alpha}">${n}${got ? ' ' + got : ''}</button>`; }).join('');
+	$('alpha').innerHTML = ALPHABETS.map(([n, cps], i) => { const got = picks[kind].filter((v) => cps.includes(v.codePointAt(0))).length; return `<button type="button" data-a="${i}" aria-pressed="${i === alpha}">${n}${got ? ' ' + got : ''}</button>`; }).join('');
 	$('alpha').scrollLeft = left;
 }
 function drawGrid() {
-	const list = kind === 'head' ? MARKS : ALPHABETS[alpha][1].filter(usable).map((c) => String.fromCodePoint(c));
+	const list = ALPHABETS[alpha][1].filter(usable).map((c) => String.fromCodePoint(c));
 	let hidden = 0, html = '';
 	for (const v of list) {
-		const ok = kind === 'head' || canDraw(v, kind === 'body' ? tryHead : '');
+		const ok = canDraw(v);
 		if (!ok) hidden++;
 		if (!ok && !showMissing) continue;
-		const on = picks[kind].includes(v);
-		html += `<button type="button" class="g${ok ? '' : ' bad'}" data-v="${esc(v)}" aria-pressed="${on}" title="U+${v.codePointAt(0).toString(16).toUpperCase()}">${esc(asShown(v, kind))}</button>`;
+		html += `<button type="button" class="g${ok ? '' : ' bad'}" data-v="${esc(v)}" aria-pressed="${picks[kind].includes(v)}" title="U+${v.codePointAt(0).toString(16).toUpperCase()}">${esc(v + VS)}</button>`;
 	}
 	$('grid').innerHTML = html;
-	$('note').textContent = kind === 'head'
-		? 'Each mark, shown on an o. These go above any body.'
-		: `${ALPHABETS[alpha][0]}: ${list.length - hidden} of ${list.length} drawn on this device.${hidden ? (showMissing ? ' The dashed ones are missing here.' : ` ${hidden} hidden because this device has no font for them.`) : ''}`;
+	$('note').textContent = `${ALPHABETS[alpha][0]}: ${list.length - hidden} of ${list.length} drawn on this device.${hidden ? (showMissing ? ' The dashed ones are missing here.' : ` ${hidden} hidden because this device has no font for them.`) : ''}`;
 	$('show').textContent = showMissing ? 'Hide missing' : 'Show missing';
-	$('show').hidden = kind === 'head';
 }
 function drawPicks() {
-	const n = picks.body.length, w = picks.whole.length, h = picks.head.length;
-	$('count').textContent = `${n} bodies, ${w} whole, ${h} heads, ${picks.circle.length} faces`;
-	const all = kind === 'circle' ? picks.circle.map((v) => [v, 'circle']) : [...picks.body.map((v) => [v, 'body']), ...picks.whole.map((v) => [v, 'whole'])];
-	$('picks').innerHTML = all.length ? all.map(([v, k]) => `<span class="s">${esc(asShown(v, k))}</span>`).join('') : '<span class="lab">Your picks appear here at true map size.</span>';
-	$('out').value = JSON.stringify({ body: picks.body.join(' '), whole: picks.whole.join(' '), heads: picks.head.map((m) => 'U+' + m.codePointAt(0).toString(16)).join(' '), circle: picks.circle.join(' ') });
+	$('count').textContent = `${picks.figure.length} figures, ${picks.face.length} faces`;
+	const all = picks[kind];
+	$('picks').innerHTML = all.length ? all.map((v) => `<span class="s">${esc(v + VS)}</span>`).join('') : '<span class="lab">Your picks appear here at true size.</span>';
+	$('out').value = JSON.stringify({ figures: picks.figure.join(' '), faces: picks.face.join(' ') });
 }
 const drawAll = () => { drawBars(); drawGrid(); drawPicks(); };
 document.addEventListener('click', (e) => {
 	const b = e.target.closest('button');
 	if (!b) return;
-	if (b.dataset.k) { kind = b.dataset.k; if (kind !== 'head') alpha = alphaOf[kind]; drawAll(); scrollTo(0, 0); }
-	else if (b.dataset.h) { tryHead = b.dataset.h; drawBars(); drawGrid(); drawPicks(); }
+	if (b.dataset.k) { kind = b.dataset.k; alpha = alphaOf[kind]; drawAll(); scrollTo(0, 0); }
 	else if (b.dataset.a) { alpha = alphaOf[kind] = +b.dataset.a; drawBars(); drawGrid(); scrollTo(0, 0); }
 	else if (b.dataset.v) { if (!ready) { $('status').textContent = 'Still loading your picks...'; return; } toggle(picks[kind], b.dataset.v); b.setAttribute('aria-pressed', picks[kind].includes(b.dataset.v)); drawBars(); drawPicks(); saveSoon(); }
 	else if (b.id === 'show') { showMissing = !showMissing; drawGrid(); }
@@ -188,14 +166,18 @@ document.addEventListener('click', (e) => {
 		navigator.clipboard.writeText(text).then(() => { $('status').textContent = 'Copied'; }).catch(() => { $('out').hidden = false; $('out').select(); $('status').textContent = 'Select and copy the text above'; });
 	}
 });
-try { const s = JSON.parse(localStorage.getItem('figure-picks') || 'null'); if (s) picks = fromSaved(s); } catch { /* private window */ }
 drawAll();
 (async () => {
 	db = await (window.claude?.use?.('db') ?? null);
-	if (!db) { ready = true; $('status').textContent = 'Saved on this device only'; return; }
+	if (!db) {
+		try { const s = JSON.parse(localStorage.getItem('figure-picks') || 'null'); if (s) { picks = fromSaved(s); drawAll(); } } catch { /* private window */ }
+		ready = true;
+		$('status').textContent = 'Saved on this device only';
+		return;
+	}
 	try {
 		const d = await db.doc('picks/mine').get();
-		if (d.exists) { const s = d.data(); picks = fromSaved(s); drawAll(); }
+		if (d.exists) { picks = fromSaved(d.data()); drawAll(); }
 		ready = true;
 		$('status').textContent = 'Your picks are loaded';
 	} catch { $('status').textContent = 'Could not load your picks, so tapping is off. They are safe: reload to try again.'; }
