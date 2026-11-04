@@ -1,0 +1,190 @@
+<title>Grimoire Figure Picker</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* A single dark look, the village map at night: gold ink on a dark plate, in the app's own monospace. */
+:root {
+	color-scheme: dark;
+	--bg: #0b0d12; --panel: #161a22; --line: #2a3140; --fg: #cecfd4; --dim: #8b91a0;
+	--gold: #e8c460; --plate: #3a3118; --on: #e8c460; --on-fg: #16110c; --good: #8cc878;
+	--mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, "DejaVu Sans Mono", "Liberation Mono", monospace;
+	--tile: 40px;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 14px/1.4 var(--mono); padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px)); padding-block: 0 170px; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+h1 { font-size: 17px; color: var(--gold); margin: 12px 0 2px; font-weight: 700; }
+p { margin: 0 0 8px; color: var(--dim); max-width: 65ch; }
+button { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 3px; padding: 8px 10px; cursor: pointer; }
+button:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+button[aria-pressed="true"] { background: var(--on); color: var(--on-fg); border-color: var(--on); }
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 8px; display: grid; gap: 6px; border-bottom: 1px solid var(--line); }
+.row { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.scroll { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.scroll button { flex: none; }
+.lab { color: var(--dim); font-size: 12px; flex: none; }
+#note { margin: 8px 0; font-size: 12px; color: var(--dim); }
+#grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--tile), 1fr)); gap: 4px; }
+/* The tile is the map's square at a larger scale: same proportions of glyph to box, and it clips the same way. */
+.g { aspect-ratio: 1; width: 100%; max-width: 100%; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; padding: 0; border: 1px solid transparent; border-radius: 0; background: var(--plate); color: var(--gold); font-size: 1.25em; font-size: calc(var(--tile) * 1.25); line-height: 1; font-family: var(--mono); }
+.g[aria-pressed="true"] { background: var(--gold); color: var(--on-fg); border-color: var(--gold); }
+.g.bad { opacity: .5; outline: 1px dashed var(--dim); outline-offset: -1px; }
+.foot { position: fixed; inset: auto 0 0; z-index: 6; background: var(--panel); border-top: 1px solid var(--line); padding: 8px max(12px, env(safe-area-inset-right, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); display: grid; gap: 6px; }
+.foot .top { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+#picks { display: flex; flex-wrap: wrap; gap: 1px; max-height: 60px; overflow-y: auto; min-height: 18px; }
+/* True size: how big a square is on a phone's map. */
+.s { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; font-size: 22px; line-height: 1; background: var(--plate); color: var(--gold); padding: 0; border: 0; border-radius: 0; font-family: var(--mono); }
+.foot .top { font-size: 12px; gap: 4px 8px; }
+.foot button { padding: 4px 8px; font-size: 12px; }
+#status { font-size: 12px; color: var(--good); }
+#out { width: 100%; height: 56px; background: var(--bg); color: var(--fg); border: 1px solid var(--line); font: 12px var(--mono); }
+</style>
+
+<h1>Figure picker</h1>
+<p>Tap every letter you want. Each one is drawn the way the map draws a figure, so what you see is what the game shows. Your picks save as you go.</p>
+<div class="bar">
+	<div class="row" id="kinds" role="group" aria-label="What you are picking"></div>
+	<div class="row scroll" id="heads" aria-label="Head to try on"></div>
+	<div class="row scroll" id="alpha" aria-label="Alphabet"></div>
+</div>
+<div id="note"></div>
+<div id="grid"></div>
+<div class="foot">
+	<div class="top"><span id="count"></span><span id="status"></span><button id="show" type="button">Show missing</button><button id="copy" type="button">Copy list</button></div>
+	<div id="picks" aria-label="Your picks at true size"></div>
+	<textarea id="out" hidden readonly aria-label="Your picks as text"></textarea>
+</div>
+
+<script>
+const R = (...pairs) => pairs.flatMap(([a, b]) => Array.from({ length: b - a + 1 }, (_, i) => a + i));
+// Everything we might use, lowercase only where an alphabet has cases: a capital's head is cut off by the square.
+const ALPHABETS = [
+	['Latin', R([0x61, 0x7a], [0xdf, 0xff])],
+	['Latin extended', R([0x100, 0x24f])],
+	['Latin more', R([0x1e00, 0x1eff], [0x2c60, 0x2c7f], [0xa720, 0xa7ff], [0xab30, 0xab65])],
+	['IPA', R([0x250, 0x2af], [0x1d00, 0x1d7f])],
+	['Greek', R([0x3b1, 0x3c9], [0x3d0, 0x3e1], [0x3f0, 0x3fb])],
+	['Cyrillic', R([0x430, 0x45f], [0x461, 0x481], [0x48b, 0x52f], [0xa641, 0xa69d])],
+	['Armenian', R([0x561, 0x587])],
+	['Georgian', R([0x10d0, 0x10fa], [0x10fc, 0x10ff])],
+	['Coptic', R([0x2c81, 0x2ce3], [0x3e3, 0x3ef])],
+	['Hebrew', R([0x5d0, 0x5ea])],
+	['Runes', R([0x16a0, 0x16ea])],
+	['Ogham', R([0x1681, 0x169a])],
+	['Tifinagh', R([0x2d30, 0x2d67])],
+	['Cherokee', R([0x13a0, 0x13f5])],
+	['Lisu', R([0xa4d0, 0xa4f7])],
+	['Vai', R([0xa500, 0xa60b])],
+	['Syllabics', R([0x1401, 0x166c])],
+	['Ethiopic', R([0x1200, 0x135a])],
+	['Thai', R([0xe01, 0xe2e])],
+	['Devanagari', R([0x905, 0x939])],
+	['Symbols', R([0xa1, 0xbf], [0x2020, 0x2021], [0x2200, 0x22ff], [0x2300, 0x23ff], [0x2600, 0x26ff], [0x2190, 0x21ff])]
+];
+const MARKS = R([0x300, 0x36f]).map((c) => String.fromCodePoint(c));
+const KINDS = { body: 'Bodies (take a head)', whole: 'Whole figures (no head)', head: 'Heads' };
+const VS = '︎';
+let picks = { body: [], whole: [], head: ['̇', '̊', '̂', '̃', '́', '̀', '̄', '̌'] };
+let kind = 'body', alpha = 0, tryHead = '̇', showMissing = false;
+const $ = (id) => document.getElementById(id);
+const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+function usable(cp) {
+	const ch = String.fromCodePoint(cp);
+	if (!/\p{L}|\p{S}|\p{P}|\p{No}/u.test(ch)) return false;
+	return !/\p{Lu}|\p{Lt}/u.test(ch);
+}
+// Which glyphs this device can draw: its "missing" box, or nothing at all, gives them away.
+const cv = document.createElement('canvas'); cv.width = cv.height = 24;
+const cx = cv.getContext('2d', { willReadFrequently: true });
+function pixels(ch) {
+	cx.clearRect(0, 0, 24, 24); cx.font = '20px ' + getComputedStyle(document.body).fontFamily; cx.fillStyle = '#000'; cx.textBaseline = 'top'; cx.fillText(ch, 1, 1);
+	return cx.getImageData(0, 0, 24, 24).data.join(',');
+}
+// (a letter can pass alone and still fail with a head on it, so it is tested as the game draws it)
+const NOT_THERE = ['\u{10FFFE}', '￿', '͸', ''];
+const missingFor = new Map();
+const missing = (mark) => { if (!missingFor.has(mark)) missingFor.set(mark, new Set(NOT_THERE.map((c) => pixels(c + mark)))); return missingFor.get(mark); };
+const drawn = new Map();
+function canDraw(ch, mark = '') {
+	const key = ch + mark;
+	if (!drawn.has(key)) {
+		const p = pixels(key);
+		// (ink at all, and not the box this device draws for a letter it does not have, even alone)
+		const ok = !missing(mark).has(p) && /[1-9]/.test(p.replace(/(?:^|,)0(?=,|$)/g, ''));
+		drawn.set(key, ok && (!mark || canDraw(ch)));
+	}
+	return drawn.get(key);
+}
+let db = null, saving = false, again = false;
+async function save() {
+	try { localStorage.setItem('figure-picks', JSON.stringify(picks)); } catch { /* private window */ }
+	$('status').textContent = db ? 'Saving...' : 'Saved on this device only';
+	if (!db) return;
+	if (saving) { again = true; return; }
+	saving = true;
+	try { await db.doc('picks/mine').set({ ...picks, savedAt: new Date().toISOString(), device: innerWidth < 700 ? 'phone' : 'desktop' }); $('status').textContent = 'Saved'; }
+	catch { $('status').textContent = 'Could not save. Use Copy list.'; }
+	saving = false;
+	if (again) { again = false; save(); }
+}
+let timer = 0;
+const saveSoon = () => { clearTimeout(timer); timer = setTimeout(save, 500); };
+function toggle(list, v) { const i = list.indexOf(v); if (i < 0) list.push(v); else list.splice(i, 1); }
+const asShown = (v, k) => (k === 'body' ? v + tryHead : k === 'head' ? 'o' + v : v) + VS;
+function drawBars() {
+	$('kinds').innerHTML = Object.entries(KINDS).map(([k, t]) => `<button type="button" data-k="${k}" aria-pressed="${k === kind}">${t}</button>`).join('');
+	const hs = picks.head.length ? picks.head : ['̇'];
+	$('heads').hidden = kind !== 'body';
+	$('heads').innerHTML = '<span class="lab">Try on:</span>' + hs.map((m) => `<button type="button" class="g" style="--tile:30px;width:30px" data-h="${m}" aria-pressed="${m === tryHead}">o${m}${VS}</button>`).join('');
+	$('alpha').hidden = kind === 'head';
+	$('alpha').innerHTML = ALPHABETS.map(([n], i) => `<button type="button" data-a="${i}" aria-pressed="${i === alpha}">${n}</button>`).join('');
+}
+function drawGrid() {
+	const list = kind === 'head' ? MARKS : ALPHABETS[alpha][1].filter(usable).map((c) => String.fromCodePoint(c));
+	let hidden = 0, html = '';
+	for (const v of list) {
+		const ok = kind === 'head' || canDraw(v, kind === 'body' ? tryHead : '');
+		if (!ok) hidden++;
+		if (!ok && !showMissing) continue;
+		const on = picks[kind].includes(v);
+		html += `<button type="button" class="g${ok ? '' : ' bad'}" data-v="${esc(v)}" aria-pressed="${on}" title="U+${v.codePointAt(0).toString(16).toUpperCase()}">${esc(asShown(v, kind))}</button>`;
+	}
+	$('grid').innerHTML = html;
+	$('note').textContent = kind === 'head'
+		? 'Each mark, shown on an o. These go above any body.'
+		: `${ALPHABETS[alpha][0]}: ${list.length - hidden} of ${list.length} drawn on this device.${hidden ? (showMissing ? ' The dashed ones are missing here.' : ` ${hidden} hidden because this device has no font for them.`) : ''}`;
+	$('show').textContent = showMissing ? 'Hide missing' : 'Show missing';
+	$('show').hidden = kind === 'head';
+}
+function drawPicks() {
+	const n = picks.body.length, w = picks.whole.length, h = picks.head.length;
+	$('count').textContent = `${n} bodies, ${w} whole, ${h} heads`;
+	const all = [...picks.body.map((v) => [v, 'body']), ...picks.whole.map((v) => [v, 'whole'])];
+	$('picks').innerHTML = all.length ? all.map(([v, k]) => `<span class="s">${esc(asShown(v, k))}</span>`).join('') : '<span class="lab">Your picks appear here at true map size.</span>';
+	$('out').value = JSON.stringify({ body: picks.body.join(' '), whole: picks.whole.join(' '), heads: picks.head.map((m) => 'U+' + m.codePointAt(0).toString(16)).join(' ') });
+}
+const drawAll = () => { drawBars(); drawGrid(); drawPicks(); };
+document.addEventListener('click', (e) => {
+	const b = e.target.closest('button');
+	if (!b) return;
+	if (b.dataset.k) { kind = b.dataset.k; drawAll(); }
+	else if (b.dataset.h) { tryHead = b.dataset.h; drawBars(); drawGrid(); drawPicks(); }
+	else if (b.dataset.a) { alpha = +b.dataset.a; drawBars(); drawGrid(); scrollTo(0, 0); }
+	else if (b.dataset.v) { toggle(picks[kind], b.dataset.v); b.setAttribute('aria-pressed', picks[kind].includes(b.dataset.v)); if (kind === 'head') drawBars(); drawPicks(); saveSoon(); }
+	else if (b.id === 'show') { showMissing = !showMissing; drawGrid(); }
+	else if (b.id === 'copy') {
+		const text = $('out').value;
+		navigator.clipboard.writeText(text).then(() => { $('status').textContent = 'Copied'; }).catch(() => { $('out').hidden = false; $('out').select(); $('status').textContent = 'Select and copy the text above'; });
+	}
+});
+try { const s = JSON.parse(localStorage.getItem('figure-picks') || 'null'); if (s) picks = { body: s.body || [], whole: s.whole || [], head: s.head || picks.head }; } catch { /* private window */ }
+drawAll();
+(async () => {
+	db = await (window.claude?.use?.('db') ?? null);
+	if (!db) { $('status').textContent = 'Saved on this device only'; return; }
+	try {
+		const d = await db.doc('picks/mine').get();
+		if (d.exists) { const s = d.data(); picks = { body: s.body || [], whole: s.whole || [], head: s.head || picks.head }; drawAll(); }
+		$('status').textContent = 'Saved';
+	} catch { $('status').textContent = 'Could not load saved picks'; }
+})();
+</script>
