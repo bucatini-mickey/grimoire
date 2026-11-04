@@ -5,18 +5,19 @@
  * they are still marked at its edge by their letter.) Pure helpers, so they can be tested.
  */
 
+import { defaultLook, lookGlyph } from './avatar.ts';
+import type { Look } from './avatar.ts';
+
 /** How far (in cells) a name banner reaches, and where it starts to fade. */
 export const NEAR_MAX = 5, NEAR_FULL = 2;
 
-/** A peasant's hood, a burgher's soft cap, a head with eyes, a slouch hat, a coif, a felt hat. */
-export const HEADS = ['\u00F4', '\u00F5', '\u00F6', '\u00F3', '\u03A9', '\u00F2'];
 export const FACE_DEAD = '\u2020', FACE_ST = '\u263C';
 
-/** What fills a person's square; `k` is theirs for the game (their colour's number), so it never changes. */
-export function faceOf(q: { st?: boolean; dead?: boolean }, k: number): string {
+/** What fills a person's square: the figure they made (avatar.ts), or one of their own by `k`, their colour's number. */
+export function faceOf(q: { st?: boolean; dead?: boolean; look?: Look }, k: number): string {
 	if (q.st) return FACE_ST;
 	if (q.dead) return FACE_DEAD;
-	return HEADS[((k % HEADS.length) + HEADS.length) % HEADS.length];
+	return lookGlyph(q.look ?? defaultLook(k));
 }
 
 /** Banner strength 0..1 at a distance in cells: full up close, fading to nothing at NEAR_MAX. 0 for yourself. */

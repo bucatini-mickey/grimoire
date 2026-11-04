@@ -22,6 +22,9 @@
  * is talking privately and which doors are locked; each phone moves its own
  * walker and asks the host for the rest.
  */
+import { cleanLook, loadLook } from './avatar.ts';
+import type { Look } from './avatar.ts';
+import { figureRows } from '../ui/figure.ts';
 import { faceOf, bannerStrength, bannerStep } from './faceicon.ts';
 import { setTownBig, personInk, letterPlate, seatInk as seatInkOf, texturaPixels, setHover, INNER, onMap, btn, buttonBlock, buttonRows, drawButton, endPanel, field, isButton, listRow, paint, quant, redraw, shade, theTerm, paneled, setPalette, navRow, rubric, row, segWidth, setExtra, txt, wrap, center, pickBar } from '../ui/ascii.ts';
 import type { Button, Row } from '../ui/ascii.ts';
@@ -89,6 +92,8 @@ export interface Person {
 	/** Paired with: meeting another player, or (`secret`) in a private word with the Storyteller. */
 	with?: string | null;
 	secret?: boolean;
+	/** The figure they made; none: one of their own by their colour. */
+	look?: Look;
 	/** Dead in the game: still walks and talks, faded. */
 	dead?: boolean;
 }
@@ -134,6 +139,8 @@ type Down =
 type Up =
 	| { t: 'hello'; name: string; clientId: string }
 	| { t: 'at'; x: number; y: number; z?: number }
+	/** The figure I have made. */
+	| { t: 'look'; look: Look }
 	| { t: 'voice'; on: boolean }
 	| { t: 'ask'; to: string }
 	| { t: 'reply'; to: string; yes: boolean }
@@ -187,7 +194,7 @@ const S = {
 	cell: 20,
 	dirty: true,
 	stOpen: false,
-	sheet: null as null | 'people' | 'more' | 'faces',
+	sheet: null as null | 'people' | 'more' | 'faces' | 'figure',
 	/** Requests for a private word, waiting for an answer. */
 	asks: [] as string[],
 	/** Faces as cell frames, by person (the host: everyone's; a phone: the ones it may see). */
@@ -279,7 +286,8 @@ function onUp(from: string, msg: Up) {
 	if (msg.t === 'at') {
 		if (walkable(lvl(msg), msg.x, msg.y, p.st)) { p.x = msg.x; p.y = msg.y; p.z = msg.z ?? 0; }
 		void t;
-	} else if (msg.t === 'voice') p.voice = msg.on;
+	} else if (msg.t === 'look') { p.look = cleanLook(msg.look); S.dirty = true; }
+	else if (msg.t === 'voice') p.voice = msg.on;
 	else if (msg.t === 'ask') {
 		const q = S.people.get(msg.to);
 		if (!q || q.id === from) return;
@@ -402,7 +410,7 @@ function openVillage(key?: string) {
 	S.hostWire = { peer: link.peer, send: (id, m) => link.send(id, m), peers: () => [...link.peers.keys()] };
 	S.me = PREFIX + S.room;
 	// Dev mode as a player: the town as a player's phone shows it (walls stop you, you see what is near).
-	if (store.get('grimoire.devAs') === 'player') addPerson(S.me, lobbyName || 'You');
+	if (store.get('grimoire.devAs') === 'player') addPerson(S.me, lobbyName || 'You', { look: loadLook() ?? undefined });
 	else addPerson(S.me, 'Storyteller', { st: true, ink: -1, seat: -1 });
 	startTicker();
 	enterMap();
@@ -653,6 +661,9 @@ function onPlayerDown(msg: Down) {
 		if (msg.town !== S.townText) { S.townText = msg.town; loadTown(msg.town); }
 		S.phase = msg.phase;
 		S.people = new Map(msg.people.map((p) => [p.id, p]));
+		// (made while waiting, or kept from the last game)
+		const look = loadLook();
+		if (look) up({ t: 'look', look });
 		S.town!.locked = new Set(msg.locked);
 		S.caption = msg.caption ?? [];
 		S.vote = msg.vote ?? null;
@@ -921,6 +932,7 @@ function toolButtons(): Button[] {
 	if (door !== null) bs.push(btn(S.town!.locked.has(door) ? 'Unlock' : 'Lock', () => act('door')));
 	if (S.host) bs.push(btn('Menu', () => act('st-toggle'), { style: S.stOpen ? 'on' : undefined }));
 	bs.push(btn('People', () => act('people')));
+	if (p && !p.st) later.push(btn('My figure', () => act('figure')));
 	if (!S.game && !S.host) later.push(btn('Leave the village', () => act('back')));
 	return [...bs, ...later, ...(FACES ? [btn('Faces', () => act('faces'), { style: S.sheet === 'faces' ? 'on' : undefined })] : [])];
 }
@@ -1502,6 +1514,7 @@ function sheetRows(): Row[] {
 	if (S.choice) {
 		return [close('choice-close'), rubric(S.choice.title), ...S.choice.options.map((o) => buttonBlock([btn(o.label, () => act('choice', o.id), { width: INNER })])), endPanel()];
 	}
+	if (S.sheet === 'figure' && p) return [close('sheet-close'), ...figureRows(p.name, p.ink, (look) => { up({ t: 'look', look }); if (S.host) p.look = look; drawChrome(); })];
 	if (S.sheet === 'more') {
 		const more = barButtons(theTerm()?.cols ?? 44).more;
 		// Each choice closes the page as it is made.
@@ -1690,6 +1703,7 @@ function act(a: string, id = '') {
 			if (c) walkTo(c);
 			break;
 		}
+		case 'figure': S.sheet = S.sheet === 'figure' ? null : 'figure'; S.stOpen = false; drawChrome(); break;
 		case 'people': S.sheet = S.sheet === 'people' ? null : 'people'; S.stOpen = false; drawChrome(); break;
 		case 'faces': S.sheet = S.sheet === 'faces' ? null : 'faces'; S.stOpen = false; drawChrome(); break;
 		case 'faces-show': S.showFaces = !S.showFaces; store.set('grimoire.faces', S.showFaces ? 'on' : 'off'); drawChrome(); break;

@@ -21,6 +21,7 @@ import { CARD_COLS, CARD_INNER, big, cardButtons, characterRows, nextPage, note,
 import type { Page } from './wakepages.ts';
 import * as T from './timer.ts';
 import { villageOnPhone } from '../town/village.ts';
+import { figureRows } from './figure.ts';
 import { LobbyVoice } from '../town/lobbyvoice.ts';
 import type { Extra } from '../town/village.ts';
 
@@ -67,6 +68,8 @@ const P = {
 	handUp: false,
 	/** The name I gave, and everyone in the room so far (in seating order). */
 	name: savedName(),
+	/** Making their figure, while they wait. */
+	figure: false,
 	lobby: [] as string[],
 	lobbyYou: null as number | null,
 	/** The script's characters (the sheet on the table), for the menu. */
@@ -287,6 +290,7 @@ function joinScreen(): Row[] {
 /** Waiting in the room: the code, everyone so far (you marked), and what happens next. */
 function lobbyScreen(): Row[] {
 	const dealing = P.seats.length > 0;
+	if (P.figure) return [...head('Your figure', ['Done', () => { P.figure = false; render(); }]), ...figureRows(P.lobbyYou === null ? '' : P.lobby[P.lobbyYou], P.lobbyYou, () => render())];
 	return [
 		...head('Lobby', ['Leave', leave]),
 		rubric('Room code'),
@@ -297,6 +301,7 @@ function lobbyScreen(): Row[] {
 		...(P.lobby.length ? P.lobby.map((n, i) => row(txt((i === P.lobbyYou ? '> ' : '  ') + n + (i === P.lobbyYou ? ' (you)' : ''), i === P.lobbyYou ? 'gold' : undefined))) : [row(txt('Just you so far...', 'dim'))]),
 		endPanel(),
 		rubric('Voice'), ...wrap(lobbyVoice.line(), INNER).map((l) => row(txt(l, 'dim'))), buttonBlock(lobbyVoice.buttons()), endPanel(),
+		buttonBlock([btn('Make your figure', () => { P.figure = true; render(); })]),
 		buttonBlock([btn('Change my name', () => { lobbyVoice.stop(); P.link?.close(); P.status = 'closed'; render(); })])
 	];
 }
