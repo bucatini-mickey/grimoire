@@ -54,7 +54,7 @@ button[aria-pressed="true"] { background: var(--on); color: var(--on-fg); border
 <div id="note"></div>
 <div id="grid"></div>
 <div class="foot">
-	<div class="top"><span id="count"></span><span id="status"></span><button id="show" type="button">Show missing</button><button id="copy" type="button">Copy list</button></div>
+	<div class="top"><span id="count"></span><span id="status">Loading your picks...</span><button id="show" type="button">Show missing</button><button id="copy" type="button">Copy list</button></div>
 	<div id="picks" aria-label="Your picks at true size"></div>
 	<textarea id="out" hidden readonly aria-label="Your picks as text"></textarea>
 </div>
@@ -121,6 +121,8 @@ function canDraw(ch, mark = '') {
 	return drawn.get(key);
 }
 let db = null, saving = false, again = false;
+// Nothing can be changed until the saved picks are in, or a tap would save over them.
+let ready = false;
 async function save() {
 	try { localStorage.setItem('figure-picks', JSON.stringify(picks)); } catch { /* private window */ }
 	$('status').textContent = db ? 'Saving...' : 'Saved on this device only';
@@ -179,7 +181,7 @@ document.addEventListener('click', (e) => {
 	if (b.dataset.k) { kind = b.dataset.k; if (kind !== 'head') alpha = alphaOf[kind]; drawAll(); scrollTo(0, 0); }
 	else if (b.dataset.h) { tryHead = b.dataset.h; drawBars(); drawGrid(); drawPicks(); }
 	else if (b.dataset.a) { alpha = alphaOf[kind] = +b.dataset.a; drawBars(); drawGrid(); scrollTo(0, 0); }
-	else if (b.dataset.v) { toggle(picks[kind], b.dataset.v); b.setAttribute('aria-pressed', picks[kind].includes(b.dataset.v)); drawBars(); drawPicks(); saveSoon(); }
+	else if (b.dataset.v) { if (!ready) { $('status').textContent = 'Still loading your picks...'; return; } toggle(picks[kind], b.dataset.v); b.setAttribute('aria-pressed', picks[kind].includes(b.dataset.v)); drawBars(); drawPicks(); saveSoon(); }
 	else if (b.id === 'show') { showMissing = !showMissing; drawGrid(); }
 	else if (b.id === 'copy') {
 		const text = $('out').value;
@@ -190,11 +192,12 @@ try { const s = JSON.parse(localStorage.getItem('figure-picks') || 'null'); if (
 drawAll();
 (async () => {
 	db = await (window.claude?.use?.('db') ?? null);
-	if (!db) { $('status').textContent = 'Saved on this device only'; return; }
+	if (!db) { ready = true; $('status').textContent = 'Saved on this device only'; return; }
 	try {
 		const d = await db.doc('picks/mine').get();
 		if (d.exists) { const s = d.data(); picks = fromSaved(s); drawAll(); }
-		$('status').textContent = 'Saved';
-	} catch { $('status').textContent = 'Could not load saved picks'; }
+		ready = true;
+		$('status').textContent = 'Your picks are loaded';
+	} catch { $('status').textContent = 'Could not load your picks, so tapping is off. They are safe: reload to try again.'; }
 })();
 </script>
