@@ -1,7 +1,7 @@
 // Bundles the grimoire into ONE self-contained HTML file: dist/grimoire.html
 // (and dist/index.html). It runs from file://, a phone's Downloads folder, or
 // any static host. Beside it go the pieces that make it an installable app
-// when served over https: a manifest, icons drawn from the pixel clocktower,
+// when served over https: a manifest, icons drawn by src/ui/appicon.ts,
 // and a service worker that keeps it working offline.
 //   node build.mjs          build once
 //   node build.mjs --serve  rebuild on change and serve on http://localhost:5317
@@ -12,6 +12,7 @@ import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync, readdirSync } from 'node:fs';
 import { decodePng } from './tools/art.mjs';
+import { DEFAULT_ICON, renderIcon } from './src/ui/appicon.ts';
 
 process.chdir(dirname(fileURLToPath(import.meta.url)));
 
@@ -61,23 +62,8 @@ function png(w, h, rgba) {
 	return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
 }
 
-/** The icon: a rubric G, an illuminated capital, on dark vellum in a gold square. */
-const G = ['.####', '#....', '#.###', '#...#', '.###.'];
-function icon(size) {
-	const bg = [0x16, 0x11, 0x0c, 255], gold = [0xd4, 0xa7, 0x3a, 255], ink = [0xc8, 0x41, 0x2f, 255], leaf = [0x22, 0x1a, 0x12, 255];
-	const rgba = Buffer.alloc(size * size * 4);
-	for (let i = 0; i < size * size; i++) rgba.set(bg, i * 4);
-	const sq = Math.floor(size * 0.72), x0 = Math.floor((size - sq) / 2);
-	const k = Math.floor(sq / 7);
-	const put = (x, y, c) => rgba.set(c, (y * size + x) * 4);
-	for (let y = 0; y < sq; y++) for (let x = 0; x < sq; x++) put(x0 + x, x0 + y, x < 4 || y < 4 || x >= sq - 4 || y >= sq - 4 ? gold : leaf);
-	const gx = x0 + Math.floor((sq - 5 * k) / 2), gy = x0 + Math.floor((sq - 5 * k) / 2);
-	G.forEach((line, y) => [...line].forEach((ch, x) => {
-		if (ch !== '#') return;
-		for (let dy = 0; dy < k; dy++) for (let dx = 0; dx < k; dx++) put(gx + x * k + dx, gy + y * k + dy, ink);
-	}));
-	return png(size, size, rgba);
-}
+/** The icon files: the default design (src/ui/appicon.ts draws it; the page can draw its own over it). */
+const icon = (size) => png(size, size, Buffer.from(renderIcon(DEFAULT_ICON, size).rgba));
 
 function writeAppFiles() {
 	writeFileSync('dist/icon-192.png', icon(192));

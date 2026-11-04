@@ -47,6 +47,7 @@ const keys = Object.keys(totals);
 show('How games ended', keys.filter((k) => k.startsWith('won:') || k === 'unfinished'));
 show('Deaths and saves', keys.filter((k) => k.startsWith('died:') || k.startsWith('saved:') || k.startsWith('via ') || k === 'kill-redirected' || k === 'virgin executes nominator'));
 show('The Storyteller was asked', keys.filter((k) => k.startsWith('asked:')));
+show('Tricky rules reached (each is checked when it comes up)', keys.filter((k) => k.startsWith('cover: ')));
 show('Events', keys.filter((k) => !k.includes(':') && !k.startsWith('via ') && k !== 'unfinished' && k !== 'kill-redirected' && k !== 'virgin executes nominator'));
 console.log(broken.size ? `\n${broken.size} rule(s) broken.` : '\nNo rules broken.');
 process.exitCode = broken.size ? 1 : 0;

@@ -515,8 +515,10 @@ function render() {
 	tick();
 }
 
+const faces = T.faceWatch();
 function tick() {
-	if (P.clock) redraw();
+	// (the clock's face changes once a second: redraw only then)
+	if (P.clock && faces.changed('clock', clockText())) redraw();
 }
 
 export function startPlayer(appRoot: HTMLElement, overlayRoot: HTMLElement, code: string) {

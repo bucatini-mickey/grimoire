@@ -18,9 +18,9 @@
  */
 import type { CharacterId, GameState, Info, Seat, SeatId } from './types.ts';
 import { charDef, getScript, charactersOfTeam } from './script.ts';
-import { suggestInfo } from './suggest.ts';
+import { possibleAnswers, suggestInfo } from './suggest.ts';
 import {
-	chefNumbers, clockwiseFrom, empathNumbers, fortuneAnswers, isDroisoned, judgeInfo, livingNeighbours, PAIR_ROLE_TEAM, registrations, teamOf
+	chefNumbers, clockwiseFrom, empathNumbers, fortuneAnswers, isDroisoned, judgeInfo, livingNeighbours, PAIR_ROLE_TEAM, registrations, teamOf, vortoxWorks
 } from './rules.ts';
 
 export type Lean = 'neutral' | 'good' | 'evil';
@@ -43,13 +43,17 @@ export function infoCandidates(state: GameState, role: string, to: SeatId, chose
 	const out: Candidate[] = [];
 	const seen = new Set<string>();
 	const droisoned = isDroisoned(state, to);
+	// Under a working Vortox a sober Townsfolk must be told something false: only false answers are offered (the engine refuses a true one).
+	const lying = !droisoned && vortoxWorks(state) && role !== 'mathematician' && getScript(state.scriptId).characters.some((c) => c.id === role && c.team === 'townsfolk');
+	const falseOk = droisoned || lying;
 	const add = (lean: Lean, info: Info | null | undefined, why: string) => {
 		if (!info) return;
 		const key = JSON.stringify(info);
 		if (seen.has(key)) return;
 		const v = judgeInfo(state, to, role, info);
 		if (!v.wellFormed) return;
-		if (!v.truthful && !droisoned) return;
+		if (!v.truthful && !falseOk) return;
+		if (v.truthful && lying) return;
 		seen.add(key);
 		out.push({ lean, truthful: v.truthful, info, why });
 	};
@@ -87,7 +91,7 @@ export function infoCandidates(state: GameState, role: string, to: SeatId, chose
 				`True by registration: ${s.name} (${charDef(script, s.character).name}) may register as the ${charDef(script, passes).name}.`);
 		}
 		if (role === 'librarian') add(holders.length ? 'evil' : 'neutral', { kind: 'none' }, holders.length ? 'False unless registrations allow it.' : 'True: there are no Outsiders.');
-		if (droisoned) {
+		if (falseOk) {
 			const goods = others.filter((s) => !isEvil(s));
 			const evils = others.filter(isEvil);
 			const wrong = charactersOfTeam(script, team).map((c) => c.id).find((c) => !state.seats.some((s) => s.character === c));
@@ -116,7 +120,7 @@ export function infoCandidates(state: GameState, role: string, to: SeatId, chose
 			const lean: Lean = truths.length === 1 ? 'neutral' : v >= actual ? 'good' : 'evil';
 			add(lean, { kind: 'number', value: v }, truths.length === 1 ? 'True.' : v === actual ? 'True, with everyone registering as they are.' : 'True by the Spy or Recluse registering otherwise.');
 		}
-		if (droisoned) {
+		if (falseOk) {
 			for (const v of [actual - 1, actual + 1, actual - 2, actual + 2]) {
 				if (v < 0 || v > max) continue;
 				add('evil', { kind: 'number', value: v }, v < actual ? 'False: hides evil.' : 'False: casts suspicion on the innocent.');
@@ -137,7 +141,7 @@ export function infoCandidates(state: GameState, role: string, to: SeatId, chose
 				: yes ? 'True if the Recluse registers as the Demon.' : 'True with the Recluse registering as himself.';
 			add(answers.length === 1 ? 'neutral' : yes ? 'evil' : 'good', { kind: 'fortune', players, yes }, why);
 		}
-		if (droisoned) {
+		if (falseOk) {
 			add('evil', { kind: 'fortune', players, yes: !demonThere }, demonThere ? `False: hides the Demon among ${name(a)} and ${name(b)}.` : `False: frames ${name(a)} or ${name(b)}.`);
 		}
 		return out;
@@ -155,7 +159,7 @@ export function infoCandidates(state: GameState, role: string, to: SeatId, chose
 			add(isEvil(t) ? 'evil' : 'good', info(c), `True by registration as the ${charDef(script, c).name}.`);
 			if (out.length > 4) break;
 		}
-		if (droisoned) {
+		if (falseOk) {
 			const bluff = isEvil(t)
 				? state.bluffs[0] ?? charactersOfTeam(script, 'townsfolk')[0].id
 				: state.seats.find((s) => teamOf(state, s.character) === 'minion')?.character ?? 'imp';
@@ -165,5 +169,12 @@ export function infoCandidates(state: GameState, role: string, to: SeatId, chose
 	}
 	// Any other role: the plain true answer, as a starting point.
 	add('neutral', suggestInfo(state, role, to, chosen), 'True.');
+	if (falseOk) {
+		let n = 0;
+		for (const a of possibleAnswers(state, role, to, chosen)) {
+			if (n >= 3) break;
+			if (!judgeInfo(state, to, role, a).truthful) { add('evil', a, 'False: an answer the player cannot check.'); n++; }
+		}
+	}
 	return out;
 }

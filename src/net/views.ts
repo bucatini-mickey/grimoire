@@ -152,13 +152,14 @@ export function pickPrompt(state: GameState, kind: string, seat: SeatId | null):
 export function stepRole(state: GameState, kind: string, seat: SeatId | null): CharacterId {
 	if (kind === G.NEW_DEMON) return seat !== null ? state.seats[seat].character : 'imp';
 	if (kind === G.GODFATHER_INFO) return 'godfather';
-	if (seat !== null && (kind === G.REVEAL || kind === G.MINION_INFO || kind === G.DEMON_INFO || kind === G.EXORCISED || kind === G.LUNATIC_INFO || kind === G.LUNATIC)) return state.seats[seat].believes;
+	if (seat !== null && (kind === G.REVEAL || kind === G.MINION_INFO || kind === G.DEMON_INFO || kind === G.EXORCISED || kind === G.LUNATIC_INFO || kind === G.LUNATIC || kind === G.TRAVELLER_INFO)) return state.seats[seat].believes;
 	return kind;
 }
 
-/** Dead as the room knows it: dead, and not merely killed tonight. */
+/** Dead as the room knows it: at night, as it was when night fell (whoever is killed or brought back since is a secret until dawn). */
 export function deadAtDusk(state: GameState, id: SeatId): boolean {
-	return !state.seats[id].alive && !(state.night?.deaths.includes(id) ?? false);
+	if (state.phase.kind === 'night' && state.night) return !state.night.aliveAtDusk.includes(id);
+	return !state.seats[id].alive;
 }
 
 // ---- the public circle -------------------------------------------------------------------
@@ -170,7 +171,7 @@ export function publicView(state: GameState): PublicView {
 		script: state.scriptId,
 		n: p.kind === 'night' || p.kind === 'day' ? p.n : 0,
 		order: [...state.order],
-		seats: state.seats.map((s) => ({ id: s.id, name: s.name, alive: !deadAtDusk(state, s.id) && (s.alive || state.phase.kind === 'night'), ghostVote: s.ghostVote })),
+		seats: state.seats.map((s) => ({ id: s.id, name: s.name, alive: !deadAtDusk(state, s.id), ghostVote: s.ghostVote })),
 		block: state.day && state.day.block !== null ? { seat: state.day.block, votes: state.day.highest } : null,
 		executed: state.day?.executed ?? null,
 		nominations: (state.day?.nominations ?? []).map((n) => ({ nominator: n.nominator, nominee: n.nominee, votes: n.votes })),
@@ -235,6 +236,8 @@ function evilKnowledge(state: GameState, kind: string, seat: SeatId | null): Sec
 			{ title: 'Not in play', lines: state.bluffs.map((b) => charName(state, b)), style: 'big' }
 		];
 	}
+	// An evil Traveller who joins is shown the Demon (and no one else).
+	if (kind === G.TRAVELLER_INFO) return [{ title: 'Your Demon', lines: demon.map((d) => d.name), style: 'big' }];
 	const learn = state.night?.n === 1 && G.evilLearnEachOther(state.seats.length);
 	if (!learn || seat === null || G.teamOf(state, state.seats[seat].character) !== 'minion' || state.seats[seat].character === 'marionette') return [];
 	const others = minions.filter((m) => m.id !== seat && m.character !== 'marionette');

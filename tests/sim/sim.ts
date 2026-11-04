@@ -22,7 +22,8 @@ import {
 	living, infoCandidates, teamAlignment, charDef, canRegisterAsTeam, NEW_DEMON
 } from '../../src/core/index.ts';
 import type { Command, GameEvent, GameState, Info, SeatId, Script } from '../../src/core/index.ts';
-import { publicView, cardFor } from '../../src/net/views.ts';
+import { publicView, cardFor, wakeFor } from '../../src/net/views.ts';
+import { announce } from '../../src/net/announce.ts';
 
 const NAMES = 'Ada Bram Cael Dorn Esme Fenn Gwen Hal Isolde Jory Kit Lior Maud Ned Orla'.split(' ');
 /** A game that has not ended after this many commands is called a draw (and counted). */
@@ -211,6 +212,10 @@ function proposeDay(s: GameState, r: Rand): Command {
 	}
 	if (day.stage === 'discussion') return chance(0.92, r) ? { type: 'open-nominations' } : { type: 'end-day' };
 	if (day.executed !== null || day.nominations.length >= 1 + Math.floor(r() * 4)) return { type: 'end-day' };
+	// A Spy or Recluse nominating the Virgin: the Storyteller decides whether they register as a Townsfolk.
+	const virgin = s.seats.find((x) => x.alive && x.character === 'virgin' && !day.nominations.some((n) => n.nominee === x.id));
+	const odd = s.seats.filter((x) => x.alive && (x.character === 'spy' || x.character === 'recluse') && !day.nominations.some((n) => n.nominator === x.id));
+	if (virgin && odd.length && chance(0.5, r)) return { type: 'nominate', nominator: pick(odd, r).id, nominee: virgin.id };
 	const nominator = chance(0.92, r) ? pick(alive(s), r) : pick(seats(s), r);
 	const nominee = chance(0.25, r) && interesting(s).length ? pick(interesting(s), r) : pick(seats(s), r);
 	return { type: 'nominate', nominator, nominee };
@@ -313,6 +318,9 @@ const masterOf = (s: GameState) => s.effects.find((e) => e.kind === 'master')?.t
 const keeps = (s: GameState, id: SeatId) => s.effects.some((e) => e.kind === 'keeps-ability' && e.target === id);
 const working = (s: GameState, id: SeatId, c: string) => (reallyAlive(s, id) || keeps(s, id)) && s.seats[id].character === c && !dp(s, id);
 
+/** Set while asking whether an answer would be true if no one registered as anything but themselves (for coverage only). */
+let identityRegistration = false;
+
 /**
  * What a seat may register as. The Spy may register as good and as any
  * Townsfolk or Outsider; the Recluse as evil and as any Minion or Demon; not
@@ -322,6 +330,7 @@ function mayRegister(s: GameState, id: SeatId): { chars: Set<string>; aligns: Se
 	const x = s.seats[id];
 	const chars = new Set([x.character]);
 	const aligns = new Set<string>([x.alignment]);
+	if (identityRegistration) return { chars, aligns };
 	const all = getScript(s.scriptId).characters;
 	if (!dp(s, id) && x.character === 'spy') {
 		aligns.add('good');
@@ -554,6 +563,29 @@ export class Checker {
 	private pitHagDemon = false;
 	/** Moonchilds who have chosen since they last died. */
 	private moonchildChose = new Set<SeatId>();
+	/** How often each tricky situation came up (the robots must reach them): merged into the game's stats. */
+	cover: Record<string, number> = {};
+	private hit(k: string) { this.cover[k] = (this.cover[k] ?? 0) + 1; }
+	/** A Scarlet Woman who must take over in this command (a Demon died with five or more alive). */
+	private swDue: SeatId | null = null;
+	/** A working Saint was executed in this command: evil must win. */
+	private saintDue = false;
+	/** The Virgin's first nomination in this command: the nominator must (or must not) be executed. */
+	private virginDue: { nominator: SeatId; expect: 'must' | 'never' | 'maybe' } | null = null;
+	/** Virgins who have been nominated since they last came back to life (their ability is used up). */
+	private virginSpent = new Set<SeatId>();
+	/** Redirected Mayor kills in this command: the victim must die or be saved. */
+	private redirected: SeatId[] = [];
+	/** The block and the highest vote today, tracked here from the vote tallies alone (null when a Judge's pardon makes it unknowable). */
+	private blockSeat: SeatId | null = null;
+	private blockVotes = 0;
+	private blockKnown = true;
+	private tiedToday = false;
+	/** Who was alive when the night began, to check the dawn announcement. */
+	private aliveAtNightfall = new Set<SeatId>();
+	/** Everything accepted so far, to check that undo (drop the last events, replay) rebuilds the game. */
+	private history: { before: GameState; cmd: Command; events: GameEvent[]; mark: number }[] = [];
+	private allEvents: GameEvent[] = [];
 
 	private fail(rule: string, detail: string) {
 		this.violations.push({ rule, detail, at: this.accepted });
@@ -578,7 +610,13 @@ export class Checker {
 		this.events = events;
 		this.deathsNow = [];
 		this.grandmothersDue = [];
+		this.swDue = null;
+		this.saintDue = false;
+		this.virginDue = null;
+		this.redirected = [];
+		const blockAtStart = this.blockKnown ? this.blockSeat : undefined;
 		this.due = prev.phase.kind === 'night' ? nextStep(prev) : null;
+		this.wakePages(prev);
 		const d = this.due;
 		for (const e of events) {
 			if (e.type === 'evil-info-shown' && prev.seats[e.to]?.character === 'marionette') this.fail('marionette-not-told', `${prev.seats[e.to].name} the Marionette was shown the evil team`);
@@ -593,8 +631,197 @@ export class Checker {
 			this.event(cur, e, next, cmd);
 			cur = next;
 		}
+		const folded = cur;
 		this.state(result, prev);
 		this.afterCommand(prev, cmd, events, result);
+		this.later(prev, cmd, events, result, blockAtStart);
+		this.undoRedo(prev, cmd, events, folded, result);
+	}
+
+	/** The pages a player is handed at their wake: never the truth about a misled or sickened player. */
+	private wakePages(prev: GameState) {
+		const d = this.due;
+		if (!d || d.seat === null || prev.phase.kind !== 'night') return;
+		const x = prev.seats[d.seat];
+		let wake: ReturnType<typeof wakeFor>;
+		try { wake = wakeFor(prev, d, null); } catch (err) { this.fail('wake-pages', `the pages for ${d.kind} crashed: ${(err as Error).message}`); return; }
+		const text = JSON.stringify(wake);
+		if (x.character !== x.believes && d.kind !== NEW_DEMON) {
+			const real = charDef(getScript(prev.scriptId), x.character).name;
+			if (wake.role === x.character || new RegExp(`\\b${real}\\b`).test(text)) this.fail('wake-hides-misled', `${x.name} (really the ${real}) is shown the ${real} on their pages`);
+		}
+		// A drunk or poisoned player's pages are the same as a healthy one's (the Spy sees the whole grimoire, flags and all).
+		if (dp(prev, d.seat) && d.kind !== 'spy' && d.kind !== 'widow') {
+			this.hit('a drunk or poisoned player is woken');
+			const healthy = { ...prev, effects: prev.effects.filter((e) => e.kind !== 'poisoned' && e.kind !== 'drunk') };
+			if (JSON.stringify(wakeFor(healthy, d, null)) !== text) this.fail('wake-hides-poison', `${x.name}'s pages as ${d.kind} differ because they are drunk or poisoned`);
+		}
+		// What the Storyteller is offered to say: true to the sober (false under the Vortox), anything well-formed to the drunk and poisoned.
+		if (stepAction(d.kind) === 'tell') {
+			const others = prev.seats.map((s) => s.id).filter((id) => id !== d.seat);
+			const alive = others.filter((id) => prev.seats[id].alive);
+			const chosen = d.kind === 'chambermaid' ? alive.slice(0, 2) : d.kind === 'fortune-teller' || d.kind === 'seamstress' ? others.slice(0, 2) : ['ravenkeeper', 'dreamer'].includes(d.kind) ? others.slice(0, 1) : [];
+			const cands = infoCandidates(prev, d.kind, d.seat, chosen);
+			const mustLie = vortoxOn(prev) && townsfolkRole(prev, d.kind) && d.kind !== 'mathematician';
+			const sick = dp(prev, d.seat);
+			for (const c of cands) {
+				const truth = trueInfo(prev, d.seat, d.kind, c.info);
+				if (truth === null) { this.fail('candidate-well-formed', `${x.name} (${d.kind}) is offered ${JSON.stringify(c.info)}, of the wrong shape`); continue; }
+				if (truth !== c.truthful) this.fail('candidate-marked-right', `${x.name} (${d.kind}) is offered ${JSON.stringify(c.info)} marked truthful=${c.truthful}, really ${truth}`);
+				if (!sick && (mustLie ? truth : !truth)) this.fail('candidate-fits', `${x.name} (${d.kind}), sober, is offered ${truth ? 'a truth under the Vortox' : 'a falsehood'}: ${JSON.stringify(c.info)}`);
+			}
+			if (sick && cands.length && cands.some((c) => c.truthful)) this.hit(cands.some((c) => !c.truthful) ? 'a drunk or poisoned player is offered false answers' : 'a drunk or poisoned player is offered only true answers');
+		}
+	}
+
+	/** Consequences that must follow from what happened in a command: the other half of each rule. */
+	private later(prev: GameState, cmd: Command, events: GameEvent[], result: GameState, blockAtStart: SeatId | null | undefined) {
+		const has = (f: (e: GameEvent) => boolean) => events.some(f);
+		const nm = (id: SeatId) => `${prev.seats[id]?.name}(${prev.seats[id]?.character})`;
+		// Scarlet Woman: a Demon died with five or more alive, so a working one became the Demon (same command, no one else).
+		if (this.swDue !== null) {
+			if (!has((e) => e.type === 'became-demon' && e.via === 'scarlet-woman' && e.seat === this.swDue)) this.fail('scarlet-woman-takes-over', `a Demon died with ${this.aliveBeforeDeath} alive and ${nm(this.swDue)}, a working Scarlet Woman, did not take over`);
+		}
+		// Saint: executed (and working), evil has won.
+		if (this.saintDue && !(result.phase.kind === 'over' && result.phase.winner === 'evil')) this.fail('saint-loses', 'a working Saint was executed and evil did not win');
+		// Virgin: Townsfolk nominator executed, anyone else not (for a Spy or Recluse the Storyteller decides).
+		if (cmd.type === 'nominate' && this.virginDue) {
+			const done = has((e) => e.type === 'executed' && e.seat === this.virginDue!.nominator);
+			const any = has((e) => e.type === 'executed');
+			if (this.virginDue.expect === 'must' && !done) this.fail('virgin-fires', `${nm(cmd.nominator)} is a Townsfolk, nominated a working Virgin for the first time, and was not executed`);
+			if (this.virginDue.expect === 'never' && any) this.fail('virgin-fires', `${nm(cmd.nominator)} was executed though the Virgin could not fire (spent, drunk, poisoned, or a non-Townsfolk nominator)`);
+			if (done) this.hit('virgin executes a Townsfolk');
+		}
+		// Mayor: the player the kill was bounced to dies or is saved (unless already dead).
+		for (const to of this.redirected) {
+			if (!has((e) => (e.type === 'died' || e.type === 'seems-dead') ? e.seat === to : e.type === 'kill-prevented' && e.target === to)) this.fail('mayor-bounce', `the kill bounced to ${nm(to)} and nothing happened to them`);
+		}
+		// Starpass: a working Imp choosing itself (unprotected) dies, and the Scarlet Woman, the only Minion, or the Storyteller's choice becomes the Imp.
+		for (const e of events) {
+			if (e.type !== 'chose' || e.role !== 'imp' || !e.effective || e.targets[0] !== e.by || !prev.seats[e.by].alive) continue;
+			const goon = (s: GameState) => s.effects.some((x) => x.kind === 'drunk' && x.role === 'goon' && x.target === e.by);
+			if (goon(prev) !== goon(result)) continue; // caught by the Goon on the way
+			if (protectedTonight(prev, e.by)) {
+				this.hit('starpass: the Monk protects the Imp');
+				if (has((x) => x.type === 'died' && x.seat === e.by) || has((x) => x.type === 'became-demon')) this.fail('starpass', 'the Monk-protected Imp chose itself and something happened');
+				continue;
+			}
+			if (!has((x) => x.type === 'died' && x.seat === e.by && x.cause === 'starpass')) { this.fail('starpass', `${nm(e.by)}, a working Imp, chose itself and did not die`); continue; }
+			const sw = prev.seats.find((x) => working(prev, x.id, 'scarlet-woman'));
+			const minions = prev.seats.filter((x) => x.alive && x.id !== e.by && teamIn(prev, x.character) === 'minion').map((x) => x.id);
+			const heirs = events.filter((x): x is Extract<GameEvent, { type: 'became-demon' }> => x.type === 'became-demon' && x.via !== 'pit-hag');
+			if (sw && reallyLiving(prev) >= 5) {
+				this.hit('starpass: the Scarlet Woman catches it');
+				if (!heirs.some((x) => x.seat === sw.id && x.via === 'scarlet-woman')) this.fail('starpass', 'the Imp passed on with five alive and the Scarlet Woman did not become the Imp');
+			} else if (minions.length) {
+				this.hit(minions.length === 1 ? 'starpass: the only Minion becomes the Imp' : 'starpass: the Storyteller picks the Minion');
+				const heir = heirs.find((x) => x.via === 'starpass');
+				if (!heir || !minions.includes(heir.seat) || (minions.length === 1 && heir.seat !== minions[0])) this.fail('starpass', `the Imp passed on and ${heir ? nm(heir.seat) + ' became the Imp' : 'no Minion became the Imp'}`);
+			} else {
+				this.hit('starpass: no Minion left');
+				if (heirs.length) this.fail('starpass', 'the Imp passed on with no Minion left and someone became the Imp');
+			}
+		}
+		// The block, tracked from the tallies alone: dusk executes whoever is on it, and no one when it is empty.
+		if (cmd.type === 'end-day' && prev.day && prev.day.executed === null && blockAtStart !== undefined && !prev.mastermind) {
+			const executed = events.filter((e): e is Extract<GameEvent, { type: 'executed' }> => e.type === 'executed');
+			if (blockAtStart === null && executed.length) this.fail('block-tracking', `dusk executed ${nm(executed[0].seat)} with no one on the block`);
+			if (blockAtStart !== null && (executed.length !== 1 || executed[0].seat !== blockAtStart)) this.fail('block-tracking', `dusk did not execute ${nm(blockAtStart)}, who was on the block`);
+			if (blockAtStart !== null) this.hit('dusk executes the block');
+		}
+		// The Butler's word with the room: noted only for a working Butler voting without their master.
+		for (const e of events) {
+			if (e.type !== 'note' || !e.text.includes('the Butler, voted without their master')) continue;
+			const voters = cmd.type === 'vote' ? cmd.voters : [];
+			const m = masterOf(prev);
+			if (cmd.type !== 'vote' || m === null || voters.includes(m) || !voters.some((v) => working(prev, v, 'butler') && e.text.startsWith(prev.seats[v].name))) this.fail('butler', 'the Butler was noted as voting without their master when they did not');
+		}
+		// A Slayer's shot is always used up.
+		if (cmd.type === 'slay' && events.some((e) => e.type === 'slayer-shot') && prev.seats[cmd.by].character === 'slayer' && !result.spent.includes(`${cmd.by}:slayer`)) this.fail('slayer-once', `${nm(cmd.by)} shot and can shoot again`);
+		// Announcements to the room: true, and nothing secret in them.
+		this.announcements(prev, events, result);
+	}
+
+	/** The banners the room sees (src/net/announce.ts), checked against the events and the secrets. */
+	private announcements(prev: GameState, events: GameEvent[], result: GameState) {
+		const banners = announce(prev, events, result) ?? [];
+		if (!result.scriptId) return;
+		const script = getScript(result.scriptId);
+		const names = result.seats.map((x) => x.name);
+		const sayDies = (lines: string[], id: SeatId) => lines.includes(`${names[id]} dies.`);
+		for (const b of banners) {
+			const text = [b.title, ...b.lines].join('\n');
+			if (b.title === 'Good wins' || b.title === 'Evil wins') continue; // the end of the game may say why
+			// Only the Virgin and the Slayer are named, and only when it happened.
+			for (const c of script.characters) {
+				const named = new RegExp(`\\b${c.name}\\b`).test(text);
+				const allowed = (c.id === 'virgin' && b.title === 'The Virgin!') || (c.id === 'slayer' && b.title === 'The Slayer');
+				if (named && !allowed) this.fail('announce-secret', `"${b.title}" names the ${c.name}: ${b.lines.join(' / ')}`);
+			}
+			const m = /poison|drunk|protect|starpass|minion|demon|\bimp\b|evil|\bgood\b|safe|bounce|redirect|spent|ability|saved|sober|catch|\bswap/i.exec(text);
+			if (m) this.fail('announce-secret', `"${b.title}" says "${m[0]}": ${b.lines.join(' / ')}`);
+			if (/^Day \d+ dawns$/.test(b.title)) {
+				const listed = b.lines.filter((l) => l.endsWith(' died in the night.') && l !== 'Nobody died in the night.').map((l) => l.slice(0, -' died in the night.'.length)).sort();
+				const truth = [...this.aliveAtNightfall].filter((id) => !result.seats[id].alive).map((id) => names[id]).sort();
+				if (JSON.stringify(listed) !== JSON.stringify(truth)) this.fail('announce-dawn', `dawn says [${listed}] died, but [${truth}] did`);
+			}
+		}
+		// Executions and shots: what the room is told is what the table sees.
+		for (const e of events) {
+			if (e.type === 'executed') {
+				const b = banners.find((x) => (x.title === 'Execution' || x.title === 'The Virgin!') && x.lines.includes(`${names[e.seat]} is executed.`));
+				if (!b) { this.fail('announce-execution', `${names[e.seat]} was executed and the room was not told`); continue; }
+				const dies = sayDies(b.lines, e.seat);
+				const lives = b.lines.includes(`${names[e.seat]} does not die.`);
+				const was = b.lines.includes(`${names[e.seat]} was already dead.`);
+				if (dies && result.seats[e.seat].alive) this.fail('announce-execution', `the room is told ${names[e.seat]} dies, and they are alive`);
+				if (lives && !result.seats[e.seat].alive) this.fail('announce-execution', `the room is told ${names[e.seat]} does not die, and they are dead`);
+				if (was && (prev.seats[e.seat].alive || (prev.seats[e.seat].undead && !events.some((x) => x.type === "survived-execution" && x.seat === e.seat)))) this.fail('announce-execution', `the room is told ${names[e.seat]} was already dead, and they were not`);
+				// Unless the game ended with the execution (the Mastermind's day, the Evil Twin), the room is told what became of them.
+				if (!dies && !lives && !was && !(prev.seats[e.seat].alive && result.phase.kind === 'over')) this.fail('announce-execution', `no word of what became of ${names[e.seat]} when executed`);
+				if (lives) this.hit('the room is told an executed player does not die');
+				if (prev.seats[e.seat].character === 'zombuul' && dies) this.hit('the Zombuul seems to die by execution');
+			}
+			if (e.type === 'slayer-shot') {
+				const b = banners.find((x) => x.title === 'The Slayer');
+				if (!b) { this.fail('announce-slayer', 'a shot and the room was not told'); continue; }
+				if (sayDies(b.lines, e.target) !== (prev.seats[e.target].alive && !result.seats[e.target].alive)) this.fail('announce-slayer', `the room is told "${b.lines[1]}", and ${names[e.target]} is ${result.seats[e.target].alive ? 'alive' : 'dead'}`);
+			}
+			if (e.type === 'vote-tallied') {
+				const b = banners.find((x) => x.title === `${e.votes} vote${e.votes === 1 ? '' : 's'} for ${names[e.nominee]}`);
+				if (!b) { this.fail('announce-vote', `the vote for ${names[e.nominee]} was not announced`); continue; }
+				const about = b.lines.includes(`${names[e.nominee]} is about to die.`);
+				if (about !== (e.outcome === 'on-the-block')) this.fail('announce-vote', `"${b.lines.join(' / ')}" for a vote that was ${e.outcome}`);
+				const still = b.lines.find((l) => l.endsWith(' is still about to die.'));
+				if (e.outcome === 'not-enough' && result.day!.block !== null && still !== `${names[result.day!.block]} is still about to die.`) this.fail('announce-vote', 'the block is not named after a vote that left it standing');
+				if (e.outcome !== 'not-enough' && still) this.fail('announce-vote', 'the block is named after a vote that changed it');
+			}
+		}
+	}
+
+	/**
+	 * Undo is "drop the last command's events and replay": it must give back exactly the game as it was, and the
+	 * command must play again the same. Every command: the state it left is what folding its events over the state
+	 * before gives (so any prefix of the events replays to the state at that point). Now and then: the whole
+	 * prefix replayed from the start, and the command played again.
+	 */
+	private undoRedo(prev: GameState, cmd: Command, events: GameEvent[], folded: GameState, result: GameState) {
+		if (JSON.stringify(folded) !== JSON.stringify(result)) this.fail('undo-restores-state', `the game after ${cmd.type} is not what replaying its events over the game before gives`);
+		this.history.push({ before: prev, cmd, events, mark: this.allEvents.length });
+		this.allEvents.push(...events);
+		const k = this.history.length - 1;
+		if (k % 11 === 0) {
+			const again = perform(prev, cmd);
+			if (!again.ok || JSON.stringify(again.events) !== JSON.stringify(events)) this.fail('undo-restores-state', `after an undo, ${cmd.type} (command ${k + 1}) does not play the same again`);
+			this.hit('undo: a command played again');
+		}
+		if (k % 120 === 119) {
+			// Undo back to the start of an earlier command and compare with the game as it was then.
+			const j = Math.max(0, k - 1 - ((k * 7) % 100));
+			const h = this.history[j];
+			if (JSON.stringify(replay(this.allEvents.slice(0, h.mark))) !== JSON.stringify(h.before)) this.fail('undo-restores-state', `undoing back to before command ${j + 1} (${h.cmd.type}) does not give back the game as it was`);
+			this.hit('undo: back to an earlier command');
+		}
 	}
 
 	/** What a command leaves behind, once it has played out. */
@@ -695,9 +922,21 @@ export class Checker {
 			case 'died': {
 				const v = b.seats[e.seat];
 				if (!v.alive && !v.undead) this.fail('die-once', `${name(e.seat)} died twice`);
-				this.aliveBeforeDeath = livingIds(b).length;
+				this.aliveBeforeDeath = reallyLiving(b);
 				this.lastDeath = { seat: e.seat, character: v.character, cause: e.cause, working: !dp(b, e.seat), alignment: v.alignment };
 				this.deathsNow.push({ seat: e.seat, cause: e.cause });
+				// The Scarlet Woman: with five or more alive (Travellers not counted) when the Demon dies, a working one takes over.
+				if (teamIn(b, v.character) === 'demon' && !b.mastermind && demonsAlive(a) === 0) {
+					const sw = a.seats.find((x) => working(a, x.id, 'scarlet-woman'));
+					if (sw && this.aliveBeforeDeath >= 5) this.swDue = sw.id;
+					else if (sw) this.hit(livingIds(b).length >= 5 ? 'scarlet-woman declines: Travellers make up the five' : 'scarlet-woman declines: fewer than five alive');
+					else if (a.seats.some((x) => x.alive && x.character === 'scarlet-woman')) this.hit('scarlet-woman declines: drunk or poisoned');
+				}
+				// The Saint: a working Saint executed, and evil wins.
+				if (e.cause === 'execution' && v.character === 'saint' && !b.mastermind) {
+					if (dp(b, e.seat)) this.hit('saint executed while drunk or poisoned');
+					else this.saintDue = true;
+				}
 				if (e.cause === 'demon' && night && v.character === 'sage') this.sagesTonight.push(e.seat);
 				if (e.cause === 'demon') for (const g of b.effects) if (g.kind === 'grandchild' && g.target === e.seat && g.by !== null && working(b, g.by, 'grandmother')) this.grandmothersDue.push(g.by);
 				// Nothing kills the protected but the Assassin (and an Imp passing on, and the Saint's own execution).
@@ -768,6 +1007,7 @@ export class Checker {
 				if (e.by === 'professor' && teamIn(b, v.character) !== 'townsfolk') this.fail('professor', `the Professor revived ${name(e.seat)}, not a Townsfolk`);
 				if (e.by === 'shabaloth' && !b.effects.some((x) => x.kind === 'chose-last' && x.role === 'shabaloth' && x.target === e.seat)) this.fail('shabaloth', `the Shabaloth brought back ${name(e.seat)}, not chosen last night`);
 				this.dead.delete(e.seat);
+				this.virginSpent.delete(e.seat);
 				this.moonchildChose.delete(e.seat);
 				this.seamstressUsed.delete(e.seat);
 				this.ghostsUsed.delete(e.seat); // back to life: a fresh ghost vote when they next die
@@ -863,6 +1103,12 @@ export class Checker {
 				if (e.role === 'ravenkeeper' && !b.night?.deaths.includes(e.to)) this.fail('ravenkeeper', `${name(e.to)} learned as the Ravenkeeper without dying tonight`);
 				if (e.role === 'undertaker' && b.lastExecution?.day !== (b.night?.n ?? 0) - 1) this.fail('undertaker', `${name(e.to)} learned as the Undertaker with no execution yesterday`);
 				const truth = trueInfo(b, e.to, e.role, e.info);
+				if (truth !== null && b.seats.some((x) => x.character === 'spy' || x.character === 'recluse')) {
+					identityRegistration = true;
+					const plain = trueInfo(b, e.to, e.role, e.info);
+					identityRegistration = false;
+					if (plain !== null && plain !== truth) this.hit(truth ? 'registration makes an answer true' : 'registration makes an answer false');
+				}
 				if (truth === null) this.fail('info-well-formed', `${name(e.to)} given ${e.role} info of the wrong shape: ${JSON.stringify(e.info)}`);
 				else if (truth !== e.truthful) this.fail('info-marked-right', `${name(e.to)} (${e.role}): ${JSON.stringify(e.info)} marked truthful=${e.truthful}, really ${truth}`);
 				const droisoned = dp(b, e.to);
@@ -883,6 +1129,17 @@ export class Checker {
 				if (d.nominations.some((n) => n.nominator === e.nominator)) this.fail('nominate-once', `${name(e.nominator)} nominated twice in a day`);
 				if (d.nominations.some((n) => n.nominee === e.nominee)) this.fail('nominated-once', `${name(e.nominee)} nominated twice in a day`);
 				if (b.seats[e.nominee].traveller) this.fail('travellers-are-exiled', `${name(e.nominee)}, a Traveller, nominated for execution`);
+				// The Virgin's first nomination (working or not) is her only one: a Townsfolk nominator is executed at once.
+				if (b.seats[e.nominee].character === 'virgin' && b.seats[e.nominee].alive) {
+					if (this.virginSpent.has(e.nominee)) { this.virginDue = { nominator: e.nominator, expect: 'never' }; this.hit('virgin nominated a second time'); }
+					else {
+						this.virginSpent.add(e.nominee);
+						if (dp(b, e.nominee)) { this.virginDue = { nominator: e.nominator, expect: 'never' }; this.hit('virgin nominated while drunk or poisoned'); }
+						else if (mustBeTeam(b, e.nominator, 'townsfolk')) this.virginDue = { nominator: e.nominator, expect: 'must' };
+						else if (!mayBeTeam(b, e.nominator, 'townsfolk')) { this.virginDue = { nominator: e.nominator, expect: 'never' }; this.hit('virgin nominated by a non-Townsfolk'); }
+						else { this.virginDue = { nominator: e.nominator, expect: 'maybe' }; this.hit('virgin nominated by a Spy or Recluse'); }
+					}
+				}
 				break;
 			}
 			case 'vote-tallied': {
@@ -913,6 +1170,19 @@ export class Checker {
 				if (e.needed !== needed) this.fail('half-the-living', `needed ${e.needed}, should be ${needed}`);
 				const outcome = e.votes >= needed && e.votes > d.highest ? 'on-the-block' : e.votes >= needed && e.votes === d.highest ? 'tied' : 'not-enough';
 				if (e.outcome !== outcome) this.fail('vote-outcome', `${e.votes} votes (needed ${needed}, highest ${d.highest}): ${e.outcome}, should be ${outcome}`);
+				// The block, tracked here from the tallies alone: more than the highest so far takes it, equal to it empties it, less leaves it.
+				if (this.blockKnown) {
+					const before = this.blockSeat;
+					if (e.votes >= needed && e.votes > this.blockVotes) { this.blockSeat = e.nominee; this.blockVotes = e.votes; }
+					else if (e.votes >= needed && e.votes === this.blockVotes) this.blockSeat = null;
+					if (a.day!.block !== this.blockSeat) this.fail('block-tracking', `after ${e.votes} votes for ${name(e.nominee)} the block is ${a.day!.block === null ? 'empty' : name(a.day!.block)}, should be ${this.blockSeat === null ? 'empty' : name(this.blockSeat)}`);
+					if (a.day!.highest !== this.blockVotes) this.fail('block-tracking', `the highest vote is ${a.day!.highest}, should be ${this.blockVotes}`);
+					if (e.outcome === 'tied') this.hit(before === null ? 'vote tied with an empty block' : 'vote tied with someone on the block');
+					if (e.outcome === 'tied') this.tiedToday = true;
+					else if (e.outcome === 'on-the-block' && this.tiedToday) this.hit('a tie broken by a higher vote');
+				}
+				if (e.ghostsSpent.length) this.hit('ghost vote used');
+				if (e.voters.some((v) => b.seats[v].alive && working(b, v, 'butler')) && masterOf(b) !== null) this.hit(e.voters.includes(masterOf(b)!) ? 'butler votes with the master' : 'butler votes without the master');
 				break;
 			}
 			case 'executed':
@@ -928,6 +1198,9 @@ export class Checker {
 				if (cmd.type !== 'end-day' && cmd.type !== 'nominate' && cmd.type !== 'madness' && cmd.type !== 'judge') this.fail('execute-the-block', `an execution from ${cmd.type}`);
 				break;
 			case 'slayer-shot':
+				if (!b.seats[e.by].alive) this.fail('slayer-alive', `${name(e.by)} shot while dead`);
+				this.hit(e.hit ? 'slayer hits' : 'slayer misses');
+				if (!e.hit && b.seats[e.by].character === 'slayer' && !dp(b, e.by) && b.seats[e.target].alive) this.hit(mayBeTeam(b, e.target, 'demon') ? 'slayer misses a Recluse the Storyteller chose' : 'slayer misses a non-Demon');
 				if (this.start!.spent.includes(`${e.by}:slayer`)) this.fail('slayer-once', `${name(e.by)} shot a second time`);
 				if (e.hit) {
 					if (!working(b, e.by, 'slayer')) this.fail('slayer', `${name(e.by)} hit without being a working Slayer`);
@@ -973,6 +1246,7 @@ export class Checker {
 				break;
 			}
 			case 'night-began': {
+				this.aliveAtNightfall = new Set(a.seats.filter((x) => x.alive).map((x) => x.id));
 				this.monkTonight = null;
 				this.keptAtDusk = a.seats.filter((x) => !x.alive && a.effects.some((k) => k.kind === 'keeps-ability' && k.role === 'vigormortis' && k.target === x.id))
 					.map((x) => ({ seat: x.id, character: x.character }));
@@ -983,7 +1257,18 @@ export class Checker {
 				this.lastOrder = -Infinity;
 				break;
 			}
+			case 'judged':
+				this.blockKnown = false; // a pardon rewrites the block and the highest vote
+				break;
+			case 'kill-redirected': {
+				if (!night || !working(b, e.from, 'mayor')) this.fail('mayor-bounce', `a kill was redirected from ${name(e.from)}, not a working Mayor at night`);
+				if (e.to === e.from) this.fail('mayor-bounce', 'the kill was sent back to the Mayor');
+				if (b.seats[e.to].alive) this.redirected.push(e.to);
+				this.hit('mayor bounce');
+				break;
+			}
 			case 'day-began': {
+				this.blockSeat = null; this.blockVotes = 0; this.blockKnown = true; this.tiedToday = false;
 				if (b.phase.kind !== 'night' || b.phase.n !== e.n) this.fail('phase-sequence', `day ${e.n} after ${JSON.stringify(b.phase)}`);
 				const nt = b.night!;
 				// Every step tonight resolved; each player woke at most once (a new Demon is told separately).
@@ -1075,6 +1360,9 @@ export class Checker {
 		}
 		// What the phones see.
 		const view = JSON.stringify(publicView(s));
+		// Nothing secret: scramble every character, belief, alignment, effect, bluff and the red herring, and the room's view must not change.
+		const scrambled: GameState = { ...s, seats: s.seats.map((x) => ({ ...x, character: 'x', believes: 'x', alignment: x.alignment === 'good' ? 'evil' : 'good', undead: false })), effects: [], bluffs: [], redHerring: null, spent: [], fabled: undefined };
+		if (JSON.stringify(publicView(scrambled)) !== view) this.fail('public-view-hides-secrets', 'the public view changes with the characters, alignments, effects or bluffs');
 		for (const x of s.seats) {
 			if (x.character && view.includes(`"${x.character}"`)) this.fail('public-view-hides-characters', `the public view mentions ${x.character}`);
 			const card = cardFor(s, x.id);
@@ -1082,7 +1370,8 @@ export class Checker {
 		}
 		if (s.phase.kind === 'night' && s.night) {
 			const pv = publicView(s);
-			for (const d of s.night.deaths) if (!pv.seats.find((x) => x.id === d)?.alive) this.fail('night-deaths-hidden', `${s.seats[d].name}'s death shows before dawn`);
+			// Until dawn the room sees the circle as it was when night fell: no death, no coming back to life shows.
+			for (const x of pv.seats) if (x.alive !== this.aliveAtNightfall.has(x.id)) this.fail('night-deaths-hidden', `${s.seats[x.id].name} shows ${x.alive ? 'alive' : 'dead'} before dawn, and was ${this.aliveAtNightfall.has(x.id) ? 'alive' : 'dead'} at dusk`);
 		}
 		if (prev.phase.kind === 'over' && JSON.stringify(prev) !== JSON.stringify(s)) this.fail('over-is-over', 'the game changed after it ended');
 	}
@@ -1171,13 +1460,17 @@ export function play(seed: number, scriptId = SIM_SCRIPTS[seed % SIM_SCRIPTS.len
 		if (late.ok) checker.violations.push({ rule: 'over-is-over', detail: 'a command was accepted after the game ended', at: checker.accepted });
 	}
 	if (JSON.stringify(replay(allEvents)) !== JSON.stringify(state)) checker.violations.push({ rule: 'replay', detail: 'replaying the events does not rebuild the game', at: checker.accepted });
+	for (const [k, v] of Object.entries(checker.cover)) stats[`cover: ${k}`] = (stats[`cover: ${k}`] ?? 0) + v;
 	count(`players: ${players}`);
 	count(`script: ${scriptId}`);
 	return { seed, scriptId, commands, state, violations: checker.violations, refusals, stats };
 }
 
-/** Replay a list of commands (skipping any now refused) and report the first violations. */
-export function check(commands: Command[]): Violation[] {
+/**
+ * Replay a list of commands (skipping any now refused) and report the first violations (or, given a rule, go on past
+ * other rules' violations until that one breaks, so a game that breaks two rules can be cut down for either).
+ */
+export function check(commands: Command[], rule?: string): Violation[] {
 	const checker = new Checker();
 	let state = emptyState();
 	for (const cmd of commands) {
@@ -1192,7 +1485,7 @@ export function check(commands: Command[]): Violation[] {
 			checker.accept(state, cmd, res.events, res.state);
 			state = res.state;
 		}
-		if (checker.violations.length) break;
+		if (rule ? checker.violations.some((v) => v.rule === rule) : checker.violations.length) break;
 	}
 	return checker.violations;
 }
@@ -1203,7 +1496,7 @@ export function check(commands: Command[]): Violation[] {
  */
 export function shrink(commands: Command[], rule: string): Command[] {
 	let cur = [...commands];
-	const fails = (cmds: Command[]) => check(cmds).some((v) => v.rule === rule);
+	const fails = (cmds: Command[]) => check(cmds, rule).some((v) => v.rule === rule);
 	if (!fails(cur)) return cur;
 	// Everything after the failure is noise.
 	for (let n = 1; n <= cur.length; n++) if (fails(cur.slice(0, n))) { cur = cur.slice(0, n); break; }

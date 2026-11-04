@@ -53,6 +53,10 @@ Recommendation when we get there: WebRTC with the host on the Storyteller's phon
 - The Imp kills before the Fortune Teller, Butler and other later wakes (official order). What players see on the phone at night never gives a death away early: only players dead when the night began are marked.
 - The red herring is always a good player, however it is set. The Drunk may be one of the Demon's bluffs when not in play.
 
+## The app icon
+
+`src/ui/appicon.ts` draws every icon: a symbol and four colours (ground, leaf, frame, ink) as plain RGBA, so `build.mjs` writes the shipped `icon-192.png` / `icon-512.png` with it and the page draws the Storyteller's design (and the previews) with the same function. A design is kept in `localStorage` (`grimoire.icon`); at start and on *Use this icon* it is put on the page's `icon`, `apple-touch-icon` and manifest links (PNG data URLs; a blob manifest with absolute `start_url` and `scope`). A browser can't change an installed app's icon, only the icon an app is added with, so the designer says plainly that the app must be added again. The default stays the shipped icon (the capital G); with no design saved nothing is touched.
+
 ## Things to verify against official sources
 
 - Vote order. Implemented as the official rule: clockwise starting with the player after the nominee, the nominee last. If your group counts from the nominee first, it is one line in `voteOrder` (rules.ts).

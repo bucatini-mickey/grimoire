@@ -22,7 +22,12 @@ test yet; **todo** = not yet modelled. Sources in `SOURCES.md` (mostly the offic
 - GEN-TIE: an execution needs votes of at least half the living and more than any other nominee today; a tie clears the block. **sim**
 - GEN-NOMINATE-ONCE: a player may nominate once a day and be nominated once a day; only the living nominate. **sim**
 - GEN-GHOST-VOTE: the dead may vote once more in the game. **sim**
-- GEN-TWO-LEFT: evil wins when only two players live (Travellers not counted). **sim** (no Travellers yet)
+- GEN-TWO-LEFT: evil wins when only two players live (Travellers not counted). **sim**
+- GEN-EXECUTE-BLOCK: dusk executes whoever is on the block and no one when it is empty; the block is tracked in the simulator from the vote tallies alone. **sim**
+- GEN-ANNOUNCE: the room is told only what it can see: who died at dawn (not someone killed and brought back in the night), each vote, executions (the player dies, does not die, or was already dead; never why), the Virgin, the Slayer, the winner; never a save, a starpass, a takeover, a poisoning. **tested** (announce.test) and **sim**
+- GEN-CIRCLE-AT-NIGHT: until dawn the circle on the players' phones is the circle as it was at dusk: no death and no coming back to life shows. **tested** (announce.test) and **sim**
+- GEN-UNDO: undo drops the last command's events and replays: the game is exactly as it was, and the command plays again the same. **sim**
+- GEN-OFFERS: the Storyteller is offered only true answers for a sober player, only false ones under a working Vortox, and anything well-formed for a drunk or poisoned player. **tested** (snv.test) and **sim**
 - GEN-DEMON-DEAD: good wins when the Demon dies (unless something takes over). **sim**
 - GEN-INFO-RULES-TRUE: the rules are always told truly, even to the drunk or poisoned. (Storyteller practice)
 - GEN-LEARN-OWN-CHANGE: a player told of a change to their own character or alignment learns it truly, drunk or not (not information). **todo**
@@ -71,7 +76,7 @@ test yet; **todo** = not yet modelled. Sources in `SOURCES.md` (mostly the offic
 - TB-SAINT-POISONED: a poisoned Saint executed: the game goes on. **sim**
 - TB-POISONER-DIES: the Poisoner's poison ends when the Poisoner dies or becomes the Imp. **sim**
 - TB-POISONER-DUSK: poison lasts the night and the next day, ending at dusk. **sim**
-- TB-SW-FIVE: the Scarlet Woman takes over only if five or more were alive just before the Demon died (Travellers not counted). **sim**
+- TB-SW-FIVE: the Scarlet Woman takes over only if five or more were alive just before the Demon died (Travellers not counted), and always does then. **tested** (rulings.test) and **sim** (fixed: the engine used to count Travellers)
 - TB-SW-STARPASS: with five or more alive, an Imp who kills themself must pass to the Scarlet Woman. **tested** (night.test)
 - TB-IMP-NEW-NO-KILL: a new Imp (starpass) does not kill that night. **sim**
 - TB-IMP-ATTACK-DEAD: the Imp may attack a dead player; no one dies. **sim**

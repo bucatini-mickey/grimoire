@@ -151,6 +151,22 @@ test('TB-SW-FIVE: the Scarlet Woman takes over at five alive, not at four', () =
 	assert.equal(four.phase.kind, 'over');
 });
 
+test('TB-SW-FIVE-TRAVELLERS: Travellers are not among the five alive', () => {
+	// The same table with two Travellers at it: four players and two Travellers is not five.
+	const at = (alive: number) => {
+		let s = playNight(game(['imp', 'scarlet-woman', 'chef', 'empath', 'monk', 'soldier', 'saint']));
+		s = ok(s, [{ type: 'traveller-joins', name: 'Tess', character: 'thief', alignment: 'good', after: 0 }, { type: 'traveller-joins', name: 'Uma', character: 'gunslinger', alignment: 'good', after: 0 }]);
+		for (let k = 2; k < 2 + (7 - alive); k++) s.seats[k].alive = false;
+		const voters = s.seats.filter((x) => x.alive && x.id !== 0).map((x) => x.id);
+		return ok(s, [{ type: 'nominate', nominator: 1, nominee: 0 }, { type: 'vote', voters }, { type: 'end-day' }]);
+	};
+	const five = at(5);
+	assert.equal(five.seats[1].character, 'imp', 'five players and two Travellers: she takes over');
+	assert.notEqual(five.phase.kind, 'over');
+	const four = at(4);
+	assert.equal(four.phase.kind === 'over' && four.phase.winner, 'good', 'four players and two Travellers: she does not');
+});
+
 test('TB-MAYOR-WIN-TIE: three alive and a tied vote, so no execution: good wins', () => {
 	// 0 imp, 1 poisoner, 2 mayor, 3 chef, ...: three alive (0, 2, 3)
 	let s = playNight(game(['imp', 'poisoner', 'mayor', 'chef', 'empath', 'monk', 'soldier']), { poisoner: { type: 'choose', target: 4 } });

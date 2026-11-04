@@ -84,3 +84,13 @@ test('a player’s log holds only what their own wake showed them', () => {
 		for (const n of names) if (e.includes(n)) assert.ok(seen.includes(n), step.kind + ' log names ' + n);
 	}
 });
+
+test('an evil Traveller’s wake is their own character and the Demon, and does not crash the pages', () => {
+	let s = playNight(base());
+	s = ok(s, [{ type: 'traveller-joins', name: 'Tess', character: 'gunslinger', alignment: 'evil', after: 0 }, { type: 'end-day' }]);
+	const step = nightSteps(s).find((x) => x.kind === 'traveller-info');
+	assert.ok(step, 'an evil Traveller wakes to learn the Demon');
+	const w = wakeFor(s, step);
+	assert.equal(w.role, 'gunslinger');
+	assert.deepEqual(w.sections.find((x) => x.title === 'Your Demon')?.lines, ['Ada']);
+});

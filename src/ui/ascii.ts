@@ -10,7 +10,8 @@
  * Nothing here knows about the game.
  */
 
-import { themeOfKey } from './theme.ts';
+import { bookKey, themeOfKey } from './theme.ts';
+import type { Theme } from './theme.ts';
 import { SIGHT } from '../town/map.ts';
 import { Term, expand, shade } from '../term/pterm.ts';
 import type { Grid, Palette, Rect } from '../term/pterm.ts';
@@ -890,29 +891,38 @@ export function wordBox(word: string, act: () => void, w = 24, h = 11): Row {
 	});
 }
 
-/** A gothic arrow, pointing up: a broad head with barbs hooked back, a long banded shaft, a knotted tail. */
-const ARROW = [
-	'.....G.....',
-	'....GWG....',
-	'...GGWGG...',
-	'..GGGWGGG..',
-	'.GGGGWGGGG.',
-	'GGG.GDG.GGG',
-	'GG..GGG..GG',
-	'G...GDG...G',
-	'....GGG....',
-	'....GDG....',
-	'....GGG....',
-	'....GDG....',
-	'....GGG....',
-	'...G.G.G...',
-	'...GGGGG...',
-	'....G.G....'
-];
+/**
+ * A hand-inked arrow, pointing up, as pixels (1 = wet ink, 2 = dry, thin ink): a pen stroke for the
+ * shaft that wavers a little and thins towards the tail, two barbs drawn as quick tapering strokes,
+ * and a small blot where the pen first touched. The wobble comes from a fixed hash, so it never shimmers.
+ */
+function inkedArrow(): number[][] {
+	const W = 15, H = 18, px: number[][] = Array.from({ length: H }, () => Array(W).fill(0));
+	const wob = (k: number) => (cellHash(k, 7) % 100) / 100 - 0.5;
+	// A stroke from (x0,y0) to (x1,y1), its half-width running from r0 to r1; edges are ragged, the thin end dry.
+	const stroke = (x0: number, y0: number, x1: number, y1: number, r0: number, r1: number, seed: number) => {
+		const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) * 2);
+		for (let s = 0; s <= n; s++) {
+			const t = s / n, r = r0 + (r1 - r0) * t + wob(seed + s) * 0.5;
+			const cx = x0 + (x1 - x0) * t + wob(seed * 3 + s) * 0.9, cy = y0 + (y1 - y0) * t;
+			for (let y = Math.floor(cy - r - 1); y <= Math.ceil(cy + r + 1); y++) for (let x = Math.floor(cx - r - 1); x <= Math.ceil(cx + r + 1); x++) {
+				if (x < 0 || y < 0 || x >= W || y >= H || Math.hypot(x - cx, y - cy) > r + 0.35) continue;
+				const v = r < 0.8 && cellHash(x + seed, y) % 3 === 0 ? 2 : 1;
+				if (px[y][x] === 0 || v === 1) px[y][x] = v;
+			}
+		}
+	};
+	stroke(7, 3, 7.6, 16.5, 1.3, 0.35, 11);   // the shaft: heavy at the head, a hair at the tail
+	stroke(7, 1.5, 2.2, 7, 1.1, 0.3, 23);   // the left barb
+	stroke(7, 1.5, 11.8, 6.6, 1.2, 0.3, 37); // the right barb, a touch shorter and heavier
+	stroke(7, 1.4, 7, 1.8, 1.7, 1.5, 41);   // the blot at the point
+	stroke(6.6, 16, 9.2, 17, 0.5, 0.4, 53); // a flick of the pen at the tail
+	return px;
+}
 
 /**
  * An answer tapped from across the table (the vote's hand up, hand down), in a square box: a double
- * rule of red set with gold lozenges, a gothic arrow gilt and edged in red pointing up or down, and
+ * rule of red set with gold lozenges, an arrow hand-inked in the page's ink pointing up or down, and
  * under it what it means.
  */
 export function arrowBox(dir: 'up' | 'down', label: string, act: () => void, w = 24, h = 12): Row {
@@ -923,14 +933,12 @@ export function arrowBox(dir: 'up' | 'down', label: string, act: () => void, w =
 		for (let j = 1; j < h - 1; j++) { at(x0, y0 + j, '║', 8); at(x0 + w - 1, y0 + j, '║', 8); }
 		for (const [x, y] of [[x0, y0], [x0 + w - 1, y0], [x0, y0 + h - 1], [x0 + w - 1, y0 + h - 1], [x0 + (w >> 1), y0], [x0 + (w >> 1), y0 + h - 1], [x0, y0 + (h >> 1)], [x0 + w - 1, y0 + (h >> 1)]]) at(x, y, '♦', 6);
 		for (const [x, y] of [[x0 + 2, y0 + 1], [x0 + w - 3, y0 + 1], [x0 + 2, y0 + h - 2], [x0 + w - 3, y0 + h - 2]]) at(x, y, '·', 6);
-		// The arrow: gilt (its lights paler, its bands deeper), edged in red all round.
-		const art = dir === 'up' ? ARROW : [...ARROW].reverse();
-		const aw = art[0].length + 2, ah = art.length + 2;
-		const px: number[][] = Array.from({ length: ah + (ah % 2) }, () => Array(aw).fill(-1));
-		const GOLD = quant([210, 168, 70]), PALE = quant([238, 216, 150]), DEEP = quant([150, 112, 44]);
-		art.forEach((r, y) => [...r].forEach((p, i) => { if (p !== '.') px[y + 1][i + 1] = p === 'W' ? PALE : p === 'D' ? DEEP : GOLD; }));
-		const on = (y: number, i: number) => art[y - 1]?.[i - 1] !== undefined && art[y - 1][i - 1] !== '.';
-		for (let y = 0; y < ah; y++) for (let i = 0; i < aw; i++) if (px[y][i] === -1 && [[-1, 0], [1, 0], [0, -1], [0, 1]].some(([dy, dx]) => on(y + dy, i + dx))) px[y][i] = 8;
+		// The arrow: hand-inked in the page's own ink (dry strokes in the dimmer ink), no gilding.
+		const art = inkedArrow();
+		if (dir === 'down') art.reverse();
+		const aw = art[0].length;
+		const wet = c.ink('plain'), dry = c.ink('dim');
+		const px: number[][] = art.map((r) => r.map((p) => (p === 1 ? wet : p === 2 ? dry : -1)));
 		const ay = y0 + 1 + Math.max(0, Math.floor((h - 3 - px.length / 2) / 2));
 		stampPixels(c.g, c.x + Math.floor((c.w - aw) / 2), ay, px);
 		c.g.text(c.x + Math.floor((c.w - label.length) / 2), ay + px.length / 2, label, 8);
@@ -2052,4 +2060,50 @@ export function paint(root: unknown, rows: Row[], width = COLS) {
 	if (rows.length && !old?.rows.length) { const k = order.indexOf(root); if (k >= 0) order.splice(k, 1); }
 	if (!order.includes(root)) order.push(root);
 	t.draw();
+}
+
+// ---- the icon designer's pieces -----------------------------------------------------------------
+
+/** A book's sixteen inks as it is read by candlelight (the icon is drawn on a dark ground, so it takes these). */
+export const bookInks = (theme: Theme): string[] => [...PALETTES[bookKey(theme, true)]].slice(0, 16);
+
+/**
+ * A row of colour chips to choose from, two cells wide and two tall in the colour, three apiece to
+ * hit. The chosen one carries a star. Colours are drawn in the nearest of the page's inks.
+ */
+export function chipsRow(hexes: string[], on: string, pick: (hex: string) => void): Row {
+	const per = Math.floor(INNER / 3), lines = Math.ceil(hexes.length / per);
+	return blockRow(lines * 3, (c) => {
+		hexes.forEach((hex, i) => {
+			const x = c.x + (i % per) * 3, y = c.y + Math.floor(i / per) * 3;
+			const bg = quant([1, 3, 5].map((k) => parseInt(hex.slice(k, k + 2), 16)));
+			const lum = [1, 3, 5].reduce((a, k, j) => a + parseInt(hex.slice(k, k + 2), 16) * [0.3, 0.59, 0.11][j], 0);
+			const chosen = hex.toLowerCase() === on.toLowerCase();
+			c.g.fill({ x, y, w: 2, h: 2 }, ' ', 4, bg);
+			if (chosen) c.g.set(x, y, '*', lum > 110 ? 0 : 5, bg);
+			c.hit({ x, y, w: 3, h: 3 }, () => pick(hex));
+		});
+	});
+}
+
+/**
+ * An icon shown at several sizes, as pixels two to a cell: the first big, the others stacked beside it,
+ * so the eye can judge how it reads from the home screen down to a browser tab.
+ */
+export function pixelsRow(render: (size: number) => { w: number; h: number; rgba: Uint8Array }, sizes: number[]): Row {
+	const [big, ...small] = sizes;
+	const gap = 2, smallW = Math.max(0, ...small), total = big + (small.length ? gap + smallW : 0);
+	const stack = small.reduce((a, s) => a + Math.ceil(s / 2), 0) + Math.max(0, small.length - 1);
+	return blockRow(Math.max(Math.ceil(big / 2), stack), (c) => {
+		const put = (size: number, x: number, y: number) => {
+			const { w, h, rgba } = render(size);
+			const px = Array.from({ length: h }, (_, j) => Array.from({ length: w }, (_, i) => quant([rgba[(j * w + i) * 4], rgba[(j * w + i) * 4 + 1], rgba[(j * w + i) * 4 + 2]])));
+			stampPixels(c.g, x, y, px);
+			return Math.ceil(h / 2);
+		};
+		const x0 = c.x + Math.max(0, Math.floor((c.w - total) / 2));
+		put(big, x0, c.y);
+		let y = c.y;
+		for (const s of small) y += put(s, x0 + big + gap, y) + 1;
+	});
 }
