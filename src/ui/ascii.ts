@@ -280,7 +280,7 @@ export class Canvas {
  * 13 deep lapis, 14 violet, 15 brown. Manuscript: ink and rubric on vellum;
  * the Victorian variant drowns it in greens and brass.
  */
-const PALETTES: Record<string, Palette> = {
+export const PALETTES: Record<string, Palette> = {
 	'manuscript-night': ['#15110f', '#241d1a', '#5a4c40', '#978872', '#e0d5bf', '#f4ebd6', '#c29d5e', '#bd7640', '#c43d30', '#7e2620', '#8f9c6c', '#3d4430', '#7f99b8', '#2d3d56', '#9c7aa2', '#5c4432'],
 	// The home page is the book's cover: brown calf, blind-tooled, gilt lettering and brass.
 	// The book's first page, opened: clean vellum, dark ink, red and brass.

@@ -19,7 +19,7 @@ import type { Phase, Town } from './map.ts';
 
 export type Rgb = [number, number, number];
 
-interface Mat { fg: Rgb; bg: Rgb; wall: string; floors: string[]; style?: 'double' | 'single'; }
+export interface Mat { fg: Rgb; bg: Rgb; wall: string; floors: string[]; style?: 'double' | 'single'; }
 
 /**
  * Colours from the real thing (docs/PALETTE.md, section 4: oak, weathered boards, teak, straw, turf, limestone,
@@ -44,7 +44,7 @@ const finish = (c: Rgb, dye?: Rgb, k = 0.08): Rgb => (dye ? lean(c, dye, k) : c)
 const mat = (fg: Rgb, bg: Rgb, wall: string, floors: string[], dye?: Rgb, style?: 'double' | 'single', k?: number): Mat =>
 	({ fg: finish(fg, dye, k), bg: finish(bg, dye, k), wall, floors, ...(style ? { style } : {}) });
 
-const MATS: Record<string, Mat> = {
+export const MATS: Record<string, Mat> = {
 	// Sunlit turf has yellow in it; the sod beneath is dark and rich.
 	grass: mat([104, 152, 56], [34, 54, 20], '"', [',', '.', "'", '"', '`', ',', '.'], DYE.green),
 	// Bare soil, a little redder where it is brown earth (#5A4430 in the shade).
@@ -54,7 +54,7 @@ const MATS: Record<string, Mat> = {
 	mud: mat([112, 86, 58], [50, 36, 24], '▒', ['~', ',', '.', ','], DYE.gall, undefined, 0.06),
 	clay: mat([176, 104, 72], [80, 46, 32], '▒', ['.', ',', '·'], DYE.madder),
 	// Weathered oak and warm-grey boards (#8A8579 over aged oak), not dull brown-grey.
-	wood: mat([156, 142, 120], [64, 50, 36], 'O', ['+'], DYE.gall, 'single'),
+	wood: mat([172, 144, 108], [64, 50, 36], 'O', ['+'], DYE.gall, 'single'),
 	leaves: mat([66, 124, 50], [20, 46, 18], '♣', ['♣'], DYE.green),
 	// Stone block: warm grey masonry; limestone paler and cream, granite cooler and bluer.
 	'stone block': mat([190, 184, 172], [66, 62, 58], '#', ['+'], DYE.vellum, 'double', 0.06),
@@ -88,10 +88,10 @@ const MATS: Record<string, Mat> = {
 };
 const FALLBACK = MATS.soil;
 
-interface Kind { ch: string; fg: Rgb; light?: Rgb; flicker?: boolean; }
+export interface Kind { ch: string; fg: Rgb; light?: Rgb; flicker?: boolean; }
 /** Oak for doors and furniture: a richer honey than the weathered boards it stands on, so it reads against wood. */
 const BROWN: Rgb = [204, 144, 80], STONE: Rgb = [202, 198, 188];
-const KINDS: Record<string, Kind> = {
+export const KINDS: Record<string, Kind> = {
 	door: { ch: '◘', fg: BROWN }, table: { ch: 'π', fg: BROWN }, chair: { ch: '╥', fg: BROWN }, bed: { ch: 'Θ', fg: [198, 74, 66] },
 	chest: { ch: '■', fg: [182, 122, 60] }, bookshelf: { ch: '≡', fg: BROWN }, barrel: { ch: 'ö', fg: [166, 112, 58] },
 	torch: { ch: '¡', fg: [255, 210, 110], light: [255, 176, 92], flicker: true },
