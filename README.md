@@ -61,6 +61,12 @@ The icon is one picture, the same for everyone: `art/app-icon.json`. Open `tools
 
 An app already on a home screen keeps the icon it was added with until it is removed and added again.
 
+### Figures and faces
+
+Each player has two glyphs: a figure who walks the village and a face at the voting table, 30 of each at most. Change the lists in the [Figure Picker](https://claude.ai/artifact/QcLujdZ4QWYHKk9xQNMcqD): it is private to the owner's Claude account, opens in any browser on any machine with nothing to install (pinned in the claude.ai sidebar; also listed at claude.ai/code/artifacts), and saves to the page itself, so every device sees the same picks. It hides what that device's fonts cannot draw, so a phone may offer fewer than a laptop.
+
+The picks reach the game by hand. In a Claude session, read the page's `picks/mine` document, write its `figure` and `face` lists to `art/figure-picks.json`, run `node tools/sync-figures.mjs`, then build and push. Everything ever picked is in `art/figure-picks-all.json`, and the page's source is `tools/figure-picker.html`.
+
 ## Running it
 
 Requires Node 22.6 or later (the tests run TypeScript directly).
