@@ -15,6 +15,7 @@ When there are more players than homes, several share a room (`sendHome` gives h
 - A housemate of the visited player neither hears the Storyteller's visit nor sees the Storyteller. They also see and hear none of the visited player's reactions or messages.
 - The visited player sees and hears exactly what a lone player in that room would. A housemate being present changes nothing for them.
 - The Storyteller still sees and hears everything (All ears is unchanged). Day, dusk and the circle are unchanged.
+- How it is done: map.ts `visitedBy` settles who is visited (the player chosen, else the room's only player); `loudness` (ears) and `perceives` (eyes: sprite, lantern, name, People list) both read it. The host sends each phone only what `perceives` allows, so a housemate's phone is never told where the Storyteller or anyone else is, and voice calls to those who may not hear are closed at once. Tests: tests/nighthomes.test.ts.
 - Open question, with the user (INBOX.md): can housemates see each other asleep? Until answered, they are hidden from each other at night.
 
 ## Why TypeScript, not Python / Broadside's engine

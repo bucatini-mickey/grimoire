@@ -176,8 +176,8 @@ test('the circle: everyone hears everyone; night: only the Storyteller, in the r
 	const a = { id: 'a', ...INSIDE }, b = { id: 'b', ...BACK };
 	assert.equal(loudness(town, a, b, 'circle'), 1);
 	assert.equal(loudness(town, a, { id: 'n', x: 13, y: 35 }, 'night'), 0);
-	assert.equal(loudness(town, a, { id: 'st', x: 13, y: 36, st: true }, 'night'), 1);
-	assert.equal(loudness(town, b, { id: 'st', x: 13, y: 36, st: true }, 'night'), 0);
+	assert.equal(loudness(town, a, { id: 'st', x: 13, y: 36, st: true, visiting: 'a' }, 'night'), 1);
+	assert.equal(loudness(town, b, { id: 'st', x: 13, y: 36, st: true, visiting: 'a' }, 'night'), 0);
 });
 
 test('double doors are one door; the Storyteller walks through walls like a ghost', async () => {

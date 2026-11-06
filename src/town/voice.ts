@@ -17,6 +17,8 @@ export interface Hearing {
 	id: string;
 	loud: number;
 	hum?: number;
+	/** Close the call now rather than after a few quiet seconds (night: nothing may carry to someone who should not hear). */
+	cut?: boolean;
 }
 
 interface Source {
@@ -170,7 +172,7 @@ export async function startVoice(peer: Peer, mode: VoiceMode): Promise<Voice> {
 		update(hear) {
 			const now = Date.now();
 			for (const h of hear) {
-				if (h.loud <= 0 && !sources.has(h.id)) continue;
+				if (h.loud <= 0 && (!sources.has(h.id) || h.cut)) continue;
 				const s = source(h.id);
 				if (h.loud > 0) s.wanted = now;
 				if (h.hum && !s.stop) {
@@ -188,7 +190,7 @@ export async function startVoice(peer: Peer, mode: VoiceMode): Promise<Voice> {
 			for (const [id, s] of sources) {
 				if (near.has(id)) continue;
 				s.gain.gain.setTargetAtTime(0, ctx.currentTime, 0.15);
-				if (now - s.wanted > 4000 || !hear.some((h) => h.id === id)) drop(id);
+				if (now - s.wanted > 4000 || !hear.some((h) => h.id === id) || hear.some((h) => h.id === id && h.cut)) drop(id);
 			}
 		},
 		level(id) {

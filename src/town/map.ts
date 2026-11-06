@@ -32,6 +32,8 @@ export interface Walker extends PZ {
 	with?: string | null;
 	/** The Storyteller's All ears: they hear, and are heard by, everyone. */
 	ears?: boolean;
+	/** The Storyteller, at night: the one player they are visiting (see visitedBy). */
+	visiting?: string | null;
 }
 
 export interface Town {
@@ -387,7 +389,33 @@ export function inMeeting(t: Town, p: P, phase: Phase): boolean {
 	return (phase === 'day' || phase === 'dusk') && !!t.meeting && Math.hypot(p.x - t.meeting.at.x, p.y - t.meeting.at.y) <= t.meeting.reach;
 }
 
-/** How loud b sounds to a, 0 to 1. Nobody talks at night: the town sleeps. */
+/**
+ * Who the Storyteller is visiting at night: the player they chose if that player is still in the
+ * room with them, else the only player in that room, else nobody. Several players may share a
+ * room, so standing in it is not enough; only the one visited is part of the visit.
+ */
+export function visitedBy(t: Town, st: Walker, people: Walker[]): string | null {
+	const here = people.filter((q) => !q.st && q.id !== undefined && (q.z ?? 0) === (st.z ?? 0) && sameRoom(t, st, q));
+	const named = here.find((q) => q.id === st.visiting);
+	if (named) return named.id!;
+	return here.length === 1 ? here[0].id! : null;
+}
+
+/** Night: is `st` visiting `who`? (They are in the room together and `st.visiting` names `who`.) */
+function visits(t: Town, st: Walker, who: Walker): boolean {
+	return !!st.st && who.id !== undefined && st.visiting === who.id && (st.z ?? 0) === (who.z ?? 0) && sameRoom(t, st, who);
+}
+
+/**
+ * May `viewer` see `other` (their sprite, lantern, name, whether they are talking)? Always, except at
+ * night, when the town sleeps: a player sees only themselves, and the Storyteller only if they are
+ * visiting that player. The Storyteller sees everyone. A housemate sees nothing of a visit.
+ */
+export function perceives(t: Town, viewer: Walker, other: Walker, phase: Phase): boolean {
+	if (phase !== 'night' || viewer.st || (viewer.id !== undefined && viewer.id === other.id)) return true;
+	return !!other.st && visits(t, other, viewer);
+}
+
 /**
  * How loud `b` sounds to `a` (0 to 1). Sound carries: round corners and
  * through open doors, fading with the steps it takes; walls, windows and a
@@ -400,8 +428,8 @@ export function loudness(t: Town, a: Walker, b: Walker, phase: Phase): number {
 	// A private word: the two hear each other wherever they are, and nobody else hears them.
 	if (a.with || b.with) return a.with === b.id && b.with === a.id ? 1 : 0;
 	if (phase === 'circle') return 1;
-	// Night: the town sleeps; only the Storyteller talks, to whoever is in the room they visit.
-	if (phase === 'night') return (a.st || b.st) && (a.z ?? 0) === (b.z ?? 0) && sameRoom(t, a, b) ? 1 : 0;
+	// Night: the town sleeps; only the Storyteller talks, to the one player they visit. A housemate hears nothing.
+	if (phase === 'night') return visits(t, a, b) || visits(t, b, a) ? 1 : 0;
 	if ((a.st && a.ears) || (b.st && b.ears)) return 1;
 	// Floors and ceilings stop voices: only those on the same level hear each other.
 	if ((a.z ?? 0) !== (b.z ?? 0)) return 0;

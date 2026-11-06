@@ -29,7 +29,7 @@ import { hostRoom, joinRoom, newRoomCode } from '../net/link.ts';
 import type { LinkStatus } from '../net/link.ts';
 import type { Peer } from 'peerjs';
 import { parseBlueprint } from './blueprint.ts';
-import { at, atSpeakingPlace, canWorkDoor, DOOR_REACH, doorLeaves, doorStepIn, doorsOf, inMeeting, isAir, loudness, makeWorld, path, roomsAt, sameRoom, stairGoes, visibleCells, walkable } from './map.ts';
+import { at, atSpeakingPlace, canWorkDoor, DOOR_REACH, doorLeaves, doorStepIn, doorsOf, inMeeting, isAir, loudness, makeWorld, path, perceives, roomsAt, sameRoom, stairGoes, visitedBy, visibleCells, walkable } from './map.ts';
 import type { P, Phase, Town } from './map.ts';
 import { css, FOG, fogAt, LANTERN, sunlight, lerp, level, lightMap, lookAt, luma, mul, noise, remembered, sky, sources } from './look.ts';
 import type { Rgb } from './look.ts';
@@ -79,6 +79,8 @@ export interface Person {
 	ears?: boolean;
 	/** In a private conversation with. */
 	with?: string | null;
+	/** The Storyteller, at night: the player being visited (only that player is ever sent it). */
+	visiting?: string | null;
 	/** Dead in the game: still walks and talks, faded. */
 	dead?: boolean;
 }
@@ -250,7 +252,26 @@ function sendTo(id: string, msg: Down) {
 }
 
 function welcome(id: string) {
-	sendTo(id, { t: 'welcome', you: id, town: S.townText, phase: S.phase, people: [...S.people.values()], locked: [...S.town!.locked], caption: S.caption, vote: S.vote, ring: S.ring });
+	sendTo(id, { t: 'welcome', you: id, town: S.townText, phase: S.phase, people: seenBy(id), locked: [...S.town!.locked], caption: S.caption, vote: S.vote, ring: S.ring });
+}
+
+/**
+ * The people a phone is told about. By night a player is told of themselves and, if the Storyteller is visiting them,
+ * of the Storyteller: never of a housemate or of a visit to one (perceives, the same rule the screen and the ears use).
+ */
+function seenBy(id: string): Person[] {
+	const viewer = S.people.get(id);
+	const all = [...S.people.values()];
+	if (!viewer || !S.town) return all;
+	refreshVisit();
+	return all.filter((q) => perceives(lvl(viewer), viewer, q, S.phase));
+}
+
+/** Who the Storyteller is visiting tonight (nobody by day); settled before anything is sent or heard. */
+function refreshVisit() {
+	const st = [...S.people.values()].find((q) => q.st);
+	if (!st || !S.town) return;
+	st.visiting = S.phase === 'night' ? visitedBy(lvl(st), st, [...S.people.values()]) : null;
 }
 
 /** Everything a phone asks of the host (the host's own taps come here too). */
@@ -381,16 +402,24 @@ let ticking = false;
 function startTicker() {
 	if (ticking) return;
 	ticking = true;
-	let last = '';
 	setInterval(() => {
 		moveBots();
-		const people = [...S.people.values()];
-		const locked = [...S.town!.locked];
-		const json = JSON.stringify([people, locked, S.caption, S.vote, S.ring]);
-		if (json === last) return;
-		last = json;
-		for (const id of S.hostWire?.peers() ?? []) sendTo(id, { t: 'people', people, locked, caption: S.caption, vote: S.vote, ring: S.ring });
+		pushPeople();
 	}, 150);
+}
+
+/** What each phone last was told, so only a change is sent (each phone has its own view at night). */
+const toldPeople = new Map<string, string>();
+function pushPeople(force = false) {
+	if (force) toldPeople.clear();
+	const locked = [...S.town!.locked];
+	for (const id of S.hostWire?.peers() ?? []) {
+		const people = seenBy(id);
+		const json = JSON.stringify([people, locked, S.caption, S.vote, S.ring]);
+		if (toldPeople.get(id) === json) continue;
+		toldPeople.set(id, json);
+		sendTo(id, { t: 'people', people, locked, caption: S.caption, vote: S.vote, ring: S.ring });
+	}
 }
 
 function setPhase(phase: Phase) {
@@ -407,6 +436,7 @@ function setPhase(phase: Phase) {
 	if (phase === 'circle' && t.council) gatherAtCross(t);
 	else if (phase === 'dusk' && S.game && !t.council) gatherAtCross(t);
 	for (const id of S.hostWire?.peers() ?? []) sendTo(id, { t: 'phase', phase });
+	pushPeople(true);
 	announcePhase();
 }
 
@@ -502,12 +532,14 @@ function visit(id: string) {
 	if (!st || !q) return;
 	const t = lvl(q);
 	st.z = q.z ?? 0;
+	st.visiting = id;
 	const spots = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]]
 		.map(([dx, dy]) => ({ x: q.x + dx, y: q.y + dy }))
 		.filter((c) => walkable(t, c.x, c.y, true) && sameRoom(t, c, q) && ![...S.people.values()].some((o) => o.x === c.x && o.y === c.y));
 	const spot = spots[0] ?? { x: q.x, y: q.y };
 	st.x = spot.x;
 	st.y = spot.y;
+	refreshVisit();
 	S.route = [];
 	cam.ready = false;
 	S.sheet = null;
@@ -807,7 +839,7 @@ function tickMap() {
 	const now = performance.now();
 	// Relight when someone carrying a lantern moved, else only now and then for the flicker of the flames.
 	const lt = lvl(p);
-	const lamps = (p.z ?? 0) + '|' + (S.phase === 'day' ? '' : [...S.people.values()].map((q) => q.x + ',' + q.y + ',' + (q.z ?? 0)).join(';'));
+	const lamps = (p.z ?? 0) + '|' + (S.phase === 'day' ? '' : seen(p).map((q) => q.x + ',' + q.y + ',' + (q.z ?? 0)).join(';'));
 	const relight = !dyn || lamps !== litFor || now - lightAt > 260;
 	litFor = lamps;
 	if (!cam.ready) Object.assign(cam, { x: p.x, y: p.y, ready: true });
@@ -829,7 +861,7 @@ function tickMap() {
 		lightAt = now;
 		// The light of the level you are on: its own lamps, and the lanterns of those on it.
 		const srcs = sources(lt, ++lightTick);
-		if (S.phase !== 'day') for (const q of S.people.values()) if ((q.z ?? 0) === (p.z ?? 0)) srcs.push({ x: q.x, y: q.y, c: q.id === S.me ? LANTERN : (LANTERN.map((v) => v * 0.75) as Rgb) });
+		if (S.phase !== 'day') for (const q of seen(p)) if ((q.z ?? 0) === (p.z ?? 0)) srcs.push({ x: q.x, y: q.y, c: q.id === S.me ? LANTERN : (LANTERN.map((v) => v * 0.75) as Rgb) });
 		dyn = lightMap(lt, srcs);
 	}
 	redraw();
@@ -1113,7 +1145,7 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 	const people = [...S.people.values()].filter((q) => {
 		if (q.id === S.me) return true;
 		if ((q.z ?? 0) !== (p.z ?? 0)) return false;
-		if (q.st && S.phase === 'night' && !p.st && !sameRoom(t, p, q)) return false;
+		if (!perceives(lvl(p), p, q, S.phase)) return false;
 		const l = lit.get(q.x + q.y * t.w);
 		return !!l && (luma(l.map((v) => v * 255) as Rgb) > 30 || Math.hypot(q.x - p.x, q.y - p.y) < 2);
 	});
@@ -1211,10 +1243,17 @@ function circleCells(g: Grid, y0: number, h: number) {
 	});
 }
 
+/** Everyone this person may see or hear right now (by night, only themselves and a visiting Storyteller). */
+function seen(p: Person): Person[] {
+	const t = lvl(p);
+	return [...S.people.values()].filter((q) => perceives(t, p, q, S.phase));
+}
+
 function hearList() {
 	const t = S.town, p = me();
 	if (!t || !p) return [];
-	return [...S.people.values()].filter((q) => q.id !== S.me && q.voice).map((q) => ({ q, loud: loudness(lvl(p), p, q, S.phase) }));
+	if (p.st) refreshVisit();
+	return seen(p).filter((q) => q.id !== S.me && q.voice).map((q) => ({ q, loud: loudness(lvl(p), p, q, S.phase) }));
 }
 
 let chromeKey = '';
@@ -1241,7 +1280,7 @@ function sheetRows(): Row[] {
 		return [close('sheet-close'), rubric('More'), ...more.map((b) => buttonBlock([btn(b.label, () => { S.sheet = null; b.act(); drawChrome(); }, { style: b.style, width: INNER })])), endPanel()];
 	}
 	if (S.sheet === 'people') {
-		const others = [...S.people.values()].filter((q) => q.id !== S.me).sort((a, b) => Number(!!b.st) - Number(!!a.st) || a.name.localeCompare(b.name));
+		const others = (p ? seen(p) : []).filter((q) => q.id !== S.me).sort((a, b) => Number(!!b.st) - Number(!!a.st) || a.name.localeCompare(b.name));
 		const can = p && privateAllowed(p) && !p.with;
 		const rows: Row[] = [rubric('People')];
 		if (!can) rows.push(...wrap(p?.with ? 'You are already talking privately.' : 'Private words wait for the day.', INNER).map((l) => row(txt(l, 'dim'))));
@@ -1343,7 +1382,7 @@ function voiceOff() {
 setInterval(() => {
 	if (!S.town || !me()) return;
 	const hear = hearList();
-	if (S.voice) S.voice.update(hear.map(({ q, loud }) => ({ id: q.id, loud, hum: q.hum })));
+	if (S.voice) S.voice.update(hear.map(({ q, loud }) => ({ id: q.id, loud, hum: q.hum, cut: S.phase === 'night' && loud <= 0 })));
 	drawChromeIfChanged();
 	if (S.voice) S.dirty = true;
 }, 200);
