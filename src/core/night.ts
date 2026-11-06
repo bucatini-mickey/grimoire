@@ -154,7 +154,12 @@ export function nightSteps(state: GameState): NightStep[] {
 				continue;
 			}
 			// The Lunatic is woken as a Demon would be, with pretend Minions and bluffs (never the real ones).
-			if (s.character === 'lunatic') { add(LUNATIC_INFO, s.id, firstNightOrder('lunatic')!, true); continue; }
+			// In a small game the Demon is shown no Minions or bluffs, so the Lunatic is only shown their character.
+			if (s.character === 'lunatic') {
+				if (evilInfo) add(LUNATIC_INFO, s.id, firstNightOrder('lunatic')!, true);
+				else add(REVEAL, s.id, REVEAL_ORDER, true);
+				continue;
+			}
 			const team = charDef(script, s.believes).team;
 			const wakes = charDef(script, s.believes).firstNight !== null;
 			if (wakes) continue;

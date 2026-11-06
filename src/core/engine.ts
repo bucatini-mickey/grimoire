@@ -419,7 +419,8 @@ function assign(tx: Tx, cmd: Extract<Command, { type: 'assign' }>) {
 		type: 'characters-assigned',
 		seats: chars.map((character, i) => ({ character, believes: believes[i] })),
 		redHerring: rh,
-		bluffs: [...bluffs],
+		// A small game has no bluffs: none are kept even if some were sent.
+		bluffs: wantBluffs === 0 ? [] : [...bluffs],
 		...(fabled.length ? { fabled: fabled.map((f) => ({ ...f })) } : {})
 	});
 	if (twinSeat >= 0) emit(tx, { type: 'effect-added', effect: { kind: 'twin', target: cmd.evilTwin!, by: twinSeat, role: 'evil-twin', until: 'game' } });
