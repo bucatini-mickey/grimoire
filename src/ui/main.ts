@@ -17,7 +17,7 @@
  */
 import * as G from '../core/index.ts';
 import type { Candidate, CharacterId, Command, GameEvent, GameState, Info, SeatId, Script, Lean } from '../core/index.ts';
-import { arrowBox, bookInks, chapterRow, chipsRow, coverRow, illuminatedRow, miniature, namePlate, navRow, pixelsRow, tabStrip } from './ascii.ts';
+import { arrowBox, bookInks, chapterRow, chipsRow, coverRow, illuminatedRow, miniature, nameLines, namePlate, namePlates, navRow, pixelsRow, tabStrip } from './ascii.ts';
 import { DEFAULT_ICON, SYMBOLS, applySaved, loadIcon, normalise, renderIcon, sameIcon, saveIcon } from './appicon.ts';
 import type { IconSpec } from './appicon.ts';
 import { HOW_TO_PLAY, INTERACTIONS, TIPS } from '../core/codex.ts';
@@ -757,7 +757,10 @@ function codexRows(home: () => void): Row[] {
 		const rows: Row[] = [navRow(sc.name, to('list'))];
 		const arch = miniature(c.id, side, COLS);
 		if (arch) rows.push(arch);
-		rows.push(namePlate(c.name) ?? row(txt(center(c.name, INNER), 'gold', 'heading')), row(txt(center(TEAM[c.team] ?? c.team, INNER), side === 'evil' ? 'evil' : 'good')), blank());
+		// (a long name of two words is lettered on two lines, so each line can be set larger)
+		const lines = nameLines(c.name);
+		rows.push(namePlates(lines) ?? row(txt(center(lines.join(' '), INNER), 'gold', 'heading')));
+		rows.push(row(txt(center(TEAM[c.team] ?? c.team, INNER), side === 'evil' ? 'evil' : 'good')), blank());
 		rows.push(rubric('Ability'), ...prose(c.ability), endPanel());
 		const tips = TIPS[c.id];
 		if (tips?.length) { rows.push(blank(), rubric('First thoughts')); for (const t of tips) rows.push(...prose(t, 'dim'), blank()); rows.push(endPanel()); }
@@ -775,7 +778,7 @@ function codexRows(home: () => void): Row[] {
 		for (const [label, team] of TEAMS) {
 			const of = sc.chars.filter((c) => c.team === team);
 			if (!of.length) continue;
-			rows.push(blank(), rubric(label), ...buttonRows(of.map((c) => btn(c.name, to('char', { char: c.id })))), endPanel());
+			rows.push(blank(), rubric(label), buttonBlock(of.map((c) => btn(nameLines(c.name).join('\n'), to('char', { char: c.id }), { aria: c.name }))), endPanel());
 		}
 		return rows;
 	}

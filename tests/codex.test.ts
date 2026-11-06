@@ -15,3 +15,31 @@ test('the codex pages have headings and words', () => {
 		assert.ok(p.lines.filter((l) => !l.startsWith('## ')).every((l) => l.length > 20), p.title);
 	}
 });
+
+// Long names of two or more words are set on two lines in the codex; short names and single words stay on one.
+test('nameLines wraps long multi-word names at a space and leaves the rest', async () => {
+	const { nameLines } = await import('../src/ui/ascii.ts');
+	assert.deepEqual(nameLines('Fortune Teller'), ['Fortune', 'Teller']);
+	assert.deepEqual(nameLines('Devil’s Advocate'), ['Devil’s', 'Advocate']);
+	assert.deepEqual(nameLines('Spirit of Ivory'), ['Spirit', 'of Ivory']);
+	assert.deepEqual(nameLines('Deus ex Fiasco'), ['Deus ex', 'Fiasco']);
+	for (const short of ['Town Crier', 'Evil Twin', 'Tea Lady', 'Fang Gu', 'Empath', 'Washerwoman']) assert.deepEqual(nameLines(short), [short]);
+});
+
+test('wrapping never changes a name: every character name rejoins from its lines', async () => {
+	const { nameLines } = await import('../src/ui/ascii.ts');
+	const names = Object.values(G.SCRIPTS).flatMap((s) => [...s.characters, ...(s.travellers ?? [])].map((c) => c.name)).concat(G.FABLED.map((f) => f.name));
+	for (const n of names) {
+		const lines = nameLines(n);
+		assert.ok(lines.length <= 2, n);
+		assert.equal(lines.join(' '), n);
+	}
+});
+
+test('a wrapped name is one block, so its two lines never part across the leaves of the open book', async () => {
+	const { namePlates, nameLines } = await import('../src/ui/ascii.ts');
+	const two = namePlates(nameLines('Fortune Teller'));
+	const one = namePlates(nameLines('Empath'));
+	assert.equal(one?.block?.h, 6);
+	assert.equal(two?.block?.h, 12);
+});

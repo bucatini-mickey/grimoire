@@ -79,7 +79,30 @@ export const blockRow = (h: number, draw: Block['draw'], cls?: string): Row => (
 /** The width a segment takes on the grid. A button is a box: label, a space each side, a border each side. */
 export function segWidth(s: Seg): number {
 	if (!isButton(s)) return [...s.t].length;
-	return s.width ?? [...s.label].length + 4;
+	return s.width ?? Math.max(...s.label.split('\n').map((l) => [...l].length)) + 4;
+}
+
+/** How tall a button is: three lines, and one more for each further line of a label that wraps. */
+export const buttonH = (b: Button): number => 2 + b.label.split('\n').length;
+
+/** Names longer than this, and made of more than one word, are set on two lines. */
+export const WRAP_NAME_AT = 10;
+
+/**
+ * A character's name as the lines it is set on: one for a short name or a single word, otherwise
+ * two, broken at the space that leaves the lines most even (the first the longer on a tie), so a
+ * button or heading takes less width. The name itself is never changed.
+ */
+export function nameLines(name: string): string[] {
+	const words = name.split(' ');
+	if (words.length < 2 || [...name].length <= WRAP_NAME_AT) return [name];
+	let best = [name], widest = Infinity;
+	for (let i = 1; i < words.length; i++) {
+		const a = words.slice(0, i).join(' '), b = words.slice(i).join(' ');
+		const w = Math.max([...a].length, [...b].length);
+		if (w < widest) { widest = w; best = [a, b]; }
+	}
+	return best;
 }
 
 export function center(text: string, width = COLS): string {
@@ -410,7 +433,7 @@ export function quant(c: number[]): number {
 export { shade };
 export const theTerm = () => term;
 
-const lineH = (r: Row) => (r.block ? r.block.h : r.segs.some(isButton) ? 3 : 1);
+const lineH = (r: Row) => (r.block ? r.block.h : r.segs.some(isButton) ? Math.max(...r.segs.filter(isButton).map(buttonH)) : 1);
 
 /**
  * Draw a button: a ruled cartouche three lines tall. The main action is a
@@ -427,8 +450,8 @@ export function drawButton(c: Ctx, x: number, y: number, w: number, b: Button) {
 		// On a leaf of the book a button is a ruled frame round its words: the main one in a double rule
 		// of red, its words highlighted (HL); a chosen one a plate of gold, a quiet one in a faint rule.
 		// A wide button's spare room grows a vine.
-		const label = [...b.label].slice(0, Math.max(1, w - 4)).join('');
-		const bw = Math.min(w, [...label].length + 4), lx = x + 2;
+		const lines = b.label.split('\n').map((l) => [...l].slice(0, Math.max(1, w - 4)).join('')), h = lines.length + 2, label = lines[0];
+		const bw = Math.min(w, Math.max(...lines.map((l) => [...l].length)) + 4), lx = x + 2;
 		const [ink, rule, line, ground]: [number, number, 'single' | 'double', number] =
 			st === 'primary' ? [8, 8, 'double', -1]
 			: st === 'danger' ? [8, 8, 'single', -1]
@@ -437,15 +460,23 @@ export function drawButton(c: Ctx, x: number, y: number, w: number, b: Button) {
 			: st === 'quiet' ? [3, 2, 'single', -1]
 			: st === 'off' ? [2, 1, 'single', -1]
 			: [5, 3, 'single', -1];
-		if (ground >= 0) g.fill({ x: x + 1, y: y + 1, w: bw - 2, h: 1 }, ' ', ink, ground);
+		if (ground >= 0) g.fill({ x: x + 1, y: y + 1, w: bw - 2, h: lines.length }, ' ', ink, ground);
 		// (else the page shows through, but not its grain: no specks round the label)
-		else for (let i = 1; i < bw - 1; i++) { const cell = g.get(x + i, y + 1); g.set(x + i, y + 1, ' ', ink, cell ? cell.bg : 0); }
-		const [h, v, tl, tr, bl, br] = line === 'double' ? ['═', '║', '╔', '╗', '╚', '╝'] : ['─', '│', '┌', '┐', '└', '┘'];
+		else for (let k = 0; k < lines.length; k++) for (let i = 1; i < bw - 1; i++) { const cell = g.get(x + i, y + 1 + k); g.set(x + i, y + 1 + k, ' ', ink, cell ? cell.bg : 0); }
+		const [hz, v, tl, tr, bl, br] = line === 'double' ? ['═', '║', '╔', '╗', '╚', '╝'] : ['─', '│', '┌', '┐', '└', '┘'];
 		const at = (cx: number, cy: number, ch: string) => { const cell = g.get(cx, cy); g.set(cx, cy, ch, rule, cell ? cell.bg : 0); };
-		for (let i = 1; i < bw - 1; i++) { at(x + i, y, h); at(x + i, y + 2, h); }
-		at(x, y, tl); at(x + bw - 1, y, tr); at(x, y + 2, bl); at(x + bw - 1, y + 2, br);
-		at(x, y + 1, v); at(x + bw - 1, y + 1, v);
-		if (st === 'split') {
+		for (let i = 1; i < bw - 1; i++) { at(x + i, y, hz); at(x + i, y + h - 1, hz); }
+		at(x, y, tl); at(x + bw - 1, y, tr); at(x, y + h - 1, bl); at(x + bw - 1, y + h - 1, br);
+		for (let k = 1; k <= lines.length; k++) { at(x, y + k, v); at(x + bw - 1, y + k, v); }
+		if (lines.length > 1) {
+			// (a name on several lines: each centred in the frame, in the button's colours)
+			lines.forEach((l, k) => {
+				const cx = x + 2 + Math.floor((bw - 4 - [...l].length) / 2);
+				if (st === 'primary' || st === 'danger') { g.fill({ x: x + 1, y: y + 1 + k, w: bw - 2, h: 1 }, ' ', HL.fg, HL.bg); highlight(g, cx, y + 1 + k, l); }
+				else if (ground >= 0) g.text(cx, y + 1 + k, l, ink, ground);
+				else g.text(cx, y + 1 + k, l, ink);
+			});
+		} else if (st === 'split') {
 			// Gold the half that acts, red the half acted on: a player who picks themselves.
 			const half = Math.floor(bw / 2);
 			g.fill({ x: x + 1, y: y + 1, w: half - 1, h: 1 }, ' ', ink, 6);
@@ -461,7 +492,7 @@ export function drawButton(c: Ctx, x: number, y: number, w: number, b: Button) {
 		// (in each look its own: a leafy vine, a pine bough, a chain with its links, the sea and its bubbles)
 		const [run, knot] = ({ medieval: ['~', '♣'], grimm: ['~', '♠'], clockwork: ['-', '○'], lovecraft: ['≈', '°'] } as const)[themeOfKey(paletteKey())];
 		if (w - bw >= 4 && st !== 'off') for (let i = bw; i < w; i++) g.set(x + i, y + 1, (i - bw) % 4 === 2 ? knot : run, 10);
-		if (!b.disabled) c.hit({ x, y, w, h: 3 }, b.act);
+		if (!b.disabled) c.hit({ x, y, w, h }, b.act);
 		return;
 	}
 	// label ink, ground, rule, initial, rule style
@@ -481,12 +512,13 @@ export function drawButton(c: Ctx, x: number, y: number, w: number, b: Button) {
 		: st === 'quiet' ? [3, 1, 2, 3, 'single']
 		: st === 'off' ? [2, 1, 2, 2, 'single']
 		: [5, 1, 6, 8, 'single'];
-	g.fill({ x, y, w, h: 3 }, ' ', fg, bg);
-	g.box({ x, y, w, h: 3 }, edge, bg, '', edge, line);
+	const all = b.label.split('\n'), bh = all.length + 2;
+	g.fill({ x, y, w, h: bh }, ' ', fg, bg);
+	g.box({ x, y, w, h: bh }, edge, bg, '', edge, line);
 	const room = Math.max(1, w - 4);
-	const label = [...b.label].slice(0, room).join('');
+	const label = [...all[0]].slice(0, room).join('');
 	const lx = x + 2 + Math.floor((room - [...label].length) / 2);
-	g.text(lx, y + 1, label, fg, bg);
+	all.forEach((l, k) => { const t = [...l].slice(0, room).join(''); g.text(x + 2 + Math.floor((room - [...t].length) / 2), y + 1 + k, t, fg, bg); });
 	// (one who picks themselves: the right half red)
 	if (st === 'split') for (let i = x + Math.floor(w / 2); i < x + w - 1; i++) { const cl = g.get(i, y + 1); if (cl) { cl.bg = 8; cl.fg = 0; } }
 	// The main one's first letter (or numeral) in its own colour, bold.
@@ -494,7 +526,7 @@ export function drawButton(c: Ctx, x: number, y: number, w: number, b: Button) {
 		const lead = label.match(/^[IVXLC]+(?=\.)/)?.[0].length ?? (/\p{L}/u.test(label[0] ?? '') ? 1 : 0);
 		for (let k = 0; k < lead; k++) { g.set(lx + k, y + 1, [...label][k], cap === fg ? 6 : cap, bg); g.bold(lx + k, y + 1); }
 	}
-	if (!b.disabled) c.hit({ x, y, w, h: 3 }, b.act);
+	if (!b.disabled) c.hit({ x, y, w, h: bh }, b.act);
 }
 
 /**
@@ -969,6 +1001,20 @@ export function namePlate(name: string, indent = 0): Row | null {
 	});
 }
 
+/**
+ * A name lettered on its lines (see nameLines) as one block, so the lines never part across the
+ * foot of a leaf. Null if the face lacks a letter.
+ */
+export function namePlates(lines: string[]): Row | null {
+	const plates = lines.map((l) => namePlate(l));
+	if (plates.some((p) => !p?.block)) return null;
+	if (plates.length === 1) return plates[0];
+	return blockRow(plates.reduce((k, p) => k + p!.block!.h, 0), (c) => {
+		let y = c.y;
+		for (const p of plates) { p!.block!.draw({ ...c, y }); y += p!.block!.h; }
+	});
+}
+
 /** Buttons in the middle of the line, so the way on is plain to see. */
 export function centredButtons(buttons: Button[], width = COLS, gap = 2): Row[] {
 	return buttonRows(buttons, width, gap).map((r) => {
@@ -1374,10 +1420,14 @@ export function navRow(label: string, act: () => void): Row {
 /** A run of buttons as one block row (wraps like buttonRows). */
 export function buttonBlock(buttons: Button[], width = INNER, gap = 1): Row {
 	const lines = buttonRows(buttons, width, gap);
-	return blockRow(Math.max(1, lines.length) * 3, (c) => {
+	// (a run is as tall as its tallest button: a name that wraps makes its run taller)
+	const hs = lines.map((r) => Math.max(3, ...r.segs.filter(isButton).map(buttonH)));
+	return blockRow(hs.reduce((k, h) => k + h, 0) || 3, (c) => {
+		let y = c.y;
 		lines.forEach((r, i) => {
 			let x = c.x;
-			for (const s of r.segs) { if (isButton(s)) drawButton(c, x, c.y + i * 3, segWidth(s), s); x += segWidth(s); }
+			for (const s of r.segs) { if (isButton(s)) drawButton(c, x, y, segWidth(s), s); x += segWidth(s); }
+			y += hs[i];
 		});
 	});
 }
