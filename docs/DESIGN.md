@@ -8,6 +8,15 @@
 
 All three share one rules engine. Modes 2 and 3 differ only in who holds which screen and how events travel.
 
+### Village: shared homes at night
+
+When there are more players than homes, several share a room (`sendHome` gives homes by seat modulo the number of homes). The rule at night:
+
+- A housemate of the visited player neither hears the Storyteller's visit nor sees the Storyteller. They also see and hear none of the visited player's reactions or messages.
+- The visited player sees and hears exactly what a lone player in that room would. A housemate being present changes nothing for them.
+- The Storyteller still sees and hears everything (All ears is unchanged). Day, dusk and the circle are unchanged.
+- Open question, with the user (INBOX.md): can housemates see each other asleep? Until answered, they are hidden from each other at night.
+
 ## Why TypeScript, not Python / Broadside's engine
 
 The game has to run on players' phones without installing anything, so it has to run in a browser, which means JavaScript. TypeScript keeps the rules typed, and Node 22+ runs it directly for tests. The engine has no dependencies. Broadside's engine is Python and terminal-only, so nothing is shared at code level. What carries over is the shape: a fixed-width cell grid (`ascii.ts` ~ Broadside's `render/buffer.py`) and an event log. `ascii.ts` deliberately knows nothing about Clocktower, so it could drive menus elsewhere.
