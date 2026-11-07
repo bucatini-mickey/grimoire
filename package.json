@@ -9,6 +9,8 @@
 		"check": "tsc --noEmit",
 		"build": "node build.mjs",
 		"dev": "node build.mjs --serve",
+		"avatar": "node tools/avatar-inline.mjs",
+		"tools": "node tools/serve.mjs --https",
 		"sim": "node tests/sim/run.ts",
 		"mutants": "node tests/sim/mutants.ts"
 	},
