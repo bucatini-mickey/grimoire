@@ -35,13 +35,21 @@ import type { P, Phase, Town } from './map.ts';
 import { css, FOG, fogAt, LANTERN, sunlight, lerp, level, lightMap, lookAt, luma, mul, noise, remembered, sky, sources } from './look.ts';
 import type { Rgb } from './look.ts';
 import { audio, startVoice } from './voice.ts';
-import { FACE_H, FACE_SAMPLES, FACE_W, FaceCam, cellOf, testFace } from './faces.ts';
+import { FACE_H, FACE_SAMPLES, FACE_W, FaceCam, cellOf, testFace, toFrame } from './faces.ts';
 
 /**
  * Faces in the village (faces.ts) are parked: twelve columns do not make a face anyone would know.
  * The code stays, off; tools/ascii-face.html is the tuner for trying it again.
  */
 const FACES = false;
+/**
+ * The camera window (camwin.ts), an experiment: tiles of the people close to you in a small window over
+ * the map. Unlike the parked faces above it sends nothing: your own camera (off until you turn it on)
+ * shows on your phone only; test villagers get drawn stand-ins; anyone else shows as their letter.
+ */
+const CAMS = true;
+import { camLayout, CamOverlay, CORNER_NAME, CORNERS, drawCamWindow, nextCorner, paintCamera, paintStandIn, pickTiles, standIn, tileSize } from './camwin.ts';
+import type { Corner, PictureTile, TileView } from './camwin.ts';
 import type { Voice, VoiceMode } from './voice.ts';
 import CASTLE from '../../town/castle.tbp';
 import TALMBERG from '../../town/talmberg.tbp';
@@ -187,7 +195,12 @@ const S = {
 	cell: 20,
 	dirty: true,
 	stOpen: false,
-	sheet: null as null | 'people' | 'more' | 'faces',
+	sheet: null as null | 'people' | 'more' | 'faces' | 'cams',
+	/**
+	 * The camera window (camwin.ts): shown, folded to its title, its corner, letters or pictures, and
+	 * stand-in faces for everyone (to try the window with nobody else's camera).
+	 */
+	cams: { open: true, folded: false, corner: 'tr' as Corner, look: 'video' as 'video' | 'letters', standIns: false },
 	/** Requests for a private word, waiting for an answer. */
 	asks: [] as string[],
 	/** Faces as cell frames, by person (the host: everyone's; a phone: the ones it may see). */
@@ -212,6 +225,9 @@ const store = {
 	set: (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* private mode */ } }
 };
 S.showFaces = store.get('grimoire.faces') !== 'off';
+S.cams.open = store.get('grimoire.cams') !== 'off';
+S.cams.corner = CORNERS.find((c) => c === store.get('grimoire.camsCorner')) ?? 'tr';
+S.cams.look = store.get('grimoire.camsLook') === 'letters' ? 'letters' : 'video';
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 const me = () => S.people.get(S.me);
 /** The level someone is on, as a town of its own (the ground holds them all). */
@@ -866,6 +882,8 @@ function tickMap() {
 	if (!cam.ready) Object.assign(cam, { x: p.x, y: p.y, ready: true });
 	const aim = S.phase === 'circle' && t.council ? t.council.at : p;
 	const settled = Math.abs(cam.x - aim.x) < 0.01 && Math.abs(cam.y - aim.y) < 0.01;
+	// Live tiles in letters move about eight times a second (pictures repaint themselves, camwin.ts).
+	if (camLetters && now - drawnAt >= 125) S.dirty = true;
 	if (!relight && !S.dirty && settled && !animating && S.phase !== 'circle' && now - drawnAt < (animated(weatherOf(t.name)) ? 100 : 250)) return;
 	const dt = Math.min(100, Math.max(1, now - drawnAt));
 	animating = false;
@@ -910,7 +928,8 @@ function toolButtons(): Button[] {
 	if (door !== null) bs.push(btn(S.town!.locked.has(door) ? 'Unlock' : 'Lock', () => act('door')));
 	if (S.host) bs.push(btn('Menu', () => act('st-toggle'), { style: S.stOpen ? 'on' : undefined }));
 	bs.push(btn('People', () => act('people')));
-	return [...bs, ...later, ...(FACES ? [btn('Faces', () => act('faces'), { style: S.sheet === 'faces' ? 'on' : undefined })] : [])];
+	return [...bs, ...later, ...(FACES ? [btn('Faces', () => act('faces'), { style: S.sheet === 'faces' ? 'on' : undefined })] : []),
+		...(CAMS ? [btn('Cameras', () => act('cams'), { style: S.sheet === 'cams' ? 'on' : undefined })] : [])];
 }
 
 /** The bar: one row of the most wanted buttons that fit, the rest behind More. */
@@ -959,6 +978,7 @@ function villageCells(g: Grid): boolean {
 	if (S.phase === 'circle') councilRoom(g, mapY, mapH, now);
 	else mapCells(g, mapY, mapH, p, lvl(p), now);
 	if (FACES) faceStrip(g, mapY, mapH, p);
+	if (CAMS) camWindow(g, { x: 0, y: mapY, w: g.cols, h: mapH }, p, now);
 	// The line of what you can hear, and the passing notice.
 	const where = p.with ? 'Private with ' + nameOf(p.with) + ': nobody else hears you'
 		: S.phase === 'night' ? (p.st ? 'Night: whoever is in this room hears you' : 'Night: at home. Only the Storyteller may visit')
@@ -1378,6 +1398,87 @@ async function faceCamToggle() {
 	drawChrome();
 }
 
+// ---- the camera window (camwin.ts, an experiment) -------------------------------------------------
+
+/** This phone's camera for the window: off until the player turns it on; its picture never leaves the phone. */
+const myCam = new FaceCam();
+const camOverlay = new CamOverlay(() => theTerm());
+/** Whether the window last drew live tiles in letters (the map then redraws often enough to move them). */
+let camLetters = false;
+/** A stand-in's look, the same for a person every time. */
+const standInOf = (id: string) => [...id].reduce((k, c) => (k * 31 + c.charCodeAt(0)) >>> 0, 7) % 97;
+
+async function myCamToggle() {
+	if (myCam.on) myCam.stop();
+	else {
+		if (!(await myCam.start())) { toast('No camera (or it was refused).'); drawChrome(); return; }
+		if (!S.cams.open) { S.cams.open = true; store.set('grimoire.cams', 'on'); }
+		S.cams.folded = false;
+	}
+	S.dirty = true;
+	drawChrome();
+}
+function myCamOff() {
+	if (!myCam.on) return;
+	myCam.stop();
+	S.dirty = true;
+}
+// A page put out of sight (another app, the phone locked) turns the camera off; it stays off until turned on.
+document.addEventListener('visibilitychange', () => { if (document.hidden && myCam.on) { myCamOff(); drawChrome(); } });
+
+/**
+ * The camera window over the map: you, then those close to you (whoever you can hear: voices' rule, so in
+ * the circle everyone, at night only the Storyteller in the room they visit, in a private word the two of
+ * you). Your tile is your camera once you turn it on; test villagers (and everyone, with stand-ins on) have
+ * a drawn face made here; anyone else is their letter: no picture of them reaches this phone.
+ */
+function camWindow(g: Grid, area: { x: number; y: number; w: number; h: number }, p: Person, now: number) {
+	camLetters = false;
+	if (!S.cams.open) { camOverlay.show([]); return; }
+	const others = [...S.people.values()].filter((q) => q.id !== S.me)
+		.map((q) => ({ id: q.id, name: q.st ? 'Storyteller' : q.name, loud: loudness(lvl(p), p, q, S.phase) }));
+	const close = others.filter((q) => q.loud > 0).length;
+	const L0 = camLayout(area, 1 + close, S.cams.corner, S.cams.folded);
+	if (!L0) { camOverlay.show([]); return; }
+	const pick = pickTiles(S.me, others, L0.cap);
+	const L = camLayout(area, pick.ids.length, S.cams.corner, S.cams.folded)!;
+	const { tw, th } = L.tiles[0] ? { tw: L.tiles[0].w, th: L.tiles[0].h } : tileSize(area.w);
+	const pictures: PictureTile[] = [];
+	const tiles: TileView[] = pick.ids.map((id, i) => {
+		const q = S.people.get(id)!;
+		const self = id === S.me;
+		const talk = talking(q) > 0.15;
+		const base = { id, label: self ? 'You' : q.st ? 'Storyteller' : q.name, ink: markOf(q), glyph: glyphOf(q), talking: talk };
+		const stand = !self && (S.bots.has(id) || S.cams.standIns);
+		if (self && !myCam.on) return { ...base, kind: 'blank' as const, glyph: '', note: 'camera off' };
+		if (!self && !stand) return { ...base, kind: 'blank' as const, note: 'no picture' };
+		if (self && !myCam.picture) return { ...base, kind: 'blank' as const, glyph: '', note: 'starting' };
+		if (S.cams.look === 'video') {
+			const r = L.tiles[i];
+			if (r) pictures.push({ key: id + (self ? ':cam' : ':stand'), rect: r, paint: self ? paintCamera(myCam.picture!) : paintStandIn(standInOf(id), () => talking(q) > 0.15) });
+			return { ...base, kind: 'video' as const };
+		}
+		camLetters = true;
+		const lum = self ? myCam.lum(tw, th * 2) : standIn(standInOf(id), now, talk, tw, th * 2);
+		return lum ? { ...base, kind: 'letters' as const, frame: toFrame(lum, tw, th * 2) } : { ...base, kind: 'blank' as const, note: 'starting' };
+	});
+	const title = S.phase === 'circle' ? 'The circle' : S.phase === 'night' ? 'Night' : p.with ? 'Private' : 'Near you';
+	drawCamWindow(g, L, {
+		title, tiles, more: pick.more, folded: S.cams.folded,
+		onMove: () => { S.cams.corner = nextCorner(S.cams.corner); store.set('grimoire.camsCorner', S.cams.corner); S.dirty = true; redraw(); },
+		onFold: () => { S.cams.folded = !S.cams.folded; S.dirty = true; redraw(); },
+		onClose: () => act('cams-open'),
+		onTile: (id) => {
+			if (id === S.me) { S.sheet = 'cams'; S.stOpen = false; drawChrome(); return; }
+			S.named = { id, until: performance.now() + 2500 };
+			setTimeout(redraw, 2550);
+			S.dirty = true;
+		}
+	});
+	if (S.cams.folded) camLetters = false;
+	camOverlay.show(S.cams.folded ? [] : pictures);
+}
+
 /** Wall joins by mask (1 up, 2 right, 4 down, 8 left) as CP437 line glyphs. */
 const WALL_SINGLE = [' ', '│', '─', '└', '│', '│', '┌', '├', '─', '┘', '─', '┴', '┐', '┤', '┬', '┼'];
 const WALL_DOUBLE = [' ', '║', '═', '╚', '║', '║', '╔', '╠', '═', '╝', '═', '╩', '╗', '╣', '╦', '╬'];
@@ -1507,6 +1608,17 @@ function sheetRows(): Row[] {
 		const rows: Row[] = [rubric('Faces'), ...wrap('Faces in ASCII, from each phone’s camera: you see those you can hear, and everyone in the circle. Only small frames of letters are sent, never video.', INNER).map((l) => row(txt(l, 'dim')))];
 		rows.push(buttonBlock([btn(faceCam.on ? 'My camera: on' : 'My camera: off', () => { void faceCamToggle(); }, { style: faceCam.on ? 'on' : undefined, width: INNER })]));
 		rows.push(buttonBlock([btn(S.showFaces ? 'Show faces: on' : 'Show faces: off', () => act('faces-show'), { style: S.showFaces ? 'on' : undefined, width: INNER })]));
+		return [close('sheet-close'), ...rows, endPanel()];
+	}
+	if (S.sheet === 'cams') {
+		const rows: Row[] = [rubric('Cameras'), ...prose('An experiment. A small window over the map shows you and the people close to you: whoever you can hear. Tap its title to move it, [-] to fold it, [x] to close it.', 'dim'),
+			...prose('Your camera stays off until you turn it on here, and goes off when you close the window or leave the page. Nothing is sent: nobody sees your picture, and you see nobody else’s (their letter shows instead). The test villagers have drawn stand-ins.', 'dim')];
+		const b = (label: string, a: string, on: boolean) => buttonBlock([btn(label, () => act(a), { style: on ? 'on' : undefined, width: INNER })]);
+		rows.push(b(myCam.on ? 'My camera: on' : 'My camera: off', 'cams-cam', myCam.on));
+		rows.push(b(S.cams.open ? 'Window: shown' : 'Window: hidden', 'cams-open', S.cams.open));
+		rows.push(b(S.cams.look === 'video' ? 'Tiles: picture' : 'Tiles: letters', 'cams-look', S.cams.look === 'letters'));
+		rows.push(b(S.cams.standIns ? 'Stand-ins for all: on' : 'Stand-ins for all: off', 'cams-standins', S.cams.standIns));
+		rows.push(b('Corner: ' + CORNER_NAME[S.cams.corner], 'cams-corner', false));
 		return [close('sheet-close'), ...rows, endPanel()];
 	}
 	if (S.sheet === 'people') {
@@ -1684,6 +1796,18 @@ function act(a: string, id = '') {
 		case 'people': S.sheet = S.sheet === 'people' ? null : 'people'; S.stOpen = false; drawChrome(); break;
 		case 'faces': S.sheet = S.sheet === 'faces' ? null : 'faces'; S.stOpen = false; drawChrome(); break;
 		case 'faces-show': S.showFaces = !S.showFaces; store.set('grimoire.faces', S.showFaces ? 'on' : 'off'); drawChrome(); break;
+		case 'cams': S.sheet = S.sheet === 'cams' ? null : 'cams'; S.stOpen = false; drawChrome(); break;
+		case 'cams-open':
+			// Closing the window turns the camera off too.
+			S.cams.open = !S.cams.open;
+			S.cams.folded = false;
+			if (!S.cams.open) myCamOff();
+			store.set('grimoire.cams', S.cams.open ? 'on' : 'off');
+			S.dirty = true; drawChrome(); break;
+		case 'cams-cam': void myCamToggle(); break;
+		case 'cams-look': S.cams.look = S.cams.look === 'video' ? 'letters' : 'video'; store.set('grimoire.camsLook', S.cams.look); S.dirty = true; drawChrome(); break;
+		case 'cams-standins': S.cams.standIns = !S.cams.standIns; S.dirty = true; drawChrome(); break;
+		case 'cams-corner': S.cams.corner = nextCorner(S.cams.corner); store.set('grimoire.camsCorner', S.cams.corner); S.dirty = true; drawChrome(); break;
 		case 'more': S.sheet = S.sheet === 'more' ? null : 'more'; S.stOpen = false; drawChrome(); break;
 		case 'sheet-close': S.sheet = null; drawChrome(); break;
 		case 'ask': up({ t: 'ask', to: id }); S.sheet = null; drawChrome(); break;
@@ -1782,6 +1906,7 @@ function showVillage() {
 function hideVillage() {
 	if (!S.game) return;
 	shown = false;
+	myCamOff();
 	document.body.classList.remove('village-map');
 	drawChrome();
 }
