@@ -15,6 +15,8 @@ import type { Row } from './ascii.ts';
 import { joinRoom } from '../net/link.ts';
 import type { LinkStatus, PlayerLink } from '../net/link.ts';
 import type { Announcement, ClockView, HostMsg, VoteView } from '../net/protocol.ts';
+import { STATUSES, STATUS_GLYPH, STATUS_LABEL, cleanNotebook, cleanText, hasNote, MAX_TEXT } from '../net/notebook.ts';
+import type { Notebook, SeatNote } from '../net/notebook.ts';
 import type { CharacterCard, LogEntry, PublicView, SheetEntry, Wake } from '../net/views.ts';
 import type { SeatId } from '../core/index.ts';
 import { CARD_COLS, CARD_INNER, big, cardButtons, characterRows, nextPage, note, revealRows, wakeRows } from './wakepages.ts';
@@ -42,7 +44,7 @@ function clientId(): string {
 	}
 }
 
-type Menu = null | 'home' | 'circle' | 'chars' | 'me' | 'log' | 'note';
+type Menu = null | 'home' | 'notebook' | 'circle' | 'chars' | 'me' | 'log' | 'note';
 
 const P = {
 	code: '',
@@ -76,20 +78,32 @@ const P = {
 	/** The player's menu, and which page of it is open (null: shut). */
 	menu: null as Menu,
 	/** The seat I am writing a note on. */
-	noteSeat: null as SeatId | null
+	noteSeat: null as SeatId | null,
+	/** What the notebook page last told me about asking for a chat. */
+	chatNote: ''
 };
 
-/** A player's own notes on another (only on this phone): a guess at their character, marks, a line of words. */
-interface SeatNote { guess?: string; tags?: string[]; text?: string; }
-const TAGS = ['Good?', 'Evil?', 'Drunk?', 'Poisoned?', 'Trusted', 'Lying'];
+/**
+ * The player's notebook (notebook.ts): their own guesses at each other player's character, a mark (alive, dead,
+ * suspected, cleared) and a line of words. Kept on this phone, and sent to the Storyteller to keep in the log,
+ * and to nobody else. Nothing is filled in from the game: the player writes every word of it.
+ */
 const notesKey = () => 'grimoire.notes.' + P.code;
-function notes(): Record<string, SeatNote> {
-	try { return JSON.parse(localStorage.getItem(notesKey()) ?? '{}'); } catch { return {}; }
+function notes(): Notebook {
+	try { return cleanNotebook(JSON.parse(localStorage.getItem(notesKey()) ?? '{}'), null, P.seat, null); } catch { return {}; }
+}
+/** Tell the Storyteller's phone what the notebook says now (nothing, if nothing is written). */
+function sendNotes() {
+	const mine = notes();
+	if (Object.keys(mine).length) P.link?.send({ t: 'notes', notes: mine });
 }
 function setNote(seat: SeatId, f: (n: SeatNote) => SeatNote) {
 	const all = notes();
-	all[seat] = f(all[seat] ?? {});
+	const next = f(all[seat] ?? {});
+	if (hasNote(next)) all[seat] = next;
+	else delete all[seat];
 	try { localStorage.setItem(notesKey(), JSON.stringify(all)); } catch { /* private mode: kept until the page closes */ }
+	P.link?.send({ t: 'notes', notes: all });
 	render();
 }
 
@@ -155,6 +169,7 @@ function receive(msg: HostMsg) {
 			P.seats = msg.seats;
 			P.seat = msg.you;
 			// Not seated (a new game, a freed seat): nothing of the last game stays on screen.
+			if (msg.you !== null) setTimeout(sendNotes, 0);
 			if (msg.you === null) { P.card = null; P.wake = null; P.announce = null; P.cardOpen = false; P.vote = null; P.handUp = false; }
 			break;
 		case 'public':
@@ -357,8 +372,8 @@ function ring(noting = false): Row[] {
 			if (noting && !mine) {
 				const n = mine0[id];
 				if (n?.guess) c.g.text(x, y + 1, cut('?' + n.guess), 6, bg);
-				const tags = (n?.tags ?? []).map((t) => t[0]).join('') + (n?.text ? '*' : '');
-				if (tags) c.g.text(x + Math.max(0, tw - tags.length), y + 2, tags, n?.tags?.includes('Evil?') ? 8 : 12, bg);
+				const marks = (n?.status ? STATUS_GLYPH[n.status] : '') + (n?.text ? '*' : '');
+				if (marks) c.g.text(x + Math.max(0, tw - marks.length), y + 2, marks, n?.status === 'suspected' ? 8 : 12, bg);
 				c.hit({ x, y, w: tw, h: 3 }, () => { P.noteSeat = id; P.menu = 'note'; render(); });
 			}
 		});
@@ -398,6 +413,42 @@ function mainScreen(): Row[] {
 	return rows;
 }
 
+/** Ask the Storyteller for a word (perhaps about one player). They decide what, if anything, to tell you. */
+function askForChat(about?: SeatId) {
+	P.link?.send({ t: 'chat', about });
+	P.chatNote = 'Asked. Nothing is told to you until the Storyteller speaks with you' + (village ? ' (or open People and ask them for a private word)' : '') + '.';
+	render();
+}
+
+/**
+ * The notebook: a row for every other player, in the circle's order, showing only what this player has
+ * written: their mark, guess and words. Nothing comes from the game, not even who has died.
+ */
+function notebookRows(): Row[] {
+	const v = P.view, mine = notes();
+	const rows: Row[] = [navRow('Menu', () => { P.menu = 'home'; P.chatNote = ''; render(); }), rubric('Your notebook', CARD_COLS)];
+	rows.push(...wrap('Write what you think of each player. Nothing is filled in for you, and the Storyteller can read what you write. To be told anything true, ask for a chat.', CARD_INNER).map((l) => row(txt(l, 'dim'))), blank());
+	for (const id of v?.order ?? []) {
+		if (id === P.seat) continue;
+		const n = mine[id] ?? {};
+		const [pf, pb] = personInk(v!.order.indexOf(id));
+		rows.push(blockRow(3, (c) => {
+			const w = Math.min(c.w, CARD_INNER);
+			c.g.fill({ x: c.x, y: c.y, w, h: 3 }, ' ', 4, 0);
+			c.g.text(c.x, c.y, [...nameOf(id)].slice(0, w - 12).join(''), pf, pb || 0);
+			const mark = n.status ? STATUS_GLYPH[n.status] + ' ' + STATUS_LABEL[n.status] : '';
+			c.g.text(c.x + w - [...mark].length, c.y, mark, n.status === 'suspected' ? 8 : n.status ? 12 : 3, 0);
+			const line2 = n.guess ? '? ' + n.guess : hasNote(n) ? '' : 'tap to write';
+			c.g.text(c.x + 1, c.y + 1, [...line2].slice(0, w - 2).join(''), n.guess ? 6 : 3, 0);
+			if (n.text) c.g.text(c.x + 1, c.y + 2, [...n.text].slice(0, w - 2).join(''), 4, 0);
+			c.hit({ x: c.x, y: c.y, w, h: 3 }, () => { P.noteSeat = id; P.menu = 'note'; render(); });
+		}));
+	}
+	rows.push(blank(), rubric('A word with the Storyteller', CARD_COLS), ...buttonRows([btn('Ask for a chat', () => askForChat(), { style: 'primary' })]));
+	if (P.chatNote) rows.push(...wrap(P.chatNote, CARD_INNER).map((l) => row(txt(l, 'dim'))));
+	return rows;
+}
+
 /**
  * The player's menu (like the Storyteller's, without anyone's character): the circle with their own notes,
  * the script's characters, their own character, and what they have been told (if the Storyteller keeps it).
@@ -410,16 +461,20 @@ function menuRows(): Row[] {
 	switch (P.menu) {
 		case 'circle':
 			if (!v) break;
-			return [back('Menu', 'home'), ...ring(true), ...dim('Tap a player to note your guess, marks and words about them. Only this phone sees them.')];
+			return [back('Menu', 'home'), ...ring(true), ...dim('Tap a player to note your guess, mark and words about them. You write all of it; the Storyteller can read it.')];
+		case 'notebook':
+			return notebookRows();
 		case 'note': {
 			const id = P.noteSeat;
 			if (id === null) break;
 			const n = notes()[id] ?? {};
-			const rows: Row[] = [back('The circle', 'circle'), rubric(nameOf(id), CARD_COLS), row(txt('Marks', 'dim'))];
-			rows.push(...tickGrid(TAGS.map((t) => ({ label: t, on: !!n.tags?.includes(t), act: () => setNote(id, (x) => ({ ...x, tags: x.tags?.includes(t) ? x.tags.filter((k) => k !== t) : [...(x.tags ?? []), t] })) })), 3, CARD_INNER));
-			rows.push(field('note-' + id, 'Words', n.text ?? '', (val) => setNote(id, (x) => ({ ...x, text: val.trim() })), 30, 'tap to write'));
+			const rows: Row[] = [back('The notebook', 'notebook'), rubric(nameOf(id), CARD_COLS), row(txt('Mark', 'dim'))];
+			rows.push(...tickGrid(STATUSES.map((st) => ({ label: STATUS_LABEL[st], on: n.status === st, tone: st === 'suspected' ? ('evil' as const) : undefined, act: () => setNote(id, (x) => ({ ...x, status: x.status === st ? undefined : st })) })), 2, CARD_INNER));
+			rows.push(field('note-' + id, 'Words', n.text ?? '', (val) => setNote(id, (x) => ({ ...x, text: cleanText(val) || undefined })), MAX_TEXT, 'tap to write'));
 			rows.push(row(txt('Your guess at their character', 'dim')));
 			rows.push(...tickGrid(P.chars.filter((c) => c.team !== 'fabled').map((c) => ({ label: c.name, on: n.guess === c.name, tone: c.team === 'minion' || c.team === 'demon' ? ('evil' as const) : undefined, act: () => setNote(id, (x) => ({ ...x, guess: x.guess === c.name ? undefined : c.name })) })), 3, CARD_INNER));
+			rows.push(blank(), ...buttonRows([btn('Ask for a chat about ' + nameOf(id).slice(0, 10), () => askForChat(id), { style: 'quiet' })]));
+			if (P.chatNote) rows.push(...dim(P.chatNote));
 			return rows;
 		}
 		case 'chars': {
@@ -445,7 +500,8 @@ function menuRows(): Row[] {
 	}
 	const rows: Row[] = [navRow('Close', () => { P.menu = null; render(); }), rubric('Menu', CARD_COLS)];
 	const entry = (label: string, sub: string, m: Menu) => rows.push(buttonBlock([btn(label, go(m), { width: INNER })]), ...dim(sub), blank());
-	if (v) entry('The circle', 'Everyone round the circle, with your own notes on them.', 'circle');
+	if (v) entry('The notebook', 'A page for each player: your own guess, mark and words. You write it all; the Storyteller can read it.', 'notebook');
+	if (v) entry('The circle', 'The notebook laid out round the circle.', 'circle');
 	entry('The characters', 'This script’s characters and what they do.', 'chars');
 	entry('My character', 'Your character, its picture and ability.', 'me');
 	if (P.log) entry('What I have been told', 'Everything the Storyteller has shown you at night, to read back.', 'log');

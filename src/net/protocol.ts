@@ -6,6 +6,7 @@
 import type { SeatId } from '../core/index.ts';
 import type { CharacterCard, LogEntry, PublicView, SheetEntry, Wake } from './views.ts';
 import type { VillageDown, VillageUp } from '../town/village.ts';
+import type { Notebook } from './notebook.ts';
 
 export interface Announcement {
 	title: string;
@@ -81,4 +82,11 @@ export type PlayerMsg =
 	| { t: 'nominate'; nominee: SeatId }
 	/** My hand is up (or down) for the vote. */
 	| { t: 'hand'; up: boolean }
+	/**
+	 * My notebook, as I have written it (notebook.ts): sent to the Storyteller to keep in the log, and to nobody else.
+	 * Nothing in it is filled in by the game.
+	 */
+	| { t: 'notes'; notes: Notebook }
+	/** I would like a word with the Storyteller, perhaps about this player (the private word; they decide what to tell me). */
+	| { t: 'chat'; about?: SeatId }
 	| { t: 'village'; m: VillageUp };

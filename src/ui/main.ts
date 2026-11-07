@@ -27,6 +27,7 @@ import { COLS, INNER, Canvas, letteredRow, shade, titleRow, blank, blockRow, box
 import type { Button, Row, Seg, Tone } from './ascii.ts';
 import * as T from './timer.ts';
 import * as V from '../net/views.ts';
+import * as NB from '../net/notebook.ts';
 import { hostRoom, newRoomCode } from '../net/link.ts';
 import type { HostLink, LinkStatus } from '../net/link.ts';
 import type { Announcement, ClockView, HostMsg, PlayerMsg, VoteView } from '../net/protocol.ts';
@@ -100,6 +101,8 @@ interface Saved {
 	net?: { room: string; claims: Record<string, SeatId>; village?: boolean; lobby?: { client: string; name: string }[] };
 	/** What each player's phone has been shown at night (views.ts logEntry), by seat. */
 	log?: Record<number, V.LogEntry[]>;
+	/** What each player has written in their notebook and asked of the Storyteller, by seat (notebook.ts). The Storyteller's eyes only. */
+	notebooks?: Record<number, NB.StoredNotebook>;
 }
 
 function freshFlow(settings: Settings): Flow {
@@ -113,7 +116,7 @@ function load(): Saved {
 			const s = JSON.parse(raw) as Saved;
 			G.replay(s.events); // throws if the log is unreadable
 			const settings = { ...DEFAULT_SETTINGS, ...s.settings };
-			return { events: s.events, marks: s.marks ?? [], settings, flow: { ...freshFlow(settings), ...s.flow }, net: s.net };
+			return { events: s.events, marks: s.marks ?? [], settings, flow: { ...freshFlow(settings), ...s.flow }, net: s.net, log: s.log, notebooks: s.notebooks };
 		}
 	} catch {
 		/* fall through to a fresh game */
@@ -355,6 +358,7 @@ function undo() {
 function newGame() {
 	saved = { events: [], marks: [], settings: saved.settings, flow: freshFlow(saved.settings), net: saved.net ? { room: saved.net.room, claims: {}, village: saved.net.village, lobby: saved.net.lobby } : undefined };
 	state = G.replay([]);
+	chatAsks = [];
 	save();
 	ui.confirmNew = false;
 	ui.message = '';
@@ -644,8 +648,18 @@ function ornament(): Row {
 }
 
 function messageRows(): Row[] {
-	if (!ui.message) return [];
-	return [...prose(ui.message, 'evil'), blank()];
+	return [...chatRows(), ...(ui.message ? [...prose(ui.message, 'evil'), blank()] : [])];
+}
+
+/** Players who have asked for a chat, until the Storyteller has seen it. */
+function chatRows(): Row[] {
+	const rows: Row[] = [];
+	for (const a of chatAsks) {
+		const about = a.about !== null && state.seats[a.about] ? ', about ' + name(a.about) : '';
+		rows.push(...prose(`${name(a.by)} would like a word${about}.`, 'gold'));
+		rows.push(...buttonRows([btn('Seen', () => { chatAsks = chatAsks.filter((x) => x !== a); render(); }, { style: 'quiet' })]));
+	}
+	return rows.length ? [...rows, blank()] : rows;
 }
 
 // ---- setup ----------------------------------------------------------------------------
@@ -2364,12 +2378,24 @@ function describe(e: GameEvent): string | null {
 
 function logScreen(): Row[] {
 	const rows: Row[] = [rubric('The Chronicle')];
-	for (const e of saved.events) {
+	// What players wrote in their notebooks and asked for, where it falls among the events (notebook.ts).
+	const written = NB.chronicleLines(saved.notebooks, saved.events.length, name);
+	const inked = (at: number) => (written.get(at) ?? []).flatMap((t) => wrap('✎ ' + t).map((l) => row(txt(l, 'gold'))));
+	rows.push(...inked(0));
+	saved.events.forEach((e, i) => {
 		const d = describe(e);
-		if (!d) continue;
-		const heading = e.type === 'night-began' || e.type === 'day-began';
-		if (heading) rows.push(blank());
-		rows.push(...wrap(d).map((l) => row(txt(l, heading ? 'rubric' : e.type === 'died' || e.type === 'game-over' ? 'evil' : undefined))));
+		if (d) {
+			const heading = e.type === 'night-began' || e.type === 'day-began';
+			if (heading) rows.push(blank());
+			rows.push(...wrap(d).map((l) => row(txt(l, heading ? 'rubric' : e.type === 'died' || e.type === 'game-over' ? 'evil' : undefined))));
+		}
+		rows.push(...inked(i + 1));
+	});
+	const books = NB.notebooksNow(saved.notebooks, name);
+	if (books.length) {
+		rows.push(blank(), rubric('Notebooks, as they stand'));
+		for (const b of books) rows.push(row(txt(b.who, 'gold')), ...b.lines.flatMap((l) => wrap(l, INNER - 2).map((w) => row(txt('  ' + w)))));
+		rows.push(...prose('Written by the players themselves; the game fills in nothing. A player is told something true only by asking you for a chat.', 'dim'));
 	}
 	return rows;
 }
@@ -2434,6 +2460,8 @@ let villageKey = '';
 let visitedWake = '';
 /** Nominations asked for from phones, waiting for the Storyteller. */
 let nomAsks: { by: SeatId; nominee: SeatId }[] = [];
+/** Players who have asked for a chat (the private word), until the Storyteller has seen it. */
+let chatAsks: { by: SeatId; about: SeatId | null }[] = [];
 /** Hands raised on phones for the nomination under way (cleared for each new one). */
 const phoneHands = new Set<SeatId>();
 let handsFor = '';
@@ -2809,6 +2837,28 @@ function fromPhone(peer: string, msg: PlayerMsg) {
 			village?.toast(`${name(by)} nominates ${name(msg.nominee)}`);
 			break;
 		}
+		case 'notes': {
+			const by = seatOfPeer(peer);
+			if (by === null || !state.seats[by]) return;
+			const book = NB.cleanNotebook(msg.notes, state.order, by, V.scriptSheet(state).map((c) => c.name));
+			const books = (saved.notebooks ??= {});
+			books[by] = NB.recordNotebook(books[by], book, notebookCtx());
+			save();
+			break;
+		}
+		case 'chat': {
+			const by = seatOfPeer(peer);
+			if (by === null || !state.seats[by]) return;
+			const about = typeof msg.about === 'number' && msg.about !== by && state.seats[msg.about] ? msg.about : null;
+			// One open request per player: asking again only updates whom it is about.
+			chatAsks = [...chatAsks.filter((a) => a.by !== by), { by, about }];
+			const books = (saved.notebooks ??= {});
+			books[by] = NB.recordChat(books[by], about, { ...notebookCtx(), valid: about !== null });
+			save();
+			sendTo(peer, { t: 'note', text: 'The Storyteller knows you would like a word.' });
+			village?.toast(`${name(by)} would like a word with you`);
+			break;
+		}
 		case 'hand': {
 			const s = seatOfPeer(peer);
 			if (s === null || !openNomination()) return;
@@ -2828,6 +2878,12 @@ function fromPhone(peer: string, msg: PlayerMsg) {
 		}
 	}
 	render();
+}
+
+/** When, in the game's own words, and how far the event log has got: the stamp on a notebook entry. */
+function notebookCtx() {
+	const p = state.phase;
+	return { at: saved.events.length, when: p.kind === 'night' ? `Night ${p.n}` : p.kind === 'day' ? `Day ${p.n}` : p.kind === 'over' ? 'after the game' : 'before the game', nameOf: name };
 }
 
 /** Tries at taking back our own code after a reload, while the broker still holds the old one. */

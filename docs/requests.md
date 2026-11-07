@@ -31,7 +31,7 @@ Asked for by the user, not yet built. Newest first; tick off (move to "Done") as
 - The circle with names, at any time.
 - The script's characters and their abilities.
 - Their own character, with portrait and ability.
-- On their own circle: their guesses, notes and statuses (private to them). **Done:** tap a player on your circle: marks (Good?, Evil?, Drunk?, Poisoned?, Trusted, Lying), a line of words, a guess at their character; kept only on that phone.
+- On their own circle: their guesses, notes and statuses. **Done, reworked (grim-016):** Menu → The notebook, a page for each other player: a mark (Alive, Dead, Suspected, Cleared), a guess at their character and a line of words. The player writes all of it; nothing is filled in from the game. It is kept on the phone and sent to the Storyteller, who sees every change in the Chronicle (and the notebooks as they stand), and never to other players. "Ask for a chat" tells the Storyteller the player wants a word (in the village, People → Storyteller → Ask opens the private word); the Storyteller decides what to tell them. Logic in src/net/notebook.ts, tests/notebook.test.ts.
 - A setup option: a log of the information each player has received, which they can read back. **Done:** Settings → Players' phones → Keep a log for each player.
 
 **Village**

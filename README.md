@@ -29,6 +29,7 @@ An ASCII Storyteller's companion for **Blood on the Clocktower**, styled as a la
 - each player can see their own character (hidden until they tap, in case of wandering eyes);
 - at night the Storyteller taps *Send to Ada's phone*: her phone buzzes with her pages, she chooses on her own phone, and the choice comes straight back (for the Fortune Teller and Ravenkeeper, the Storyteller then sends the answer);
 - every phone shows the circle as the room knows it (deaths only at dawn), the block, the clock, and the announcements.
+- a **notebook** (Menu → The notebook): a page for every other player where the player writes a mark (alive, dead, suspected, cleared), a guess at their character and a line of words. Nothing is filled in from the game. It is sent to the Storyteller, who reads every change in the Chronicle; no other player ever sees it. *Ask for a chat* tells the Storyteller the player wants a word, and the Storyteller decides what, if anything, to say.
 
 The Storyteller's phone runs the game; the others only show what `src/net/views.ts` says that player may see, and that file is covered by tests so nothing secret leaks. Phones find each other through PeerJS's free public broker and then talk directly (WebRTC), so they need internet (wifi or mobile data). Hand-the-phone still works for anyone without one.
 

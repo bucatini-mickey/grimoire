@@ -64,6 +64,6 @@ Recommendation when we get there: WebRTC with the host on the Storyteller's phon
 ## Next steps (mode 1)
 
 - Travellers, and Teensyville scripts.
-- Per-player private notes; Storyteller reminder tokens.
+- Storyteller reminder tokens. (Per-player notes are done: the notebook, src/net/notebook.ts.)
 - A proper interaction graph drawing (the Ties grid is the data already).
 - Fonts bundled into the file for fully offline use, and character close-ups as ASCII stained glass.
