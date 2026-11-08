@@ -44,6 +44,7 @@ only checks that a `safe-tonight` effect exists, never whether the Innkeeper sti
 Innkeeper and a guest, `drunk: Innkeeper`): both survive. The existing test (`tests/bmr.test.ts:107-113`) asserts
 `!alive(2) || !alive(3) || isDrunk(2)`, and `isDrunk(2)` is always true there, so it cannot fail. The same
 check would be needed if the Innkeeper became droisoned after choosing, but only the self case is reachable in the normal order.
+**Fixed (grim-034):** `innkeeperProtects` (rules.ts) also requires the Innkeeper to be sober and healthy now; `attemptDeath` and the grimoire reminder use it. Tests: bmr.test.ts, tests/regressions/innkeeper-self-1.json.
 
 **A2. BMR-EXORCIST [run].** Doc: a chosen Demon's other abilities still work (Zombuul survives, "Pukka's previous victim
 dies", "Shabaloth may regurgitate"). `night.ts:209-216` removes Pukka and Shabaloth from the night when `exorcised`, so
@@ -55,6 +56,7 @@ run "the death/regurgitation half without the choosing half".
 `engine.ts:771-775` handles only the Monk for an Imp choosing themself, then `starpass()` emits `died` directly
 (`engine.ts:1024`), bypassing `attemptDeath`. Scenario: Innkeeper protects the Imp, Imp chooses themself, Scarlet Woman
 catches; the Imp dies and she becomes the Imp. (The Fang Gu's jump has the same bypass; that one is a documented approximation, SNV-MODEL-FANG-GU.)
+**Fixed for the Imp (grim-034):** an Innkeeper-protected Imp who chooses themself is saved like a Monk-protected one (nothing happens, no new Imp). The Fang Gu jump is untouched, pending a ruling. Tests: bmr.test.ts, tests/regressions/innkeeper-starpass-1.json.
 
 **A4. TB-DRUNK-WAKES applied to the Juggler [run].** `juggle()` returns before recording guesses unless the seat's real
 character is the Juggler (`engine.ts:1300`), and the Juggler's night step requires recorded guesses (`night.ts:222`). Result:

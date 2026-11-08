@@ -20,7 +20,7 @@ import { reduce } from './state.ts';
 import { allowedCompositions, charDef, getScript, teamAlignment, evilLearnEachOther, MIN_PLAYERS, MAX_PLAYERS } from './script.ts';
 import {
 	hasWorkingAbility, isDroisoned, judgeInfo, living, livingDemons, registrations, seat, teamOf,
-	canRegisterAsTeam, mustRegisterAsTeam, safeFromDemon, butlerMaster, abilityWorks, teaLadyProtects, inForce, reallyAlive,
+	canRegisterAsTeam, mustRegisterAsTeam, safeFromDemon, innkeeperProtects, butlerMaster, abilityWorks, teaLadyProtects, inForce, reallyAlive,
 	livingNeighbours, livingResidents, vortoxWorks
 } from './rules.ts';
 import { FABLED } from './scripts/fabled.ts';
@@ -771,8 +771,9 @@ function choose(tx: Tx, kind: string, by: SeatId, cmd: Extract<Command, { type: 
 			goonCatches(tx, by, t);
 			if (!works(tx, by, kind)) return;
 			if (t === by) {
-				// A Monk-protected Imp who chooses themself: nothing happens, and no new Imp is made.
+				// A Monk-protected Imp who chooses themself: nothing happens, and no new Imp is made. Nor for one the Innkeeper keeps safe (only the Assassin gets past).
 				if (safeFromDemon(tx.state, by)) return emit(tx, { type: 'kill-prevented', target: by, reason: 'protected by the Monk' });
+				if (innkeeperProtects(tx.state, by)) return emit(tx, { type: 'kill-prevented', target: by, reason: 'the Innkeeper' });
 				return starpass(tx, by, cmd.newDemon);
 			}
 			attemptDeath(tx, t, { cause: 'demon' });
@@ -904,7 +905,7 @@ function attemptDeath(tx: Tx, t: SeatId, d: Death): boolean {
 		const prevent = (reason: string) => { emit(tx, { type: 'kill-prevented', target: t, reason }); return false; };
 		if (d.cause === 'demon' && safeFromDemon(s, t)) return prevent('protected by the Monk');
 		if (d.cause === 'demon' && hasWorkingAbility(s, t, 'soldier')) return prevent('the Soldier');
-		if (night && s.effects.some((e) => e.kind === 'safe-tonight' && e.target === t)) return prevent('the Innkeeper');
+		if (night && innkeeperProtects(s, t)) return prevent('the Innkeeper');
 		if (teaLadyProtects(s, t)) return prevent('the Tea Lady');
 		if (d.cause !== 'execution' && s.fabled?.some((f) => f.id === 'storm-catcher' && f.character === v.character) && v.alignment === 'good') return prevent('the Storm Catcher');
 		if (abilityWorks(s, t, 'sailor')) return prevent('the Sailor');

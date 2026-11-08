@@ -4,7 +4,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { perform, nextStep, nightSteps, isDrunk, allowedCompositions, getScript, wokeTonight } from '../src/core/index.ts';
+import { perform, nextStep, nightSteps, isDrunk, allowedCompositions, getScript, wokeTonight, reminders, customScriptId } from '../src/core/index.ts';
 import type { GameState, SeatId } from '../src/core/index.ts';
 import { gameOn, autoNight, ok, refused } from './helpers.ts';
 
@@ -105,11 +105,43 @@ test('BMR-INNKEEPER: two players safe tonight from anything (not the Assassin); 
 });
 
 test('BMR-INNKEEPER-SELF: the Innkeeper picks themself and is the drunk one: neither is protected', () => {
+	// 0 shabaloth, 1 godfather, 2 innkeeper, 3 chambermaid, 4 grandmother, 5 tinker, 6 gambler
 	const chars = ['shabaloth', 'godfather', 'innkeeper', 'chambermaid', 'grandmother', 'tinker', 'gambler'];
-	let s = night2(chars);
-	s = autoNight(s, { innkeeper: { type: 'choose', targets: [2, 3], drunk: 2 }, shabaloth: { type: 'choose', targets: [2, 3], regurgitate: null } });
-	// The drunk effect lands after the safety: but the rules say a drunk Innkeeper protects no one.
-	assert.ok(!alive(s, 2) || !alive(s, 3) || isDrunk(s, 2));
+	const hit = (drunk: SeatId) => autoNight(night2(chars), { innkeeper: { type: 'choose', targets: [2, 3], drunk }, shabaloth: { type: 'choose', targets: [2, 3], regurgitate: null } });
+	// The Innkeeper is the drunk one: the Shabaloth kills both of them.
+	const s = hit(2);
+	assert.equal(alive(s, 2), false, 'the drunk Innkeeper is not protected');
+	assert.equal(alive(s, 3), false, 'and neither is their guest');
+	assert.ok(!reminders(s, 3).includes('safe'), 'the Grimoire does not show the guest as safe');
+	// The same night with the guest as the drunk one: the Innkeeper still works, so both are safe.
+	const t = hit(3);
+	assert.ok(alive(t, 2) && alive(t, 3), 'a sober Innkeeper protects both');
+	assert.ok(isDrunk(t, 3) && !isDrunk(t, 2));
+	assert.ok(reminders(t, 3).includes('safe') && reminders(t, 2).includes('safe'));
+});
+
+test('BMR-INNKEEPER-SAFE: an Innkeeper-protected Imp who chooses themself does not starpass', () => {
+	// 0 imp, 1 scarlet-woman, 2 innkeeper, 3 gambler, 4 grandmother, 5 tinker, 6 sailor (a custom script: the Imp is not in Bad Moon Rising)
+	const chars = ['imp', 'scarlet-woman', 'innkeeper', 'gambler', 'grandmother', 'tinker', 'sailor'];
+	const id = customScriptId([...chars, 'washerwoman', 'librarian', 'investigator']);
+	const night = (inn: { targets: SeatId[]; drunk: SeatId }) => {
+		const s = dusk(dawn(autoNight(gameOn(id, chars))));
+		return autoNight(s, { innkeeper: { type: 'choose', ...inn }, imp: { type: 'choose', target: 0 } });
+	};
+	// Protected (the Imp is a guest, the other guest is the drunk one): the Imp lives, is still the Imp, and the Scarlet Woman stays what she is.
+	const safe = night({ targets: [0, 3], drunk: 3 });
+	assert.equal(safe.seats[0].alive, true, 'the Imp is safe from their own starpass');
+	assert.equal(safe.seats[0].character, 'imp');
+	assert.equal(safe.seats[1].character, 'scarlet-woman', 'no one took over');
+	assert.ok(safe.seats.every((x) => x.alive));
+	// Not protected: the Innkeeper is the drunk one, so the starpass goes ahead and the Scarlet Woman catches it.
+	const open = night({ targets: [0, 2], drunk: 2 });
+	assert.equal(open.seats[0].alive, false, 'a drunk Innkeeper does not stop the starpass');
+	assert.equal(open.seats[1].character, 'imp', 'the Scarlet Woman became the Imp');
+	// Not protected: the Innkeeper picked other players.
+	const away = night({ targets: [3, 4], drunk: 3 });
+	assert.equal(away.seats[0].alive, false);
+	assert.equal(away.seats[1].character, 'imp');
 });
 
 test('BMR-GAMBLER: a wrong guess kills the Gambler; a right one does not', () => {

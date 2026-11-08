@@ -1,0 +1,119 @@
+{
+ "rule": "innkeeper",
+ "detail": "a drunk Innkeeper who chose themself kept both guests safe from the Shabaloth",
+ "seed": 0,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen"
+   ],
+   "scriptId": "bad-moon-rising"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "shabaloth",
+    "godfather",
+    "innkeeper",
+    "chambermaid",
+    "grandmother",
+    "tinker",
+    "gambler"
+   ],
+   "bluffs": [
+    "sailor",
+    "exorcist",
+    "gossip"
+   ],
+   "redHerring": null,
+   "allowNonstandard": true
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge",
+   "mayorRedirect": null
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "characters",
+    "characters": [
+     "tinker"
+    ]
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "reveal",
+    "player": 2,
+    "character": "innkeeper"
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     0,
+     1
+    ],
+    "value": 1
+   }
+  },
+  {
+   "type": "acknowledge",
+   "mayorRedirect": null
+  },
+  {
+   "type": "acknowledge",
+   "mayorRedirect": null
+  },
+  {
+   "type": "acknowledge",
+   "mayorRedirect": null
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day",
+   "executionSurvives": false
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2,
+    3
+   ],
+   "drunk": 2
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ],
+   "mayorRedirect": null,
+   "regurgitate": null,
+   "drunk": 1,
+   "character": "godfather"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2,
+    3
+   ],
+   "regurgitate": null
+  }
+ ]
+}

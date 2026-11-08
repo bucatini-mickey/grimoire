@@ -24,6 +24,8 @@ const files = {
 	views: new URL('../../src/net/views.ts', import.meta.url),
 	candidates: new URL('../../src/core/candidates.ts', import.meta.url)
 };
+/** Planted bugs only the random custom scripts can reach (the Imp and the Innkeeper are on no one official script): played with `mix`. */
+const MIXED = new Set(['Innkeeper-protected Imp starpasses']);
 /** One planted bug: a name, a file, and one or more [from, to] replacements in it. */
 type Mutant = [name: string, file: keyof typeof files, from: string, to: string, ...more: string[]];
 const MUTANTS: Mutant[] = [
@@ -56,7 +58,9 @@ const MUTANTS: Mutant[] = [
 	// Bad Moon Rising
 	['Tea Lady ignored', 'engine', "if (teaLadyProtects(s, t)) return prevent('the Tea Lady');", ''],
 	['Sober Sailor dies', 'engine', "if (abilityWorks(s, t, 'sailor')) return prevent('the Sailor');", ''],
-	['Innkeeper ignored', 'engine', "if (night && s.effects.some((e) => e.kind === 'safe-tonight' && e.target === t)) return prevent('the Innkeeper');", ''],
+	['Innkeeper ignored', 'engine', "if (night && innkeeperProtects(s, t)) return prevent('the Innkeeper');", ''],
+	['Drunk Innkeeper protects', 'rules', '(e.by === null || !isDroisoned(state, e.by)));', 'true);'],
+	['Innkeeper-protected Imp starpasses', 'engine', 'if (innkeeperProtects(tx.state, by)) return emit(', 'if (false) return emit('],
 	['Fool saved every time', 'engine', "if (abilityWorks(s, t, 'fool') && !s.spent.includes(`${t}:fool`)) {", "if (abilityWorks(s, t, 'fool')) {"],
 	['Zombuul dies at once', 'engine', "if (abilityWorks(s, t, 'zombuul') && !v.undead) {", 'if (false) {'],
 	['Goon never catches', 'engine', "if (!abilityWorks(s, target, 'goon') || target === by) return false;", 'return false;'],
@@ -130,7 +134,7 @@ for (const [name, file, ...pairs] of MUTANTS) {
 	writeFileSync(url, planted);
 	let out = '';
 	try {
-		out = execFileSync(process.execPath, [fileURLToPath(new URL(process.env.QUICK ? './first.ts' : './run.ts', import.meta.url)), games, '1'], { encoding: 'utf8' });
+		out = execFileSync(process.execPath, [fileURLToPath(new URL(process.env.QUICK ? './first.ts' : './run.ts', import.meta.url)), games, '1', ...(MIXED.has(name) ? ['mix'] : [])], { encoding: 'utf8' });
 	} catch (e) {
 		out = (e as { stdout?: string }).stdout ?? String(e);
 	} finally {

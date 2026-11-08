@@ -128,6 +128,11 @@ export function wokeTonight(state: GameState, id: SeatId): boolean {
 	});
 }
 
+/** The Innkeeper keeps this player safe tonight, and the Innkeeper still can: a drunk or poisoned Innkeeper protects no one. */
+export function innkeeperProtects(state: GameState, id: SeatId): boolean {
+	return state.effects.some((e) => e.kind === 'safe-tonight' && e.target === id && (e.by === null || !isDroisoned(state, e.by)));
+}
+
 /** The Tea Lady protects both her living neighbours while both are good. */
 export function teaLadyProtects(state: GameState, id: SeatId): boolean {
 	return state.seats.some((x) => {
@@ -161,7 +166,7 @@ export function reminders(state: GameState, id: SeatId): string[] {
 		if (e.kind === 'master') out.push('master');
 		if (e.kind === 'drunk' && inForce(state, e)) out.push('drunk');
 		if (e.kind === 'poisoned' && e.role !== 'poisoner' && inForce(state, e)) out.push('poisoned');
-		if (e.kind === 'safe-tonight') out.push('safe');
+		if (e.kind === 'safe-tonight' && (e.by === null || !isDroisoned(state, e.by))) out.push('safe');
 		if (e.kind === 'survives-execution') out.push('survives');
 		if (e.kind === 'grandchild') out.push('grandchild');
 		if (e.kind === 'exorcised') out.push('exorcised');

@@ -312,6 +312,8 @@ function noDashiiNext(s: GameState, id: SeatId, depth: number): boolean {
 }
 /** Read from the effects list as plain data. */
 const protectedTonight = (s: GameState, id: SeatId) => s.effects.some((e) => e.kind === 'safe-from-demon' && e.target === id);
+/** The Innkeeper keeps them safe tonight: the effect is there and the Innkeeper is not drunk or poisoned (read from the effects list as plain data). */
+const innkeeperKeeps = (s: GameState, id: SeatId) => s.effects.some((e) => e.kind === 'safe-tonight' && e.target === id && (e.by === null || !dp(s, e.by)));
 const masterOf = (s: GameState, by?: SeatId) => s.effects.find((e) => e.kind === 'master' && (by === undefined || e.by === by))?.target ?? null;
 /** Alive (or the undead Zombuul), really this character, and neither drunk nor poisoned. */
 /** A Minion the Vigormortis killed keeps their ability while dead. */
@@ -708,6 +710,11 @@ export class Checker {
 				if (has((x) => x.type === 'died' && x.seat === e.by) || has((x) => x.type === 'became-demon')) this.fail('starpass', 'the Monk-protected Imp chose itself and something happened');
 				continue;
 			}
+			if (innkeeperKeeps(prev, e.by)) {
+				this.hit('starpass: the Innkeeper protects the Imp');
+				if (has((x) => x.type === 'died' && x.seat === e.by) || has((x) => x.type === 'became-demon')) this.fail('innkeeper', 'the Imp the Innkeeper keeps safe chose itself and something happened');
+				continue;
+			}
 			if (!has((x) => x.type === 'died' && x.seat === e.by && x.cause === 'starpass')) { this.fail('starpass', `${nm(e.by)}, a working Imp, chose itself and did not die`); continue; }
 			const sw = prev.seats.find((x) => x.alive && working(prev, x.id, 'scarlet-woman'));
 			const minions = prev.seats.filter((x) => x.alive && x.id !== e.by && teamIn(prev, x.character) === 'minion').map((x) => x.id);
@@ -947,7 +954,7 @@ export class Checker {
 				// Nothing kills the protected but the Assassin (and an Imp passing on, and the Saint's own execution).
 				// No ability touches an exile (or a Traveller leaving).
 				if (e.cause !== 'assassin' && e.cause !== 'starpass' && e.cause !== 'fang-gu' && e.cause !== 'exile' && e.cause !== 'left') {
-					if (night && b.effects.some((x) => x.kind === 'safe-tonight' && x.target === e.seat)) this.fail('innkeeper', `${name(e.seat)} died though the Innkeeper kept them safe`);
+					if (night && innkeeperKeeps(b, e.seat)) this.fail('innkeeper', `${name(e.seat)} died though the Innkeeper kept them safe`);
 					if (teaLadyGuards(b, e.seat)) this.fail('tea-lady', `${name(e.seat)} died though the Tea Lady protects them`);
 					if (working(b, e.seat, 'sailor')) this.fail('sailor', `${name(e.seat)}, a sober Sailor, died`);
 					if (e.cause !== 'execution' && e.cause !== 'doomsayer' && v.alignment === 'good' && b.fabled?.some((f) => f.id === 'storm-catcher' && f.character === v.character)) this.fail('storm-catcher', `${name(e.seat)}, the Storm Catcher's character, died by ${e.cause}`);
@@ -967,6 +974,7 @@ export class Checker {
 					this.fail('mayor-bounce', `${name(e.seat)}, a working Mayor, died though the Storyteller redirected the kill`);
 				}
 				if (e.cause === 'starpass' && protectedTonight(b, e.seat)) this.fail('monk-protects', `${name(e.seat)}, the Monk-protected Imp, died choosing themself`);
+				if (e.cause === 'starpass' && innkeeperKeeps(b, e.seat)) this.fail('innkeeper', `${name(e.seat)}, the Imp the Innkeeper keeps safe, died choosing themself (only the Assassin gets past)`);
 				if (e.cause === 'starpass' && !(cmd.type === 'choose' && (cmd.target === e.seat || cmd.targets?.[0] === e.seat) && v.character === 'imp')) {
 					this.fail('starpass', `${name(e.seat)} died by starpass without choosing themselves as the Imp`);
 				}
@@ -1095,6 +1103,7 @@ export class Checker {
 			}
 			case 'kill-prevented': {
 				if (e.reason === 'protected by the Monk' && !this.monkTonight.has(e.target)) this.fail('monk', `${name(e.target)} saved by a Monk who did not protect them`);
+				if (e.reason === 'the Innkeeper' && !innkeeperKeeps(b, e.target)) this.fail('innkeeper', `${name(e.target)} saved by an Innkeeper who was drunk or poisoned, or who did not choose them`);
 				if (e.reason === 'the Soldier' && !working(b, e.target, 'soldier')) this.fail('soldier-is-safe', `${name(e.target)} saved as a Soldier without being a working one`);
 				if (e.reason === 'the Fool' && !(b.seats[e.target].character === 'fool')) this.fail('fool', `${name(e.target)} saved as the Fool without being one`);
 				if (e.reason === 'the Fool' && this.start!.spent.includes(`${e.target}:fool`) && !this.events.some((x) => x.type === 'revived' && x.seat === e.target)) this.fail('fool', `${name(e.target)} saved by the Fool a second time`);
