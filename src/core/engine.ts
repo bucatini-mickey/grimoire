@@ -21,7 +21,7 @@ import { allowedCompositions, charDef, getScript, teamAlignment, evilLearnEachOt
 import {
 	hasWorkingAbility, isDroisoned, judgeInfo, living, livingDemons, registrations, seat, teamOf,
 	canRegisterAsTeam, mustRegisterAsTeam, safeFromDemon, innkeeperProtects, butlerMaster, abilityWorks, teaLadyProtects, inForce, reallyAlive,
-	livingNeighbours, livingResidents, vortoxWorks
+	livingNeighbours, livingResidents, vortoxWorks, goonCatchEvents, tellChoices
 } from './rules.ts';
 import { FABLED } from './scripts/fabled.ts';
 import { REVEAL, MINION_INFO, DEMON_INFO, NEW_DEMON, GODFATHER_INFO, EXORCISED, LUNATIC_INFO, LUNATIC, TRAVELLER_INFO, nextStep, stepAction } from './night.ts';
@@ -534,13 +534,9 @@ const works = (tx: Tx, by: SeatId, kind: string) => !isDroisoned(tx.state, by) &
  * was already drunk or poisoned. Returns true if it happened now.
  */
 function goonCatches(tx: Tx, by: SeatId, target: SeatId): boolean {
-	const s = tx.state;
-	if (!abilityWorks(s, target, 'goon') || target === by) return false;
-	if (s.effects.some((e) => e.kind === 'drunk' && e.role === 'goon')) return false; // already caught someone tonight
-	emit(tx, { type: 'effect-added', effect: { kind: 'drunk', target: by, by: target, role: 'goon', until: 'dusk' } });
-	const al = s.seats[by].alignment;
-	if (s.seats[target].alignment !== al) emit(tx, { type: 'alignment-changed', seat: target, alignment: al });
-	return true;
+	const events = goonCatchEvents(tx.state, by, target);
+	for (const e of events) emit(tx, e);
+	return events.length > 0;
 }
 
 function choose(tx: Tx, kind: string, by: SeatId, cmd: Extract<Command, { type: 'choose' }>) {
@@ -1093,9 +1089,12 @@ function checkWin(tx: Tx, ctx: { demonExecuted?: boolean } = {}) {
 }
 
 function tell(tx: Tx, kind: string, to: SeatId, cmd: Extract<Command, { type: 'tell' }>) {
+	const shape = judgeInfo(tx.state, to, kind, cmd.info);
+	if (!shape.wellFormed) refuse(shape.reason);
+	// The players they point at: the first player each night to choose the Goon is caught, as with any other choice.
+	for (const c of tellChoices(kind, cmd.info)) goonCatches(tx, to, c);
 	const s = tx.state;
 	const v = judgeInfo(s, to, kind, cmd.info);
-	if (!v.wellFormed) refuse(v.reason);
 	const droisoned = isDroisoned(s, to);
 	// With a working Vortox, every Townsfolk's information is false (the Mathematician's count is the Storyteller's to judge).
 	const vortox = vortoxWorks(s) && kind !== 'mathematician' && getScript(s.scriptId).characters.find((c) => c.id === kind)?.team === 'townsfolk';
@@ -1317,7 +1316,8 @@ function juggle(tx: Tx, cmd: Extract<Command, { type: 'juggle' }>) {
 	if (new Set(cmd.guesses.map((g) => g.player)).size !== cmd.guesses.length) refuse('One guess per player.');
 	emit(tx, { type: 'note', text: `${s.seats[cmd.by].name} juggles: ${cmd.guesses.map((g) => `${s.seats[g.player].name} is the ${charDef(script, g.character).name}`).join('; ')}.` });
 	emit(tx, { type: 'ability-spent', seat: cmd.by, ability: 'juggle' });
-	if (s.seats[cmd.by].character !== 'juggler') return;
+	// Recorded for whoever believes they are the Juggler: a Drunk wakes on the night after like a real one (their answer is the Storyteller's to make up).
+	if (s.seats[cmd.by].believes !== 'juggler') return;
 	for (const g of cmd.guesses) emit(tx, { type: 'effect-added', effect: { kind: 'juggled', target: g.player, by: cmd.by, role: 'juggler', until: 'game', note: g.character } });
 }
 

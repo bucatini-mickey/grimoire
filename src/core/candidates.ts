@@ -20,7 +20,7 @@ import type { CharacterId, GameState, Info, Seat, SeatId } from './types.ts';
 import { charDef, getScript, charactersOfTeam } from './script.ts';
 import { possibleAnswers, suggestInfo } from './suggest.ts';
 import {
-	chefNumbers, clockwiseFrom, empathNumbers, fortuneAnswers, isDroisoned, judgeInfo, livingNeighbours, PAIR_ROLE_TEAM, registrations, teamOf, vortoxWorks
+	afterGoon, chefNumbers, clockwiseFrom, empathNumbers, fortuneAnswers, isDroisoned, judgeInfo, livingNeighbours, PAIR_ROLE_TEAM, registrations, teamOf, vortoxWorks
 } from './rules.ts';
 
 export type Lean = 'neutral' | 'good' | 'evil';
@@ -39,7 +39,9 @@ function around(state: GameState, from: SeatId): Seat[] {
 
 const isEvil = (s: Seat) => s.alignment === 'evil';
 
-export function infoCandidates(state: GameState, role: string, to: SeatId, chosen: SeatId[] = []): Candidate[] {
+export function infoCandidates(asNow: GameState, role: string, to: SeatId, chosen: SeatId[] = []): Candidate[] {
+	// Choosing the Goon first tonight makes them drunk (and turns the Goon) before they learn anything.
+	const state = afterGoon(asNow, role, to, chosen);
 	const out: Candidate[] = [];
 	const seen = new Set<string>();
 	const droisoned = isDroisoned(state, to);

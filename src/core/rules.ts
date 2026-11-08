@@ -16,7 +16,8 @@
  * combination of allowed registrations makes it true. That leaves every
  * legitimate Storyteller choice open, and rules out everything else.
  */
-import type { Alignment, CharacterId, Effect, GameState, Info, Seat, SeatId } from './types.ts';
+import type { Alignment, CharacterId, Effect, GameEvent, GameState, Info, Seat, SeatId } from './types.ts';
+import { reduce } from './state.ts';
 import { charDef, charactersOfTeam, getScript, teamAlignment } from './script.ts';
 
 export function seat(state: GameState, id: SeatId): Seat {
@@ -188,6 +189,43 @@ export function reminders(state: GameState, id: SeatId): string[] {
 
 export function isDroisoned(state: GameState, id: SeatId): boolean {
 	return isDrunk(state, id) || isPoisoned(state, id);
+}
+
+/**
+ * The Goon: the first player each night to choose them with their ability is drunk until dusk, and the Goon takes
+ * that player's alignment (even if the chooser was already drunk or poisoned). The events if `by` choosing `target`
+ * now is that catch, else none (not the Goon, not working, themself, or the Goon already caught someone tonight).
+ */
+export function goonCatchEvents(state: GameState, by: SeatId, target: SeatId): GameEvent[] {
+	if (!abilityWorks(state, target, 'goon') || target === by) return [];
+	if (state.effects.some((e) => e.kind === 'drunk' && e.role === 'goon')) return []; // already caught someone tonight
+	const events: GameEvent[] = [{ type: 'effect-added', effect: { kind: 'drunk', target: by, by: target, role: 'goon', until: 'dusk' } }];
+	const al = state.seats[by].alignment;
+	if (state.seats[target].alignment !== al) events.push({ type: 'alignment-changed', seat: target, alignment: al });
+	return events;
+}
+
+/** Roles that choose players inside their information step, and read from the answer whom they chose. */
+const TELL_PICKERS = ['fortune-teller', 'chambermaid', 'seamstress', 'dreamer', 'ravenkeeper'];
+
+/** The players an information role chooses with its ability, read from the answer: the Fortune Teller, Chambermaid, Seamstress, Dreamer and Ravenkeeper. */
+export function tellChoices(role: string, info: Info): SeatId[] {
+	switch (role) {
+		case 'fortune-teller': return info.kind === 'fortune' ? [...info.players] : [];
+		case 'chambermaid': return info.kind === 'woke' ? [...info.players] : [];
+		case 'seamstress': return info.kind === 'same' ? [...info.players] : [];
+		case 'dreamer': return info.kind === 'dream' ? [info.player] : [];
+		case 'ravenkeeper': return info.kind === 'reveal' ? [info.player] : [];
+	}
+	return [];
+}
+
+/** The game as it stands once this information role has chosen these players, the Goon's catch (if any) included. */
+export function afterGoon(state: GameState, role: string, to: SeatId, chosen: SeatId[]): GameState {
+	if (state.phase.kind !== 'night' || !TELL_PICKERS.includes(role)) return state;
+	let s = state;
+	for (const t of chosen) for (const e of goonCatchEvents(s, to, t)) s = reduce(s, e);
+	return s;
 }
 
 /** The seat really is `character`, and that ability is working right now. */

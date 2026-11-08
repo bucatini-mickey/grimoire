@@ -62,11 +62,13 @@ catches; the Imp dies and she becomes the Imp. (The Fang Gu's jump has the same 
 character is the Juggler (`engine.ts:1300`), and the Juggler's night step requires recorded guesses (`night.ts:222`). Result:
 a Drunk who believes they are the Juggler is skipped on night 2 while a real Juggler wakes. The Storyteller cannot even
 give them the false answer, and the skipped wake is a tell. Every other Drunk-as-Townsfolk wakes.
+**Fixed (grim-035):** `juggle()` keeps the guesses for whoever believes they are the Juggler, so the Drunk wakes the night after like a real one and the Storyteller can give any answer. Tests: goon-juggler.test.ts, tests/regressions/drunk-juggler-1.json.
 
 **A5. BMR-GOON [read].** Doc: the first player each night to choose the Goon with their ability is drunk and the Goon takes
 their alignment. `goonCatches` is called from every `choose()` branch, but players whose choosing happens inside an
 information step (`tell`, `engine.ts:1075`) never reach it: Fortune Teller, Chambermaid, Dreamer, Seamstress,
 Ravenkeeper. Their picks are only checked for shape in `judgeInfo`.
+**Fixed (grim-035):** `tell()` reads whom these roles chose from the answer (`tellChoices`, rules.ts) and runs the same Goon catch (`goonCatchEvents`) before judging the answer, so a first chooser is drunk and an answer to them is judged as to a drunk player; a Goon already used tonight does not catch again. The grimoire (`afterGoon`, `infoCandidates`) shows the catch and offers false answers once the picks include the Goon. Tests: goon-juggler.test.ts, tests/regressions/goon-information-1.json; checker invariants and two planted-bug checks in tests/sim.
 
 **A6. SNV-MUTANT / SNV-CERENOVUS [run].** Doc: madness execution "even at night; counts as the day's execution". The
 `madness` command calls `requireDay` (`engine.ts:256-263`), so at night it is refused ("It is not day."), and it also

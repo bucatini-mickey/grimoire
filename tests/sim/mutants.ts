@@ -25,7 +25,7 @@ const files = {
 	candidates: new URL('../../src/core/candidates.ts', import.meta.url)
 };
 /** Planted bugs only the random custom scripts can reach (the Imp and the Innkeeper are on no one official script): played with `mix`. */
-const MIXED = new Set(['Innkeeper-protected Imp starpasses']);
+const MIXED = new Set(['Innkeeper-protected Imp starpasses', 'Drunk Juggler not woken']);
 /** One planted bug: a name, a file, and one or more [from, to] replacements in it. */
 type Mutant = [name: string, file: keyof typeof files, from: string, to: string, ...more: string[]];
 const MUTANTS: Mutant[] = [
@@ -63,7 +63,9 @@ const MUTANTS: Mutant[] = [
 	['Innkeeper-protected Imp starpasses', 'engine', 'if (innkeeperProtects(tx.state, by)) return emit(', 'if (false) return emit('],
 	['Fool saved every time', 'engine', "if (abilityWorks(s, t, 'fool') && !s.spent.includes(`${t}:fool`)) {", "if (abilityWorks(s, t, 'fool')) {"],
 	['Zombuul dies at once', 'engine', "if (abilityWorks(s, t, 'zombuul') && !v.undead) {", 'if (false) {'],
-	['Goon never catches', 'engine', "if (!abilityWorks(s, target, 'goon') || target === by) return false;", 'return false;'],
+	['Goon ignores information steps', 'engine', 'for (const c of tellChoices(kind, cmd.info)) goonCatches(tx, to, c);', ''],
+	['Drunk Juggler not woken', 'engine', "if (s.seats[cmd.by].believes !== 'juggler') return;", "if (s.seats[cmd.by].character !== 'juggler') return;"],
+	['Goon never catches', 'rules', "if (!abilityWorks(state, target, 'goon') || target === by) return [];", 'return [];'],
 	['Minstrel silent', 'engine', "for (const m of tx.state.seats.filter((x) => abilityWorks(tx.state, x.id, 'minstrel'))) {", 'for (const m of tx.state.seats.filter((x) => x.id < 0)) {'],
 	['Mastermind forgotten', 'engine', "if (ctx.demonExecuted && s.day && s.seats.some((x) => abilityWorks(s, x.id, 'mastermind'))) {", 'if (false) {'],
 	['Assassin stopped by protection', 'engine', "attemptDeath(tx, t, { cause: 'assassin', ignoreProtection: true });", "attemptDeath(tx, t, { cause: 'assassin', ignoreProtection: false });"],

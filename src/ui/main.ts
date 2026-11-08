@@ -1431,7 +1431,8 @@ rows.push(...prose(who ? `${who.name}, the ${charName(stepRole(kind, who.id))}${
 		rows.push(...tellRows(kind, step.seat!));
 		const info = ui.draftInfo;
 		// A falsehood to a hale player waits until the Storyteller insists.
-		const allowed = info && (G.judgeInfo(state, step.seat!, kind, info).truthful || G.isDroisoned(state, step.seat!) || ui.draftOverride);
+		const told = info ? afterPicks(kind, step.seat!, info) : state;
+		const allowed = info && (G.judgeInfo(told, step.seat!, kind, info).truthful || G.isDroisoned(told, step.seat!) || ui.draftOverride);
 		if (info && allowed) {
 			if (phone) rows.push(...buttonRows([sendWake(true)]));
 			rows.push(...buttonRows([
@@ -1501,12 +1502,20 @@ function chooseRows(kind: string, seat: SeatId | null, handOver: Button): Row[] 
 
 const LEAN_LABEL: Record<Lean, string> = { neutral: 'Neutral', good: 'Helps good', evil: 'Helps evil' };
 
+/** The game as it will stand once they have chosen (what the answer names, else the picks): choosing the Goon first tonight makes them drunk. */
+function afterPicks(kind: string, to: SeatId, info?: Info | null): GameState {
+	return G.afterGoon(state, kind, to, info ? G.tellChoices(kind, info) : ui.picks);
+}
+
 /** The Storyteller choosing what an information role learns. */
 function tellRows(kind: string, to: SeatId): Row[] {
 	const rows: Row[] = [];
 	const need = playerPicks(kind, state, to);
 	if (need) rows.push(...prose(`They chose ${ui.picks.map(name).join(' and ')}.`, 'gold'), blank());
-	const droisoned = G.isDroisoned(state, to);
+	const caught = afterPicks(kind, to);
+	const goon = need ? ui.picks.find((p) => caught !== state && caught.seats[p].character === 'goon') : undefined;
+	if (goon !== undefined) rows.push(...prose(`The Goon: ${name(goon)} is the first to be chosen tonight, so ${name(to)} is drunk until dusk and ${name(goon)} is now ${caught.seats[goon].alignment}.`, 'evil'), blank());
+	const droisoned = G.isDroisoned(caught, to);
 	rows.push(...prose(droisoned
 		? 'Drunk or poisoned: you may tell them anything, true or false.'
 		: 'Sober and healthy: they must be told the truth.', droisoned ? 'evil' : 'dim'));
@@ -1530,7 +1539,7 @@ function tellRows(kind: string, to: SeatId): Row[] {
 
 	const info = ui.draftInfo;
 	if (info) {
-		const v = G.judgeInfo(state, to, kind, info);
+		const v = G.judgeInfo(afterPicks(kind, to, info), to, kind, info);
 		rows.push(blank(), rubric('To tell'), ...prose(infoText(info, kind), 'gold'));
 		rows.push(...prose(v.truthful ? 'This is true.' : `This is FALSE. ${v.reason}`, v.truthful ? 'good' : 'evil'));
 		if (!v.truthful && !droisoned && !ui.draftOverride) {
@@ -1544,7 +1553,7 @@ function tellRows(kind: string, to: SeatId): Row[] {
 /** Making an answer by hand: tap players, pick a character or number. */
 function composeRows(kind: string, to: SeatId): Row[] {
 	const rows: Row[] = [];
-	const truthful = (info: Info) => G.judgeInfo(state, to, kind, info).truthful;
+	const truthful = (info: Info) => G.judgeInfo(afterPicks(kind, to, info), to, kind, info).truthful;
 	const choose = (info: Info) => { ui.draftInfo = info; ui.draftOverride = false; render(); };
 	const pick = (info: Info, label: string) =>
 		btn(label, () => choose(info), { style: JSON.stringify(ui.draftInfo) === JSON.stringify(info) ? 'on' : truthful(info) ? 'primary' : undefined });
@@ -2521,9 +2530,9 @@ function villageActions(): StActions | null {
 			}
 			const seat = who.id;
 			const chose = need ? ` chose ${ui.picks.map(name).join(' and ')}` : '';
-			const droisoned = G.isDroisoned(state, seat);
 			const info = ui.draftInfo;
-			if (info && (G.judgeInfo(state, seat, step.kind, info).truthful || droisoned || ui.draftOverride)) {
+			const droisoned = G.isDroisoned(afterPicks(step.kind, seat, info), seat);
+			if (info && (G.judgeInfo(afterPicks(step.kind, seat, info), seat, step.kind, info).truthful || droisoned || ui.draftOverride)) {
 				const told = phone
 					? { label: `Tell ${who.name}`, primary: true, act: () => wakePhone(step, phone, true) }
 					: { label: 'Done: I told them', primary: true, act: () => void act({ type: 'tell', info, override: ui.draftOverride }) };

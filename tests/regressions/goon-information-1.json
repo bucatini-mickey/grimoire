@@ -1,0 +1,310 @@
+{
+ "rule": "goon",
+ "detail": "players who choose inside an information step (Fortune Teller, Dreamer, Seamstress, Ravenkeeper) chose the Goon first and were not made drunk",
+ "seed": 0,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde"
+   ],
+   "scriptId": "custom:imp,poisoner,goon,fortune-teller,chambermaid,dreamer,seamstress,ravenkeeper,butler,monk,empath,chef,juggler,drunk,washerwoman"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "imp",
+    "poisoner",
+    "goon",
+    "fortune-teller",
+    "dreamer",
+    "seamstress",
+    "chambermaid",
+    "ravenkeeper",
+    "empath"
+   ],
+   "bluffs": [
+    "butler",
+    "monk",
+    "chef"
+   ],
+   "redHerring": 8,
+   "allowNonstandard": true
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge",
+   "mayorRedirect": null
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ],
+   "mayorRedirect": null,
+   "regurgitate": null,
+   "drunk": 3
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 1
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     2,
+     8
+    ],
+    "yes": true
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "dream",
+    "player": 0,
+    "characters": [
+     "imp",
+     "goon"
+    ]
+   }
+  },
+  {
+   "type": "skip",
+   "reason": "later"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     2,
+     8
+    ],
+    "value": 1
+   }
+  },
+  {
+   "type": "acknowledge",
+   "mayorRedirect": null
+  },
+  {
+   "type": "acknowledge",
+   "mayorRedirect": null
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day",
+   "executionSurvives": false
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ],
+   "mayorRedirect": null,
+   "regurgitate": null,
+   "drunk": 3
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ],
+   "mayorRedirect": null,
+   "regurgitate": null,
+   "drunk": 1
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 1
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     0,
+     1
+    ],
+    "yes": true
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "dream",
+    "player": 2,
+    "characters": [
+     "empath",
+     "imp"
+    ]
+   }
+  },
+  {
+   "type": "skip",
+   "reason": "later"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     0,
+     2
+    ],
+    "value": 1
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day",
+   "executionSurvives": false
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ],
+   "mayorRedirect": null,
+   "regurgitate": null,
+   "drunk": 1
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 1
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     0,
+     1
+    ],
+    "yes": true
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "dream",
+    "player": 0,
+    "characters": [
+     "imp",
+     "goon"
+    ]
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "same",
+    "players": [
+     2,
+     8
+    ],
+    "yes": true
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     0,
+     2
+    ],
+    "value": 1
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day",
+   "executionSurvives": false
+  },
+  {
+   "type": "choose",
+   "target": 7,
+   "mayorRedirect": null
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "reveal",
+    "player": 2,
+    "character": "chef"
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 1
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     0,
+     1
+    ],
+    "yes": true
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "dream",
+    "player": 0,
+    "characters": [
+     "imp",
+     "goon"
+    ]
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     0,
+     2
+    ],
+    "value": 1
+   }
+  },
+  {
+   "type": "end-night"
+  }
+ ]
+}

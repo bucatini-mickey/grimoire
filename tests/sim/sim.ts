@@ -319,6 +319,26 @@ const masterOf = (s: GameState, by?: SeatId) => s.effects.find((e) => e.kind ===
 /** A Minion the Vigormortis killed keeps their ability while dead. */
 const keeps = (s: GameState, id: SeatId) => s.effects.some((e) => e.kind === 'keeps-ability' && e.target === id);
 const working = (s: GameState, id: SeatId, c: string) => (reallyAlive(s, id) || keeps(s, id)) && s.seats[id].character === c && !dp(s, id);
+/** Information roles that choose players inside their step, and whom the answer says they chose (read as plain data). */
+const GOON_PICKERS = ['fortune-teller', 'chambermaid', 'seamstress', 'dreamer', 'ravenkeeper'];
+function pointedAt(role: string, info: Info): SeatId[] {
+	if (!GOON_PICKERS.includes(role)) return [];
+	if ('players' in info && (info.kind === 'fortune' || info.kind === 'woke' || info.kind === 'same')) return [...info.players];
+	if (info.kind === 'dream' || (info.kind === 'reveal' && role === 'ravenkeeper')) return [info.player];
+	return [];
+}
+/** The first working Goon among those chosen, if the Goon has not yet caught anyone tonight. */
+const goonToCatch = (s: GameState, by: SeatId, chosen: SeatId[]) => s.effects.some((x) => x.kind === 'drunk' && x.role === 'goon') ? undefined : chosen.find((c) => c !== by && working(s, c, 'goon'));
+/** The game once this information role has chosen these players: if the Goon catches them, drunk until dusk and the Goon turned. */
+function afterGoonPlain(s: GameState, role: string, by: SeatId, chosen: SeatId[]): GameState {
+	if (!GOON_PICKERS.includes(role) || s.phase.kind !== 'night') return s;
+	const goon = goonToCatch(s, by, chosen);
+	if (goon === undefined) return s;
+	const c = structuredClone(s);
+	c.effects.push({ kind: 'drunk', target: by, by: goon, role: 'goon', until: 'dusk' });
+	c.seats[goon].alignment = s.seats[by].alignment;
+	return c;
+}
 
 /** Set while asking whether an answer would be true if no one registered as anything but themselves (for coverage only). */
 let identityRegistration = false;
@@ -541,6 +561,8 @@ export class Checker {
 	private monkTonight = new Set<SeatId>(); // (more than one Monk can be in play: an Apprentice, a Pit-Hag)
 	/** The state when the current command began. */
 	private start: GameState | null = null;
+	/** Those who juggled and are yet to be asked, at nightfall: they wake tonight. */
+	private jugglersTonight: SeatId[] = [];
 	/** All the events of the current command. */
 	private events: GameEvent[] = [];
 	/** How far through the official night sheet tonight has got. */
@@ -666,10 +688,12 @@ export class Checker {
 			const alive = others.filter((id) => prev.seats[id].alive);
 			const chosen = d.kind === 'chambermaid' ? alive.slice(0, 2) : d.kind === 'fortune-teller' || d.kind === 'seamstress' ? others.slice(0, 2) : ['ravenkeeper', 'dreamer'].includes(d.kind) ? others.slice(0, 1) : [];
 			const cands = infoCandidates(prev, d.kind, d.seat, chosen);
-			const mustLie = vortoxOn(prev) && townsfolkRole(prev, d.kind) && d.kind !== 'mathematician';
-			const sick = dp(prev, d.seat);
+			// Choosing the Goon first tonight makes them drunk (and turns the Goon) before they learn anything.
+			const seen = afterGoonPlain(prev, d.kind, d.seat, chosen);
+			const mustLie = vortoxOn(seen) && townsfolkRole(seen, d.kind) && d.kind !== 'mathematician';
+			const sick = dp(seen, d.seat);
 			for (const c of cands) {
-				const truth = trueInfo(prev, d.seat, d.kind, c.info);
+				const truth = trueInfo(seen, d.seat, d.kind, c.info);
 				if (truth === null) { this.fail('candidate-well-formed', `${x.name} (${d.kind}) is offered ${JSON.stringify(c.info)}, of the wrong shape`); continue; }
 				if (truth !== c.truthful) this.fail('candidate-marked-right', `${x.name} (${d.kind}) is offered ${JSON.stringify(c.info)} marked truthful=${c.truthful}, really ${truth}`);
 				if (!sick && (mustLie ? truth : !truth)) this.fail('candidate-fits', `${x.name} (${d.kind}), sober, is offered ${truth ? 'a truth under the Vortox' : 'a falsehood'}: ${JSON.stringify(c.info)}`);
@@ -862,6 +886,19 @@ export class Checker {
 			const goon = e.targets.find((t) => t !== e.by && working(prev, t, 'goon'));
 			const already = prev.effects.some((x) => x.kind === 'drunk' && x.role === 'goon');
 			if (woken && goon !== undefined && !already && !goonCaught(e.by) && result.phase.kind !== 'over') this.fail('goon', `${prev.seats[e.by].name} chose the Goon first tonight and was not made drunk`);
+		}
+		// The Goon also catches those whose choosing is inside their information step (Fortune Teller, Chambermaid, Dreamer, Seamstress, Ravenkeeper).
+		for (const e of events) {
+			if (e.type !== 'info-given') continue;
+			const goon = goonToCatch(prev, e.to, pointedAt(e.role, e.info));
+			if (goon !== undefined && !goonCaught(e.to)) this.fail('goon', `${prev.seats[e.to].name} chose the Goon first tonight in their information step and was not made drunk`);
+			if (goon !== undefined) this.hit('the Goon catches an information role');
+		}
+		if (result.effects.filter((x) => x.kind === 'drunk' && x.role === 'goon').length > 1) this.fail('goon', 'the Goon caught more than one player in a night');
+		// The Juggler's guesses are kept for whoever believes they are the Juggler (a Drunk too), so they wake the night after like a real one.
+		if (cmd.type === 'juggle' && prev.seats[cmd.by].believes === 'juggler' && !prev.spent.includes(`${cmd.by}:juggle`)) {
+			if (cmd.guesses.some((g) => !result.effects.some((x) => x.kind === 'juggled' && x.by === cmd.by && x.target === g.player && x.note === g.character))) this.fail('juggler-wakes', `${prev.seats[cmd.by].name}, who thinks they are the Juggler, juggled and their guesses were not kept`);
+			else if (prev.seats[cmd.by].character === 'drunk') this.hit('a Drunk who thinks they are the Juggler juggles');
 		}
 		if (cmd.type === 'end-day' && prev.day && prev.day.executed === null && prev.day.block === null && reallyLiving(prev) === 3
 			&& prev.seats.some((x) => x.alive && working(prev, x.id, 'mayor')) && result.phase.kind !== 'over' && !prev.mastermind && !twinsHold(prev)) {
@@ -1264,6 +1301,7 @@ export class Checker {
 			case 'night-began': {
 				this.aliveAtNightfall = new Set(a.seats.filter((x) => x.alive).map((x) => x.id));
 				this.monkTonight = new Set();
+				this.jugglersTonight = a.seats.filter((x) => x.alive && x.believes === 'juggler' && a.spent.includes(`${x.id}:juggle`) && !a.spent.includes(`${x.id}:juggler`) && a.effects.some((k) => k.kind === 'juggled' && k.by === x.id)).map((x) => x.id);
 				this.keptAtDusk = a.seats.filter((x) => !x.alive && a.effects.some((k) => k.kind === 'keeps-ability' && k.role === 'vigormortis' && k.target === x.id))
 					.map((x) => ({ seat: x.id, character: x.character }));
 				this.sheetAt = -Infinity;
@@ -1303,6 +1341,10 @@ export class Checker {
 					if (!OTHER_SHEET.includes(k.character) || k.character === 'godfather' || k.character === 'scarlet-woman' || (k.character === 'witch' && livingIds(b).length <= 3)) continue;
 					if (b.seats[k.seat].character !== k.character || (k.character === 'assassin' && b.spent.includes(`${k.seat}:assassin`)) || !b.effects.some((x) => x.kind === 'keeps-ability' && x.target === k.seat)) continue;
 					if (!nt.done.includes(`${k.character}:${k.seat}`)) this.fail('vigormortis', `${name(k.seat)}, a dead ${k.character} the Vigormortis kept, never woke`);
+				}
+				// Whoever believes they are the Juggler, juggled, and has not yet been asked how many were right, wakes tonight (a Drunk too: staying asleep gives them away).
+				for (const j of this.jugglersTonight) {
+					if (b.seats[j].believes === 'juggler' && b.seats[j].alive && !nt.done.includes(`juggler:${j}`)) this.fail('juggler-wakes', `${name(j)}, who thinks they are the Juggler and juggled, did not wake the night after`);
 				}
 				for (const sage of this.sagesTonight) if (b.seats[sage].character === 'sage' && !nt.done.includes(`sage:${sage}`)) this.fail('sage', `${name(sage)}, a Sage killed by the Demon, never woke`);
 				this.sagesTonight = [];
