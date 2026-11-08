@@ -57,6 +57,7 @@ export function reduce(prev: GameState, e: GameEvent): GameState {
 			s.night = {
 				n: e.n, done: [], deaths: [], aliveAtDusk: s.seats.filter((x) => x.alive).map((x) => x.id), demonMadeTonight: null, revived: [],
 				dayDeaths: [...(s.day?.deaths ?? [])],
+				dayOutsiderDied: (s.day?.deaths ?? []).some((d) => charDef(getScript(s.scriptId), s.seats[d].character).team === 'outsider'),
 				dayVoters: [...new Set((s.day?.nominations ?? []).flatMap((x) => x.voters ?? []))],
 				dayNominators: (s.day?.nominations ?? []).map((x) => x.nominator),
 				demonKills: [],
@@ -94,7 +95,9 @@ export function reduce(prev: GameState, e: GameEvent): GameState {
 			if (s.day && s.phase.kind === 'day') s.day.deaths.push(e.seat);
 			if (e.cause === 'execution' && s.day) s.lastExecution = { day: s.day.n, seat: e.seat };
 			// The dead have no ability: effects that live on their source end (the Poisoner's poison).
-			s.effects = s.effects.filter((x) => !(x.endsWithSource && x.by === e.seat));
+			// A dead Minion the Vigormortis kept loses the ability with the Vigormortis, and what it did ends too.
+			const lost = s.effects.filter((x) => x.kind === 'keeps-ability' && x.by === e.seat && !s.seats[x.target as number].alive).map((x) => x.target);
+			s.effects = s.effects.filter((x) => !(x.endsWithSource && (x.by === e.seat || (x.by !== null && lost.includes(x.by)))));
 			break;
 		}
 
@@ -127,7 +130,10 @@ export function reduce(prev: GameState, e: GameEvent): GameState {
 			seat.believes = e.believes;
 			if (s.night && s.phase.kind === 'night') (s.night.changed ??= []).push({ seat: e.seat, at: e.at ?? 0 });
 			// What they did as their old character, and that ends with them, ends (a Poisoner turned into something else).
-			s.effects = s.effects.filter((x) => !(x.endsWithSource && x.by === e.seat && x.role !== e.character));
+			{
+				const lost = s.effects.filter((x) => x.kind === 'keeps-ability' && x.by === e.seat && x.role !== e.character && !s.seats[x.target as number].alive).map((x) => x.target);
+				s.effects = s.effects.filter((x) => !(x.endsWithSource && x.by === e.seat && x.role !== e.character) && !(x.endsWithSource && x.by !== null && lost.includes(x.by)));
+			}
 			// A dead Minion's kept ability (the Vigormortis) was that Minion's: it ends.
 			s.effects = s.effects.filter((x) => !(x.kind === 'keeps-ability' && x.target === e.seat));
 			break;

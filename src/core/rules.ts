@@ -65,7 +65,7 @@ function noDashiiPoisons(state: GameState, id: SeatId, depth: number): boolean {
 	return state.seats.some((x) => x.character === 'no-dashii' && (x.alive || x.undead) && !droisonedAt(state, x.id, depth + 1) && nearestTownsfolk(state, x.id).includes(id));
 }
 
-/** A Minion the Vigormortis killed keeps their ability while dead. */
+/** A Minion the Vigormortis killed, or a dead player the Bone Collector chose, keeps their ability while dead. */
 export function keepsAbility(state: GameState, id: SeatId): boolean {
 	return state.effects.some((e) => e.kind === 'keeps-ability' && e.target === id);
 }
@@ -137,9 +137,9 @@ export function teaLadyProtects(state: GameState, id: SeatId): boolean {
 	});
 }
 
-/** Whom the Butler must follow, if anyone. */
-export function butlerMaster(state: GameState): SeatId | null {
-	return state.effects.find((e) => e.kind === 'master' && e.role === 'butler')?.target ?? null;
+/** Whom the Butler must follow, if anyone (given the Butler's seat: that Butler's master, as two can be in play). */
+export function butlerMaster(state: GameState, butler?: SeatId): SeatId | null {
+	return state.effects.find((e) => e.kind === 'master' && e.role === 'butler' && (butler === undefined || e.by === butler))?.target ?? null;
 }
 
 /** Protected from the Demon tonight (the Monk). */

@@ -1,0 +1,232 @@
+{
+ "rule": "soldier-is-safe",
+ "detail": "Cael(soldier), a working Soldier, was killed by the Demon",
+ "seed": 90458,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde"
+   ],
+   "scriptId": "custom:courtier,undertaker,soldier,grandmother,seamstress,dreamer,juggler,snake-charmer,fortune-teller,clockmaker,lunatic,barber,moonchild,drunk,mastermind,pit-hag,spy,zombuul,po"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "pit-hag",
+    "seamstress",
+    "undertaker",
+    "po",
+    "grandmother",
+    "moonchild",
+    "fortune-teller",
+    "snake-charmer",
+    "barber"
+   ],
+   "redHerring": 6,
+   "bluffs": [
+    "courtier",
+    "drunk",
+    "lunatic"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     0,
+     7
+    ],
+    "yes": false
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "reveal",
+    "player": 1,
+    "character": "seamstress"
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "same",
+    "players": [
+     3,
+     0
+    ],
+    "yes": true
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ],
+   "character": "drunk"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0,
+    6
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     2,
+     7
+    ],
+    "yes": false
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "character": "fortune-teller"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ],
+   "character": "mastermind"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ]
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 3,
+   "nominee": 0
+  },
+  {
+   "type": "vote",
+   "voters": [
+    2,
+    3,
+    4,
+    6
+   ]
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T10",
+   "character": "gunslinger",
+   "alignment": "evil",
+   "after": 7
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ],
+   "character": "zombuul"
+  },
+  {
+   "type": "storyteller-kill",
+   "seat": 2
+  },
+  {
+   "type": "choose",
+   "targets": [
+    9
+   ]
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ],
+   "character": "soldier"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ]
+  }
+ ]
+}

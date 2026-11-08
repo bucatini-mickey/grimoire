@@ -114,6 +114,8 @@ export interface NightState {
 	demonMadeTonight: SeatId | null;
 	/** Who died the day before this night (the Zombuul wakes only if no one did; the Godfather if an Outsider did). */
 	dayDeaths: SeatId[];
+	/** Whether one of them was an Outsider when they died (the Godfather); a later change of character does not alter it. */
+	dayOutsiderDied?: boolean;
 	/** True statements the Gossip made the day before. */
 	gossip: { by: SeatId }[];
 	/** Players who came back to life tonight (the Professor, the Shabaloth). */

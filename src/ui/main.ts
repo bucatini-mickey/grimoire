@@ -2101,7 +2101,7 @@ function voteRows(nominee: SeatId, needed: number): Row[] {
 		const id = v.order[v.index];
 		const s = state.seats[id];
 		const note = s.alive ? '' : ' (spends their ghost vote)';
-		const master = G.butlerMaster(state);
+		const master = G.butlerMaster(state, id);
 		const butler = G.hasWorkingAbility(state, id, 'butler') && master !== null
 			? ` Butler: only if ${name(master)} votes.` : '';
 		rows.push(...prose(`${s.name}?${note}${butler}`, 'gold'));
@@ -2184,7 +2184,7 @@ function voteStage(): Row[] {
 		const hand = phoneHand(id);
 		if (hand !== null) rows.push(mid(hand ? 'Hand UP on their phone' : 'Hand down on their phone', 'dim'));
 		if (!s.alive) rows.push(mid('(spends their ghost vote)', 'dim'));
-		const master = G.butlerMaster(state);
+		const master = G.butlerMaster(state, id);
 		if (G.hasWorkingAbility(state, id, 'butler') && master !== null) rows.push(mid(`Butler: only if ${name(master)} votes`, 'dim'));
 		// (the two the same width, one above the other)
 		// Up above Down, each in a square box the same size.

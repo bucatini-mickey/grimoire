@@ -1,0 +1,154 @@
+{
+ "rule": "godfather",
+ "detail": "the Godfather killed Isolde(godfather) with no Outsider dead today",
+ "seed": 111364,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit"
+   ],
+   "scriptId": "custom:mayor,philosopher,mathematician,courtier,artist,fortune-teller,town-crier,undertaker,gambler,chambermaid,librarian,tinker,recluse,godfather,pit-hag,witch,fang-gu,no-dashii"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "fortune-teller",
+    "no-dashii",
+    "philosopher",
+    "recluse",
+    "chambermaid",
+    "tinker",
+    "mathematician",
+    "courtier",
+    "godfather",
+    "pit-hag",
+    "undertaker"
+   ],
+   "redHerring": 6,
+   "bluffs": [
+    "mayor",
+    "gambler",
+    "artist"
+   ],
+   "fabled": [
+    {
+     "id": "doomsayer"
+    },
+    {
+     "id": "toymaker"
+    },
+    {
+     "id": "storm-catcher",
+     "character": "town-crier"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "choose",
+   "character": "recluse"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "characters",
+    "characters": [
+     "recluse",
+     "tinker"
+    ]
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     3,
+     9
+    ],
+    "yes": true
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     10,
+     7
+    ],
+    "value": 1
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 1
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "tinker",
+   "seat": 5
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "character": "mathematician"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5
+   ],
+   "character": "artist"
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ]
+  }
+ ]
+}

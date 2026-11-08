@@ -1,0 +1,166 @@
+{
+ "rule": "goon",
+ "detail": "Gwen chose the Goon first tonight and was not made drunk",
+ "seed": 1240,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior",
+    "Maud",
+    "Ned",
+    "Orla"
+   ],
+   "scriptId": "custom:chef,empath,mayor,savant,seamstress,soldier,philosopher,grandmother,recluse,lunatic,barber,goon,witch,baron,evil-twin,devils-advocate,no-dashii,fang-gu"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "seamstress",
+    "baron",
+    "philosopher",
+    "lunatic",
+    "soldier",
+    "grandmother",
+    "barber",
+    "witch",
+    "savant",
+    "chef",
+    "evil-twin",
+    "no-dashii",
+    "mayor",
+    "goon",
+    "recluse"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "empath"
+   ],
+   "evilTwin": 6,
+   "fabled": [
+    {
+     "id": "toymaker"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "choose",
+   "character": "grandmother"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 3
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "reveal",
+    "player": 0,
+    "character": "seamstress"
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "reveal",
+    "player": 0,
+    "character": "seamstress"
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "same",
+    "players": [
+     3,
+     6
+    ],
+    "yes": true
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    14
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    14,
+    13
+   ]
+  }
+ ]
+}

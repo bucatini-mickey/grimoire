@@ -1,0 +1,200 @@
+{
+ "rule": "scarlet-woman",
+ "detail": "the Scarlet Woman became the Demon though no Demon died",
+ "seed": 51948,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior"
+   ],
+   "scriptId": "custom:mayor,dreamer,grandmother,gossip,ravenkeeper,snake-charmer,virgin,slayer,professor,washerwoman,saint,goon,klutz,sweetheart,cerenovus,scarlet-woman,godfather,fang-gu"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "klutz",
+    "professor",
+    "dreamer",
+    "cerenovus",
+    "saint",
+    "scarlet-woman",
+    "fang-gu",
+    "gossip",
+    "goon",
+    "slayer",
+    "washerwoman",
+    "grandmother"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "virgin",
+    "snake-charmer",
+    "ravenkeeper"
+   ],
+   "fabled": [
+    {
+     "id": "storm-catcher",
+     "character": "washerwoman"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    10
+   ],
+   "character": "washerwoman"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "pair",
+    "players": [
+     11,
+     3
+    ],
+    "character": "grandmother"
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "reveal",
+    "player": 0,
+    "character": "klutz"
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "dream",
+    "player": 1,
+    "characters": [
+     "professor",
+     "cerenovus"
+    ]
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ],
+   "character": "professor"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    9
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    9
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "dream",
+    "player": 1,
+    "characters": [
+     "professor",
+     "cerenovus"
+    ]
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ],
+   "character": "goon"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ]
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    11
+   ],
+   "character": "klutz"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ]
+  }
+ ]
+}

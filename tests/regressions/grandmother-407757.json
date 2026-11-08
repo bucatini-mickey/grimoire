@@ -1,0 +1,155 @@
+{
+ "rule": "grandmother",
+ "detail": "Fenn's grandchild was killed by the Demon and the Grandmother lived",
+ "seed": 407757,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen"
+   ],
+   "scriptId": "custom:washerwoman,undertaker,chambermaid,soldier,savant,snake-charmer,philosopher,tea-lady,grandmother,investigator,town-crier,goon,klutz,tinker,saint,devils-advocate,godfather,pit-hag,imp"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "philosopher",
+    "devils-advocate",
+    "savant",
+    "chambermaid",
+    "investigator",
+    "grandmother",
+    "imp"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "town-crier",
+    "snake-charmer",
+    "goon"
+   ],
+   "fabled": [
+    {
+     "id": "ferryman"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "choose",
+   "character": "tea-lady"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5
+   ]
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "reveal",
+    "player": 0,
+    "character": "tea-lady"
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     1,
+     0
+    ],
+    "value": 2
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     5,
+     4
+    ],
+    "value": 0
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 5,
+   "nominee": 5
+  },
+  {
+   "type": "vote",
+   "voters": [
+    3,
+    5,
+    6
+   ]
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T7",
+   "character": "bone-collector",
+   "alignment": "good",
+   "after": 3
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ]
+  }
+ ]
+}

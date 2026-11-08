@@ -690,6 +690,7 @@ function choose(tx: Tx, kind: string, by: SeatId, cmd: Extract<Command, { type: 
 		case 'barista': {
 			// The Storyteller picks the player and the mode; the player learns it.
 			const t = targets[0];
+			goonCatches(tx, by, t);
 			if (cmd.barista === undefined) refuse('The Barista: is the player sober and healthy, or does their ability act twice?', 'barista');
 			if (!works(tx, by, kind)) return;
 			if (cmd.barista === 'sober') emit(tx, { type: 'effect-added', effect: { kind: 'sober', target: t, by, role: 'barista', until: 'dusk', whileSourceWorks: true } });
@@ -942,12 +943,6 @@ function die(tx: Tx, t: SeatId, cause: DeathCause) {
 	const demonCharacter = v.character;
 	const wasMinion = teamOf(s, v.character) === 'minion';
 	emit(tx, { type: 'died', seat: t, cause });
-	// The Grandmother dies with her grandchild, if the Demon killed them.
-	if (cause === 'demon') {
-		for (const g of tx.state.effects.filter((e) => e.kind === 'grandchild' && e.target === t)) {
-			if (g.by !== null && abilityWorks(tx.state, g.by, 'grandmother')) attemptDeath(tx, g.by, { cause: 'grandmother' });
-		}
-	}
 	// The Minstrel: a Minion dying by execution makes everyone else drunk until dusk tomorrow.
 	if (cause === 'execution' && wasMinion && tx.state.day) {
 		for (const m of tx.state.seats.filter((x) => abilityWorks(tx.state, x.id, 'minstrel'))) {
@@ -961,6 +956,12 @@ function die(tx: Tx, t: SeatId, cause: DeathCause) {
 	if (wasDemon) {
 		const sw = scarletWomanCatches(tx.state, aliveBefore);
 		if (sw !== null) emit(tx, { type: 'became-demon', seat: sw, character: demonCharacter, via: 'scarlet-woman', at: tx.place });
+	}
+	// The Grandmother dies with her grandchild, if the Demon killed them (after a Scarlet Woman has caught the Demon, so the game is not called over between).
+	if (cause === 'demon') {
+		for (const g of tx.state.effects.filter((e) => e.kind === 'grandchild' && e.target === t)) {
+			if (g.by !== null && abilityWorks(tx.state, g.by, 'grandmother')) attemptDeath(tx, g.by, { cause: 'grandmother' });
+		}
 	}
 	checkWin(tx, { demonExecuted: wasDemon && cause === 'execution' });
 }
@@ -1027,6 +1028,23 @@ function starpass(tx: Tx, imp: SeatId, chosen: SeatId | undefined) {
 	checkWin(tx);
 }
 
+/**
+ * What a player thinks they are once they become this character. Most are told the truth. A new Drunk thinks they are
+ * a Townsfolk not in play, a new Lunatic that they are the Demon in play, a new Marionette a good character not in play.
+ */
+function believesAfterChange(s: GameState, t: SeatId, character: CharacterId): CharacterId {
+	if (character !== 'drunk' && character !== 'lunatic' && character !== 'marionette') return character;
+	const script = getScript(s.scriptId);
+	const inPlay = new Set(s.seats.filter((x) => x.id !== t).flatMap((x) => [x.character, x.believes]));
+	if (character === 'lunatic') {
+		const demon = s.seats.find((x) => x.id !== t && teamOf(s, x.character) === 'demon');
+		return demon ? demon.character : script.characters.find((c) => c.team === 'demon')?.id ?? character;
+	}
+	const teams = character === 'drunk' ? ['townsfolk'] : ['townsfolk', 'outsider'];
+	const pool = script.characters.filter((c) => teams.includes(c.team) && c.id !== character);
+	return (pool.find((c) => !inPlay.has(c.id)) ?? pool[0])?.id ?? character;
+}
+
 /** A player becomes another character (the Pit-Hag, the Barber, the Philosopher). A new Demon is told, and evil. */
 function changeCharacter(tx: Tx, t: SeatId, character: CharacterId, by: CharacterId) {
 	const s = tx.state;
@@ -1034,7 +1052,7 @@ function changeCharacter(tx: Tx, t: SeatId, character: CharacterId, by: Characte
 		emit(tx, { type: 'became-demon', seat: t, character, via: 'pit-hag', at: tx.place });
 		return;
 	}
-	emit(tx, { type: 'character-changed', seat: t, character, believes: character, by, at: tx.place });
+	emit(tx, { type: 'character-changed', seat: t, character, believes: believesAfterChange(s, t, character), by, at: tx.place });
 	// The last Demon made into something else: no Demon is left, and good wins.
 	checkWin(tx);
 }
@@ -1138,7 +1156,8 @@ function nominate(tx: Tx, cmd: Extract<Command, { type: 'nominate' }>) {
 	if (s.effects.some((e) => e.kind === 'cursed' && e.target === nominator && inForce(s, e)) && living(s).length > 3) attemptDeath(tx, nominator, { cause: 'witch' });
 
 	// The Virgin: only her first nomination counts, working or not.
-	const v = seat(s, nominee);
+	// (After the curse, which may have killed the nominator, or the Virgin nominating herself.)
+	const v = seat(tx.state, nominee);
 	if (v.character === 'virgin' && v.alive && !s.spent.includes(`${nominee}:virgin`)) {
 		emit(tx, { type: 'ability-spent', seat: nominee, ability: 'virgin' });
 		if (!isDroisoned(s, nominee)) {
@@ -1149,7 +1168,7 @@ function nominate(tx: Tx, cmd: Extract<Command, { type: 'nominate' }>) {
 				}
 				townsfolk = cmd.nominatorIsTownsfolk!;
 			}
-			if (townsfolk) execute(tx, nominator);
+			if (townsfolk && seat(tx.state, nominator).alive) execute(tx, nominator);
 		}
 	}
 }
@@ -1168,8 +1187,7 @@ function vote(tx: Tx, cmd: Extract<Command, { type: 'vote' }>) {
 	}
 	// The Butler may only raise their hand if their master does. If they vote anyway, the
 	// rules say to count it (not doing so would reveal the Butler) and have a word later.
-	const master = butlerMaster(s);
-	const butlerSlips = voters.filter((v) => hasWorkingAbility(s, v, 'butler') && master !== null && !voters.includes(master));
+	const butlerSlips = voters.filter((v) => { const m = butlerMaster(s, v); return hasWorkingAbility(s, v, 'butler') && m !== null && !voters.includes(m); });
 	// The Voudon: only the dead and the Voudon vote, freely, and the most votes wins.
 	const voudon = s.seats.some((x) => abilityWorks(s, x.id, 'voudon'));
 	if (voudon) for (const v of voters) if (seat(s, v).alive && seat(s, v).character !== 'voudon') refuse('With the Voudon in play, only the dead and the Voudon vote.');
@@ -1191,7 +1209,7 @@ function vote(tx: Tx, cmd: Extract<Command, { type: 'vote' }>) {
 		outcome
 	});
 	for (const v of butlerSlips) {
-		emit(tx, { type: 'note', text: `${seat(s, v).name}, the Butler, voted without their master (${seat(s, master!).name}). Counted anyway; a quiet word later.` });
+		emit(tx, { type: 'note', text: `${seat(s, v).name}, the Butler, voted without their master (${seat(s, butlerMaster(s, v)!).name}). Counted anyway; a quiet word later.` });
 	}
 }
 
@@ -1272,7 +1290,7 @@ function endDay(tx: Tx) {
 			emit(tx, { type: 'game-over', winner: 'good', reason: 'The Mastermind’s day ended with no execution.' });
 		} else {
 			const mayor = s.seats.find((x) => hasWorkingAbility(s, x.id, 'mayor'));
-			if (mayor && living(s).filter((x) => !x.traveller).length === 3) {
+			if (mayor && livingResidents(s).length === 3 && !twinsHold(s)) {
 				emit(tx, { type: 'game-over', winner: 'good', reason: 'Three players live, no one was executed, and the Mayor stands.' });
 			}
 		}

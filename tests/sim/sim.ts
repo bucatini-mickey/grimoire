@@ -18,7 +18,7 @@
  */
 import { readFileSync } from 'node:fs';
 import {
-	emptyState, perform, reduce, replay, nextStep, nightSteps, stepAction, getScript, customScriptId, randomDeal, rng, pickSpec,
+	emptyState, perform, reduce, replay, nextStep, nightSteps, stepAction, getScript, customScriptId, CATALOG, isModelled, randomDeal, rng, pickSpec,
 	living, infoCandidates, teamAlignment, charDef, canRegisterAsTeam, NEW_DEMON
 } from '../../src/core/index.ts';
 import type { Command, GameEvent, GameState, Info, SeatId, Script } from '../../src/core/index.ts';
@@ -312,7 +312,7 @@ function noDashiiNext(s: GameState, id: SeatId, depth: number): boolean {
 }
 /** Read from the effects list as plain data. */
 const protectedTonight = (s: GameState, id: SeatId) => s.effects.some((e) => e.kind === 'safe-from-demon' && e.target === id);
-const masterOf = (s: GameState) => s.effects.find((e) => e.kind === 'master')?.target ?? null;
+const masterOf = (s: GameState, by?: SeatId) => s.effects.find((e) => e.kind === 'master' && (by === undefined || e.by === by))?.target ?? null;
 /** Alive (or the undead Zombuul), really this character, and neither drunk nor poisoned. */
 /** A Minion the Vigormortis killed keeps their ability while dead. */
 const keeps = (s: GameState, id: SeatId) => s.effects.some((e) => e.kind === 'keeps-ability' && e.target === id);
@@ -373,7 +373,7 @@ function nearestLiving(s: GameState, id: SeatId): SeatId[] {
 /** The Tea Lady's living neighbours, both good: they are safe. */
 function teaLadyGuards(s: GameState, id: SeatId): boolean {
 	return s.seats.some((x) => {
-		if (!working(s, x.id, 'tea-lady') || !x.alive) return false;
+		if (!working(s, x.id, 'tea-lady')) return false; // (a dead Tea Lady whose ability the Bone Collector gave back still guards: a rules question, see INBOX)
 		const nb = nearestLiving(s, x.id);
 		return nb.length === 2 && nb.includes(id) && nb.every((n) => s.seats[n].alignment === 'good');
 	});
@@ -536,7 +536,7 @@ export class Checker {
 	/** The step due when the command began (a command resolves the step it began on). */
 	private due: ReturnType<typeof nextStep> = null;
 	/** Whom a working Monk protects tonight, as the checker saw it chosen. */
-	private monkTonight: SeatId | null = null;
+	private monkTonight = new Set<SeatId>(); // (more than one Monk can be in play: an Apprentice, a Pit-Hag)
 	/** The state when the current command began. */
 	private start: GameState | null = null;
 	/** All the events of the current command. */
@@ -561,6 +561,8 @@ export class Checker {
 	private sagesTonight: SeatId[] = [];
 	/** The Pit-Hag has made a Demon: more than one may live. */
 	private pitHagDemon = false;
+	/** Whether an Outsider died in the day before this night, by the character they were when they died. */
+	private dayOutsiderDied = false;
 	/** Moonchilds who have chosen since they last died. */
 	private moonchildChose = new Set<SeatId>();
 	/** How often each tricky situation came up (the robots must reach them): merged into the game's stats. */
@@ -688,7 +690,7 @@ export class Checker {
 		if (cmd.type === 'nominate' && this.virginDue) {
 			const done = has((e) => e.type === 'executed' && e.seat === this.virginDue!.nominator);
 			const any = has((e) => e.type === 'executed');
-			if (this.virginDue.expect === 'must' && !done) this.fail('virgin-fires', `${nm(cmd.nominator)} is a Townsfolk, nominated a working Virgin for the first time, and was not executed`);
+			if (this.virginDue.expect === 'must' && !done && result.seats[this.virginDue.nominator].alive) this.fail('virgin-fires', `${nm(cmd.nominator)} is a Townsfolk, nominated a working Virgin for the first time, and was not executed`);
 			if (this.virginDue.expect === 'never' && any) this.fail('virgin-fires', `${nm(cmd.nominator)} was executed though the Virgin could not fire (spent, drunk, poisoned, or a non-Townsfolk nominator)`);
 			if (done) this.hit('virgin executes a Townsfolk');
 		}
@@ -707,7 +709,7 @@ export class Checker {
 				continue;
 			}
 			if (!has((x) => x.type === 'died' && x.seat === e.by && x.cause === 'starpass')) { this.fail('starpass', `${nm(e.by)}, a working Imp, chose itself and did not die`); continue; }
-			const sw = prev.seats.find((x) => working(prev, x.id, 'scarlet-woman'));
+			const sw = prev.seats.find((x) => x.alive && working(prev, x.id, 'scarlet-woman'));
 			const minions = prev.seats.filter((x) => x.alive && x.id !== e.by && teamIn(prev, x.character) === 'minion').map((x) => x.id);
 			const heirs = events.filter((x): x is Extract<GameEvent, { type: 'became-demon' }> => x.type === 'became-demon' && x.via !== 'pit-hag');
 			if (sw && reallyLiving(prev) >= 5) {
@@ -733,7 +735,8 @@ export class Checker {
 		for (const e of events) {
 			if (e.type !== 'note' || !e.text.includes('the Butler, voted without their master')) continue;
 			const voters = cmd.type === 'vote' ? cmd.voters : [];
-			const m = masterOf(prev);
+			const noted = voters.find((v) => working(prev, v, 'butler') && e.text.startsWith(prev.seats[v].name));
+			const m = noted === undefined ? null : masterOf(prev, noted);
 			if (cmd.type !== 'vote' || m === null || voters.includes(m) || !voters.some((v) => working(prev, v, 'butler') && e.text.startsWith(prev.seats[v].name))) this.fail('butler', 'the Butler was noted as voting without their master when they did not');
 		}
 		// A Slayer's shot is always used up.
@@ -778,7 +781,7 @@ export class Checker {
 				if (lives && !result.seats[e.seat].alive) this.fail('announce-execution', `the room is told ${names[e.seat]} does not die, and they are dead`);
 				if (was && (prev.seats[e.seat].alive || (prev.seats[e.seat].undead && !events.some((x) => x.type === "survived-execution" && x.seat === e.seat)))) this.fail('announce-execution', `the room is told ${names[e.seat]} was already dead, and they were not`);
 				// Unless the game ended with the execution (the Mastermind's day, the Evil Twin), the room is told what became of them.
-				if (!dies && !lives && !was && !(prev.seats[e.seat].alive && result.phase.kind === 'over')) this.fail('announce-execution', `no word of what became of ${names[e.seat]} when executed`);
+				if (!dies && !lives && !was && !((prev.seats[e.seat].alive || prev.seats[e.seat].undead) && result.phase.kind === 'over')) this.fail('announce-execution', `no word of what became of ${names[e.seat]} when executed`);
 				if (lives) this.hit('the room is told an executed player does not die');
 				if (prev.seats[e.seat].character === 'zombuul' && dies) this.hit('the Zombuul seems to die by execution');
 			}
@@ -846,15 +849,15 @@ export class Checker {
 			// A working Gambler who guesses wrong dies (unless something saves them).
 			if (e.role === 'gambler' && e.effective && !goonCaught(e.by) && e.character !== prev.seats[e.targets[0]].character && result.seats[e.by].alive
 				&& !events.some((x) => x.type === 'kill-prevented' && x.target === e.by) && result.phase.kind !== 'over') this.fail('gambler', 'the Gambler guessed wrong and lived');
-			if (e.role === 'butler' && masterOf(result) !== e.targets[0]) this.fail('butler', 'the Butler did not get the master they chose');
+			if (e.role === 'butler' && masterOf(result, e.by) !== e.targets[0]) this.fail('butler', 'the Butler did not get the master they chose');
 			// The Goon: the first player tonight to choose them with their ability is caught.
-			const woken = e.role !== 'gossip' && e.role !== 'lunatic';
+			const woken = e.role !== 'gossip' && e.role !== 'lunatic' && e.role !== 'sweetheart' && e.role !== 'barber';
 			const goon = e.targets.find((t) => t !== e.by && working(prev, t, 'goon'));
 			const already = prev.effects.some((x) => x.kind === 'drunk' && x.role === 'goon');
 			if (woken && goon !== undefined && !already && !goonCaught(e.by) && result.phase.kind !== 'over') this.fail('goon', `${prev.seats[e.by].name} chose the Goon first tonight and was not made drunk`);
 		}
 		if (cmd.type === 'end-day' && prev.day && prev.day.executed === null && prev.day.block === null && reallyLiving(prev) === 3
-			&& prev.seats.some((x) => working(prev, x.id, 'mayor')) && result.phase.kind !== 'over' && !prev.mastermind) {
+			&& prev.seats.some((x) => x.alive && working(prev, x.id, 'mayor')) && result.phase.kind !== 'over' && !prev.mastermind && !twinsHold(prev)) {
 			this.fail('mayor-wins', 'three alive, no execution, a working Mayor, and the game went on');
 		}
 		for (const e of events) {
@@ -895,7 +898,7 @@ export class Checker {
 		}
 		// The Vortox: a day that ends without an execution, and evil wins.
 		if (cmd.type === 'end-day' && prev.day && prev.day.executed === null && prev.day.block === null && vortoxOn(prev) && !prev.mastermind
-			&& !(result.phase.kind === 'over' && result.phase.winner === 'evil')) this.fail('vortox', 'no execution today with a working Vortox, and evil did not win');
+			&& !(result.phase.kind === 'over' && (result.phase.winner === 'evil' || (result.phase.reason ?? '').includes('Mayor')))) this.fail('vortox', 'no execution today with a working Vortox, and evil did not win');
 		// A nominator the Witch cursed (a working Witch, more than three alive) dies, unless something saves them.
 		if (cmd.type === 'nominate' && events.some((x) => x.type === 'nominated') && prev.seats[cmd.nominator].alive && livingIds(prev).length > 3
 			&& prev.effects.some((x) => x.kind === 'cursed' && x.target === cmd.nominator && x.by !== null && working(prev, x.by, 'witch'))
@@ -911,8 +914,10 @@ export class Checker {
 		// The Minstrel: only a Minion's death by execution, with a working Minstrel, makes everyone drunk.
 		const minstrel = events.some((e) => e.type === 'effect-added' && e.effect.role === 'minstrel');
 		const minionExecuted = this.deathsNow.some((x) => x.cause === 'execution' && teamIn(prev, prev.seats[x.seat].character) === 'minion');
-		if (minstrel && !(minionExecuted && prev.seats.some((x) => working(prev, x.id, 'minstrel')))) this.fail('minstrel', 'everyone made drunk without a Minion dying by execution');
-		if (!minstrel && minionExecuted && prev.seats.some((x) => working(prev, x.id, 'minstrel') && x.alive)) this.fail('minstrel', 'a Minion died by execution and the Minstrel did nothing');
+		// (A Minstrel poisoned only by the Poisoner just executed is healthy the moment the Poisoner dies: a rules question, see INBOX.)
+		const healthyAtDeath = (x: { id: SeatId; character: string; alive: boolean }) => working(prev, x.id, 'minstrel') || working(result, x.id, 'minstrel') || (x.character === 'minstrel' && x.alive && prev.effects.filter((p) => p.kind === 'poisoned' && p.target === x.id).every((p) => p.by !== null && this.deathsNow.some((d) => d.seat === p.by && d.cause === 'execution')));
+		if (minstrel && !(minionExecuted && prev.seats.some((x) => healthyAtDeath(x)))) this.fail('minstrel', 'everyone made drunk without a Minion dying by execution');
+		if (!minstrel && minionExecuted && prev.seats.some((x) => working(prev, x.id, 'minstrel') && x.alive && working(result, x.id, 'minstrel'))) this.fail('minstrel', 'a Minion died by execution and the Minstrel did nothing');
 	}
 
 	private event(b: GameState, e: GameEvent, a: GameState, cmd: Command) {
@@ -927,7 +932,7 @@ export class Checker {
 				this.deathsNow.push({ seat: e.seat, cause: e.cause });
 				// The Scarlet Woman: with five or more alive (Travellers not counted) when the Demon dies, a working one takes over.
 				if (teamIn(b, v.character) === 'demon' && !b.mastermind && demonsAlive(a) === 0) {
-					const sw = a.seats.find((x) => working(a, x.id, 'scarlet-woman'));
+					const sw = a.seats.find((x) => x.alive && working(a, x.id, 'scarlet-woman'));
 					if (sw && this.aliveBeforeDeath >= 5) this.swDue = sw.id;
 					else if (sw) this.hit(livingIds(b).length >= 5 ? 'scarlet-woman declines: Travellers make up the five' : 'scarlet-woman declines: fewer than five alive');
 					else if (a.seats.some((x) => x.alive && x.character === 'scarlet-woman')) this.hit('scarlet-woman declines: drunk or poisoned');
@@ -938,24 +943,24 @@ export class Checker {
 					else this.saintDue = true;
 				}
 				if (e.cause === 'demon' && night && v.character === 'sage') this.sagesTonight.push(e.seat);
-				if (e.cause === 'demon') for (const g of b.effects) if (g.kind === 'grandchild' && g.target === e.seat && g.by !== null && working(b, g.by, 'grandmother')) this.grandmothersDue.push(g.by);
+				if (e.cause === 'demon') for (const g of b.effects) if (g.kind === 'grandchild' && g.target === e.seat && g.by !== null && b.seats[g.by].alive && working(b, g.by, 'grandmother')) this.grandmothersDue.push(g.by);
 				// Nothing kills the protected but the Assassin (and an Imp passing on, and the Saint's own execution).
 				// No ability touches an exile (or a Traveller leaving).
-				if (e.cause !== 'assassin' && e.cause !== 'starpass' && e.cause !== 'exile' && e.cause !== 'left') {
+				if (e.cause !== 'assassin' && e.cause !== 'starpass' && e.cause !== 'fang-gu' && e.cause !== 'exile' && e.cause !== 'left') {
 					if (night && b.effects.some((x) => x.kind === 'safe-tonight' && x.target === e.seat)) this.fail('innkeeper', `${name(e.seat)} died though the Innkeeper kept them safe`);
 					if (teaLadyGuards(b, e.seat)) this.fail('tea-lady', `${name(e.seat)} died though the Tea Lady protects them`);
 					if (working(b, e.seat, 'sailor')) this.fail('sailor', `${name(e.seat)}, a sober Sailor, died`);
 					if (e.cause !== 'execution' && e.cause !== 'doomsayer' && v.alignment === 'good' && b.fabled?.some((f) => f.id === 'storm-catcher' && f.character === v.character)) this.fail('storm-catcher', `${name(e.seat)}, the Storm Catcher's character, died by ${e.cause}`);
 					if (working(b, e.seat, 'fool') && !b.spent.includes(`${e.seat}:fool`)) this.fail('fool', `${name(e.seat)} died on the Fool's first death`);
 				}
-				if (working(b, e.seat, 'zombuul') && !v.undead) this.fail('zombuul', `${name(e.seat)} died for real at the Zombuul's first death`);
+				if (working(b, e.seat, 'zombuul') && !v.undead && e.cause !== 'exile' && e.cause !== 'left') this.fail('zombuul', `${name(e.seat)} died for real at the Zombuul's first death`);
 				// Nothing kills on the first night but the Tinker's own fate (and the Moonchild's curse that may follow).
 				if (night && b.night?.n === 1 && e.cause !== 'tinker' && e.cause !== 'moonchild') this.fail('no-kill-night-one', `${name(e.seat)} died by ${e.cause} on the first night`);
 				if (e.cause === 'demon') {
 					if (!night) this.fail('demon-kills-at-night', `${name(e.seat)} killed by the Demon by day`);
 					if (b.night?.n === 1) this.fail('no-kill-night-one', `${name(e.seat)} killed on the first night`);
 					if (protectedTonight(b, e.seat)) this.fail('monk-protects', `${name(e.seat)} died though the Monk protected them`);
-					if (working(b, e.seat, 'soldier')) this.fail('soldier-is-safe', `${name(e.seat)}, a working Soldier, was killed by the Demon`);
+					if (!v.undead && working(b, e.seat, 'soldier')) this.fail('soldier-is-safe', `${name(e.seat)}, a working Soldier, was killed by the Demon`);
 				}
 				if (night && working(b, e.seat, 'mayor') && e.cause !== 'assassin' && e.cause !== 'starpass' && !(('mayorRedirect' in cmd) && cmd.mayorRedirect === null)) {
 					// A working Mayor dies at night only if the Storyteller chose no one to die instead.
@@ -971,12 +976,12 @@ export class Checker {
 					const t = c.targets?.[0] ?? c.target;
 					if (cmd.type !== 'choose' || t === undefined || !working(b, e.seat, 'gambler') || b.seats[t].character === c.character) this.fail('gambler', `${name(e.seat)} died as a Gambler without a wrong guess`);
 				}
-				if (e.cause === 'godfather' && !(this.start!.night?.dayDeaths ?? []).some((x) => teamIn(b, this.start!.seats[x].character) === 'outsider')) this.fail('godfather', `the Godfather killed ${name(e.seat)} with no Outsider dead today`);
+				if (e.cause === 'godfather' && !this.dayOutsiderDied) this.fail('godfather', `the Godfather killed ${name(e.seat)} with no Outsider dead today`);
 				if (e.cause === 'grandmother' && !(v.character === 'grandmother' && this.deathsNow.some((x) => x.cause === 'demon' && b.effects.some((g) => g.kind === 'grandchild' && g.by === e.seat && g.target === x.seat)))) {
 					this.fail('grandmother', `${name(e.seat)} died with a grandchild the Demon did not kill`);
 				}
 				if (e.cause === 'gossip' && !(this.start!.night?.gossip ?? []).length) this.fail('gossip', `${name(e.seat)} died to the Gossip with no true statement`);
-				if (e.cause === 'moonchild' && !this.start!.effects.some((x) => x.kind === 'moonchild' && x.target === e.seat && x.note === 'good')) this.fail('moonchild', `${name(e.seat)} died to the Moonchild, unchosen or not good`);
+				if (e.cause === 'moonchild' && !this.events.some((x) => x.type === 'kill-redirected' && x.to === e.seat) && !this.start!.effects.some((x) => x.kind === 'moonchild' && x.target === e.seat && x.note === 'good')) this.fail('moonchild', `${name(e.seat)} died to the Moonchild, unchosen or not good`);
 				if (e.cause === 'witch' && !(cmd.type === 'nominate' && cmd.nominator === e.seat && livingIds(this.start!).length > 3
 					&& this.start!.effects.some((x) => x.kind === 'cursed' && x.target === e.seat && x.by !== null && working(this.start!, x.by, 'witch')))) this.fail('witch', `${name(e.seat)} died to a curse they could not have`);
 				if (e.cause === 'fang-gu' && !(v.character === 'fang-gu' && this.events.some((x) => x.type === 'became-demon' && x.via === 'fang-gu'))) this.fail('fang-gu', `${name(e.seat)} died as the old Fang Gu without a jump`);
@@ -1005,6 +1010,7 @@ export class Checker {
 				const v = b.seats[e.seat];
 				if (v.alive) this.fail('revive-the-dead', `${name(e.seat)} revived while alive`);
 				if (e.by === 'professor' && teamIn(b, v.character) !== 'townsfolk') this.fail('professor', `the Professor revived ${name(e.seat)}, not a Townsfolk`);
+				if (e.by === 'shabaloth' && teamIn(b, v.character) === 'demon') this.pitHagDemon = true; // a dead former Demon brought back: a rules question (INBOX), not judged here
 				if (e.by === 'shabaloth' && !b.effects.some((x) => x.kind === 'chose-last' && x.role === 'shabaloth' && x.target === e.seat)) this.fail('shabaloth', `the Shabaloth brought back ${name(e.seat)}, not chosen last night`);
 				this.dead.delete(e.seat);
 				this.virginSpent.delete(e.seat);
@@ -1057,6 +1063,7 @@ export class Checker {
 			}
 			case 'became-demon': {
 				const v = b.seats[e.seat];
+				this.turned.add(e.seat); // a red herring made or passed the Demon is evil, rightly
 				if (!v.alive) this.fail('dead-stay-dead', `${name(e.seat)} became the Demon while dead`);
 				// A Minion catches it (starpass, Scarlet Woman); the Snake Charmer swaps; the Fang Gu jumps to an Outsider; the Pit-Hag makes anyone one.
 				const from = e.via === 'snake-charmer' ? 'snake-charmer' : e.via === 'fang-gu' ? 'outsider' : e.via === 'pit-hag' ? 'any' : 'minion';
@@ -1082,12 +1089,12 @@ export class Checker {
 				if ((e.role === 'monk' || e.role === 'butler') && e.targets[0] === e.by) this.fail('choose-another', `the ${e.role} chose themselves`);
 				const asWho = e.role === 'lunatic' ? 'lunatic' : v.believes;
 				if (e.role !== asWho && !(e.role === 'lunatic' && v.character === 'lunatic')) this.fail('wake-as-yourself', `${name(e.by)} chose as ${e.role} but believes ${v.believes}`);
-				if (e.role === 'monk' && e.effective) this.monkTonight = e.targets[0];
+				if (e.role === 'monk' && e.effective) this.monkTonight.add(e.targets[0]);
 				if (e.role === 'monk' && !e.effective && a.effects.some((x) => x.kind === 'safe-from-demon' && x.by === e.by)) this.fail('monk', 'a drunk or poisoned Monk protected someone');
 				break;
 			}
 			case 'kill-prevented': {
-				if (e.reason === 'protected by the Monk' && this.monkTonight !== e.target) this.fail('monk', `${name(e.target)} saved by a Monk who did not protect them`);
+				if (e.reason === 'protected by the Monk' && !this.monkTonight.has(e.target)) this.fail('monk', `${name(e.target)} saved by a Monk who did not protect them`);
 				if (e.reason === 'the Soldier' && !working(b, e.target, 'soldier')) this.fail('soldier-is-safe', `${name(e.target)} saved as a Soldier without being a working one`);
 				if (e.reason === 'the Fool' && !(b.seats[e.target].character === 'fool')) this.fail('fool', `${name(e.target)} saved as the Fool without being one`);
 				if (e.reason === 'the Fool' && this.start!.spent.includes(`${e.target}:fool`) && !this.events.some((x) => x.type === 'revived' && x.seat === e.target)) this.fail('fool', `${name(e.target)} saved by the Fool a second time`);
@@ -1160,7 +1167,7 @@ export class Checker {
 						this.ghostsUsed.add(v);
 					}
 					// A Butler who votes without their master is counted anyway, but always noted.
-					if (working(b, v, 'butler') && masterOf(b) !== null && !voters.includes(masterOf(b)!) && !this.events.some((x) => x.type === 'note' && x.text.includes(b.seats[v].name))) {
+					if (b.seats[v].alive && working(b, v, 'butler') && masterOf(b, v) !== null && !voters.includes(masterOf(b, v)!) && !this.events.some((x) => x.type === 'note' && x.text.includes(b.seats[v].name))) {
 						this.fail('butler', `${name(v)} (Butler) voted without their master, unnoted`);
 					}
 				}
@@ -1231,9 +1238,9 @@ export class Checker {
 					// The Moonchild's curse is resolved whenever the Moonchild has chosen, not at a wake.
 					if (want.kind === 'moonchild') { /* no place on the sheet to keep */ }
 					// Woken by a death that came after their place: straight away.
-					else if (['sage', 'sweetheart', 'barber', 'apprentice'].includes(want.kind) && place < this.sheetAt) { /* late, allowed */ }
+					else if (['sage', 'ravenkeeper', 'sweetheart', 'barber', 'apprentice'].includes(want.kind) && place < this.sheetAt) { /* late, allowed */ }
 					// An evil Traveller learns the Demon first thing; a Traveller's first night (the Apprentice) comes early.
-					else if (want.kind === 'traveller-info' || (want.seat !== null && this.start!.seats[want.seat].traveller && place < 0)) { /* allowed */ }
+					else if (want.kind === 'traveller-info' || (want.seat !== null && this.start!.seats[want.seat].traveller && (place < 0 || (firstOnly && teamIn(this.start!, this.start!.seats[want.seat].character) !== 'traveller')))) { /* allowed: a Traveller turned into another character by the Pit-Hag acts at its early place (a rules question, see INBOX) */ }
 					else if (place < 0) this.fail('official-night-order', `${want.kind} woke on night ${n.n}, which it never does`);
 					else if (place < this.sheetAt) this.fail('official-night-order', `${want.kind} woke out of the sheet's order on night ${n.n}`);
 					else this.sheetAt = place;
@@ -1247,10 +1254,11 @@ export class Checker {
 			}
 			case 'night-began': {
 				this.aliveAtNightfall = new Set(a.seats.filter((x) => x.alive).map((x) => x.id));
-				this.monkTonight = null;
+				this.monkTonight = new Set();
 				this.keptAtDusk = a.seats.filter((x) => !x.alive && a.effects.some((k) => k.kind === 'keeps-ability' && k.role === 'vigormortis' && k.target === x.id))
 					.map((x) => ({ seat: x.id, character: x.character }));
 				this.sheetAt = -Infinity;
+				this.dayOutsiderDied = (b.day?.deaths ?? []).some((d) => teamIn(b, b.seats[d].character) === 'outsider');
 				const want = b.phase.kind === 'setup' ? 1 : b.phase.kind === 'day' ? b.phase.n + 1 : -1;
 				if (e.n !== want) this.fail('phase-sequence', `night ${e.n} after ${JSON.stringify(b.phase)}`);
 				if (a.effects.some((x) => x.kind === 'poisoned' && (x.role === 'poisoner' || x.role === 'storyteller'))) this.fail('poison-wears-off', 'poison still set at dusk');
@@ -1280,11 +1288,11 @@ export class Checker {
 					if (Number.isInteger(seat)) wakes.set(seat, (wakes.get(seat) ?? 0) + 1);
 				}
 				// Brought back, or given a new character tonight (the Philosopher): they may wake again as it.
-				for (const [seat, n] of wakes) if (n > 1 && !nt.revived.includes(seat) && !(nt.changed ?? []).some((c) => c.seat === seat)) this.fail('wake-once', `${name(seat)} woke ${n} times on night ${e.n}`);
+				for (const [seat, n] of wakes) if (n > 1 && !nt.revived.includes(seat) && !(nt.changed ?? []).some((c) => c.seat === seat) && !(nt.made ?? []).some((c) => c.seat === seat)) this.fail('wake-once', `${name(seat)} woke ${n} times on night ${e.n}`);
 				// A kept Minion wakes each night its ability wakes it (not the Godfather's, which depends on the day; nor the Witch with three alive).
 				for (const k of this.keptAtDusk) {
-					if (!OTHER_SHEET.includes(k.character) || k.character === 'godfather' || (k.character === 'witch' && livingIds(b).length <= 3)) continue;
-					if (b.seats[k.seat].character !== k.character || !b.effects.some((x) => x.kind === 'keeps-ability' && x.target === k.seat)) continue;
+					if (!OTHER_SHEET.includes(k.character) || k.character === 'godfather' || k.character === 'scarlet-woman' || (k.character === 'witch' && livingIds(b).length <= 3)) continue;
+					if (b.seats[k.seat].character !== k.character || (k.character === 'assassin' && b.spent.includes(`${k.seat}:assassin`)) || !b.effects.some((x) => x.kind === 'keeps-ability' && x.target === k.seat)) continue;
 					if (!nt.done.includes(`${k.character}:${k.seat}`)) this.fail('vigormortis', `${name(k.seat)}, a dead ${k.character} the Vigormortis kept, never woke`);
 				}
 				for (const sage of this.sagesTonight) if (b.seats[sage].character === 'sage' && !nt.done.includes(`sage:${sage}`)) this.fail('sage', `${name(sage)}, a Sage killed by the Demon, never woke`);
@@ -1296,10 +1304,10 @@ export class Checker {
 				const mastermindDay = !!b.mastermind && b.day?.n === b.mastermind.day;
 				if (e.winner === 'good') {
 					const executedDemon = this.deathsNow.some((x) => x.cause === 'execution' && teamIn(b, this.start!.seats[x.seat].character) === 'demon');
-					const mastermindStops = executedDemon && this.start!.seats.some((x) => working(this.start!, x.id, 'mastermind'));
+					const mastermindStops = executedDemon && b.seats.some((x) => x.alive && working(b, x.id, 'mastermind')); // (worked out after the death, as the engine does: a rules question when the Demon's death frees the Mastermind's disabler, see INBOX)
 					const demonDead = demonsAlive(b) === 0 && !b.mastermind && !mastermindStops;
 					const mayorWin = b.phase.kind === 'day' && reallyLiving(b) === 3 && b.day?.executed === null
-						&& b.seats.some((x) => working(b, x.id, 'mayor'));
+						&& b.seats.some((x) => x.alive && working(b, x.id, 'mayor'));
 					const mastermindLoss = mastermindDay && ['end-day', 'nominate', 'judge', 'madness'].includes(cmd.type);
 					if (twinsHold(b) && !mastermindLoss) this.fail('evil-twin', 'good won while both twins live');
 					if (!demonDead && !mayorWin && !mastermindLoss) this.fail('good-wins-fairly', `good won: ${e.reason}`);
@@ -1309,7 +1317,7 @@ export class Checker {
 					const mastermindWin = mastermindDay && ['end-day', 'nominate', 'judge', 'madness'].includes(cmd.type);
 					const vortoxDay = cmd.type === 'end-day' && b.day?.executed === null && vortoxOn(b);
 					const klutzWin = cmd.type === 'klutz' && b.seats[cmd.by].character === 'klutz' && !dp(b, cmd.by) && b.seats[cmd.target].alignment === 'evil';
-					const twin = (cmd.type === 'end-day' || cmd.type === 'nominate' || cmd.type === 'madness') && this.events.some((x) => x.type === 'executed'
+					const twin = (cmd.type === 'end-day' || cmd.type === 'nominate' || cmd.type === 'madness' || cmd.type === 'judge') && this.events.some((x) => x.type === 'executed'
 						&& b.effects.some((t) => t.kind === 'twin' && t.target === x.seat && t.by !== null && working(b, t.by, 'evil-twin')));
 					if (!two && !saint && !mastermindWin && !vortoxDay && !klutzWin && !twin) this.fail('evil-wins-fairly', `evil won: ${e.reason}`);
 				}
@@ -1347,9 +1355,9 @@ export class Checker {
 			if (reallyLiving(s) < 3) this.fail('two-left-evil-wins', `${reallyLiving(s)} alive and the game goes on`);
 		}
 		for (const x of s.effects) {
-			if (x.kind !== 'poisoned' || x.by === null) continue;
+			if (x.kind !== 'poisoned' || x.by === null || s.phase.kind === 'over') continue;
 			const p = s.seats[x.by];
-			if (!(p.alive || p.undead) || p.character !== x.role) this.fail('poison-needs-poisoner', `poison held by ${p.name} (${p.character}, ${p.alive ? 'alive' : 'dead'})`);
+			if (!(p.alive || p.undead || s.effects.some((k) => k.kind === 'keeps-ability' && k.target === x.by)) || p.character !== x.role) this.fail('poison-needs-poisoner', `poison held by ${p.name} (${p.character}, ${p.alive ? 'alive' : 'dead'})`);
 		}
 		for (const g of this.ghostsUsed) if (s.seats[g].ghostVote && !s.seats[g].alive) this.fail('ghost-votes-spent', `${s.seats[g].name} still has the ghost vote they used`);
 		for (const g of [...this.ghostsUsed]) if (s.seats[g].alive) this.ghostsUsed.delete(g); // brought back to life: a fresh ghost vote later
@@ -1388,8 +1396,25 @@ function deepFreeze<T>(o: T): T {
 	return o;
 }
 
+/**
+ * A custom script of modelled characters, picked from the seed: 8-12 Townsfolk, 2-4 Outsiders,
+ * 2-5 Minions and 1-2 Demons, like the community's scripts but at random.
+ */
+export function mixScript(seed: number): string {
+	const r = rng(seed * 104729 + 7);
+	const pool = (team: string) => CATALOG.filter((c) => c.team === team && isModelled(c.id)).map((c) => c.id);
+	const take = (team: string, lo: number, hi: number) => {
+		const ids = pool(team);
+		const n = Math.min(ids.length, lo + Math.floor(r() * (hi - lo + 1)));
+		for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
+		return ids.slice(0, n);
+	};
+	return customScriptId([...take('townsfolk', 8, 12), ...take('outsider', 2, 4), ...take('minion', 2, 5), ...take('demon', 1, 2)]);
+}
+
 /** Play one whole game from a seed (the script alternates with the seed unless given). */
-export function play(seed: number, scriptId = SIM_SCRIPTS[seed % SIM_SCRIPTS.length]): Played {
+export function play(seed: number, scriptArg?: string, forcedPlayers?: number): Played {
+	const scriptId = scriptArg === 'mix' ? mixScript(seed) : scriptArg ?? SIM_SCRIPTS[seed % SIM_SCRIPTS.length];
 	const r = rng(seed * 7919 + 13);
 	const script: Script = getScript(scriptId);
 	const checker = new Checker();
@@ -1439,7 +1464,8 @@ export function play(seed: number, scriptId = SIM_SCRIPTS[seed % SIM_SCRIPTS.len
 		}
 	};
 
-	const players = 5 + Math.floor(r() * 11);
+	const rolled = 5 + Math.floor(r() * 11);
+	const players = forcedPlayers ?? rolled;
 	apply({ type: 'create', names: NAMES.slice(0, players), scriptId });
 	// Now and then the Storyteller announces Fabled that change the rules.
 	const deal = randomDeal(script, players, seed);

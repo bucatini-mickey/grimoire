@@ -186,6 +186,9 @@ export function nightSteps(state: GameState): NightStep[] {
 		// The Lunatic wakes at the Lunatic's place, as the Demon they think they are (each night it would act).
 		if (s.character === 'lunatic') {
 			const at = otherNightOrder('lunatic')!, revivedAt = (otherNightOrder('professor') ?? 0) + 0.25;
+			// Made the Lunatic tonight (the Barber, the Pit-Hag) after their place has passed: they act from the next night.
+			const turnedAt = (night.changed ?? []).filter((c) => c.seat === s.id).map((c) => c.at);
+			if (turnedAt.length && at <= Math.max(...turnedAt) && !night.done.includes(`${LUNATIC}:${s.id}`)) continue;
 			if (n > 1 && def.otherNight !== null) add(LUNATIC, s.id, night.revived.includes(s.id) && at < revivedAt ? revivedAt : at, s.alive);
 			continue;
 		}
@@ -210,7 +213,7 @@ export function nightSteps(state: GameState): NightStep[] {
 			case 'undertaker': applies = applies && state.lastExecution?.day === n - 1; break;
 			case 'imp': applies = s.alive && !made.some((m) => m.seat === s.id) && !has('exorcised', s.id); break;
 			// Demons: not tonight if the Exorcist chose them. The Zombuul wakes only if no one died today, even while it seems dead.
-			case 'zombuul': applies = alive && night.dayDeaths.length === 0 && !has('exorcised', s.id); break;
+			case 'zombuul': applies = alive && night.dayDeaths.length === 0 && !made.some((m) => m.seat === s.id) && !has('exorcised', s.id); break;
 			case 'pukka':
 			case 'shabaloth':
 			case 'po':
@@ -230,11 +233,12 @@ export function nightSteps(state: GameState): NightStep[] {
 			// The Storyteller acts for a dead Sweetheart; the Demon wakes for a dead Barber.
 			case 'sweetheart': applies = !s.alive && !spent(s.id, 'sweetheart'); break;
 			case 'barber': applies = !s.alive && !spent(s.id, 'barber') && (night.dayDeaths.includes(s.id) || night.deaths.includes(s.id)); break;
-			case 'witch': applies = applies && state.seats.filter((x) => x.alive).length > 3; break;
+			// (A player brought back after her place has passed does not make her wake late: she was a Witch with three alive.)
+			case 'witch': applies = applies && state.seats.filter((x) => x.alive).length > 3 && (order >= (night.reached ?? -Infinity) || night.done.includes(`witch:${s.id}`)); break;
 			case 'bone-collector': applies = applies && !spent(s.id, def.id); break;
 			case 'godfather':
 				if (n === 1) { add(GODFATHER_INFO, s.id, order, s.alive); continue; }
-				applies = applies && night.dayDeaths.some((d) => charDef(script, state.seats[d].character).team === 'outsider');
+				applies = applies && (night.dayOutsiderDied ?? night.dayDeaths.some((d) => charDef(script, state.seats[d].character).team === 'outsider'));
 				break;
 			// Not woken: the Storyteller acts on their behalf at their place in the night.
 			case 'gossip': applies = applies && night.gossip.some((g) => g.by === s.id); break;
@@ -253,12 +257,15 @@ export function nightSteps(state: GameState): NightStep[] {
 		// Just after the Exorcist, wherever they woke (a revived Exorcist wakes after the Professor).
 		const revivedAt = (otherNightOrder('professor') ?? 0) + 0.25;
 		const at = otherNightOrder('exorcist')!;
-		add(EXORCISED, e.target, (night.revived.includes(e.by) && at < revivedAt ? revivedAt : at) + 0.1, true);
+		add(EXORCISED, e.target, (night.revived.includes(e.by) && at < revivedAt ? revivedAt : at) + 0.1, state.seats[e.target].alive || !!state.seats[e.target].undead);
 	}
 	// Back from the dead tonight with a first-night ability: it acts again, at once.
 	for (const id of night.revived) {
 		const def = charDef(script, state.seats[id].believes);
-		if (def.firstNight !== null && def.otherNight === null && state.seats[id].alive) add(def.id, id, (otherNightOrder('professor') ?? 0) + 0.25, true);
+		const at = (otherNightOrder('professor') ?? 0) + 0.25;
+		// (Made a different character after that place by the Barber or Pit-Hag: not woken late for it.)
+		const turnedLater = (night.changed ?? []).some((c) => c.seat === id && c.at >= at) && !night.done.includes(`${def.id}:${id}`);
+		if (def.firstNight !== null && def.otherNight === null && state.seats[id].alive && !turnedLater) add(def.id, id, at, true);
 	}
 
 	// Woken by a death (the Sage, the Sweetheart, the Barber): a death after their place is dealt with straight away.
@@ -268,7 +275,7 @@ export function nightSteps(state: GameState): NightStep[] {
 }
 
 /** Steps dealt with as soon as they arise (a death; a Traveller joining at night). */
-const DEATH_TRIGGERED = new Set(['sage', 'sweetheart', 'barber', TRAVELLER_INFO, 'apprentice']);
+const DEATH_TRIGGERED = new Set(['sage', 'ravenkeeper', 'sweetheart', 'barber', TRAVELLER_INFO, 'apprentice']);
 
 export function nextStep(state: GameState): NightStep | null {
 	return nightSteps(state).find((s) => !s.done) ?? null;

@@ -4,6 +4,8 @@
  *
  *   npm run sim                 10,000 games from seed 1
  *   npm run sim -- 50000 7      50,000 games from seed 7
+ *   npm run sim -- 5000 1 mix   random custom scripts of modelled characters (any player count 5-15)
+ *   npm run sim -- 5000 1 mix 13   the same, always 13 players (the third word may be a script id, or all, instead of mix)
  *
  * Failures are written to tests/sim/failures/<rule>-<seed>.json: the
  * commands that break the rule, ready to replay as a test.
@@ -14,7 +16,9 @@ import { play, shrink } from './sim.ts';
 const games = Number(process.argv[2] ?? 10000);
 const from = Number(process.argv[3] ?? 1);
 /** Only this script (optional): npm run sim -- 2000 1 sects-and-violets */
-const only = process.argv[4];
+const only = process.argv[4] === 'all' ? undefined : process.argv[4];
+/** Fix the player count (optional): npm run sim -- 2000 1 mix 13 */
+const fixedPlayers = process.argv[5] ? Number(process.argv[5]) : undefined;
 const totals: Record<string, number> = {};
 const broken = new Map<string, { seed: number; detail: string }>();
 let refusals = 0;
@@ -22,7 +26,7 @@ let commands = 0;
 const t0 = Date.now();
 
 for (let seed = from; seed < from + games; seed++) {
-	const g = play(seed, only);
+	const g = play(seed, only, fixedPlayers);
 	refusals += g.refusals;
 	commands += g.commands.length;
 	for (const [k, v] of Object.entries(g.stats)) totals[k] = (totals[k] ?? 0) + v;

@@ -1,0 +1,152 @@
+{
+ "rule": "wake-in-order",
+ "detail": "chef:3 (order 65.25) after a step of order 72.001",
+ "seed": 672493,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen"
+   ],
+   "scriptId": "custom:mathematician,snake-charmer,grandmother,flowergirl,chef,fortune-teller,gambler,librarian,courtier,klutz,moonchild,barber,godfather,witch,cerenovus,baron,evil-twin,shabaloth"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "chef",
+    "shabaloth",
+    "librarian",
+    "grandmother",
+    "baron",
+    "moonchild",
+    "barber"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "gambler",
+    "fortune-teller",
+    "mathematician"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "pair",
+    "players": [
+     5,
+     6
+    ],
+    "character": "moonchild"
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "reveal",
+    "player": 0,
+    "character": "chef"
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T7",
+   "character": "cacklejack",
+   "alignment": "evil",
+   "after": 0
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3,
+    5
+   ]
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "moonchild",
+   "by": 5,
+   "target": 6
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2,
+    7
+   ],
+   "regurgitate": 3
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "reveal",
+    "player": 0,
+    "character": "chef"
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0,
+    3
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 1
+   }
+  }
+ ]
+}

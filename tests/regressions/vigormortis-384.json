@@ -1,0 +1,186 @@
+{
+ "rule": "vigormortis",
+ "detail": "Isolde(assassin), a dead assassin the Vigormortis kept, never woke",
+ "seed": 384,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory"
+   ],
+   "scriptId": "custom:philosopher,librarian,grandmother,washerwoman,undertaker,savant,gossip,slayer,recluse,sweetheart,tinker,lunatic,cerenovus,baron,scarlet-woman,assassin,vigormortis"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "savant",
+    "gossip",
+    "grandmother",
+    "slayer",
+    "washerwoman",
+    "philosopher",
+    "undertaker",
+    "cerenovus",
+    "assassin",
+    "vigormortis"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "recluse",
+    "sweetheart",
+    "tinker"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "pair",
+    "players": [
+     5,
+     0
+    ],
+    "character": "philosopher"
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "reveal",
+    "player": 0,
+    "character": "savant"
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ],
+   "character": "slayer"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ]
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ],
+   "character": "grandmother"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ]
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T10",
+   "character": "thief",
+   "alignment": "evil",
+   "after": 7
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    9
+   ]
+  },
+  {
+   "type": "choose",
+   "character": "undertaker"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    10
+   ],
+   "character": "undertaker"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ]
+  },
+  {
+   "type": "end-night"
+  }
+ ]
+}
