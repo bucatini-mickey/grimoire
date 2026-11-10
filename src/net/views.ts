@@ -10,6 +10,9 @@
  *               sees the Townsfolk they think they are)
  *   wakeFor     the pages for one night wake: who they are, what they know
  *               about the evil team, whom they may choose, what they learn
+ *   scriptSheet the script's characters and abilities (the sheet on the
+ *               table): never who is which
+ *   logEntry    what one wake told its player, for their own log of it
  *
  * All pure and tested (tests/views.test.ts), so a leak is a failing test.
  */
@@ -175,6 +178,39 @@ export function publicView(state: GameState): PublicView {
 		winner: p.kind === 'over' ? p.winner : null,
 		reason: p.kind === 'over' ? p.reason : ''
 	};
+}
+
+// ---- the script, and a player's own log -----------------------------------------------------------
+
+/** One character on the script's sheet. */
+export interface SheetEntry { id: CharacterId; name: string; team: string; ability: string; }
+
+/** The script's characters and what they do, as the sheet on the table shows them: nothing about the seats. */
+export function scriptSheet(state: GameState): SheetEntry[] {
+	return script(state).characters.map((c) => ({ id: c.id, name: c.name, team: c.team, ability: c.ability }));
+}
+
+/** One wake, as its player's log keeps it: when, and what they were told (the wake's id says which). */
+export interface LogEntry { id: string; title: string; lines: string[]; }
+
+/**
+ * What a wake told its player, for their log: what they know of the evil team and what they learned.
+ * Only from that player's own wake (so only what they were shown); null when it told them nothing to keep.
+ * The Spy's look at the grimoire is noted, not copied.
+ */
+export function logEntry(wake: Wake, night: number): LogEntry | null {
+	const skip = new Set(['You are', 'Your ability', 'Your team']);
+	const lines: string[] = [];
+	for (const s of [...wake.sections.filter((x) => !skip.has(x.title)), ...(wake.info ?? [])]) {
+		const body = s.lines.join(', ');
+		// An answer under its question (a section with no title) goes on the question's line.
+		if (body && !s.title && lines.length) lines[lines.length - 1] += ': ' + body;
+		else if (body) lines.push(s.title ? `${s.title}: ${body}` : body);
+	}
+	if (wake.grimoire) lines.push('You saw the grimoire.');
+	if (!lines.length) return null;
+	const role = wake.sections[0]?.lines[0]?.replace(/^(now )?the /, '') ?? '';
+	return { id: wake.id, title: `Night ${night}${role ? ' · ' + role : ''}`, lines };
 }
 
 // ---- one player's own character -------------------------------------------------------------

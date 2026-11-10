@@ -89,8 +89,8 @@ LL,LLLLLLLLLLL,:Ls''sssssss''sLllllllLllLllLllLllLllLllLllllllLlllllllllllllL,:,
 LL,L..++++++-L,:LsssssssssssssLllll,,,,,,,,,,,,,,,,,,,,,,,llllLll?????????llL,:,L$+++++++++++LLL
 LL,L+++++++++L,:Ls''sssssss''sLllll,,,,,,,,,,,,,,,,,,,,,,,llllLl?@@@@@@@@@llL,:,L+A++A++A++++LLL
 LL,L+++++++++L,:LsssssssssssssLlllL,,,,,,,,,,,,,,,,,,,,,,,Llll#ll@@@@@@@@@llL,:,L++++++++++++LLL
-LL,L++++*+++<^,:Ls''sssBsss''sLllll,,,,,,,,,,,,,,,,,,,,,,,llllLll?????????llL,:,L++++++++++++LLL
-LL,L+++++++++L,:LsssssssssssssLllll,,,C,,,,,,,,,,,,,,,,,,,llllLlllllllllllllL,:,^+++++*++++++LLL
+LL,L++++*++++^,:Ls''sssBsss''sLllll,,,,,,,,,,,,,,,,,,,,,,,llllLll?????????llL,:,L++++++++++++LLL
+LL,L++++++++<L,:LsssssssssssssLllll,,,C,,,,,,,,,,,,,,,,,,,llllLlllllllllllllL,:,^+++++*++++++LLL
 LL,L+++++++++L,:Ls''sssssss''sLlllL,,,,,,,,,,,,,,,,,,,,,,,LlllLlllllllllllllL,:,L++++++++++++LLL
 LL,L+++++++++L,:LsssssssssssssLllll,,,,,,,D,,D,,D,,,,,,,,,llllLlllllllllllllL,:,L++++++++++++LLL
 LL,LA+++++++EL,:Ls''sssssss''sLllll,,,,,,,,,,,,,,,,D,,,,,,llllL;lllllllllll;L,:,L++++++++++++LLL
@@ -172,8 +172,8 @@ level 1
    L+++++++++L                                                LA++++L+L++++AL                   
    L+++++++++L                                                L+++++^+^+++++L                   
    L+++++++++L                                                L+++++L+L+++++L                   
-   L++++++++>L                                                LLLLLLL+LLLLLLL                   
-   L+++++++++L                                                LA++++L+L++++AL                   
+   L+++++++++L                                                LLLLLLL+LLLLLLL                   
+   L++++++++>L                                                LA++++L+L++++AL                   
    L+++++++++L                                                L+++++^-^+++++L                   
    L+++++++++L                                                L+++++L+L+++++L                   
    LA++++++++L                                                LLLLLLL+LLLLLLL                   

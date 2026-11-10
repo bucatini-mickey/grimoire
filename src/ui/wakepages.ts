@@ -11,7 +11,8 @@
  * (folio: the vines, the roundel). Handed over on the Storyteller's own phone, the pages come between
  * a page naming who takes the phone and one asking for it back (main.ts).
  */
-import { COLS, blank, btn, center, centredButtons, endPanel, miniature, namePlate, starRow, pad, row, txt, wrap } from './ascii.ts';
+import { COLS, blank, btn, center, centredButtons, endPanel, letteredRow, miniature, namePlate, rubric, starRow, pad, row, txt, wrap } from './ascii.ts';
+import type { Announcement } from '../net/protocol.ts';
 import type { Button, Row, Tone } from './ascii.ts';
 import { ALL_CHARACTERS } from '../core/index.ts';
 import type { SeatId } from '../core/index.ts';
@@ -122,6 +123,26 @@ export function characterRows(card: { id: string; name: string; ability: string;
 		...sectionRows([{ title: 'You are', lines: ['the ' + card.name], style: 'big' }, { title: 'Your ability', lines: [card.ability], style: 'text' }, { title: 'Your team', lines: [card.team === 'evil' ? 'Evil' : 'Good'], style: 'big' }], card.id),
 		endPanel(), ...cardButtons([hide])
 	];
+}
+
+/**
+ * What the Storyteller announces (a death, an execution, the end), as a page: its title, then the names
+ * that died (or the winning team) lettered large in the textura in their own ink, then the words.
+ */
+export function revealRows(items: Announcement[]): Row[] {
+	const rows: Row[] = [];
+	for (const a of items) {
+		rows.push(rubric(a.title, CARD_COLS));
+		for (const b of a.big ?? []) {
+			const lettered = letteredRow(b.text, CARD_COLS, b.ink, true) ?? namePlate(b.text, 2);
+			if (lettered) rows.push(blank(), lettered);
+			else rows.push(row(txt(center(b.text.toUpperCase(), CARD_COLS - 2), 'rubric', 'heading')));
+		}
+		if (a.big?.length) rows.push(blank());
+		for (const l of a.lines) rows.push(...wrap(l, CARD_INNER - 2).map((w) => row(txt(center(w, CARD_INNER - 2), 'gold', 'heading'))));
+	}
+	rows.push(endPanel());
+	return rows;
 }
 
 /** The page after this one. */

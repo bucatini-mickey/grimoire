@@ -57,14 +57,15 @@ The build is a static site in `dist/`. Pushing to `main` publishes it with GitHu
 
 ### The app icon
 
-Design the icon the app wears on a home screen: on the book's first page choose *The app icon*, or in a game open *Settings*, *The app icon*. Pick a symbol (the capital G, the clocktower, moon, sun, star, or a character's token with the capital of their name), then a ground, leaf, frame and ink from the inks of any of the four books (Medieval, Grimm, Clockwork, Lovecraft). It is previewed at 28, 16 and 12 pixels, as a home screen, a list and a browser tab show it. *Use this icon* keeps the design in this browser (nothing is sent anywhere, and another phone has its own) and puts it on the page's favicon, `apple-touch-icon` and web manifest at once, and again whenever the app is opened. *Forget my design* goes back to the shipped icon files.
+The icon is one picture, the same for everyone: `art/app-icon.json`. Open `tools/margin-editor.html` in Chrome or Edge, press *Open art folder*, pick `Grimoire/art`, choose the *App icon* tab, draw and save. The next build makes `icon-192.png` and `icon-512.png` from it.
 
-What a platform does with a changed icon is its own business: an app already on a home screen keeps the icon it was added with.
+An app already on a home screen keeps the icon it was added with until it is removed and added again.
 
-- **iPhone and iPad (Safari):** the icon is copied when the app is added, so remove it and use *Share*, *Add to Home Screen* again.
-- **Android (Chrome):** an installed app keeps its icon (Chrome may refresh it from the real manifest after days, but not from the page's own), so uninstall it and use *Install app* again.
-- **Desktop Chrome or Edge:** uninstall the app and install it again.
-- The browser tab's icon changes at once on every platform.
+### Figures and faces
+
+Each player has two glyphs: a figure who walks the village and a face at the voting table, 30 of each at most. Change the lists in the [Figure Picker](https://claude.ai/artifact/QcLujdZ4QWYHKk9xQNMcqD): it is private to the owner's Claude account, opens in any browser on any machine with nothing to install (pinned in the claude.ai sidebar; also listed at claude.ai/code/artifacts), and saves to the page itself, so every device sees the same picks. It hides what that device's fonts cannot draw, so a phone may offer fewer than a laptop.
+
+The picks reach the game by hand. In a Claude session, read the page's `picks/mine` document, write its `figure` and `face` lists to `art/figure-picks.json`, run `node tools/sync-figures.mjs`, then build and push. Everything ever picked is in `art/figure-picks-all.json`, and the page's source is `tools/figure-picker.html`.
 
 ## Running it
 

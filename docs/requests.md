@@ -2,6 +2,47 @@
 
 Asked for by the user, not yet built. Newest first; tick off (move to "Done") as they land.
 
+## 2026-11-01 (playtest of a Trouble Brewing game with friends)
+
+**Maps: small enough to find people**
+- Ravensburg's castle town is too big. Go back to a smaller castle town, after Talmberg in Kingdom Come: Deliverance (reference: `references/grimoire-maps/talmberg-kcd-reference.webp`: one compact walled keep with two round towers, a dry moat with a bridge, a small walled upper village of a dozen houses, woods and a stream around). Every map follows the same idea: it should never be hard to find people. **Done:** Talmberg (town/make-talmberg.mjs, 84x86 against Ravensburg's 120x128) is now Trouble Brewing's town; on every map, anyone off the screen or on another floor is marked at the screen's edge by their letter and an arrow (not at night).
+- The user is tempted to drop the village part and use a **castle interior map of 3 levels** instead (auto stairs). Build it. **Done:** The Keep (town/make-keep.mjs): three floors round an open court; the great hall, kitchens, chapel, guardroom, armoury, library, entrance hall and steward's room below; a gallery and sixteen bedchambers above; the solar, the lord's chambers and more chambers on top. Stairs climb as you step on them.
+- **Dev mode**: walk any map alone as the Storyteller or as a player, without a game. **Done:** Contents → For the players → Walk the village alone: "Walk as Storyteller / A player", then any town; Menu sets the phase and adds test villagers.
+- The round table: rounder, more like a table. One character's name was drawn far off in the distance (a label bug). **Done:** Talmberg's and the Keep's tables are round (sixteen chairs); each name at the table now sits right beside its seat. (The far-off label did not show again in testing.)
+- **Done:** the map keeps its round table; for nominations and votes (the circle) everyone is shown the council room instead: the table drawn large on a plain dark ground, the seats round it in each player's colour, a clock in the table whose hand runs down the clock of the moment, the nominee lettered in the textura above, raised hands, counted hands and the count's place on the seats, the day's business beneath. It uses the finer cells on a desktop so it all fits. (The old "ethereal ring" and the in-map council drawing are gone.)
+- Keep a real (perhaps smaller) table in the map, but at the nomination/voting stage everyone moves to a **liminal zone** around the table: a shared meeting room where everyone discusses and votes together, in essence a larger-scale version of the map's table with a blank surround and more styling; a space of its own, free to hold the timer, the clock hands and other styling, everything more refined and better looking; if there is room, names in a more stylised gothic lettering.
+
+**Later the same day**
+- Talmberg's village: no longer a ring of like houses. The palisade follows an uneven line; fourteen houses of their own sizes, timber or stone, door toward the well, huddled anyhow round an off-centre green, a few fenced gardens and woodpiles. **Done.**
+- A loft's stair stood in the doorway of houses with east or west doors (gen.mjs). **Done:** the stair goes beside the way in; Talmberg, Wolfsgrund and the Abbey regenerated.
+- A square is a metre: the Keep was rooms of 10-20 m with nothing in them. **Done:** rebuilt at a minor castle's size (41 x 36 m): a great hall of 15 x 9 m round an oval table, kitchen and pantry, chapel, library, steward, guardroom, armoury, bakehouse, entrance hall, stables, a store; sixteen chambers of about 4 x 5 m round the gallery; the lord's chamber and solar on top. Talmberg's hall is 15 x 9 m too, its lord's chamber split into a chamber and a solar.
+- More colour variation, texture: **Done:** broad patches and cell-to-cell grain on every ground (look.ts vary): grass lush and sun-dried, earth wet and dry, stone weathered, now and then moss.
+- The occlusion fog more gradual: **Done:** sight fades over three steps past its edge instead of stopping (never through a wall).
+
+**Look**
+- Desktop: the cells are too small for the screen. Zoom in (bigger cells, fewer columns, so smaller details read). **Done:** the town on a desktop uses type up to 34px (was 22): about 47 town squares across a 1920 screen instead of 72. Phones are unchanged.
+- Lighting is too shabby: go back to a brighter system, still atmospheric but less moody. **Done:** a fair bright day, a warm dusk, a moonlit blue night; daylight reaches into rooms through doors; torches and lanterns carry further; the mist starts further off; places seen before stay readable.
+- Reveals need flair: a death shows the name in large gothic word art; the same for the winning team. **Done:** dawn deaths, executions and the Slayer's hit letter the dead player's name in the textura in their own colour; the end letters "Good wins" in blue or "Evil wins" in red. On the Storyteller's phone and every player's.
+- Hovering (or tapping) a player's letter shows their full name as a banner in their colour. Each player keeps that colour everywhere: the grimoire circle, the circle and other views. **Done:** one colour per seat (src/ui/ascii.ts personInk), used by the map's letters, the council's names, the grimoire's circle and the players' circle.
+- **Started:** pages can now say where the open book's right leaf begins (ascii.ts leafBreak; nothing on a phone), and a page that fits both leaves keeps each leaf's foot buttons pinned with no page-turns. The codex character: name and portrait left, ability and first thoughts right, "< previous" always at the foot of the left leaf, "next >" at the foot of the right. The codex list and the Storyteller's book of characters: good left, evil right. Still to go over: the other screens (the grimoire's tabs, setup, the players' pages).
+- **Stable, consistent UI everywhere.** Use the space better, or move things into submenus with logical routes to them. Controls stay in fixed places and never move. Example, the codex on a wide (two-page) screen: the name and portrait on the left page, the information on the right page, "Previous character" fixed at the bottom of the left page, "Next character" fixed at the bottom of the right page. Apply the same thinking to every screen.
+
+**Players' menu** (like the Storyteller's, without roles). **Done:** a Menu button on the player's page and in the village's bar: The circle (with their own notes), The characters, My character (portrait and ability), and What I have been told when the Storyteller keeps logs. All through src/net/views.ts (scriptSheet, logEntry), leak-tested in tests/views.test.ts.
+- The circle with names, at any time.
+- The script's characters and their abilities.
+- Their own character, with portrait and ability.
+- On their own circle: their guesses, notes and statuses (private to them). **Done:** tap a player on your circle: marks (Good?, Evil?, Drunk?, Poisoned?, Trusted, Lying), a line of words, a guess at their character; kept only on that phone.
+- A setup option: a log of the information each player has received, which they can read back. **Done:** Settings → Players' phones → Keep a log for each player.
+
+**Village**
+- Remove the bell (redundant). **Done:** the Bell button and its sound are gone; the phase is called Dusk.
+- Private chat request with anyone; once accepted, a private waypoint or direction marker helps the two find each other. **Done:** People → Ask works for any player now; once accepted the other is marked in gold (at the screen's edge with an arrow when out of sight, ringed when in sight) and Find walks you to them.
+- **Parked (2026-11-01):** faces are switched off in the game (village.ts `FACES = false`). Tracking was not the problem; twelve columns cannot draw a face anyone would recognise. The tuner (tools/ascii-face.html: pin the crop by clicking your face, expose for the face, fade the background) stays for another try, perhaps with bigger tiles.
+- **Faces in ASCII**: players' webcam faces as moving ASCII, tied to proximity chat (shown for people in earshot), always shown in the circle; an option in the menu. First a standalone example program the user can test themselves. **Done:** tools/ascii-face.html (open it in a browser, allow the camera; sizes, ink, invert, sharpen, frame rate; a moving test picture with no camera). In the village: Faces in the bar → My camera on/off, Show faces on/off. Faces are small (12x6 cells) and docked down the right edge of the map; each cell is sampled top and bottom and drawn with a glyph chosen by shape (" high, , low), 144 bytes a frame a few times a second over the game's link, never video; the Storyteller's phone passes each on to whoever can hear its owner, everyone in the circle, nobody at night. Test villagers have drawn faces.
+
+**Bug**
+- Players had left the page open. The Storyteller made a new game and it did not take the players with it: they should follow the host into the new game. **Done:** the old room tells its phones the new room's code and they rejoin it under the same name; it stays open 20 minutes for phones that were asleep.
+
 ## 2026-10-25
 
 **Where things stand** (2026-10-25, evening): everything below is built. Still open:

@@ -12,6 +12,7 @@
 
 import { bookKey, themeOfKey } from './theme.ts';
 import type { Theme } from './theme.ts';
+import { SIGHT } from '../town/map.ts';
 import { Term, expand, shade } from '../term/pterm.ts';
 import type { Grid, Palette, Rect } from '../term/pterm.ts';
 
@@ -105,6 +106,25 @@ export function nameLines(name: string): string[] {
 	return best;
 }
 
+/**
+ * The village's bottom bar: one row of the buttons that fit `cols`, in order, the rest behind `more`.
+ * A pinned button (the way out: the menu) is always on the bar, however narrow the phone; the others give way to it.
+ */
+export function pickBar(all: Button[], cols: number, pinned: (b: Button) => boolean, more: Button): { bar: Button[]; more: Button[] } {
+	const width = (bs: Button[]) => bs.reduce((k, b) => k + segWidth(b), 0);
+	if (width(all) <= cols) return { bar: all, more: [] };
+	const keep = new Set(all.filter(pinned));
+	let room = cols - segWidth(more) - width([...keep]);
+	const bar = new Set(keep);
+	for (const b of all) {
+		if (keep.has(b)) continue;
+		const w = segWidth(b);
+		if (w > room) break;
+		room -= w; bar.add(b);
+	}
+	return { bar: [...all.filter((b) => bar.has(b)), more], more: all.filter((b) => !bar.has(b)) };
+}
+
 export function center(text: string, width = COLS): string {
 	const len = [...text].length;
 	if (len >= width) return text;
@@ -123,7 +143,13 @@ export function wrap(text: string, width = INNER): string[] {
 	const out: string[] = [];
 	for (const para of text.split('\n')) {
 		let line = '';
-		for (const word of para.split(/\s+/).filter(Boolean)) {
+		for (let word of para.split(/\s+/).filter(Boolean)) {
+			// (a word longer than the line, a link, is cut to fit: it must not run off the screen)
+			while (word.length > width) {
+				if (line) { out.push(line); line = ''; }
+				out.push(word.slice(0, width));
+				word = word.slice(width);
+			}
 			if (!line) line = word;
 			else if (line.length + 1 + word.length <= width) line += ' ' + word;
 			else {
@@ -344,6 +370,22 @@ const order: unknown[] = [];
 let dynamic: (d: Record<string, string>) => string | null = () => null;
 let paletteKey: () => string = () => 'manuscript-night';
 /** Anything drawn after the page layers (the village, set by main). */
+/**
+ * Each player's colour, by their place round the circle, the same on the map, the circle and the grimoire:
+ * [ink, ground]. The first seven are bright inks on the ground; the rest dark letters on a plate of colour.
+ */
+const PERSON: [number, number][] = [[8, 0], [12, 0], [10, 0], [14, 0], [6, 0], [7, 0], [5, 0], [0, 8], [0, 12], [0, 10], [0, 14], [0, 7], [0, 5], [0, 4], [4, 0]];
+export const personInk = (k: number): [number, number] => PERSON[((k % PERSON.length) + PERSON.length) % PERSON.length];
+/** The faint backing of a player's letter: a plate's own ground, or for a letter in a bright ink that ink's darkest shade, so it stands out of busy ground. */
+export const letterPlate = (fg: number, bg: number): number => bg || shade(fg, 0);
+/** A player's colour as one ink (the plate's, for those drawn on a plate). */
+export const seatInk = (k: number) => { const [f, b] = personInk(k); return b || f; };
+let townBig = () => true;
+/** Whether the town wants its big cells now (the village's council room does not). */
+export const setTownBig = (f: () => boolean) => { townBig = f; };
+let hoverFn: ((cell: { x: number; y: number } | null) => void) | null = null;
+/** Where the mouse is over the grid (the village shows a name there). */
+export const setHover = (f: typeof hoverFn) => { hoverFn = f; };
 let extra: ((g: Grid) => boolean) | null = null;
 
 /** A leaf of the book (by day, or by candlelight at night): written on, not boxed. Over the town map
@@ -433,7 +475,15 @@ export function quant(c: number[]): number {
 export { shade };
 export const theTerm = () => term;
 
-const lineH = (r: Row) => (r.block ? r.block.h : r.segs.some(isButton) ? Math.max(...r.segs.filter(isButton).map(buttonH)) : 1);
+const lineH = (r: Row) => (r.cls === 'leaf-break' ? 0 : r.block ? r.block.h : r.segs.some(isButton) ? Math.max(...r.segs.filter(isButton).map(buttonH)) : 1);
+
+/**
+ * Where the right-hand leaf begins when the book lies open on a wide screen (what comes before is the
+ * left leaf). On one leaf alone (a phone) it is nothing.
+ */
+export const leafBreak = (): Row => ({ segs: [], cls: 'leaf-break' });
+/** Whether pages are shown as the open book's two leaves (so a page can be laid out for both). */
+export const twoLeaves = () => isBook() && wideScreen() && (term?.cols ?? 0) >= 2 * (COLS + 12);
 
 /**
  * Draw a button: a ruled cartouche three lines tall. The main action is a
@@ -993,7 +1043,7 @@ export function namePlate(name: string, indent = 0): Row | null {
 		const left = c.x, right = c.x + c.w;
 		let t = texturaPixels(name, 0)!;
 		for (const level of [1, 2, 3] as const) if (t.w + 1 > right - left) t = texturaPixels(name, level)!;
-		const x0 = t.w + 1 <= right - left ? left + 1 + Math.floor((right - left - 1 - t.w) / 2) : Math.max(1, Math.floor((c.g.cols - t.w) / 2));
+		const x0 = t.w + 1 <= right - left ? left + 1 + Math.floor((right - left - 1 - t.w) / 2) : Math.max(1, left + Math.floor((right - left - t.w) / 2));
 		// (the capital in gold, the rest in the page's ink)
 		const px: number[][] = Array.from({ length: 12 }, () => Array(t.w + 1).fill(-1));
 		t.at.forEach((r, y) => r.forEach((p, i) => { if (p) px[y][i + 1] = p === 1 ? 6 : c.ink('plain'); }));
@@ -1015,6 +1065,30 @@ export function namePlates(lines: string[]): Row | null {
 	});
 }
 
+/**
+ * The way back and the way on, pinned to the foot of the page (the last row of a page that fits on one
+ * leaf), each in the same place whatever it says: one at the left of the writing, one at the right.
+ */
+export function footButtons(back?: Button, on?: Button): Row {
+	return blockRow(3, (c) => {
+		const w = Math.min(24, Math.floor((c.w - 2) / 2));
+		const fit = (b: Button): Button => ({ ...b, label: [...b.label].length > w - 4 ? [...b.label].slice(0, w - 5).join('') + '…' : b.label });
+		if (back) drawButton(c, c.x, c.y, w, fit(back));
+		if (on) drawButton(c, c.x + c.w - w, c.y, w, fit(on));
+	}, 'foot');
+}
+/** One small quiet button in the foot's right-hand corner (the Credits mark on the first page). */
+export function cornerButton(b: Button): Row {
+	return blockRow(3, (c) => {
+		const w = Math.min(c.w, Math.max(10, [...b.label].length + 4));
+		drawButton(c, c.x + c.w - w, c.y, w, { ...b, style: 'quiet' });
+	}, 'foot');
+}
+/** A pinned row's place: at the foot of the page, if the writing above leaves room. */
+const pinned = (r: Row, y: number, bottom: number) => (r.cls === 'foot' ? Math.max(y, bottom - lineH(r)) : y);
+/** The height of a page's pinned foot row, if it has one. */
+const footH = (rows: Row[]) => (rows.length && rows[rows.length - 1].cls === 'foot' ? lineH(rows[rows.length - 1]) : 0);
+
 /** Buttons in the middle of the line, so the way on is plain to see. */
 export function centredButtons(buttons: Button[], width = COLS, gap = 2): Row[] {
 	return buttonRows(buttons, width, gap).map((r) => {
@@ -1024,7 +1098,7 @@ export function centredButtons(buttons: Button[], width = COLS, gap = 2): Row[] 
 }
 
 /** A name written large in the textura, at the left like the writing; null when it will not fit in `width` or has letters the face lacks. */
-export function letteredRow(word: string, width: number): Row | null {
+export function letteredRow(word: string, width: number, ink?: number, centred = false): Row | null {
 	const gl = texturaGlyphs(word);
 	if (!gl) return null;
 	const w = gl.reduce((k, g) => k + g.px[0].length + 1, -1);
@@ -1034,10 +1108,10 @@ export function letteredRow(word: string, width: number): Row | null {
 		const at: (number | null)[][] = Array.from({ length: 12 }, () => Array(w).fill(null));
 		let x = 0;
 		for (const g of gl) {
-			g.px.forEach((r, y) => [...r].forEach((p, i) => { if (p === '#') at[y][x + i] = g.cap ? 8 : 4; }));
+			g.px.forEach((r, y) => [...r].forEach((p, i) => { if (p === '#') at[y][x + i] = g.cap ? (ink === 8 ? 6 : 8) : ink ?? 4; }));
 			x += g.px[0].length + 1;
 		}
-		const ox = c.x + 2;
+		const ox = centred ? c.x + Math.max(0, Math.floor((c.w - w) / 2)) : c.x + 2;
 		for (let y = 0; y < 12; y += 2) for (let i = 0; i < w; i++) {
 			const t = at[y][i], b = at[y + 1][i];
 			if (t === null && b === null) continue;
@@ -1225,11 +1299,16 @@ const inFrame = (r: Row | undefined) => !!r?.cls?.includes('frame-mid');
  * a long one runs on to the next page, closed by a rule at the foot of one
  * and reopened at the head of the next, so no page is left half empty.
  */
-function paginate(rows: Row[], avail: number): { from: number; to: number }[] {
+function paginate(rows: Row[], avail: number, leaves = false): { from: number; to: number }[] {
 	const pages: { from: number; to: number }[] = [];
 	let from = 0, used = 0;
 	for (let i = 0; i < rows.length; i++) {
 		const r = rows[i], h = lineH(r);
+		// The right-hand leaf starts here (on the open book only).
+		if (r.cls === 'leaf-break') {
+			if (leaves && pages.length % 2 === 0) { pages.push({ from, to: i }); from = i + 1; used = 0; }
+			continue;
+		}
 		let need = h + (inFrame(r) ? 1 : 0);
 		if (r.cls === 'frame-top') {
 			let whole = 0;
@@ -1256,10 +1335,10 @@ function drawLayer(g: Grid, key: unknown, ink: (t: Tone | undefined) => number, 
 	const top = isBook() && !sheet ? 1 : 0;
 	// ...and its page-turns stand clear of the rule at the foot.
 	const foot = isBook() && !sheet ? 2 : 0;
-	let pages = paginate(L.rows, g.rows - top);
-	if (total > g.rows - top) pages = paginate(L.rows, g.rows - top - barH - foot);
-	L.page = Math.max(0, Math.min(L.page, pages.length - 1));
 	const half = sheet ? 0 : spreadOf(g, L.width);
+	let pages = paginate(L.rows, g.rows - top, !!half);
+	if (total > g.rows - top || pages.length > 2) pages = paginate(L.rows, g.rows - top - barH - foot, !!half);
+	L.page = Math.max(0, Math.min(L.page, pages.length - 1));
 	if (half) return drawSpread(g, key, L, pages, half, top, foot, ink);
 	const x0 = Math.max(0, Math.floor((g.cols - L.width) / 2));
 	let y = top + (sheet ? 0 : illumPad(g, L.rows));
@@ -1279,6 +1358,7 @@ function drawLayer(g: Grid, key: unknown, ink: (t: Tone | undefined) => number, 
 	}
 	for (let i = p.from; i < p.to; i++) {
 		const h = lineH(L.rows[i]);
+		if (pages.length === 1 && !sheet) y = pinned(L.rows[i], y, g.rows - foot);
 		drawRow(g, L.rows[i], x0, y, L.width, h, ink);
 		y += h;
 	}
@@ -1309,12 +1389,15 @@ function illumPad(g: Grid, rows: Row[]): number {
 
 /**
  * The book lying open on a wide screen: a long page's pages two at a time, left leaf and right, the
- * page-turns at the foot of each; a short page on the right-hand leaf.
+ * page-turns at the foot of each; a short page on the left-hand leaf, so the writing never jumps
+ * from one leaf to the other as a page grows or shrinks.
  */
 function drawSpread(g: Grid, key: unknown, L: Layer, pages: { from: number; to: number }[], half: number, top: number, foot: number, ink: (t: Tone | undefined) => number) {
 	const multi = pages.length > 1;
+	// Two pages are the two leaves at once: no page-turns, and each leaf's foot row stays at its foot.
+	const turns = pages.length > 2;
 	L.page = multi ? L.page & ~1 : 0;
-	const leaves: [boolean, { from: number; to: number } | undefined][] = multi ? [[true, pages[L.page]], [false, pages[L.page + 1]]] : [[false, pages[0]]];
+	const leaves: [boolean, { from: number; to: number } | undefined][] = multi ? [[true, pages[L.page]], [false, pages[L.page + 1]]] : [[true, pages[0]]];
 	for (const [left, p] of leaves) {
 		if (!p) continue;
 		const x0 = leafText({ x: left ? 0 : half, w: left ? half : g.cols - half, mirror: left }, L.width);
@@ -1325,11 +1408,11 @@ function drawSpread(g: Grid, key: unknown, L: Layer, pages: { from: number; to: 
 			const t = L.rows[k].segs[0] && !isButton(L.rows[k].segs[0]) ? (L.rows[k].segs[0] as Text).t : '';
 			drawRow(g, { segs: [txt(t ? t + ' (cont.)' : '')], cls: 'frame-top' }, x0, y++, L.width, 1, ink);
 		}
-		for (let i = p.from; i < p.to; i++) { const h = lineH(L.rows[i]); drawRow(g, L.rows[i], x0, y, L.width, h, ink); y += h; }
+		for (let i = p.from; i < p.to; i++) { const h = lineH(L.rows[i]); if (!turns) y = pinned(L.rows[i], y, g.rows - foot); drawRow(g, L.rows[i], x0, y, L.width, h, ink); y += h; }
 		if (inFrame(L.rows[p.to - 1])) drawRow(g, { segs: [], cls: 'frame-bot' }, x0, y, L.width, 1, ink);
 	}
 	pagesOf.set(key, pages.length);
-	if (!multi) return;
+	if (!turns) return;
 	const by = g.rows - 3 - foot;
 	const ctx: Ctx = { g, x: 0, y: by, w: g.cols, ink, hit: (r, fn) => g.hit(r, fn) };
 	const lx = leafText({ x: 0, w: half, mirror: true }, L.width), rx = leafText({ x: half, w: g.cols - half, mirror: false }, L.width);
@@ -1338,6 +1421,31 @@ function drawSpread(g: Grid, key: unknown, L: Layer, pages: { from: number; to: 
 	drawButton(ctx, rx + L.width - 12, by, 12, { label: 'Next >', act: () => { L.page += 2; term?.draw(); }, disabled: last, style: last ? 'quiet' : 'primary' });
 	g.text(lx + L.width - 4, by + 1, String(L.page + 1), 3);
 	if (pages[L.page + 1]) g.text(rx + 2, by + 1, String(L.page + 2), 3);
+}
+
+/**
+ * A list to tick, set close: a line an item, in columns, a mark before each (■ on, ○ off), the
+ * whole line tapped to tick it. For long lists of choices where a button each would take pages.
+ */
+export function tickGrid(items: { label: string; on: boolean; tone?: Tone; act: () => void }[], cols = 0, width = COLS): Row[] {
+	// (three columns on a desktop, two on a phone)
+	cols ||= wideScreen() ? 3 : 2;
+	const rows: Row[] = [];
+	for (let k = 0; k < items.length; k += cols) {
+		const line = items.slice(k, k + cols);
+		// (a line each on a desktop; on a phone a line and a space, so a thumb finds it)
+		const h = wideScreen() ? 1 : 2;
+		rows.push(blockRow(h, (c) => {
+			const w = Math.floor(Math.min(c.w, width) / cols);
+			line.forEach((it, i) => {
+				const x = c.x + i * w;
+				c.g.set(x, c.y, it.on ? '■' : '○', it.on ? 8 : 3);
+				c.g.text(x + 2, c.y, [...it.label].slice(0, w - 3).join(''), c.ink(it.tone));
+				c.hit({ x, y: c.y, w: w - 1, h }, it.act);
+			});
+		}));
+	}
+	return rows;
 }
 
 /** A line of text on the middle of a 3-high row, with buttons at its right end. */
@@ -1754,10 +1862,22 @@ export function coverRow(open: () => void): Row {
 		let y = Math.max(2, Math.floor((H - titleRows - 4) / 2) - 3);
 		const lx = Math.floor((W - L.w * S) / 2);
 		void lx; void logoRows;
+		// On a desktop the book lies shut on a table, the cover the size of one of its pages (half the
+		// screen, as the book open shows two, frame() setting finer cells so the title fits); on a phone
+		// the cover is the screen.
+		const wide = wideScreen(), CW = wide ? Math.floor(W / 2) : W, X0 = Math.floor((W - CW) / 2);
 		// The leather itself, pixel by pixel: mottled calf, rubbed paler at its edges, two rules
 		// blind-tooled into it, brass fittings at the corners, and old stains soaked in.
-		pixels(g, 0, 0, W, H * 2, (px, py) => {
+		pixels(g, 0, 0, W, H * 2, (gx, py) => {
 			const HH = H * 2;
+			if (gx < X0 || gx >= X0 + CW) {
+				// The table: dark wood, its grain running across, a shadow under the book's edge.
+				const grain = vnoise(gx / 40, py / 3, 11) * 0.7 + vnoise(gx / 9, py / 1.5, 12) * 0.3;
+				const off = gx < X0 ? X0 - gx : gx - (X0 + CW - 1);
+				const shade = off <= 3 ? 0.55 + off * 0.1 : 1;
+				return quant([46, 32, 22].map((v) => v * (0.75 + grain * 0.4) * shade));
+			}
+			const px = gx - X0, W = CW;
 			const m = vnoise(px / 7, py / 5, 3) * 0.6 + vnoise(px / 2, py / 2, 4) * 0.4;
 			const edge = Math.min(px, W - 1 - px, py, HH - 1 - py);
 			let rgb = [74, 42, 27].map((v) => v * (0.9 + m * 0.18 + (edge < 3 ? 0.25 : 0)));
@@ -1857,6 +1977,41 @@ export function illuminatedRow(lines: { t: string; tone?: Tone }[]): Row {
 	});
 }
 
+/** How far you see by day, and the steps the village fades it over past that edge (SOFT in village.ts): beyond this the map is dark. */
+export const ZONE_RADIUS = SIGHT.day + 3;
+/** The rows the village keeps for its own bars (the title, the info lines, the tool buttons). */
+const MAP_CHROME = 9;
+let ratioMemo = 0;
+/** The width of a glyph over its height at one size, measured as the terminal measures it. */
+function glyphRatio(): number {
+	if (ratioMemo) return ratioMemo;
+	const probe = document.createElement('span');
+	probe.style.cssText = `position:absolute;visibility:hidden;font:100px ${term!.pre.style.fontFamily};white-space:pre;`;
+	probe.textContent = '0'.repeat(20);
+	document.body.appendChild(probe);
+	ratioMemo = probe.getBoundingClientRect().width / 20 / 100 || 0.6;
+	probe.remove();
+	return ratioMemo;
+}
+/**
+ * The size of the town's cells for a screen of w by h pixels (a glyph is `ratio` wide for each unit of height).
+ * A desktop's cells are big but not so big as they were (34 px, now 28), and the village shows a few more rows.
+ * A phone held upright fits the grid to the limit of the occlusion zone: the map is only as many rows tall as
+ * sight and its fade reach (the rest is dark), so the cells grow until those rows fill the height; never smaller
+ * than the fit to the width of 52 columns, so a short screen is not made worse.
+ */
+export function townScale(w: number, h: number, ratio: number, wide: boolean): { maxFont: number; rows: number; cols: number } {
+	if (wide || w >= h) return { maxFont: 28, rows: 32, cols: COLS };
+	const zoneRows = 2 * ZONE_RADIUS + 1 + MAP_CHROME;
+	const byWidth = Math.floor(w / (COLS * ratio));
+	// (the terminal rounds a line to whole pixels, so count rows as it does)
+	let font = Math.max(8, byWidth);
+	while (Math.floor(h / Math.round(font * 1.2)) > zoneRows && font < 40) font++;
+	// No fewer than 36 columns: the map is as wide as the screen lets it be.
+	const capped = Math.min(font, Math.floor(w / (36 * ratio)));
+	return { maxFont: capped, rows: 10, cols: Math.floor(w / (capped * ratio)) };
+}
+
 function frame(g: Grid) {
 	// The town is lit for the dark: over it, the pages take their night inks.
 	const key = extra && extraShown() ? (paletteKey().startsWith('folio') ? 'map-' + themeOfKey(paletteKey()) : paletteKey().replace('-day', '-night')) : paletteKey();
@@ -1864,7 +2019,13 @@ function frame(g: Grid) {
 	// The cover wants a margin of leather round its page: a few more columns (a touch smaller type).
 	// The cover is a picture, drawn fine: many more columns (small cells, two pixels each).
 	// A book on a wide screen lies open: room for two leaves.
-	term!.setCols(key === 'cover' ? 84 : key.startsWith('folio') ? (wideScreen() ? 2 * (COLS + 12) : COLS + 12) : key === 'leather' ? COLS + 6 : COLS);
+	// The town on a desktop: bigger cells, fewer of them, so its small things read.
+	// (a page or sheet over the town is written to its own width, so it takes the page's cells while it is open)
+	const town = !!extra && extraShown() && townBig() && !order.some((k) => layers.get(k)?.rows.length);
+	const fit = town ? townScale(innerWidth, innerHeight, glyphRatio(), wideScreen()) : null;
+	if (fit) term!.setScale(fit.maxFont, fit.rows);
+	else term!.setScale(22, 40);
+	term!.setCols(fit ? fit.cols : key === 'cover' ? (wideScreen() ? 184 : 84) : key.startsWith('folio') ? (wideScreen() ? 2 * (COLS + 12) : COLS + 12) : key === 'leather' ? COLS + 6 : COLS);
 	document.body.style.background = term!.palette[0];
 	document.documentElement.style.background = term!.palette[0];
 	g.clear(4, 0);
@@ -1874,7 +2035,8 @@ function frame(g: Grid) {
 		// How much of the screen the page shown takes, and what its page-turns keep at the foot: the
 		// book's margins draw their pictures only where nothing is written.
 		const off = isBook() ? 1 : 0, total = top.rows.reduce((k, r) => k + lineH(r), 0);
-		let used = Math.min(g.rows, total + off + illumPad(g, top.rows)), reserve = 0;
+		const pin = footH(top.rows);
+		let used = Math.min(g.rows, total - pin + off + illumPad(g, top.rows)), reserve = pin ? pin + (isBook() ? 2 : 0) : 0;
 		if (total > g.rows - off) {
 			const pages = paginate(top.rows, g.rows - off - 3 - (isBook() ? 2 : 0));
 			const p = pages[Math.max(0, Math.min(top.page, pages.length - 1))];
@@ -1885,14 +2047,14 @@ function frame(g: Grid) {
 		const half = spreadOf(g, top.width);
 		if (half) {
 			// The book open: a long page runs on from the left leaf to the right; a short one is written on
-			// the right, and the left faces it with its pictures alone.
+			// the left, and the right faces it with its pictures alone.
 			const pages = total > g.rows - off ? paginate(top.rows, g.rows - off - 5) : null;
 			const pl = pages ? Math.max(0, Math.min(top.page, pages.length - 1)) & ~1 : 0;
 			const usedOf = (p?: { from: number; to: number }) => { if (!p) return 0; let u = off + (inFrame(top.rows[p.from]) ? 1 : 0); for (let i = p.from; i < p.to; i++) u += lineH(top.rows[i]); return u; };
 			const r = pages ? 5 : 0;
 			ground(g, top.width, used, reserve, top.sig, [
-				{ x: 0, w: half, mirror: true, used: pages ? usedOf(pages[pl]) : 0, reserve: r, seed: top.sig + '<' },
-				{ x: half, w: g.cols - half, mirror: false, used: pages ? usedOf(pages[pl + 1]) : used, reserve: r, seed: top.sig }
+				{ x: 0, w: half, mirror: true, used: pages ? usedOf(pages[pl]) : used, reserve: pages ? r : reserve, seed: top.sig + '<' },
+				{ x: half, w: g.cols - half, mirror: false, used: pages ? usedOf(pages[pl + 1]) : 0, reserve: r, seed: top.sig }
 			]);
 		} else ground(g, top.width, used, reserve, top.sig);
 	}
@@ -1923,6 +2085,7 @@ function ensureTerm(): Term {
 		// Enough rows that a page holds a whole screen of the grimoire on a desktop too.
 		rows: 40,
 		onDraw: (t) => frame(t),
+		onHover: (c) => hoverFn?.(c),
 		onKey: (k) => {
 			for (let i = order.length - 1; i >= 0; i--) {
 				const L = layers.get(order[i]);

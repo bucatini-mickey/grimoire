@@ -17,10 +17,8 @@
  */
 import * as G from '../core/index.ts';
 import type { Candidate, CharacterId, Command, GameEvent, GameState, Info, SeatId, Script, Lean } from '../core/index.ts';
-import { arrowBox, bookInks, chapterRow, chipsRow, coverRow, illuminatedRow, miniature, nameLines, namePlate, namePlates, navRow, pixelsRow, tabStrip } from './ascii.ts';
-import { DEFAULT_ICON, SYMBOLS, applySaved, loadIcon, normalise, renderIcon, sameIcon, saveIcon } from './appicon.ts';
-import type { IconSpec } from './appicon.ts';
-import { HOW_TO_PLAY, INTERACTIONS, TIPS } from '../core/codex.ts';
+import { cornerButton, leafBreak, twoLeaves, personInk, seatInk, arrowBox, bookInks, chapterRow, chipsRow, coverRow, footButtons, illuminatedRow, tickGrid, miniature, nameLines, namePlate, namePlates, navRow, pixelsRow, tabStrip } from './ascii.ts';
+import { CREDITS, HOW_TO_PLAY, INTERACTIONS, TIPS } from '../core/codex.ts';
 import type { CodexPage } from '../core/codex.ts';
 import { THEMES, bookKey, themeOf } from './theme.ts';
 import type { Theme } from './theme.ts';
@@ -33,13 +31,13 @@ import * as V from '../net/views.ts';
 import { announce } from '../net/announce.ts';
 import { hostRoom, newRoomCode } from '../net/link.ts';
 import type { HostLink, LinkStatus } from '../net/link.ts';
-import type { ClockView, HostMsg, PlayerMsg, VoteView } from '../net/protocol.ts';
+import type { Announcement, ClockView, HostMsg, PlayerMsg, VoteView } from '../net/protocol.ts';
 import { startPlayer } from './player.ts';
 
 import { INKS, startVillage, villageForGame } from '../town/village.ts';
 import { AMNESIAC_IDEAS, savantPair, savantStatements } from './helpers.ts';
 import type { Extra, StActions, VillageHost } from '../town/village.ts';
-import { CARD_COLS, CARD_INNER, big, cardButtons, handBackRows, handOverRows, nextPage, note, wakeRows } from './wakepages.ts';
+import { CARD_COLS, CARD_INNER, big, cardButtons, handBackRows, handOverRows, nextPage, note, revealRows, wakeRows } from './wakepages.ts';
 import type { Page } from './wakepages.ts';
 
 // ---- saved data -------------------------------------------------------------
@@ -51,6 +49,8 @@ interface Settings {
 	nominationsMs: number;
 	accusationMs: number;
 	defenceMs: number;
+	/** Keep, for each player, what they are shown at night, for them to read back on their phone. */
+	infoLog?: boolean;
 }
 
 const DEFAULT_SETTINGS: Settings = { dayMs: 5 * 60_000, nominationsMs: 3 * 60_000, accusationMs: 45_000, defenceMs: 45_000 };
@@ -100,6 +100,8 @@ interface Saved {
 	settings: Settings;
 	/** Hosting players' phones: the room code and each phone's seat, kept so a reload re-opens the room. */
 	net?: { room: string; claims: Record<string, SeatId>; village?: boolean; lobby?: { client: string; name: string }[] };
+	/** What each player's phone has been shown at night (views.ts logEntry), by seat. */
+	log?: Record<number, V.LogEntry[]>;
 }
 
 function freshFlow(settings: Settings): Flow {
@@ -135,7 +137,7 @@ const flow = () => saved.flow;
 
 // ---- passing screen state ------------------------------------------------------
 
-type Tab = 'grimoire' | 'log' | 'ties' | 'settings' | 'options' | 'phones' | 'icon';
+type Tab = 'grimoire' | 'log' | 'ties' | 'settings' | 'options' | 'phones';
 /** In a village game the grimoire is a drawer over the town; these are its tabs. */
 type DrawerTab = Tab | 'actions';
 type DayMode = 'none' | 'nominate' | 'slay';
@@ -182,9 +184,7 @@ const ui = {
 	/** The home page starts as the book's shut cover; a tap opens it to the menu. */
 	coverOpen: false,
 	/** Which leaf of the opened book: its contents, the Storyteller's leaf, or the players'. */
-	leaf: 'front' as 'front' | 'contents' | 'st' | 'players' | 'codex' | 'icon',
-	/** The app icon being designed (settings, or the first page): the design so far, the book whose inks are offered, and the script whose characters are listed. */
-	icon: { spec: loadIcon() ?? { ...DEFAULT_ICON }, theme: 'medieval' as Theme, script: 'trouble-brewing', note: '' },
+	leaf: 'front' as 'front' | 'contents' | 'st' | 'players' | 'codex' | 'credits',
 	/** Where the codex is open: its index, a page of it, the characters of a script, or one character. */
 	codex: { page: 'index' as 'index' | 'how' | 'meet' | 'list' | 'char', script: 'trouble-brewing', char: '' },
 	/** Second taps that confirm ending a game (home: host anew, play in person, end it). */
@@ -233,6 +233,8 @@ const ui = {
 	customIds: [] as CharacterId[],
 	/** The team the custom-script picker is showing. */
 	customTeam: 'townsfolk' as G.Team,
+	/** The custom script's own page is open (from the script page, or the lobby). */
+	customOpen: false,
 	nonstandard: false
 };
 
@@ -246,10 +248,7 @@ function clearPicks() {
 	ui.charPick = null;
 }
 
-interface Banner {
-	title: string;
-	lines: string[];
-}
+type Banner = Announcement;
 
 /** Run a command. On refusal, show why; if it needs a decision, remember it. */
 function act(cmd: Command): boolean {
@@ -272,7 +271,7 @@ function actAll(cmds: Command[]): boolean {
 	saved.events.push(...r.events);
 	const before = state;
 	state = r.state;
-	ui.banner = announce(before, r.events, r.state);
+	ui.banner = announce(before, r.events, r.state, seatInk);
 	ui.remote = null;
 	if (ui.banner) toPlayers({ t: 'announce', items: ui.banner });
 	ui.message = '';
@@ -290,11 +289,7 @@ function actAll(cmds: Command[]): boolean {
 
 function bannerRows(): Row[] {
 	const rows: Row[] = [blank()];
-	for (const b of ui.banner!) {
-		rows.push(rubric(b.title));
-		for (const l of b.lines) rows.push(...wrap(l, CARD_INNER - 2).map((w) => row(txt('  ' + w, 'gold', 'heading'))));
-	}
-	rows.push(endPanel(), blank(), ...cardButtons([btn('Done', () => { ui.banner = null; render(); }, { style: 'primary' })]));
+	rows.push(...revealRows(ui.banner!), blank(), ...cardButtons([btn('Done', () => { ui.banner = null; render(); }, { style: 'primary' })]));
 	return rows;
 }
 
@@ -459,7 +454,10 @@ function table(look: (id: SeatId) => SeatLook, centre: string[] = [], title = 'T
 				const cut = (t: string, w: number) => [...t].slice(0, w).join('');
 				const mid = (t: string, w: number) => x + Math.max(0, Math.floor((w - [...t].length) / 2));
 				const nm = cut((s.alive ? '' : '†') + s.name, tw);
-				c.g.text(mid(nm, tw), y, nm, on ? 6 : s.alive ? (lit ? 6 : 5) : 3);
+				// Each player's name in their own colour (the same as their letter in the village).
+				const [pf, pb] = personInk(i);
+				if (on || lit || !s.alive) c.g.text(mid(nm, tw), y, nm, on ? 6 : s.alive ? 6 : 3);
+				else c.g.text(mid(nm, tw), y, nm, pf, pb);
 				c.g.fill({ x, y: y + 1, w: tw, h: 1 }, ' ', 4, disc);
 				c.g.set(x, y + 1, lit ? '»' : '(', rim, disc);
 				c.g.set(x + tw - 1, y + 1, lit ? '«' : ')', rim, disc);
@@ -586,7 +584,7 @@ function header(): Row[] {
 		p.kind === 'setup' ? 'Setting the Table' :
 		p.kind === 'night' ? `Night ${p.n}` :
 		p.kind === 'day' ? `Day ${p.n}` : 'Game over';
-	const inSettings = ui.tab === 'settings' || ui.tab === 'options' || ui.tab === 'phones' || ui.tab === 'icon';
+	const inSettings = ui.tab === 'settings' || ui.tab === 'options' || ui.tab === 'phones';
 	const tab = (t: Tab, label: string, on = ui.tab === t): TabSpec => ({ label, on, act: () => { ui.tab = t; ui.reading = false; ui.sharing = false; ui.confirmRestart = ''; render(); } });
 	return [
 		listRow(phase, 'rubric', [btn('Undo', undo, { disabled: !saved.marks.length, style: 'quiet' })], COLS),
@@ -620,6 +618,7 @@ function tagsRow(_cls: string, items: { label: string; on: boolean; act: () => v
 
 /** The in-person grimoire's setup before the seats exist: the script, then the players' names. */
 function namesScreen(): Row[] {
+	if (ui.customOpen) return customPage();
 	if (ui.setup === 'players') return playersPage();
 	return [...pageHead('The script'), ...scriptPage()];
 }
@@ -648,10 +647,9 @@ function gameSummary(): string {
 	return `${p.kind === 'night' ? 'Night' : 'Day'} ${p.n} · ${state.seats.length} players`;
 }
 
-/** Throw away the saved game (and its room). */
-function endSaved() {
-	link?.close();
-	link = null;
+/** Throw away the saved game (and its room, unless a new room is about to take its phones). */
+function endSaved(keepLine = false) {
+	if (!keepLine) { link?.close(); link = null; }
 	saved = { events: [], marks: [], settings: saved.settings, flow: freshFlow(saved.settings) };
 	state = G.replay([]);
 	save();
@@ -659,22 +657,64 @@ function endSaved() {
 	render();
 }
 
+/**
+ * Let go of the old room for a new one. Phones still in the old room are told where the new
+ * game is, so players who left the page open follow the Storyteller into it.
+ */
+function moveRoom(): string {
+	const room = newRoomCode();
+	const old = link;
+	if (old) for (const peer of old.peers.keys()) old.send(peer, { t: 'moved', room });
+	// The old room (open now, or shut while the book was on its home page) is opened again after the page
+	// reloads, for a while, to send on any phone still looking for it (forwardOldRoom).
+	const from = old?.room ?? saved.net?.room;
+	if (from) try { localStorage.setItem(FORWARD_KEY, JSON.stringify({ from, to: room, until: Date.now() + 20 * 60_000 })); } catch { /* private mode */ }
+	link = null;
+	village?.stop();
+	village = null;
+	phones.clear();
+	lastSent.clear();
+	return room;
+}
+const FORWARD_KEY = 'grimoire.forward';
+
+/** A room let go of for a new game: open it again until its time is up, and send any phone that comes to it on. */
+function forwardOldRoom() {
+	let f: { from: string; to: string; until: number } | null = null;
+	try { f = JSON.parse(localStorage.getItem(FORWARD_KEY) ?? 'null'); } catch { /* none */ }
+	if (!f || f.until < Date.now() || f.from === saved.net?.room) return;
+	const { from, to, until } = f;
+	let tries = 0;
+	const open = () => {
+		const fw: HostLink = hostRoom(from, {
+			message: (peer) => fw.send(peer, { t: 'moved', room: to }),
+			joined: (peer) => fw.send(peer, { t: 'moved', room: to }),
+			left: () => {},
+			// The broker may still hold the code from before the reload: ask again in a moment.
+			status: (st, detail) => { if (st === 'error' && detail === 'unavailable-id' && tries++ < 10) { fw.close(); setTimeout(open, 3000); } }
+		});
+		setTimeout(() => fw.close(), until - Date.now());
+	};
+	open();
+}
+
 /** An in-person game where each player's own phone is linked: a room, then the grimoire. */
 function hostTable() {
-	link?.close();
-	saved = { events: [], marks: [], settings: saved.settings, flow: freshFlow(saved.settings), net: { room: newRoomCode(), claims: {}, village: false } };
+	const told = !!link;
+	saved = { events: [], marks: [], settings: saved.settings, flow: freshFlow(saved.settings), net: { room: moveRoom(), claims: {}, village: false } };
 	state = G.replay([]);
 	save();
-	go('#grimoire');
+	// A moment for the word to reach the phones before the page reloads.
+	setTimeout(() => go('#grimoire'), told ? 700 : 0);
 }
 
 /** A new online game: a fresh room and its lobby. */
 function hostNew() {
-	link?.close();
-	saved = { events: [], marks: [], settings: saved.settings, flow: freshFlow(saved.settings), net: { room: newRoomCode(), claims: {}, village: true, lobby: [] } };
+	const told = !!link;
+	saved = { events: [], marks: [], settings: saved.settings, flow: freshFlow(saved.settings), net: { room: moveRoom(), claims: {}, village: true, lobby: [] } };
 	state = G.replay([]);
 	save();
-	go('#host');
+	setTimeout(() => go('#host'), told ? 700 : 0);
 }
 
 /**
@@ -686,13 +726,16 @@ function homeScreen(): Row[] {
 	// Shut: the cover alone. Open: the first page, the illuminated G at its head.
 	if (!ui.coverOpen) return [coverRow(() => { ui.coverOpen = true; ui.leaf = 'front'; render(); })];
 	const toLeaf = (l: typeof ui.leaf) => () => { ui.leaf = l; ui.confirm = ''; render(); };
-	if (ui.leaf === 'st') return storytellerLeaf(busy, toLeaf('contents'));
-	if (ui.leaf === 'players') return playersLeaf(toLeaf('contents'));
-	if (ui.leaf === 'codex') return codexRows(toLeaf('front'));
-	if (ui.leaf === 'icon') return iconRows(navRow('Back', toLeaf('front')));
-	const head: Row[] = [navRow('Close the book', () => { ui.coverOpen = false; render(); }), illuminatedRow([
+	// The book's head (the illuminated G and its words); on the open book it has the left leaf to itself.
+	const headRow = () => illuminatedRow([
 		{ t: 'the book of the Storyteller' }, { t: 'for Blood on the Clocktower,' }, { t: 'wherein the game is kept,', tone: 'dim' }, { t: 'its nights and its dead.', tone: 'dim' }
-	]), blank()];
+	]);
+	const besideHead = (rows: Row[]) => (twoLeaves() ? [rows[0], headRow(), leafBreak(), ...rows.slice(1)] : rows);
+	if (ui.leaf === 'st') return besideHead(storytellerLeaf(busy, toLeaf('contents')));
+	if (ui.leaf === 'players') return besideHead(playersLeaf(toLeaf('contents')));
+	if (ui.leaf === 'codex') return codexRows(toLeaf('front'));
+	if (ui.leaf === 'credits') return codexPage(CREDITS, toLeaf('front'), 'Back');
+	const head: Row[] = [navRow('Close the book', () => { ui.coverOpen = false; render(); }), headRow(), blank(), leafBreak()];
 	// The first page: a game going to pick up, then Play and the Codex, lettered large.
 	if (ui.leaf === 'front') {
 		const rows = [...head, ...resumeRows(busy)];
@@ -700,12 +743,12 @@ function homeScreen(): Row[] {
 		// a rule of gold, and a plain word on what it holds.
 		rows.push(blank(), chapterRow('Play', 'Run a game, or join one.', toLeaf('contents')), blank(), blank());
 		rows.push(chapterRow('Codex', 'Characters, tips and how to play.', () => { ui.leaf = 'codex'; ui.codex.page = 'index'; render(); }));
-		rows.push(blank(), ...buttonRows([btn('The app icon', toLeaf('icon'), { style: 'quiet' })]));
+		rows.push(cornerButton(btn('© Credits', toLeaf('credits'))));
 		return rows;
 	}
 	const rows: Row[] = [navRow('Back', toLeaf('front')), blank()];
 	rows.push(...resumeRows(busy));
-	return contentsRows(rows, toLeaf);
+	return besideHead(contentsRows(rows, toLeaf));
 }
 
 /** A game going, to pick up from the book's first page or its contents. */
@@ -761,14 +804,17 @@ function codexRows(home: () => void): Row[] {
 		const lines = nameLines(c.name);
 		rows.push(namePlates(lines) ?? row(txt(center(lines.join(' '), INNER), 'gold', 'heading')));
 		rows.push(row(txt(center(TEAM[c.team] ?? c.team, INNER), side === 'evil' ? 'evil' : 'good')), blank());
+		const prev = sc.chars[at - 1], next = sc.chars[at + 1];
+		const back = btn(prev ? '< ' + prev.name : '< Back', prev ? to('char', { char: prev.id }) : to('list'), { style: 'quiet' });
+		const on = next ? btn(next.name + ' >', to('char', { char: next.id }), { style: 'primary' }) : undefined;
+		// The open book: the name and portrait on the left leaf, the words on the right; the way back always
+		// at the foot of the left leaf, the way on at the foot of the right, wherever the words end.
+		const wide = twoLeaves();
+		if (wide) rows.push(footButtons(back), leafBreak(), blank());
 		rows.push(rubric('Ability'), ...prose(c.ability), endPanel());
 		const tips = TIPS[c.id];
 		if (tips?.length) { rows.push(blank(), rubric('First thoughts')); for (const t of tips) rows.push(...prose(t, 'dim'), blank()); rows.push(endPanel()); }
-		const prev = sc.chars[at - 1], next = sc.chars[at + 1];
-		rows.push(blank(), ...buttonRows([
-			btn(prev ? '< ' + prev.name : '< Back', prev ? to('char', { char: prev.id }) : to('list'), { style: 'quiet' }),
-			...(next ? [btn(next.name + ' >', to('char', { char: next.id }), { style: 'primary' })] : [])
-		]));
+		rows.push(blank(), wide ? footButtons(undefined, on) : footButtons(back, on));
 		return rows;
 	}
 	if (cx.page === 'list') {
@@ -778,6 +824,8 @@ function codexRows(home: () => void): Row[] {
 		for (const [label, team] of TEAMS) {
 			const of = sc.chars.filter((c) => c.team === team);
 			if (!of.length) continue;
+			// The open book: the good on the left leaf, the evil and the rest on the right.
+			if (team === 'minion' && twoLeaves()) rows.push(leafBreak());
 			rows.push(blank(), rubric(label), buttonBlock(of.map((c) => btn(nameLines(c.name).join('\n'), to('char', { char: c.id }), { aria: c.name }))), endPanel());
 		}
 		return rows;
@@ -792,8 +840,8 @@ function codexRows(home: () => void): Row[] {
 }
 
 /** A page of the codex: its headings in red, its paragraphs plain. */
-function codexPage(p: CodexPage, back: () => void): Row[] {
-	const rows: Row[] = [navRow('Codex', back), rubric(p.title)];
+function codexPage(p: CodexPage, back: () => void, backLabel = 'Codex'): Row[] {
+	const rows: Row[] = [navRow(backLabel, back), rubric(p.title)];
 	for (const l of p.lines) {
 		if (l.startsWith('## ')) rows.push(blank(), row(txt(l.slice(3), 'rubric', 'heading')));
 		else rows.push(...prose(l));
@@ -811,7 +859,8 @@ function storytellerLeaf(busy: boolean, back: () => void): Row[] {
 		const sure = ui.confirm === key;
 		rows.push(buttonBlock([btn(sure ? 'End the game going and start?' : title, () => {
 			if (busy && !sure) { ui.confirm = key; render(); return; }
-			if (busy) endSaved();
+			// Phones in the old room follow into a new one (moveRoom), so the line stays up for that.
+			if (busy) endSaved(start === hostTable || start === hostNew);
 			start();
 		}, { style: sure ? 'danger' : undefined, width: INNER })]), ...prose(sure ? 'Your current game will end. Tap again.' : sub, 'dim'), blank());
 	};
@@ -827,7 +876,7 @@ function playersLeaf(back: () => void): Row[] {
 	const mine = (() => { try { return { room: localStorage.getItem('grimoire.room') ?? '', name: localStorage.getItem('grimoire.name') ?? '' }; } catch { return { room: '', name: '' }; } })();
 	if (mine.room && mine.name) rows.push(buttonBlock([btn('Rejoin room ' + mine.room, () => go('#join=' + mine.room), { style: 'primary', width: INNER })]), ...prose('as ' + mine.name, 'dim'), blank());
 	rows.push(buttonBlock([btn('Join a game', () => go('#join'), { style: mine.room ? undefined : 'primary', width: INNER })]), ...prose('Type the four letters the Storyteller gives you.', 'dim'), blank());
-	rows.push(buttonBlock([btn('Walk the village alone', () => go('#village'), { width: INNER })]), ...prose('No game: wander the castle town or Saltgrave, to learn the way round.', 'dim'));
+	rows.push(buttonBlock([btn('Walk the village alone', () => go('#village'), { width: INNER })]), ...prose('No game: walk any town, as the Storyteller or as a player, to learn the way round.', 'dim'));
 	return rows;
 }
 
@@ -871,6 +920,7 @@ function dealFromLobby() {
 
 /** The host's lobby, a page of its own: the code, who has joined, the script, then deal. */
 function hostLobbyPage(): Row[] {
+	if (ui.customOpen) return customPage();
 	const net = saved.net!;
 	const list = lobby();
 	const online = new Set([...phones.entries()].filter(([peer]) => link?.peers.get(peer)?.open).map(([, c]) => c));
@@ -937,34 +987,40 @@ function startCustom() {
 	const from = G.SCRIPTS[ui.scriptId];
 	if (!ui.customIds.length && from) ui.customIds = from.characters.map((c) => c.id);
 	ui.scriptId = 'custom';
+	ui.customOpen = true;
 	render();
 }
 
-/**
- * Building a custom script: start from one of the standard scripts (or nothing), then
- * take characters off and put others on, a team at a time. Gold ones the app runs;
- * the rest you resolve by hand.
- */
+/** Under the script, when it is a custom one: what is on it, and the way to its own page. */
 function customPicker(): Row[] {
 	if (ui.scriptId !== 'custom') return [];
 	const teams: [string, G.Team][] = [['Townsfolk', 'townsfolk'], ['Outsiders', 'outsider'], ['Minions', 'minion'], ['Demons', 'demon']];
+	const count = (t: G.Team) => ui.customIds.filter((id) => G.CATALOG.find((c) => c.id === id)?.team === t).length;
+	return [...prose(`${ui.customIds.length} characters: ${teams.map(([l, t]) => `${count(t)} ${l}`).join(', ')}.`, 'dim'),
+		buttonBlock([btn('Edit the custom script', () => { ui.customOpen = true; render(); })])];
+}
+
+/**
+ * Building a custom script, on a page of its own: start from one of the standard scripts (or
+ * nothing), then tick characters on and off, a team at a time, a line each in two columns. Gold
+ * ones the app runs; the rest you resolve by hand.
+ */
+function customPage(): Row[] {
+	const done = () => { ui.customOpen = false; render(); };
+	const teams: [string, G.Team][] = [['Townsfolk', 'townsfolk'], ['Outsiders', 'outsider'], ['Minions', 'minion'], ['Demons', 'demon']];
 	const on = new Set(ui.customIds);
 	const toggle = (id: CharacterId) => { ui.customIds = on.has(id) ? ui.customIds.filter((x) => x !== id) : [...ui.customIds, id]; render(); };
-	const rows: Row[] = [rubric('Custom script'), ...prose('Start from a script, then change it.', 'dim'),
-		buttonBlock([...Object.values(G.SCRIPTS).map((sc) => btn(sc.name, () => { ui.customIds = sc.characters.map((c) => c.id); render(); })),
-			btn('Empty', () => { ui.customIds = []; render(); }, { style: 'quiet' })])];
+	const rows: Row[] = [...pageHead('Custom script', ['Done', done])];
+	rows.push(row(txt('Start from: ', 'dim')), ...buttonRows([...Object.values(G.SCRIPTS).map((sc) => btn(sc.name, () => { ui.customIds = sc.characters.map((c) => c.id); render(); }, { style: 'quiet' })),
+		btn('Empty', () => { ui.customIds = []; render(); }, { style: 'quiet' })]));
 	const count = (t: G.Team) => ui.customIds.filter((id) => G.CATALOG.find((c) => c.id === id)?.team === t).length;
-	rows.push(...prose(`${ui.customIds.length} characters: ${teams.map(([l, t]) => `${count(t)} ${l}`).join(', ')}. Gold ones have their rules built in.`, 'dim'));
-	// One team at a time: what is on the script (tap to take off), then what could be added.
+	rows.push(...prose(`${ui.customIds.length} on the script. Tick a name to put it on or take it off; gold ones have their rules built in.`, 'dim'));
+	// One team at a time, a line a character in two columns: those on the script first.
 	const team = ui.customTeam;
-	rows.push(endPanel(), tabStrip(teams.map(([l, t]) => ({ label: `${l.slice(0, 5)} ${count(t)}`, on: team === t, act: () => { ui.customTeam = t; render(); } }))));
-	const of = G.CATALOG.filter((c) => c.team === team);
-	rows.push(rubric('On the script: tap to take off'));
-	const mine = of.filter((c) => on.has(c.id));
-	rows.push(...(mine.length ? [buttonBlock(mine.map((c) => btn(c.name, () => toggle(c.id), { style: 'on' })))] : prose('None yet.', 'dim')));
-	rows.push(rubric('Add'));
-	rows.push(buttonBlock(of.filter((c) => !on.has(c.id)).map((c) => btn(c.name, () => toggle(c.id), { style: G.isModelled(c.id) ? 'primary' : undefined }))));
-	rows.push(endPanel());
+	rows.push(tabStrip(teams.map(([l, t]) => ({ label: `${l.slice(0, 5)} ${count(t)}`, on: team === t, act: () => { ui.customTeam = t; render(); } }))));
+	const of = G.CATALOG.filter((c) => c.team === team).sort((a, b) => Number(on.has(b.id)) - Number(on.has(a.id)) || a.name.localeCompare(b.name));
+	rows.push(...tickGrid(of.map((c) => ({ label: c.name, on: on.has(c.id), tone: G.isModelled(c.id) ? 'gold' : undefined, act: () => toggle(c.id) }))));
+	rows.push(blank(), onward('Done', done));
 	return rows;
 }
 
@@ -1103,8 +1159,7 @@ function draftCharacters(back: [string, () => void]): Row[] {
 	const teams: [string, G.Team][] = [['Townsfolk', 'townsfolk'], ['Outsiders', 'outsider'], ['Minions', 'minion'], ['Demon', 'demon']];
 	for (const [label, team] of teams) {
 		rows.push(row(txt(label, 'dim')));
-		rows.push(...buttonRows(G.charactersOfTeam(sc, team).map((c) =>
-			btn(c.name, () => tapDraftCharacter(c.id), { style: d.selected.includes(c.id) ? 'on' : undefined }))));
+		rows.push(...tickGrid(G.charactersOfTeam(sc, team).map((c) => ({ label: c.name, on: d.selected.includes(c.id), act: () => tapDraftCharacter(c.id) }))));
 	}
 	rows.push(...buttonRows([btn('Random set', randomDraft), btn('Clear', () => { flow().draft = emptyDraft(); save(); render(); }, { style: 'quiet' }), btn('What they do', () => { ui.reading = true; render(); }, { style: 'quiet' })]));
 
@@ -1257,6 +1312,7 @@ function readingPage(): Row[] {
 	for (const [label, team] of teams) {
 		const of = chars.filter((c) => c.team === team);
 		if (!of.length) continue;
+		if (team === 'minion' && twoLeaves()) rows.push(leafBreak());
 		rows.push(blank(), rubric(label));
 		for (const c of of) rows.push(row(txt(c.name, toneFor(c.id))), ...prose(c.ability, 'dim'));
 	}
@@ -1302,7 +1358,6 @@ function settingsScreen(): Row[] {
 	const entry = (label: string, sub: string, act: () => void, style?: Button['style']) => rows.push(buttonBlock([btn(label, act, { width: INNER, style })]), ...prose(sub, 'dim'), blank());
 	entry('The clocks', 'How long the discussion, nominations and speeches run.', to('options'));
 	entry(link ? 'Players\u2019 phones (room open)' : 'Players\u2019 phones', 'Link each player\u2019s phone, and the village.', to('phones'));
-	entry('The app icon', 'Design the picture the app wears on a home screen.', to('icon'));
 	entry('The characters', 'What each character of this script does.', () => { ui.reading = true; render(); });
 	entry('Share the setup', 'The script and the team counts, as text or a file to send. Nothing secret.', () => { ui.sharing = true; ui.shareCopied = false; render(); });
 	const names = state.seats.map((x) => x.name);
@@ -1461,8 +1516,22 @@ function wakePhone(step: G.NightStep, phone: string, withAnswer: boolean) {
 	const w = withNote(V.wakeFor(state, step, withAnswer ? ui.draftInfo : null), step);
 	ui.remote = { wakeId: w.id, seat: step.seat!, answered: withAnswer && !!playerPicks(step.kind, state, step.seat) };
 	sendTo(phone, { t: 'wake', wake: w });
+	keepLog(step.seat, w);
 	village?.visit(phone);
 	render();
+}
+
+/** Keep what a wake showed its player, for their log (sent only when the Storyteller keeps logs). */
+function keepLog(seat: SeatId | null, w: V.Wake) {
+	if (seat === null || state.phase.kind !== 'night') return;
+	const e = V.logEntry(w, state.phase.n);
+	if (!e) return;
+	const list = ((saved.log ??= {})[seat] ??= []);
+	const at = list.findIndex((x) => x.id === e.id);
+	if (at >= 0) list[at] = e;
+	else list.push(e);
+	save();
+	updatePhones();
 }
 
 /** Can this step go to the phone before the Storyteller has decided anything? (Not an answer still to be chosen.) */
@@ -2242,6 +2311,16 @@ function inspectRows(): Row[] {
 		rows.push(blank(), ...prose('The Drunk thinks they are:', 'gold'));
 		rows.push(...buttonRows(G.charactersOfTeam(script(), 'townsfolk').map((c) => btn(c.name, () => edit({ type: 'adjust', seat: id, character: 'drunk', believes: c.id })))));
 	} else {
+		// A Cannibal poisoned by an evil meal: the Storyteller may show them a good ability (false, they are poisoned), or none.
+		if (s.character === 'cannibal' && s.eaten?.evil) {
+			const told = s.eaten.told;
+			rows.push(blank(), ...prose('Ate an evil player: poisoned. Show them a good ability, or nothing:', 'gold'));
+			if (told !== undefined) rows.push(...prose(told ? `Shown: the ${charName(told)}.` : 'Shown: nothing.', 'dim'));
+			rows.push(...buttonRows([
+				btn('Nothing', () => edit({ type: 'cannibal-tell', seat: id, character: null }), { style: told === null ? 'on' : undefined }),
+				...[...G.charactersOfTeam(script(), 'townsfolk'), ...G.charactersOfTeam(script(), 'outsider')].map((c) => btn(c.name, () => edit({ type: 'cannibal-tell', seat: id, character: c.id }), { style: told === c.id ? 'on' : undefined }))
+			]));
+		}
 		rows.push(blank(), ...prose('By hand (logged):', 'dim'));
 		rows.push(...buttonRows([
 			btn(s.alive ? 'Kill' : 'Revive', () => edit({ type: 'adjust', seat: id, alive: !s.alive }), { style: s.alive ? 'danger' : undefined }),
@@ -2279,6 +2358,7 @@ function describe(e: GameEvent): string | null {
 		case 'executed': return `${name(e.seat)} is executed`;
 		case 'slayer-shot': return `${name(e.by)} shoots ${name(e.target)}: ${e.hit ? 'hit' : 'nothing happens'}`;
 		case 'adjusted': return `By hand: ${name(e.seat)}${e.alive !== undefined ? (e.alive ? ' revived' : ' killed') : ''}${e.character ? ` made the ${charName(e.character)}` : ''}${e.ghostVote !== undefined ? (e.ghostVote ? ' given a vote' : ' vote spent') : ''}`;
+		case 'cannibal-told': return e.character ? `The Cannibal ${name(e.seat)} is shown the ${charName(e.character)}'s ability (poisoned)` : `The Cannibal ${name(e.seat)} is shown nothing`;
 		case 'poison-set': return e.target === null ? 'By hand: poison cleared' : `By hand: ${name(e.target)} poisoned`;
 		case 'red-herring-set': return e.seat === null ? 'By hand: no red herring' : `By hand: ${name(e.seat)} is the red herring`;
 		case 'game-over': return `${e.winner.toUpperCase()} WINS. ${e.reason}`;
@@ -2328,7 +2408,7 @@ const settingsBack = (): Row => navRow('Settings', () => { if (ui.drawer) ui.dra
 function optionsScreen(): Row[] {
 	const st = saved.settings;
 	const rows: Row[] = [settingsBack(), rubric('The clocks')];
-	const line = (label: string, key: keyof Settings) => {
+	const line = (label: string, key: 'dayMs' | 'nominationsMs' | 'accusationMs' | 'defenceMs') => {
 		const step = key === 'dayMs' || key === 'nominationsMs' ? 60_000 : 15_000;
 		rows.push({ segs: [
 			txt(pad(label, 14)),
@@ -2354,49 +2434,6 @@ function optionsScreen(): Row[] {
 const ICON_SIZES = [28, 16, 12];
 const THEME_NAMES: Record<Theme, string> = { medieval: 'Medieval', grimm: 'Grimm', clockwork: 'Clockwork', lovecraft: 'Lovecraft' };
 
-function iconRows(back: Row): Row[] {
-	const ic = ui.icon, spec = ic.spec;
-	const set = (patch: Partial<IconSpec>) => { ic.spec = normalise({ ...ic.spec, ...patch }); ic.note = ''; render(); };
-	const rows: Row[] = [back, rubric('The app icon')];
-	rows.push(pixelsRow((n) => renderIcon(spec, n), ICON_SIZES));
-	rows.push(...prose('As the home screen, a list and a browser tab draw it (28, 16 and 12 pixels). Shown in the nearest of the page’s inks; the icon itself is exact.', 'dim'), endPanel());
-
-	rows.push(rubric('Symbol'), ...buttonRows(SYMBOLS.map((s) => btn(s.name, () => set({ symbol: s.id }), { style: spec.symbol === s.id ? 'on' : 'quiet' }))));
-	if (spec.symbol === 'token') {
-		const scripts = codexScripts(), sc = scripts.find((s) => s.id === ic.script) ?? scripts[0];
-		rows.push(blank(), ...prose('A character’s token: the capital of their name. Which one?', 'dim'));
-		rows.push(...buttonRows(scripts.map((s) => btn(s.name, () => { ic.script = s.id; render(); }, { style: s.id === sc.id ? 'on' : 'quiet' }))));
-		rows.push(blank(), ...buttonRows(sc.chars.map((c) => btn(c.name, () => set({ symbol: 'token', letter: c.name.match(/[A-Za-z]/)?.[0] ?? 'A', character: c.id }), { style: spec.character === c.id ? 'on' : 'quiet' }))));
-	}
-	rows.push(endPanel(), rubric('Colours'), ...prose('The inks of a book:', 'dim'));
-	rows.push(...buttonRows(THEMES.map((t) => btn(THEME_NAMES[t], () => { ic.theme = t; render(); }, { style: ic.theme === t ? 'on' : 'quiet' }))));
-	const choices = [...new Set([DEFAULT_ICON.bg, DEFAULT_ICON.leaf, DEFAULT_ICON.frame, DEFAULT_ICON.ink, ...bookInks(ic.theme)].map((h) => h.toLowerCase()))];
-	const roles: [string, 'bg' | 'leaf' | 'frame' | 'ink'][] = [['Ground', 'bg'], ['Leaf', 'leaf'], ['Frame', 'frame'], ['Ink', 'ink']];
-	for (const [label, key] of roles) rows.push(blank(), row(txt(label, 'gold')), chipsRow(choices, spec[key], (hex) => set({ [key]: hex })));
-	rows.push(endPanel());
-
-	const isDefault = sameIcon(spec, DEFAULT_ICON), kept = loadIcon();
-	const same = kept ? sameIcon(spec, kept) : isDefault;
-	rows.push(rubric('Keep it'));
-	rows.push(...buttonRows([
-		btn(same ? 'In use' : 'Use this icon', () => {
-			saveIcon(spec);
-			applySaved(isDefault ? null : spec);
-			ic.note = isDefault ? 'Back to the book’s own icon.' : 'Kept, and on this page’s icons now. Add the app to the home screen again to see it there.';
-			render();
-		}, { style: 'primary', disabled: same }),
-		btn('Start again', () => { ic.spec = { ...DEFAULT_ICON }; ic.note = ''; render(); }, { style: 'quiet', disabled: isDefault }),
-		...(kept ? [btn('Forget my design', () => { saveIcon(null); applySaved(null); ic.spec = { ...DEFAULT_ICON }; ic.note = 'Forgotten: the book’s own icon again.'; render(); }, { style: 'danger' })] : [])
-	]));
-	if (ic.note) rows.push(blank(), ...prose(ic.note, 'good'));
-	rows.push(endPanel(), rubric('On a home screen'));
-	rows.push(...prose('The page changes its own icons at once, but a phone copies the icon when the app is added, and keeps that copy:', 'dim'));
-	rows.push(...prose('iPhone and iPad (Safari): remove the app, then Share, Add to Home Screen.', 'dim'));
-	rows.push(...prose('Android (Chrome): uninstall the app, then Install app or Add to Home screen. Chrome may take days to refresh an app already installed.', 'dim'));
-	rows.push(...prose('Desktop Chrome or Edge: uninstall the app, then install it again.', 'dim'));
-	rows.push(...prose('The design lives in this browser only; another phone has its own.', 'dim'), endPanel());
-	return rows;
-}
 
 // ---- players' phones -----------------------------------------------------------------------
 //
@@ -2601,6 +2638,8 @@ let linkDetail = '';
 const phones = new Map<string, string>();
 /** What each phone was last sent, so unchanged news is not resent. */
 const lastSent = new Map<string, string>();
+/** The script sheet and the log last sent to each phone. */
+const sheetSent = new Map<string, string>(), logSent = new Map<string, string>();
 
 const claims = () => saved.net?.claims ?? {};
 const seatOfClient = (clientId: string): SeatId | null => claims()[clientId] ?? null;
@@ -2664,6 +2703,8 @@ function welcome(peer: string) {
 	const taken = new Set(Object.entries(claims()).filter(([c]) => c !== client).map(([, seat]) => seat));
 	sendTo(peer, { t: 'welcome', room: link!.room, seats: state.order.map((id) => ({ id, name: state.seats[id].name, taken: taken.has(id) })), you: seatOfClient(client) });
 	lastSent.delete(peer);
+	sheetSent.delete(peer);
+	logSent.delete(peer);
 	updatePhones();
 }
 
@@ -2709,6 +2750,11 @@ function updatePhones() {
 	for (const [peer, client] of phones) {
 		const seat = seatOfClient(client);
 		if (seat === null) continue;
+		// The script's sheet when it changes; this player's own log when it grows (or is turned on or off).
+		if (sheetSent.get(peer) !== state.scriptId) { sheetSent.set(peer, state.scriptId); sendTo(peer, { t: 'script', chars: V.scriptSheet(state) }); }
+		const log = saved.settings.infoLog ? saved.log?.[seat] ?? [] : null;
+		const logKey = JSON.stringify(log);
+		if (logSent.get(peer) !== logKey) { logSent.set(peer, logKey); sendTo(peer, { t: 'log', entries: log }); }
 		const card = state.seats[seat] ? V.cardFor(state, seat) : null;
 		const news = JSON.stringify({ view, clock: clock && { ...clock, sentAt: 0, remainingMs: Math.round(clock.remainingMs / 1000) }, card, vote });
 		if (lastSent.get(peer) === news) continue;
@@ -2806,11 +2852,12 @@ function startHosting(room = saved.net?.room ?? newRoomCode()) {
 	if (!saved.net || saved.net.room !== room) saved.net = { room, claims: saved.net?.claims ?? {}, village: saved.net?.village };
 	save();
 	link?.close();
-	link = hostRoom(room, {
-		message: fromPhone,
-		joined: () => render(),
-		left: (peer) => { phones.delete(peer); lastSent.delete(peer); render(); },
+	const me: HostLink = hostRoom(room, {
+		message: (peer, msg) => { if (me === link) fromPhone(peer, msg); },
+		joined: () => { if (me === link) render(); },
+		left: (peer) => { if (me !== link) return; phones.delete(peer); lastSent.delete(peer); render(); },
 		status: (st, detail) => {
+			if (me !== link) return;
 			linkStatus = st;
 			linkDetail = detail ?? '';
 			// Our code is still held (this phone reloaded and the broker has not let go yet):
@@ -2826,6 +2873,7 @@ function startHosting(room = saved.net?.room ?? newRoomCode()) {
 			render();
 		}
 	});
+	link = me;
 	linkStatus = 'connecting';
 	if (saved.net?.village) villageOn();
 	render();
@@ -2940,6 +2988,11 @@ function phonesScreen(): Row[] {
 	rows.push(...buttonRows(village
 		? [btn('Open the village', () => village?.open(), { style: 'primary' }), btn('Turn off', villageOff, { style: 'quiet' })]
 		: [btn('Play in the village', villageOn, { style: 'primary' })]), endPanel());
+	const logs = !!saved.settings.infoLog;
+	rows.push(rubric('Players’ logs'), ...prose(logs
+		? 'On: each player can read back, in their menu, everything they have been shown at night.'
+		: 'Off: what players are shown at night is not kept for them to read back.', 'dim'),
+	...buttonRows([btn(logs ? 'Stop keeping logs' : 'Keep a log for each player', () => { saved.settings.infoLog = !logs; save(); updatePhones(); render(); }, { style: logs ? 'on' : undefined })]), endPanel());
 	rows.push(rubric('Seats'));
 	const byseat = new Map<SeatId, string>();
 	for (const [client, seat] of Object.entries(claims())) byseat.set(seat, client);
@@ -2974,7 +3027,6 @@ function screen(): Row[] {
 	if (ui.tab === 'settings') return [...rows, ...settingsScreen()];
 	if (ui.tab === 'options') return [...rows, ...optionsScreen()];
 	if (ui.tab === 'phones') return [...rows, ...phonesScreen()];
-	if (ui.tab === 'icon') return [...rows, ...iconRows(settingsBack())];
 	rows.push(...circleRows(), ...messageRows(), ...inspectRows(), ...actionRows());
 	return rows;
 }
@@ -3051,7 +3103,7 @@ function drawerScreen(): Row[] {
 	const p = state.phase;
 	const phase = p.kind === 'setup' ? 'Setting the Table' : p.kind === 'night' ? `Night ${p.n}` : p.kind === 'day' ? `Day ${p.n}` : 'Game over';
 	const tab = ui.drawer ?? 'actions';
-	const inSettings = tab === 'settings' || tab === 'options' || tab === 'phones' || tab === 'icon';
+	const inSettings = tab === 'settings' || tab === 'options' || tab === 'phones';
 	const rows: Row[] = [
 		listRow(phase, 'rubric', [
 			btn('Undo', undo, { disabled: !saved.marks.length, style: 'quiet' }),
@@ -3064,7 +3116,6 @@ function drawerScreen(): Row[] {
 	if (tab === 'settings') return [...rows, ...settingsScreen()];
 	if (tab === 'options') return [...rows, ...optionsScreen()];
 	if (tab === 'phones') return [...rows, ...phonesScreen()];
-	if (tab === 'icon') return [...rows, ...iconRows(settingsBack())];
 	if (p.kind === 'setup') return state.seats.length ? draftScreen(['Lobby', () => { undo(); ui.message = ''; }]) : [...rows, ...namesScreen(), ...messageRows()];
 	if (tab === 'actions') return [...rows, ...messageRows(), ...actionRows()];
 	// The grimoire: the circle of seats and tokens, and whoever is tapped.
@@ -3147,20 +3198,19 @@ const dynamicText = (d: Record<string, string>): string | null => {
 setDynamic(dynamicText);
 setInterval(tick, 250);
 
-// The Storyteller's own icon, if they have designed one, goes on the page's icons and manifest.
-if (loadIcon()) applySaved();
-
 // A player's phone (#join=CODE, or "Join a game") runs the player app instead.
 const joining = location.hash.match(/^#join(?:=([A-Za-z]{4}))?/);
-const villageDemo = location.hash.match(/^#village(?:=([A-Za-z]{4}))?/);
+// Dev mode: #village:talmberg (or :talmberg:player) walks that town straight away.
+const villageDemo = location.hash.match(/^#village(?:=([A-Za-z]{4}))?(?::(\w+))?(?::(st|player))?/);
 if (villageDemo) {
-	startVillage(root, (villageDemo[1] ?? '').toUpperCase());
+	startVillage(root, (villageDemo[1] ?? '').toUpperCase(), villageDemo[2], villageDemo[3]);
 } else if (joining) {
 	startPlayer(root, cardRoot, (joining[1] ?? '').toUpperCase());
 } else if ((location.hash === '#host' && saved.net?.village) || location.hash === '#grimoire') {
 	syncFlow();
 	render();
 	if (saved.net) startHosting(saved.net.room);
+	forwardOldRoom();
 } else {
 	ui.page = 'home';
 	if (location.hash) history.replaceState(null, '', location.pathname + location.search);
@@ -3169,3 +3219,6 @@ if (villageDemo) {
 
 // A different page in the address (typed, a link, back or forward): open that page afresh.
 window.addEventListener('hashchange', () => location.reload());
+
+// For trying things from the browser's console: __grim.act({ type: 'create', names: [...] }), __grim.hostTable().
+(globalThis as { __grim?: unknown }).__grim = { act, actAll, hostTable, wakePhone, peerOfSeat, state: () => state, ui, saved: () => saved, render, G };

@@ -182,69 +182,78 @@ export function nightSteps(state: GameState): NightStep[] {
 
 	for (const s of state.seats) {
 		if (!s.believes) continue;
-		const def = charDef(script, s.believes);
-		// The Lunatic wakes at the Lunatic's place, as the Demon they think they are (each night it would act).
-		if (s.character === 'lunatic') {
-			const at = otherNightOrder('lunatic')!, revivedAt = (otherNightOrder('professor') ?? 0) + 0.25;
-			// Made the Lunatic tonight (the Barber, the Pit-Hag) after their place has passed: they act from the next night.
-			const turnedAt = (night.changed ?? []).filter((c) => c.seat === s.id).map((c) => c.at);
-			if (turnedAt.length && at <= Math.max(...turnedAt) && !night.done.includes(`${LUNATIC}:${s.id}`)) continue;
-			if (n > 1 && def.otherNight !== null) add(LUNATIC, s.id, night.revived.includes(s.id) && at < revivedAt ? revivedAt : at, s.alive);
-			continue;
+		// The Cannibal who ate a good player also has their ability, and wakes when it would.
+		const held = [charDef(script, s.believes)];
+		if (s.character === 'cannibal' && s.eaten && !s.eaten.evil && s.alive) held.push(charDef(script, s.eaten.character));
+		// One who ate an evil player is poisoned, and wakes as the good ability the Storyteller showed them (what they learn is false).
+		if (s.character === 'cannibal' && s.eaten?.evil && s.eaten.told && s.alive) held.push(charDef(script, s.eaten.told));
+		for (const def of held) {
+			const eaten = def !== held[0];
+			// The Lunatic wakes at the Lunatic's place, as the Demon they think they are (each night it would act).
+			if (s.character === 'lunatic') {
+				const at = otherNightOrder('lunatic')!, revivedAt = (otherNightOrder('professor') ?? 0) + 0.25;
+				// Made the Lunatic tonight (the Barber, the Pit-Hag) after their place has passed: they act from the next night.
+				const turnedAt = (night.changed ?? []).filter((c) => c.seat === s.id).map((c) => c.at);
+				if (turnedAt.length && at <= Math.max(...turnedAt) && !night.done.includes(`${LUNATIC}:${s.id}`)) continue;
+				if (n > 1 && def.otherNight !== null) add(LUNATIC, s.id, night.revived.includes(s.id) && at < revivedAt ? revivedAt : at, s.alive);
+				continue;
+			}
+			// A Traveller's "first night" is the first night after they joined (the Apprentice).
+			const firstForThem = n === 1 || (s.traveller && !state.spent.includes(`${s.id}:first-night`) && def.otherNight === null && def.firstNight !== null);
+			let order = firstForThem ? def.firstNight : def.otherNight;
+			if (firstForThem && n > 1 && order !== null) order = otherNightOrder('philosopher') ?? order;
+			// An eaten first-night ability acts once, the night after the execution, early (as the Philosopher's would).
+			if (eaten) order = def.otherNight ?? (def.firstNight !== null && s.eaten!.day === n - 1 ? otherNightOrder('philosopher') ?? def.firstNight : null);
+			if (order === null) continue;
+			// Back from the dead tonight after their place has passed: they act just after the Professor.
+			const revivedAt = (otherNightOrder('professor') ?? 0) + 0.25;
+			if (night.revived.includes(s.id) && order < revivedAt) order = revivedAt;
+			const alive = s.alive || !!s.undead;
+			// A character the Pit-Hag, Snake Charmer, Barber or Philosopher gave them tonight acts only if its place is still to come.
+			const changedAt = (night.changed ?? []).filter((c) => c.seat === s.id).map((c) => c.at);
+			if (changedAt.length && order <= Math.max(...changedAt) && !night.done.includes(`${def.id}:${s.id}`)) continue;
+			// A Minion the Vigormortis killed keeps their ability, and wakes (from the next night).
+			let applies = s.alive || (state.effects.some((e) => e.kind === 'keeps-ability' && e.target === s.id) && !night.deaths.includes(s.id));
+			// A dead player's regained ability (the Bone Collector) acts tonight only if its place is still to come.
+			if (!s.alive && applies && order < (night.reached ?? -Infinity) && !night.done.includes(`${def.id}:${s.id}`)) continue;
+			switch (def.id) {
+				case 'ravenkeeper': applies = night.deaths.includes(s.id); break;
+				case 'undertaker': applies = applies && state.lastExecution?.day === n - 1; break;
+				case 'imp': applies = s.alive && !made.some((m) => m.seat === s.id) && !has('exorcised', s.id); break;
+				// Demons: not tonight if the Exorcist chose them. The Zombuul wakes only if no one died today, even while it seems dead.
+				case 'zombuul': applies = alive && night.dayDeaths.length === 0 && !made.some((m) => m.seat === s.id) && !has('exorcised', s.id); break;
+				case 'pukka':
+				case 'shabaloth':
+				case 'po':
+				case 'fang-gu':
+				case 'vigormortis':
+				case 'no-dashii':
+				// A dead Demon does not wake to kill, even with an ability regained (the Bone Collector).
+				case 'vortox': applies = s.alive && !made.some((m) => m.seat === s.id) && !has('exorcised', s.id); break;
+				case 'courtier':
+				case 'professor':
+				case 'assassin':
+				case 'seamstress':
+				case 'philosopher': applies = applies && !spent(s.id, def.id); break;
+				case 'juggler': applies = applies && !spent(s.id, 'juggler') && state.effects.some((e) => e.kind === 'juggled' && e.by === s.id); break;
+				// Killed by the Demon tonight: the Sage wakes, though dead.
+				case 'sage': applies = (night.demonKills ?? []).includes(s.id); break;
+				// The Storyteller acts for a dead Sweetheart; the Demon wakes for a dead Barber.
+				case 'sweetheart': applies = !s.alive && !spent(s.id, 'sweetheart'); break;
+				case 'barber': applies = !s.alive && !spent(s.id, 'barber') && (night.dayDeaths.includes(s.id) || night.deaths.includes(s.id)); break;
+				// (A player brought back after her place has passed does not make her wake late: she was a Witch with three alive.)
+				case 'witch': applies = applies && state.seats.filter((x) => x.alive).length > 3 && (order >= (night.reached ?? -Infinity) || night.done.includes(`witch:${s.id}`)); break;
+				case 'bone-collector': applies = applies && !spent(s.id, def.id); break;
+				case 'godfather':
+					if (n === 1) { add(GODFATHER_INFO, s.id, order, s.alive); continue; }
+					applies = applies && (night.dayOutsiderDied ?? night.dayDeaths.some((d) => charDef(script, state.seats[d].character).team === 'outsider'));
+					break;
+				// Not woken: the Storyteller acts on their behalf at their place in the night.
+				case 'gossip': applies = applies && night.gossip.some((g) => g.by === s.id); break;
+				case 'moonchild': applies = state.effects.some((e) => e.kind === 'moonchild' && e.by === s.id); break;
+			}
+			add(def.id, s.id, order, applies);
 		}
-		// A Traveller's "first night" is the first night after they joined (the Apprentice).
-		const firstForThem = n === 1 || (s.traveller && !state.spent.includes(`${s.id}:first-night`) && def.otherNight === null && def.firstNight !== null);
-		let order = firstForThem ? def.firstNight : def.otherNight;
-		if (firstForThem && n > 1 && order !== null) order = otherNightOrder('philosopher') ?? order;
-		if (order === null) continue;
-		// Back from the dead tonight after their place has passed: they act just after the Professor.
-		const revivedAt = (otherNightOrder('professor') ?? 0) + 0.25;
-		if (night.revived.includes(s.id) && order < revivedAt) order = revivedAt;
-		const alive = s.alive || !!s.undead;
-		// A character the Pit-Hag, Snake Charmer, Barber or Philosopher gave them tonight acts only if its place is still to come.
-		const changedAt = (night.changed ?? []).filter((c) => c.seat === s.id).map((c) => c.at);
-		if (changedAt.length && order <= Math.max(...changedAt) && !night.done.includes(`${def.id}:${s.id}`)) continue;
-		// A Minion the Vigormortis killed keeps their ability, and wakes (from the next night).
-		let applies = s.alive || (state.effects.some((e) => e.kind === 'keeps-ability' && e.target === s.id) && !night.deaths.includes(s.id));
-		// A dead player's regained ability (the Bone Collector) acts tonight only if its place is still to come.
-		if (!s.alive && applies && order < (night.reached ?? -Infinity) && !night.done.includes(`${def.id}:${s.id}`)) continue;
-		switch (def.id) {
-			case 'ravenkeeper': applies = night.deaths.includes(s.id); break;
-			case 'undertaker': applies = applies && state.lastExecution?.day === n - 1; break;
-			case 'imp': applies = s.alive && !made.some((m) => m.seat === s.id) && !has('exorcised', s.id); break;
-			// Demons: not tonight if the Exorcist chose them. The Zombuul wakes only if no one died today, even while it seems dead.
-			case 'zombuul': applies = alive && night.dayDeaths.length === 0 && !made.some((m) => m.seat === s.id) && !has('exorcised', s.id); break;
-			case 'pukka':
-			case 'shabaloth':
-			case 'po':
-			case 'fang-gu':
-			case 'vigormortis':
-			case 'no-dashii':
-			// A dead Demon does not wake to kill, even with an ability regained (the Bone Collector).
-			case 'vortox': applies = s.alive && !made.some((m) => m.seat === s.id) && !has('exorcised', s.id); break;
-			case 'courtier':
-			case 'professor':
-			case 'assassin':
-			case 'seamstress':
-			case 'philosopher': applies = applies && !spent(s.id, def.id); break;
-			case 'juggler': applies = applies && !spent(s.id, 'juggler') && state.effects.some((e) => e.kind === 'juggled' && e.by === s.id); break;
-			// Killed by the Demon tonight: the Sage wakes, though dead.
-			case 'sage': applies = (night.demonKills ?? []).includes(s.id); break;
-			// The Storyteller acts for a dead Sweetheart; the Demon wakes for a dead Barber.
-			case 'sweetheart': applies = !s.alive && !spent(s.id, 'sweetheart'); break;
-			case 'barber': applies = !s.alive && !spent(s.id, 'barber') && (night.dayDeaths.includes(s.id) || night.deaths.includes(s.id)); break;
-			// (A player brought back after her place has passed does not make her wake late: she was a Witch with three alive.)
-			case 'witch': applies = applies && state.seats.filter((x) => x.alive).length > 3 && (order >= (night.reached ?? -Infinity) || night.done.includes(`witch:${s.id}`)); break;
-			case 'bone-collector': applies = applies && !spent(s.id, def.id); break;
-			case 'godfather':
-				if (n === 1) { add(GODFATHER_INFO, s.id, order, s.alive); continue; }
-				applies = applies && (night.dayOutsiderDied ?? night.dayDeaths.some((d) => charDef(script, state.seats[d].character).team === 'outsider'));
-				break;
-			// Not woken: the Storyteller acts on their behalf at their place in the night.
-			case 'gossip': applies = applies && night.gossip.some((g) => g.by === s.id); break;
-			case 'moonchild': applies = state.effects.some((e) => e.kind === 'moonchild' && e.by === s.id); break;
-		}
-		add(def.id, s.id, order, applies);
 	}
 
 	// An evil Traveller learns who the Demon is, at the start of their first night.

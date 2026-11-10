@@ -41,8 +41,20 @@ export function inForce(state: GameState, e: Effect, depth = 0): boolean {
 	return !droisonedAt(state, e.by, depth + 1);
 }
 
+/** Has this character's ability: is it, or is the Cannibal who ate a good one. */
+export function hasAbility(state: GameState, id: SeatId, character: CharacterId): boolean {
+	const s = seat(state, id);
+	return s.character === character || (s.character === 'cannibal' && !!s.eaten && !s.eaten.evil && s.eaten.character === character);
+}
+
+/** The Cannibal who ate an evil player: poisoned until a good player is executed (and eaten). */
+const cannibalPoisoned = (state: GameState, id: SeatId) => {
+	const s = seat(state, id);
+	return s.character === 'cannibal' && !!s.eaten?.evil;
+};
+
 function poisonedAt(state: GameState, id: SeatId, depth: number): boolean {
-	return state.effects.some((e) => e.kind === 'poisoned' && e.target === id && inForce(state, e, depth)) || noDashiiPoisons(state, id, depth);
+	return cannibalPoisoned(state, id) || state.effects.some((e) => e.kind === 'poisoned' && e.target === id && inForce(state, e, depth)) || noDashiiPoisons(state, id, depth);
 }
 
 const isTownsfolk = (state: GameState, id: SeatId) => getScript(state.scriptId).characters.find((c) => c.id === state.seats[id].character)?.team === 'townsfolk';
@@ -110,7 +122,7 @@ export function reallyAlive(state: GameState, id: SeatId): boolean {
 
 /** The character's ability works: really alive (or undead), this character, sober and healthy. */
 export function abilityWorks(state: GameState, id: SeatId, character: CharacterId): boolean {
-	return (reallyAlive(state, id) || keepsAbility(state, id)) && seat(state, id).character === character && !isDroisoned(state, id);
+	return (reallyAlive(state, id) || keepsAbility(state, id)) && hasAbility(state, id, character) && !isDroisoned(state, id);
 }
 
 /** A working Vortox: Townsfolk must be told false things, and a day without an execution loses the game for good. */
@@ -178,8 +190,6 @@ export function reminders(state: GameState, id: SeatId): string[] {
 		if (e.kind === 'vote-x3') out.push('votes x3');
 		if (e.kind === 'vote-minus') out.push('votes -1');
 		if (e.kind === 'sober') out.push('sober');
-		if (e.kind === 'cannibal-ability') out.push(e.note?.startsWith('evil:') ? `lunch: ${e.note.slice(5)} (evil)` : `lunch: ${e.note}`);
-		if (e.kind === 'cannibal-shown') out.push(`told: ${e.note}`);
 	}
 	if (state.redHerring === id) out.push('red herring');
 	if (state.spent.includes(`${id}:slayer`)) out.push('shot used');
@@ -231,7 +241,7 @@ export function afterGoon(state: GameState, role: string, to: SeatId, chosen: Se
 /** The seat really is `character`, and that ability is working right now. */
 export function hasWorkingAbility(state: GameState, id: SeatId, character: CharacterId): boolean {
 	const s = seat(state, id);
-	return s.alive && s.character === character && !isDroisoned(state, id);
+	return s.alive && hasAbility(state, id, character) && !isDroisoned(state, id);
 }
 
 export function teamOf(state: GameState, character: CharacterId) {

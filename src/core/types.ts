@@ -69,6 +69,9 @@ export interface Seat {
 	undead?: boolean;
 	/** Joined as a Traveller: exiled, never executed, and not counted for "two players left" (even after gaining another ability). */
 	traveller?: boolean;
+	/** The Cannibal: the last player executed who died, whose ability they now have (not told which). Evil: poisoned instead. */
+	/** For an evil meal, `told`: the good ability the Storyteller showed the poisoned Cannibal (a character), or null for none. */
+	eaten?: { character: CharacterId; evil: boolean; day: number; told?: CharacterId | null };
 }
 
 export type Phase =
@@ -180,11 +183,7 @@ export type EffectKind =
 	/** The Thief's choice: their votes count minus one today. */
 	| 'vote-minus'
 	/** The Barista's choice: sober and healthy, with true information, until dusk. */
-	| 'sober'
-	/** The Cannibal's loan: `note` is the character of the last player executed who died, with `evil:` before it if that player was evil. Replaced at the next such death. */
-	| 'cannibal-ability'
-	/** What the Storyteller told a poisoned Cannibal they have (`note`: a good character, or `nothing`). */
-	| 'cannibal-shown';
+	| 'sober';
 export interface Effect {
 	kind: EffectKind;
 	target: SeatId;
@@ -300,6 +299,8 @@ export type GameEvent =
 	/** The Storyteller moving tokens by hand, outside the rules. */
 	| { type: 'adjusted'; seat: SeatId; alive?: boolean; character?: CharacterId; believes?: CharacterId; ghostVote?: boolean }
 	| { type: 'poison-set'; target: SeatId | null }
+	/** The Storyteller showed a Cannibal poisoned by an evil meal a good ability (or none). */
+	| { type: 'cannibal-told'; seat: SeatId; character: CharacterId | null }
 	/** A player's alignment changes (the Goon, ...). Their character stays. */
 	| { type: 'alignment-changed'; seat: SeatId; alignment: Alignment }
 	/** A player's character changes (the Pit-Hag, the Snake Charmer, the Barber, the Philosopher). Alignment changes separately. */

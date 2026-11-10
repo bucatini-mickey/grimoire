@@ -93,7 +93,12 @@ export function reduce(prev: GameState, e: GameEvent): GameState {
 			if (s.night) s.night.deaths.push(e.seat);
 			if (s.night && s.phase.kind === 'night' && e.cause === 'demon') (s.night.demonKills ??= []).push(e.seat);
 			if (s.day && s.phase.kind === 'day') s.day.deaths.push(e.seat);
-			if (e.cause === 'execution' && s.day) s.lastExecution = { day: s.day.n, seat: e.seat };
+			if (e.cause === 'execution' && s.day) {
+				s.lastExecution = { day: s.day.n, seat: e.seat };
+				// Every living Cannibal eats them: their ability, or (evil) poison until a good player is executed.
+				const eaten = { character: seat.character, evil: seat.alignment === 'evil', day: s.day.n };
+				for (const c of s.seats) if (c.character === 'cannibal' && c.alive && c.id !== e.seat) c.eaten = eaten;
+			}
 			// The dead have no ability: effects that live on their source end (the Poisoner's poison).
 			// A dead Minion the Vigormortis kept loses the ability with the Vigormortis, and what it did ends too.
 			const lost = s.effects.filter((x) => x.kind === 'keeps-ability' && x.by === e.seat && !s.seats[x.target as number].alive).map((x) => x.target);
@@ -212,6 +217,12 @@ export function reduce(prev: GameState, e: GameEvent): GameState {
 			}
 			if (e.believes !== undefined) seat.believes = e.believes;
 			if (e.alive === false) s.effects = s.effects.filter((x) => !(x.endsWithSource && x.by === e.seat));
+			break;
+		}
+
+		case 'cannibal-told': {
+			const eaten = s.seats[e.seat].eaten;
+			if (eaten) eaten.told = e.character;
 			break;
 		}
 

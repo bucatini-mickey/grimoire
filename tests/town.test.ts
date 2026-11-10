@@ -165,11 +165,17 @@ test('a locked door stops walkers and the eye; the Storyteller walks through', a
 	}
 });
 
-test('a private word: the two hear each other anywhere, and nobody else hears them', () => {
-	const a = { id: 'a', ...INSIDE, with: 'b' }, b = { id: 'b', ...HALL, with: 'a' }, c = { id: 'c', x: INSIDE.x + 1, y: INSIDE.y };
-	assert.equal(loudness(town, a, b, 'day'), 1);
+test('a private word with the Storyteller: the two hear each other anywhere, and nobody else hears them', () => {
+	const a = { id: 'a', ...INSIDE, with: 'st', secret: true }, st = { id: 'st', ...HALL, st: true, with: 'a', secret: true }, c = { id: 'c', x: INSIDE.x + 1, y: INSIDE.y };
+	assert.equal(loudness(town, a, st, 'day'), 1);
 	assert.equal(loudness(town, a, c, 'day'), 0);
 	assert.equal(loudness(town, c, a, 'day'), 0);
+});
+
+test('two players meeting: their voices carry as usual, to each other and to anyone beside them', () => {
+	const a = { id: 'a', ...INSIDE, with: 'b' }, b = { id: 'b', ...HALL, with: 'a' }, c = { id: 'c', x: INSIDE.x + 1, y: INSIDE.y };
+	assert.equal(loudness(town, a, b, 'day'), loudness(town, { id: 'a', ...INSIDE }, { id: 'b', ...HALL }, 'day'), 'no nearer for being paired');
+	assert.ok(loudness(town, a, c, 'day') > 0, 'someone beside them hears');
 });
 
 test('the circle: everyone hears everyone; night: only the Storyteller, in the room they visit', () => {

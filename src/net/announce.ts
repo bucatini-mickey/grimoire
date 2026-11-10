@@ -10,16 +10,19 @@
 import type { GameEvent, GameState, SeatId } from '../core/index.ts';
 import type { Announcement } from './protocol.ts';
 
-export function announce(prev: GameState, events: GameEvent[], next: GameState): Announcement[] | null {
+/** `inkOf`: a seat's colour by its place in the circle, for a death written large (the screens pass theirs). */
+export function announce(prev: GameState, events: GameEvent[], next: GameState, inkOf: (place: number) => number = () => 6): Announcement[] | null {
 	const out: Announcement[] = [];
 	const nm = (id: SeatId) => next.seats[id]?.name ?? '?';
+	// A death is written large in the dead player's own colour; the winners in their team's ink.
+	const named = (id: SeatId) => ({ text: nm(id), ink: inkOf(Math.max(0, next.order.indexOf(id))) });
 	for (const e of events) {
 		switch (e.type) {
 			case 'day-began': {
 				// Who the room saw alive at dusk and sees dead now: not someone killed and brought back in the night (the Professor), nor someone already dead at dusk whom the night brought back and killed again.
 				const alive = new Set(prev.night?.aliveAtDusk ?? []);
 				const dead = [...new Set(prev.night?.deaths ?? [])].filter((d) => alive.has(d) && !next.seats[d].alive);
-				out.push({ title: `Day ${e.n} dawns`, lines: dead.length ? dead.map((d) => `${nm(d)} died in the night.`) : ['Nobody died in the night.'] });
+				out.push({ title: `Day ${e.n} dawns`, lines: dead.length ? dead.map((d) => `${nm(d)} died in the night.`) : ['Nobody died in the night.'], big: dead.map(named) });
 				break;
 			}
 			case 'vote-tallied': {
@@ -43,16 +46,16 @@ export function announce(prev: GameState, events: GameEvent[], next: GameState):
 				const fate = dies ? `${nm(e.seat)} dies.` : survives && looksDead ? `${nm(e.seat)} was already dead.` : survives ? `${nm(e.seat)} does not die.` : wasDead ? `${nm(e.seat)} was already dead.` : null;
 				out.push(virgin
 					? { title: 'The Virgin!', lines: [`${nm(e.seat)} nominated the Virgin.`, `${nm(e.seat)} is executed.`, ...(fate ? [fate] : [])] }
-					: { title: 'Execution', lines: [`${nm(e.seat)} is executed.`, ...(fate ? [fate] : [])] });
+					: { title: 'Execution', lines: [`${nm(e.seat)} is executed.`, ...(fate ? [fate] : [])], big: dies ? [named(e.seat)] : [] });
 				break;
 			}
 			case 'slayer-shot':
 				// A hit that something stopped (the Tea Lady's neighbour...) looks like a miss.
 				const dies = events.some((x) => (x.type === 'died' || x.type === 'seems-dead') && x.seat === e.target);
-				out.push({ title: 'The Slayer', lines: [`${nm(e.by)} shoots ${nm(e.target)}.`, dies ? `${nm(e.target)} dies.` : 'Nothing happens.'] });
+				out.push({ title: 'The Slayer', lines: [`${nm(e.by)} shoots ${nm(e.target)}.`, dies ? `${nm(e.target)} dies.` : 'Nothing happens.'], big: dies ? [named(e.target)] : [] });
 				break;
 			case 'game-over':
-				out.push({ title: e.winner === 'good' ? 'Good wins' : 'Evil wins', lines: [e.reason] });
+				out.push({ title: e.winner === 'good' ? 'Good wins' : 'Evil wins', lines: [e.reason], big: [{ text: e.winner === 'good' ? 'Good' : 'Evil', ink: e.winner === 'good' ? 12 : 8 }, { text: 'wins', ink: e.winner === 'good' ? 12 : 8 }] });
 				break;
 		}
 	}

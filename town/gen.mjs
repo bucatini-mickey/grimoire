@@ -19,6 +19,9 @@ export function plan(W, H, ground, seed = 1) {
 	const rnd = () => ((s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
 	const g = Array.from({ length: H }, () => Array(W).fill(ground));
 	const u = Array.from({ length: H }, () => Array(W).fill(null));
+	/** A third level (a keep's upper floor); empty unless a town draws on it. */
+	const u2 = Array.from({ length: H }, () => Array(W).fill(null));
+	const lv = [g, u, u2];
 	const labels = [];
 	const inside = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
 	const P = {
@@ -35,6 +38,22 @@ export function plan(W, H, ground, seed = 1) {
 		/** A stair between the levels, at the same spot on both. */
 		stair: (x, y, mat) => { P.put(x, y, `stair-up ${mat}`); P.up(x, y, `stair-down ${mat}`); },
 		label: (x, y, name) => labels.push([x, y, name]),
+		/**
+		 * Drawing on level z (0 the ground): put, get (null is open air above the ground), fill, room, thing.
+		 * `stair(x, y, mat)` climbs from z to z + 1 at that spot.
+		 */
+		on: (z) => {
+			const a = lv[z];
+			const L = {
+				put: (x, y, spec) => { if (inside(x, y)) a[y][x] = spec; },
+				get: (x, y) => (inside(x, y) ? a[y][x] : null),
+				fill: (x0, y0, x1, y1, spec) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) L.put(x, y, spec); },
+				room: (x0, y0, x1, y1, wall, floor) => { L.fill(x0, y0, x1, y1, `wall ${wall}`); L.fill(x0 + 1, y0 + 1, x1 - 1, y1 - 1, `floor ${floor}`); },
+				thing: (x, y, name, floor) => { const c = L.get(x, y); L.put(x, y, `${floor ?? (c && c.startsWith('floor') ? c.split('|')[0].trim() : 'floor stone block')} | ${name}`); },
+				stair: (x, y, mat) => { L.put(x, y, `stair-up ${mat}`); lv[z + 1][y][x] = `stair-down ${mat}`; }
+			};
+			return L;
+		},
 		/**
 		 * A house: walls, a door on the side given ('n', 's', 'e', 'w'), a bed (a home), a table, a candle or
 		 * hearth, a chest. `loft` puts a bedchamber upstairs, reached by a stair by the door.
@@ -56,7 +75,13 @@ export function plan(W, H, ground, seed = 1) {
 			for (const [ex, ey, name] of extra) P.thing(ex, ey, name, `floor ${floor}`);
 			if (loft) {
 				P.upRoom(x0, y0, x1, y1, wall, floor);
-				P.stair(inX === x0 + 1 ? x0 + 1 : inX === x1 - 1 ? x1 - 1 : inX + (inX < x1 - 1 ? 1 : -1), inY === y0 + 1 ? y0 + 1 : inY === y1 - 1 ? y1 - 1 : inY, floor);
+				// The stair beside the way in, never on it: along the wall from the cell inside the door.
+				const sideways = d[1] === y0 || d[1] === y1;
+				const sx = sideways ? inX + (inX < x1 - 1 ? 1 : -1) : inX, sy = sideways ? inY : inY + (inY < y1 - 1 ? 1 : -1);
+				// Not on the bed or the light either: the other way along the wall if so.
+				const busy = (x, y) => P.get(x, y) !== `floor ${floor}`;
+				const [qx, qy] = busy(sx, sy) ? (sideways ? [inX - (sx - inX), inY] : [inX, inY - (sy - inY)]) : [sx, sy];
+				P.stair(qx, qy, floor);
 				P.up(fx, fy, `floor ${floor} | bed`);
 			}
 			return { door: d, inside: [inX, inY] };
@@ -113,11 +138,16 @@ export function plan(W, H, ground, seed = 1) {
 			}
 		},
 		/** Write the blueprint: one character a distinct cell, the same keys for both levels. */
-		write: (file, name, about, preferred = {}) => {
+		write: (file, name, about, preferred = {}, crop = null) => {
+			// `crop` {x0, y0, x1, y1} writes only that window of the map, labels moved to match.
+			const c0 = crop ?? { x0: 0, y0: 0, x1: W - 1, y1: H - 1 };
+			const cut = (a) => a.slice(c0.y0, c0.y1 + 1).map((r) => r.slice(c0.x0, c0.x1 + 1));
+			const g = cut(P.g), u = cut(P.u), u2 = cut(lv[2]);
+			const W = c0.x1 - c0.x0 + 1, H = c0.y1 - c0.y0 + 1;
 			const POOL = [...'.,:;_=+#%&*~-^"\'`!?$@ABCDEFGHIJKLMNOPQRSUVWXYZabcdefghijklmnopqrstuvwxyz0123456789()[]/|\\'];
 			const keyOf = new Map(Object.entries(preferred));
 			const used = new Set(keyOf.values());
-			const specs = new Set([...g.flat(), ...u.flat().filter(Boolean)]);
+			const specs = new Set([...g.flat(), ...u.flat().filter(Boolean), ...u2.flat().filter(Boolean)]);
 			for (const sp of specs) {
 				if (keyOf.has(sp)) continue;
 				const ch = POOL.find((c) => !used.has(c));
@@ -125,21 +155,24 @@ export function plan(W, H, ground, seed = 1) {
 				keyOf.set(sp, ch); used.add(ch);
 			}
 			const twoLevels = u.some((r) => r.some(Boolean));
+			const three = u2.some((r) => r.some(Boolean));
+			const upper = (a, z) => [`level ${z}`, ...a.map((r) => r.map((sp) => (sp ? keyOf.get(sp) : ' ')).join(''))];
 			const out = [
 				'tachyon-blueprint 1',
 				...about.map((l) => '# ' + l),
 				`name ${name}`,
-				`size ${W} ${H} ${twoLevels ? 2 : 1}`,
+				`size ${W} ${H} ${three ? 3 : twoLevels ? 2 : 1}`,
 				...[...keyOf].filter(([sp]) => specs.has(sp)).map(([sp, ch]) => `key ${ch} ${sp}`),
 				'level 0',
 				...g.map((r) => r.map((sp) => keyOf.get(sp)).join('')),
-				...(twoLevels ? ['level 1', ...u.map((r) => r.map((sp) => (sp ? keyOf.get(sp) : ' ')).join(''))] : []),
-				...labels.map(([x, y, nm]) => `label ${x} ${y} ${nm}`),
+				...(twoLevels || three ? upper(u, 1) : []),
+				...(three ? upper(u2, 2) : []),
+				...labels.filter(([x, y]) => x >= c0.x0 && x <= c0.x1 && y >= c0.y0 && y <= c0.y1).map(([x, y, nm]) => `label ${x - c0.x0} ${y - c0.y0} ${nm}`),
 				'end',
 				''
 			].join('\n');
 			writeFileSync(file, out);
-			const homes = g.flat().filter((c) => c.includes('| bed')).length + u.flat().filter((c) => c && c.includes('| bed')).length;
+			const homes = [g, u, u2].reduce((k, a) => k + a.flat().filter((c) => c && c.includes('| bed')).length, 0);
 			const chairs = g.flat().filter((c) => c.includes('| chair')).length;
 			console.log(JSON.stringify({ file: String(file).split('/').pop(), beds: homes, chairs, keys: keyOf.size }));
 		}

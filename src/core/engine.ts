@@ -21,7 +21,7 @@ import { allowedCompositions, charDef, getScript, teamAlignment, evilLearnEachOt
 import {
 	hasWorkingAbility, isDroisoned, judgeInfo, living, livingDemons, registrations, seat, teamOf,
 	canRegisterAsTeam, mustRegisterAsTeam, safeFromDemon, innkeeperProtects, butlerMaster, abilityWorks, teaLadyProtects, inForce, reallyAlive,
-	livingNeighbours, livingResidents, vortoxWorks, goonCatchEvents, tellChoices
+	livingNeighbours, livingResidents, vortoxWorks, goonCatchEvents, tellChoices, hasAbility
 } from './rules.ts';
 import { FABLED } from './scripts/fabled.ts';
 import { REVEAL, MINION_INFO, DEMON_INFO, NEW_DEMON, GODFATHER_INFO, EXORCISED, LUNATIC_INFO, LUNATIC, TRAVELLER_INFO, nextStep, stepAction } from './night.ts';
@@ -114,7 +114,7 @@ export type Command =
 	/** The Judge pardons or condemns the latest nomination's nominee. */
 	| { type: 'judge'; by: SeatId; verdict: 'pardon' | 'condemn' }
 	| { type: 'note'; text: string }
-	/** The Storyteller tells a poisoned Cannibal which good ability they have (a character), or that they have nothing (null). */
+	/** The Storyteller shows a Cannibal poisoned by an evil meal a good character's ability (a false one: they are poisoned), or none. */
 	| { type: 'cannibal-tell'; seat: SeatId; character: CharacterId | null }
 	/**
 	 * The Storyteller moving tokens by hand: fixing a mistake, or ruling on
@@ -267,7 +267,16 @@ function handle(tx: Tx, cmd: Command) {
 			attemptDeath(tx, cmd.seat, { cause: 'storyteller' });
 			return;
 		case 'note': return emit(tx, { type: 'note', text: cmd.text });
-		case 'cannibal-tell': return cannibalTell(tx, cmd.seat, cmd.character);
+		case 'cannibal-tell': {
+			validTarget(s, cmd.seat);
+			const eaten = s.seats[cmd.seat].eaten;
+			if (s.seats[cmd.seat].character !== 'cannibal' || !eaten?.evil) refuse('Only a Cannibal who has eaten an evil player is shown a false ability.');
+			if (cmd.character !== null) {
+				const def = getScript(s.scriptId).characters.find((c) => c.id === cmd.character);
+				if (!def || teamAlignment(def.team) !== 'good') refuse('The Cannibal is shown a good character’s ability.');
+			}
+			return emit(tx, { type: 'cannibal-told', seat: cmd.seat, character: cmd.character });
+		}
 		case 'adjust': return adjust(tx, cmd);
 		case 'set-poison':
 			if (!s.seats.length || !s.seats[0].character) refuse('Deal the characters first.');
@@ -296,6 +305,7 @@ export function describeStep(state: GameState, kind: string, seatId: SeatId | nu
 	if (kind === TRAVELLER_INFO) return `an evil Traveller${who}, to learn the Demon`;
 	if (kind === LUNATIC_INFO) return `the Lunatic${who}, as if they were the Demon`;
 	if (kind === LUNATIC) return `the Lunatic${who}, choosing as the Demon`;
+	if (seatId !== null && state.seats[seatId].character === 'cannibal' && kind !== 'cannibal') return `the Cannibal${who}, with the ${charDef(getScript(state.scriptId), kind).name}’s ability (not told which)`;
 	return charDef(getScript(state.scriptId), kind).name + who;
 }
 
@@ -526,7 +536,7 @@ function remember(tx: Tx, by: SeatId, role: string, targets: SeatId[]) {
 }
 
 /** Does this ability, used now, work? (Drunk or poisoned, or not really this character: no.) */
-const works = (tx: Tx, by: SeatId, kind: string) => !isDroisoned(tx.state, by) && seat(tx.state, by).character === kind;
+const works = (tx: Tx, by: SeatId, kind: string) => !isDroisoned(tx.state, by) && hasAbility(tx.state, by, kind);
 
 /**
  * The Goon: the first player each night to choose them with their ability is
@@ -949,7 +959,6 @@ function die(tx: Tx, t: SeatId, cause: DeathCause) {
 			}
 		}
 	}
-	if (cause === 'execution') cannibalEats(tx, t);
 	if (wasDemon) {
 		const sw = scarletWomanCatches(tx.state, aliveBefore);
 		if (sw !== null) emit(tx, { type: 'became-demon', seat: sw, character: demonCharacter, via: 'scarlet-woman', at: tx.place });
@@ -961,40 +970,6 @@ function die(tx: Tx, t: SeatId, cause: DeathCause) {
 		}
 	}
 	checkWin(tx, { demonExecuted: wasDemon && cause === 'execution' });
-}
-
-/**
- * The Cannibal: each living Cannibal gains the ability of the player just executed who died (the last such
- * death only). If that player was evil the Cannibal is poisoned until a good player dies by execution, and
- * the Storyteller then says which good ability they think they have (or none): see `cannibalTell`.
- */
-function cannibalEats(tx: Tx, executed: SeatId) {
-	const ex = tx.state.seats[executed];
-	const evil = ex.alignment === 'evil';
-	for (const c of tx.state.seats.filter((x) => x.alive && x.character === 'cannibal' && x.id !== executed)) {
-		emit(tx, { type: 'effects-ended', match: { kind: 'cannibal-ability', target: c.id } });
-		emit(tx, { type: 'effects-ended', match: { kind: 'cannibal-shown', target: c.id } });
-		emit(tx, { type: 'effects-ended', match: { kind: 'poisoned', target: c.id, role: 'cannibal' } });
-		emit(tx, { type: 'effect-added', effect: { kind: 'cannibal-ability', target: c.id, by: null, role: 'cannibal', until: 'game', note: (evil ? 'evil:' : '') + ex.character } });
-		if (evil) emit(tx, { type: 'effect-added', effect: { kind: 'poisoned', target: c.id, by: null, role: 'cannibal', until: 'game' } });
-	}
-	// A good player's execution ends every Cannibal's poison, also one whose last meal was not this death's.
-	if (!evil) emit(tx, { type: 'effects-ended', match: { kind: 'poisoned', role: 'cannibal' } });
-}
-
-/** The Storyteller's choice for a Cannibal poisoned by an evil meal: a good ability they think they have, or none. */
-function cannibalTell(tx: Tx, id: SeatId, character: CharacterId | null) {
-	const s = tx.state;
-	validTarget(s, id);
-	const loan = s.effects.find((e) => e.kind === 'cannibal-ability' && e.target === id);
-	if (s.seats[id].character !== 'cannibal' || !loan?.note?.startsWith('evil:')) refuse('Only a Cannibal who has eaten an evil player is told a false ability.');
-	if (!s.effects.some((e) => e.kind === 'poisoned' && e.target === id && e.role === 'cannibal')) refuse('This Cannibal is no longer poisoned: a good player has been executed since.');
-	if (character !== null) {
-		const def = getScript(s.scriptId).characters.find((c) => c.id === character);
-		if (!def || teamAlignment(def.team) !== 'good') refuse('The Cannibal is told a good character’s ability.');
-	}
-	emit(tx, { type: 'effects-ended', match: { kind: 'cannibal-shown', target: id } });
-	emit(tx, { type: 'effect-added', effect: { kind: 'cannibal-shown', target: id, by: null, role: 'cannibal', until: 'game', note: character ?? 'nothing' } });
 }
 
 function scarletWomanCatches(s: GameState, aliveBefore: number): SeatId | null {
@@ -1158,7 +1133,7 @@ function nominate(tx: Tx, cmd: Extract<Command, { type: 'nominate' }>) {
 	// The Virgin: only her first nomination counts, working or not.
 	// (After the curse, which may have killed the nominator, or the Virgin nominating herself.)
 	const v = seat(tx.state, nominee);
-	if (v.character === 'virgin' && v.alive && !s.spent.includes(`${nominee}:virgin`)) {
+	if (hasAbility(tx.state, nominee, 'virgin') && v.alive && !s.spent.includes(`${nominee}:virgin`)) {
 		emit(tx, { type: 'ability-spent', seat: nominee, ability: 'virgin' });
 		if (!isDroisoned(s, nominee)) {
 			let townsfolk = mustRegisterAsTeam(s, nominator, 'townsfolk');
@@ -1231,7 +1206,7 @@ function slay(tx: Tx, cmd: Extract<Command, { type: 'slay' }>) {
 			hit = cmd.targetIsDemon!;
 		}
 	}
-	if (slayer.character === 'slayer' || slayer.believes === 'slayer') emit(tx, { type: 'ability-spent', seat: by, ability: 'slayer' });
+	if (hasAbility(s, by, 'slayer') || slayer.believes === 'slayer') emit(tx, { type: 'ability-spent', seat: by, ability: 'slayer' });
 	emit(tx, { type: 'slayer-shot', by, target, hit });
 	if (hit) attemptDeath(tx, target, { cause: 'slayer' });
 }

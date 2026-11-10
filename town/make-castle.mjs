@@ -1,5 +1,5 @@
 /**
- * make-castle.mjs - draws town/castle.tbp: Ravensburg, the castle and its market town, for Trouble
+ * make-castle.mjs - draws town/castle.tbp: Ravensburg, the castle and its outer court, for Trouble
  * Brewing and the medieval games. Laid out after real castle plans (a moated castle of two courts with
  * a barbican, and a castle of round towers with outer and inner wards).
  *
@@ -7,10 +7,11 @@
  * court and the south court, between them the great hall (whose long table is where the town sits in
  * judgement) and the great chambers; in the west range the bakehouse, the kitchens and the stores; in
  * the south wall the gatehouse. The moat runs along the south, the dam's pond along the west; the
- * barbican carries the way over the moat. Below lies the outer court in its own wall of towers: the
- * stables, the chapel and the priest's house, the smithy; and the outer gatehouse, from which the road
- * goes down to the town: the market cross (speak there and the whole town hears you; fifteen benches
- * round it), the inn, the houses, the mill on the river, fields and the wood all round.
+ * barbican carries the way over the moat. Below lies the outer court in its own wall of towers, where
+ * the people live: the stables, the chapel and the priest's house, the smithy, the timber houses with their
+ * lofts, the orchard; the market cross in the middle (speak there and the whole court hears you; fifteen
+ * benches round it); and the outer gatehouse, with the wood all round. (There is no village below: the
+ * castle and its outer court are the whole map.)
  *
  * Two levels: the wall-walk round the curtain and its towers, the great chambers' bedrooms, the
  * houses' lofts.
@@ -19,7 +20,7 @@
  */
 import { plan } from './gen.mjs';
 
-const P = plan(120, 128, 'floor grass', 1215);
+const P = plan(120, 101, 'floor grass', 1215);
 const { W, H, put, get, fill, thing, room, house, stair, upRoom, up, label, rnd } = P;
 const wave = (x, y) => Math.sin(x * 0.17) * 0.5 + Math.cos(y * 0.21 + x * 0.06) * 0.5 + Math.sin((x + y) * 0.09) * 0.4;
 const disc = (cx, cy, r, f) => { for (let y = Math.floor(cy - r); y <= Math.ceil(cy + r); y++) for (let x = Math.floor(cx - r); x <= Math.ceil(cx + r); x++) if (Math.hypot(x - cx, y - cy) <= r) f(x, y, Math.hypot(x - cx, y - cy)); };
@@ -37,15 +38,12 @@ const tower = (cx, cy, r = 4.5, walk = true) => {
 	if (walk) disc(cx, cy, r, (x, y) => up(x, y, 'floor stone block'));
 };
 
-// ---- the land: grass, the wood thick round the edge, a river along the south ----
+// ---- the land: grass, the wood thick round the edge ----
 for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
 	const edge = Math.min(x, y, W - 1 - x, H - 1 - y);
 	const p = edge < 2 ? 1 : edge < 7 ? 0.7 : edge < 11 ? 0.25 : 0;
 	if (rnd() < p + wave(x, y) * 0.05) put(x, y, 'wall leaves');
 }
-const riverAt = (x) => Math.round(119 + Math.sin(x * 0.09) * 2.5);
-for (let x = 0; x < W; x++) for (let dy = -2; dy <= 2; dy++) put(x, riverAt(x) + dy, 'floor water');
-label(6, 116, 'The Wend');
 
 // ---- the castle: a curtain wall, round towers at the corners ----
 const C = { x0: 30, x1: 78, y0: 6, y1: 40 };
@@ -157,10 +155,9 @@ thing(56, 78, 'door', 'floor gravel');
 thing(49, 77, 'anvil', 'floor gravel'); thing(51, 77, 'brazier', 'floor gravel'); thing(49, 80, 'barrel', 'floor gravel');
 label(46, 73, 'Smithy');
 
-// The orchard in the court's south-west, the herb garden by the chapel, hay by the stables.
-for (let y = 78; y <= 86; y += 3) for (let x = 38; x <= 58; x += 3) if (get(x, y) === 'floor grass' && rnd() < 0.85) put(x, y, 'wall leaves');
-label(38, 77, 'Orchard');
-for (let y = 66; y <= 70; y++) for (let x = 66; x <= 78; x++) if (get(x, y) === 'floor grass') put(x, y, (x + y) % 3 ? 'floor soil' : 'floor soil | flowers');
+// The orchard in the court's south, hay by the stables.
+for (let y = 78; y <= 86; y += 3) for (let x = 46; x <= 62; x += 3) if (get(x, y) === 'floor grass' && rnd() < 0.85) put(x, y, 'wall leaves');
+label(46, 77, 'Orchard');
 for (const [x, y] of [[40, 60], [41, 60], [40, 61]]) thing(x, y, 'hay bale', 'floor grass');
 // The raised ground: a bank of earth round the outside of the court's wall.
 for (let y = 46; y <= 97; y++) for (let x = 15; x <= 101; x++) {
@@ -169,11 +166,11 @@ for (let y = 46; y <= 97; y++) for (let x = 15; x <= 101; x++) {
 	for (let dy = -3; dy <= 3 && !near; dy++) for (let dx = -3; dx <= 3; dx++) if (get(x + dx, y + dy) === 'wall stone block' && (y + dy) > 48) { near = true; break; }
 	if (near && !(x > 22 && x < 94 && y > 51 && y < 88)) put(x, y, 'floor mud');
 }
-label(16, 96, 'Raised Ground');
 
-// The outer gatehouse, at the turn of the wall, and the road down to the town.
+// The outer gatehouse, at the turn of the wall, and the road on from it.
 for (let y = 82; y <= 86; y++) for (let x = 86; x <= 90; x++) put(x, y, 'floor stone block');
-thing(88, 84, 'door', 'floor stone block');
+// The outer gate is shut: a barred wooden gate across the passage, and nothing beyond it.
+put(88, 84, 'wall wood');
 thing(86, 82, 'torch', 'floor stone block');
 label(90, 86, 'Outer Gatehouse');
 const road = (pts, spec = 'floor gravel', wdt = 2) => {
@@ -190,14 +187,11 @@ const road = (pts, spec = 'floor gravel', wdt = 2) => {
 		}
 	}
 };
-road([[57, 52], [70, 70], [87, 84]]); // the barbican to the outer gate
-road([[90, 87], [92, 96], [64, 104]]); // down to the market
-road([[64, 104], [20, 106], [6, 104]]); // west, to the mill
-road([[64, 104], [110, 104]]); // east, to the wood
-road([[64, 104], [64, 124]]); // south, over the river
+road([[57, 52], [57, 61]]); // the barbican down to the cross
+road([[62, 73], [85, 74], [87, 82]]); // the cross to the outer gate (shut)
 
-// ---- the town: the market cross, fifteen benches round it ----
-const mk = { x: 64, y: 106 };
+// ---- the market cross in the middle of the court, fifteen benches round it ----
+const mk = { x: 52, y: 66 };
 for (let y = mk.y - 7; y <= mk.y + 7; y++) for (let x = mk.x - 13; x <= mk.x + 13; x++) if (Math.hypot((x - mk.x) / 13, (y - mk.y) / 7) <= 1) put(x, y, 'floor gravel');
 thing(mk.x, mk.y, 'statue', 'floor stone block');
 for (let k = 0; k < 15; k++) {
@@ -207,28 +201,17 @@ for (let k = 0; k < 15; k++) {
 for (const [x, y] of [[mk.x - 13, mk.y], [mk.x + 13, mk.y], [mk.x, mk.y - 7], [mk.x, mk.y + 7]]) thing(x, y, 'torch', 'floor gravel');
 label(mk.x - 5, mk.y - 8, 'Market Cross');
 
-// The houses round the market and along the roads: timber, a loft and its bed in each.
+// The timber houses of the court: a loft and its bed in each.
 const homes = [
-	[36, 96, 43, 102, 's'], [45, 95, 52, 101, 's'], [76, 95, 83, 101, 's'], [85, 96, 92, 102, 's'],
-	[36, 110, 43, 116, 'n'], [45, 112, 52, 117, 'n'], [76, 112, 83, 117, 'n'], [85, 110, 92, 116, 'n'],
-	[24, 108, 31, 114, 'n'], [96, 108, 103, 114, 'n'], [24, 96, 31, 102, 's'], [96, 96, 103, 102, 's'],
-	[14, 95, 21, 101, 's'], [106, 95, 113, 101, 's'], [104, 109, 111, 114, 'n'], [14, 109, 21, 114, 'n']
+	[68, 66, 74, 72, 's'], [76, 66, 82, 72, 's'], [84, 66, 90, 72, 's'],
+	[66, 76, 72, 82, 'n'], [74, 76, 80, 82, 'n'], [82, 76, 88, 81, 'n'],
+	[40, 53, 47, 59, 's'], [49, 53, 55, 59, 's'], [36, 78, 43, 84, 'n']
 ];
 for (const [x0, y0, x1, y1, door] of homes) house(x0, y0, x1, y1, { door, loft: true, light: 'candle' });
 
-// The inn on the market's north side, a hearth and its tables.
-house(54, 92, 62, 98, { door: 's', light: 'brazier', loft: true, extra: [[56, 94, 'barrel'], [57, 94, 'barrel']] });
-label(54, 91, 'The Black Hart');
-
-// The mill on the river, west, its wheel in the water.
-house(6, 110, 13, 116, { wall: 'stone block', door: 'n', light: 'oven', loft: true, extra: [[8, 112, 'hay bale']] });
-for (let y = 117; y <= 120; y++) thing(9, y, 'barrel', 'floor water');
-label(6, 109, 'Mill');
-
-// Fields and flowers on the open ground; torches along the roads.
-for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (get(x, y) === 'floor grass' && y > 90 && rnd() < 0.05) thing(x, y, 'flowers', 'floor grass');
+// Flowers on the open ground; torches along the road.
 for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (get(x, y) === 'floor grass' && y < 50 && (x < 24 || x > 84) && rnd() < 0.04) thing(x, y, 'flowers', 'floor grass');
-for (const [x, y] of [[70, 70], [80, 78], [91, 92], [40, 105], [88, 105]]) thing(x, y, 'torch', P.floorOf(x, y) ?? 'floor gravel');
+for (const [x, y] of [[62, 73], [84, 74]]) thing(x, y, 'torch', P.floorOf(x, y) ?? 'floor gravel');
 
 // The map's edge is the wood; every door has its way to the market.
 for (let x = 0; x < W; x++) for (const y of [0, H - 1]) if (!get(x, y).startsWith('wall')) put(x, y, 'wall leaves');
@@ -237,7 +220,22 @@ for (let y = 0; y < H; y++) for (const x of [0, W - 1]) if (get(x, y) === 'floor
 P.clearDoorsteps((c) => c === 'wall leaves' || c.startsWith('floor grass |'), 'floor grass');
 P.connect(mk.x + 8, mk.y, { track: 'floor soil' });
 
+// Outside the walls there is nothing: the open ground beyond the court's wall and the castle's is shut off as
+// wood, and the map is cut to just round the walls (the moat and the pond stay as they are).
+const open = new Set(['floor grass', 'floor mud', 'floor gravel', 'floor soil', 'wall leaves']);
+const out = new Set(), todo = [];
+for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (x === 0 || y === 0 || x === W - 1 || y === H - 1) todo.push([x, y]);
+while (todo.length) {
+	const [x, y] = todo.pop();
+	// The barbican's way through the court's wall is not outside.
+	if (x < 0 || y < 0 || x >= W || y >= H || out.has(x + y * W) || !open.has(get(x, y).split('|')[0].trim()) || (x >= 56 && x <= 58 && y >= 49 && y <= 52)) continue;
+	out.add(x + y * W);
+	todo.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+}
+for (const i of out) put(i % W, Math.floor(i / W), 'wall leaves');
+const CROP = { x0: 14, y0: 0, x1: 102, y1: 98 };
+
 P.write(new URL('./castle.tbp', import.meta.url), 'castle', [
-	'Ravensburg, a moated castle of two courts above its market town, for Grimoire\'s medieval games.',
+	'Ravensburg, a moated castle of two courts above its outer court, for Grimoire\'s medieval games.',
 	'Made by town/make-castle.mjs; edit that and run it again. `label x y Name` names a place.'
-], { 'floor grass': ',', 'wall leaves': 'T', 'floor gravel': ':', 'floor soil': '.', 'wall wood': 'W', 'floor wood': '+', 'floor water': '~', 'wall stone block': '#', 'floor stone block': 's', 'stair-up wood': '<', 'stair-down wood': '>', 'stair-up stone block': '{', 'stair-down stone block': '}' });
+], { 'floor grass': ',', 'wall leaves': 'T', 'floor gravel': ':', 'floor soil': '.', 'wall wood': 'W', 'floor wood': '+', 'floor water': '~', 'wall stone block': '#', 'floor stone block': 's', 'stair-up wood': '<', 'stair-down wood': '>', 'stair-up stone block': '{', 'stair-down stone block': '}' }, CROP);

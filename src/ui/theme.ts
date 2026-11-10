@@ -2,7 +2,7 @@
  * theme.ts - each script's look: the book's inks by day and by candlelight, the inks the village is
  * drawn in, and the town it is played in.
  *
- *   Trouble Brewing     medieval    the illuminated book; the castle town
+ *   Trouble Brewing     medieval    the illuminated book; Talmberg, a small keep and its village
  *   Bad Moon Rising     grimm       a grim German fairy tale: birch-white leaves, pine and blood; a village in the snow
  *   Sects & Violets     clockwork   gaslit London, soot and brass (clockwork, not steampunk); Whitechapel's lanes
  *   Laissez un Faire    lovecraft   sea-damp pages, verdigris and the deep; Saltgrave, the lighthouse island in a storm
@@ -35,6 +35,7 @@ export function themeOfKey(key: string): Theme {
  */
 export interface TownInfo { key: string; name: string; theme: Theme; }
 export const TOWN_LIST: TownInfo[] = [
+	{ key: 'talmberg', name: 'Talmberg', theme: 'medieval' },
 	{ key: 'castle', name: 'Ravensburg', theme: 'medieval' },
 	{ key: 'hamlet', name: 'Ashcombe', theme: 'medieval' },
 	{ key: 'abbey', name: 'The Abbey', theme: 'medieval' },

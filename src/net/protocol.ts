@@ -4,12 +4,14 @@
  * what it is sent (see views.ts) and sends back what the player chose.
  */
 import type { SeatId } from '../core/index.ts';
-import type { CharacterCard, PublicView, Wake } from './views.ts';
+import type { CharacterCard, LogEntry, PublicView, SheetEntry, Wake } from './views.ts';
 import type { VillageDown, VillageUp } from '../town/village.ts';
 
 export interface Announcement {
 	title: string;
 	lines: string[];
+	/** Words lettered large in the textura (a name that died, the winning team), each in its ink. */
+	big?: { text: string; ink: number }[];
 }
 
 /** A running clock, so phones can count down without a message every second. */
@@ -57,6 +59,12 @@ export type HostMsg =
 	| { t: 'note'; text: string }
 	/** Mode 2 inside the game: the village (see src/town/village.ts). */
 	| { t: 'village'; m: VillageDown }
+	/** The script's characters (views.ts scriptSheet), for the player's menu. */
+	| { t: 'script'; chars: SheetEntry[] }
+	/** What this player has been told so far (only with the Storyteller's "keep a log" set). */
+	| { t: 'log'; entries: LogEntry[] | null }
+	/** The Storyteller began a new game in a new room: follow them there. */
+	| { t: 'moved'; room: string }
 	/** Who is in the room so far, in seating order; `you` is this phone's place in it. */
 	| { t: 'lobby'; names: string[]; you: number | null; peers?: string[] };
 

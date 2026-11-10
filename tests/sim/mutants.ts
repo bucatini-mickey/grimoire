@@ -109,7 +109,7 @@ const MUTANTS: Mutant[] = [
 	['Scarlet Woman never takes over', 'engine', 'if (aliveBefore < 5) return null;', 'return null;'],
 	['Saint executed, game goes on', 'engine', "return emit(tx, { type: 'game-over', winner: 'evil', reason: 'The Saint was executed.' });", 'return;'],
 	['Virgin never fires', 'engine', 'if (townsfolk) execute(tx, nominator);', ''],
-	['Virgin fires every time', 'engine', "if (v.character === 'virgin' && v.alive && !s.spent.includes(`${nominee}:virgin`)) {", "if (v.character === 'virgin' && v.alive) {"],
+	['Virgin fires every time', 'engine', "if (hasAbility(s, nominee, 'virgin') && v.alive && !s.spent.includes(`${nominee}:virgin`)) {", "if (hasAbility(s, nominee, 'virgin') && v.alive) {"],
 	['Mayor bounce lands nowhere', 'engine', 'return attemptDeath(tx, to!, { ...d, bounced: true });', 'return false;'],
 	['Poisoned Mayor bounces', 'engine', "if (night && !d.bounced && hasWorkingAbility(s, t, 'mayor')) {", "if (night && !d.bounced && seat(s, t).character === 'mayor') {"],
 	['Slayer never hits', 'engine', "hit = mustRegisterAsTeam(s, target, 'demon');", 'hit = false;'],
