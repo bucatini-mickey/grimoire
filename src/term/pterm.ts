@@ -59,6 +59,15 @@ export interface Rect {
 	h: number;
 }
 
+/**
+ * The font size, in whole pixels, for a figure or face glyph (a character outside ASCII drawn in two
+ * columns). A little larger than the text, but never taller than its line: a glyph box taller than the
+ * line was cut at the top and bottom on phones, and a fractional size blurs the strokes.
+ */
+export function figurePx(font: number, lineHeight: number): number {
+	return Math.max(1, Math.min(Math.round(font * 1.15), Math.round(lineHeight)));
+}
+
 /** The cell buffer: all the drawing, with no DOM, so it can be tested anywhere. */
 export class Grid {
 	cols = 0;
@@ -236,7 +245,9 @@ export class Term extends Grid {
 			+ '.pt-row b{display:inline-block;width:var(--pt-cw);height:100%;text-align:center;font-weight:900;vertical-align:top}'
 			+ '.pt-row i.w{width:calc(2 * var(--pt-cw))}'
 			// (one outside ASCII, a face, fills the square its two columns make)
-			+ '.pt-row i.f{display:inline-flex;align-items:center;justify-content:center;font-size:1.5em;line-height:1}';
+			// (the figure is a whole-pixel size no taller than its line, set by fit() as --pt-fig; the box
+			// never clips, so a mark above or below the letter shows on every font)
+			+ '.pt-row i.f{display:inline-flex;align-items:center;justify-content:center;font-size:var(--pt-fig,1.15em);line-height:1;overflow:visible}';
 		doc.head.appendChild(css);
 		this.pre = doc.createElement('pre');
 		this.pre.style.cssText = 'margin:0;font-family:ui-monospace,"Cascadia Mono",Consolas,Menlo,"DejaVu Sans Mono","Liberation Mono",monospace;white-space:pre;user-select:none;-webkit-user-select:none;cursor:default;font-variant-ligatures:none;';
@@ -343,6 +354,7 @@ export class Term extends Grid {
 		this.rowEls = [];
 		this.pre.style.width = `${cols * this.cw}px`;
 		this.pre.style.setProperty('--pt-cw', `${this.cw}px`);
+		this.pre.style.setProperty('--pt-fig', `${figurePx(font, this.lh)}px`);
 		this.pre.style.height = `${rows * this.lh}px`;
 		this.resize(cols, rows);
 		this.draw();
