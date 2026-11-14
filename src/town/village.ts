@@ -50,6 +50,15 @@ const FACES = false;
 const CAMS = true;
 import { camLayout, CamOverlay, CORNER_NAME, CORNERS, drawCamWindow, nextCorner, paintCamera, paintStandIn, pickTiles, standIn, tileSize } from './camwin.ts';
 import type { Corner, PictureTile, TileView } from './camwin.ts';
+/**
+ * The webcam avatar (src/avatar): your camera, on your phone only, read by a face tracker into nine hex
+ * digits (a rig); only the rig goes to the Storyteller's phone, which passes it on to whoever may see it,
+ * the nearest in most detail and most often (rig.ts planRigs). Every phone draws the avatar from the digits.
+ */
+import { decodeRig, DETAIL_SIZE, detailThatFits, drawRig, encodeRig, idleRig, planRigs } from '../avatar/rig.ts';
+import type { AvatarPlaces, Detail, RigFrom, RigSent } from '../avatar/rig.ts';
+import { GAINS, makeTracker, NO_FLIPS, NO_NEUTRAL, RigSmoother, rigOf, TRACKER_LABEL, TRACKER_NAMES } from '../avatar/trackers.ts';
+import type { Tracker, TrackerName } from '../avatar/trackers.ts';
 import type { Voice, VoiceMode } from './voice.ts';
 import CASTLE from '../../town/castle.tbp';
 import TALMBERG from '../../town/talmberg.tbp';
@@ -138,7 +147,9 @@ type Down =
 	| { t: 'asked'; from: string }
 	| { t: 'notice'; text: string }
 	/** The faces this phone may see now (faces.ts): those in earshot, or everyone in the circle. */
-	| { t: 'faces'; faces: [string, string][] };
+	| { t: 'faces'; faces: [string, string][] }
+	/** Avatars this phone may draw (rig.ts): [who, nine hex digits, detail]; detail 0 drops them. */
+	| { t: 'rigs'; rigs: [string, string, Detail][] };
 type Up =
 	| { t: 'hello'; name: string; clientId: string }
 	| { t: 'at'; x: number; y: number; z?: number }
@@ -148,7 +159,9 @@ type Up =
 	| { t: 'end' }
 	| { t: 'door'; cell: number; x?: number; y?: number }
 	/** My face now, as cells (faces.ts); null when my camera goes off. */
-	| { t: 'face'; f: string | null };
+	| { t: 'face'; f: string | null }
+	/** My avatar's rig now (rig.ts); null when my camera goes off. */
+	| { t: 'rig'; r: string | null };
 
 /** Walkers' inks: bright, to read on a lit map; each person gets their own. */
 export const INKS = ['#f0705a', '#86a9de', '#8fd06a', '#d09ad8', '#e8b84a', '#6ccfd2', '#f0905a', '#b0b0ff', '#d8d86a', '#f07aa0', '#7ad08a', '#e0b080', '#8ac0f0', '#e07ae0', '#7ae0c0'];
@@ -200,7 +213,18 @@ const S = {
 	 * The camera window (camwin.ts): shown, folded to its title, its corner, letters or pictures, and
 	 * stand-in faces for everyone (to try the window with nobody else's camera).
 	 */
-	cams: { open: true, folded: false, corner: 'tr' as Corner, look: 'video' as 'video' | 'letters', standIns: false },
+	cams: {
+		open: true, folded: false, corner: 'tr' as Corner, look: 'avatar' as 'avatar' | 'video' | 'letters', standIns: false,
+		/** Where avatars show (the Storyteller's choice, as their phone passes rigs on): rig.ts AvatarPlaces. */
+		places: 'talk' as AvatarPlaces,
+		/** Which face tracker reads this phone's camera. */
+		tracker: 'landmarker' as TrackerName
+	},
+	/** The avatars this phone may draw, by person: their rig and the detail it was sent for. */
+	rigs: new Map<string, { rig: string; detail: Detail }>(),
+	/** The host: everyone's latest rig, and what each viewer was last sent. */
+	hostRigs: new Map<string, string>(),
+	rigSent: new Map<string, Map<string, RigSent>>(),
 	/** Requests for a private word, waiting for an answer. */
 	asks: [] as string[],
 	/** Faces as cell frames, by person (the host: everyone's; a phone: the ones it may see). */
@@ -227,7 +251,9 @@ const store = {
 S.showFaces = store.get('grimoire.faces') !== 'off';
 S.cams.open = store.get('grimoire.cams') !== 'off';
 S.cams.corner = CORNERS.find((c) => c === store.get('grimoire.camsCorner')) ?? 'tr';
-S.cams.look = store.get('grimoire.camsLook') === 'letters' ? 'letters' : 'video';
+S.cams.look = (['avatar', 'video', 'letters'] as const).find((l) => l === store.get('grimoire.camsLook')) ?? 'avatar';
+S.cams.places = store.get('grimoire.avatarPlaces') === 'earshot' ? 'earshot' : 'talk';
+S.cams.tracker = TRACKER_NAMES.find((n) => n === store.get('grimoire.avatarTracker')) ?? 'landmarker';
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 const me = () => S.people.get(S.me);
 /** The level someone is on, as a town of its own (the ground holds them all). */
@@ -316,6 +342,10 @@ function onUp(from: string, msg: Up) {
 	else if (msg.t === 'face') {
 		if (msg.f && msg.f.length === FACE_SAMPLES && /^[0-9a-f]+$/.test(msg.f)) S.faces.set(from, msg.f);
 		else S.faces.delete(from);
+	}
+	else if (msg.t === 'rig') {
+		const r = msg.r === null ? null : decodeRig(msg.r);
+		if (r) S.hostRigs.set(from, msg.r!); else S.hostRigs.delete(from);
 	}
 	else if (msg.t === 'door') {
 		const c = msg.cell;
@@ -429,6 +459,8 @@ function startTicker() {
 		last = json;
 		for (const id of S.hostWire?.peers() ?? []) sendTo(id, { t: 'people', people, locked, caption: S.caption, vote: S.vote, ring: S.ring });
 	}, 150);
+	// Avatars' rigs, up to fifteen times a second for the nearest (rig.ts DETAIL_EVERY).
+	setInterval(relayRigs, 33);
 	// Faces, a few times a second, each phone only those it may see (and only when that changes).
 	const faceSent = new Map<string, string>();
 	if (FACES) setInterval(() => {
@@ -445,6 +477,42 @@ function startTicker() {
 			sendTo(id, { t: 'faces', faces: list });
 		}
 	}, 300);
+}
+
+/** Avatars: test villagers' made-up rigs, and each phone sent the rigs it may draw, at its own pace. */
+function relayRigs() {
+	if (!CAMS || !S.town) return;
+	const now = performance.now();
+	let k = 0;
+	for (const id of S.bots.keys()) {
+		const q = S.people.get(id);
+		S.hostRigs.set(id, encodeRig(idleRig(k++, now, !!q && talking(q) > 0.15)));
+	}
+	for (const id of S.hostRigs.keys()) if (!S.people.has(id)) S.hostRigs.delete(id);
+	const viewers = [S.me, ...(S.hostWire?.peers() ?? [])];
+	for (const v of viewers) {
+		const r = S.people.get(v);
+		if (!r) continue;
+		const from: RigFrom[] = [];
+		for (const [id, rig] of S.hostRigs) {
+			const q = S.people.get(id);
+			if (!q || id === v) continue;
+			const t = lvl(r);
+			from.push({ id, rig, loud: loudness(t, r, q, S.phase), circle: S.phase === 'circle', together: together(t, r, q) });
+		}
+		let sent = S.rigSent.get(v);
+		if (!sent) S.rigSent.set(v, (sent = new Map()));
+		const out = planRigs(now, from, S.cams.places, sent);
+		if (out.length) sendTo(v, { t: 'rigs', rigs: out });
+	}
+	for (const v of S.rigSent.keys()) if (!S.people.has(v)) S.rigSent.delete(v);
+}
+
+/** Both indoors, in the same room (a building's: not the open air), on the same level. */
+function together(t: Town, a: Person, b: Person): boolean {
+	if ((a.z ?? 0) !== (b.z ?? 0)) return false;
+	const ra = roomsAt(t, a).filter((r) => r !== t.outdoors);
+	return ra.length > 0 && roomsAt(t, b).some((r) => ra.includes(r));
 }
 
 /** The faces someone may see: their own, and those of whoever they can hear (everyone, in the circle). Not at night. */
@@ -622,6 +690,14 @@ function up(msg: Up): boolean {
 
 /** What the host tells this phone (the host's own phone too). */
 function onDown(msg: Down) {
+	if (msg.t === 'rigs') {
+		for (const [id, rig, d] of msg.rigs) {
+			if (d > 0 && decodeRig(rig)) S.rigs.set(id, { rig, detail: d });
+			else S.rigs.delete(id);
+		}
+		S.dirty = true;
+		return;
+	}
 	if (msg.t === 'place') {
 		const p = me();
 		if (p) { p.x = msg.x; p.y = msg.y; p.z = msg.z ?? 0; }
@@ -1409,11 +1485,12 @@ let camLetters = false;
 const standInOf = (id: string) => [...id].reduce((k, c) => (k * 31 + c.charCodeAt(0)) >>> 0, 7) % 97;
 
 async function myCamToggle() {
-	if (myCam.on) myCam.stop();
+	if (myCam.on) { myCam.stop(); avatarOff(); }
 	else {
 		if (!(await myCam.start())) { toast('No camera (or it was refused).'); drawChrome(); return; }
 		if (!S.cams.open) { S.cams.open = true; store.set('grimoire.cams', 'on'); }
 		S.cams.folded = false;
+		if (S.cams.look === 'avatar') void avatarOn();
 	}
 	S.dirty = true;
 	drawChrome();
@@ -1421,7 +1498,68 @@ async function myCamToggle() {
 function myCamOff() {
 	if (!myCam.on) return;
 	myCam.stop();
+	avatarOff();
 	S.dirty = true;
+}
+
+// ---- the webcam avatar (src/avatar): this phone's tracker ---------------------------------------------------
+
+const avatar = {
+	tracker: null as Tracker | null,
+	/** Why the chosen tracker is not running (loading, or failed and fallen back to pixels). */
+	note: '',
+	smoother: new RigSmoother(),
+	/** My rig as last drawn and as last sent. */
+	rig: '',
+	sent: '',
+	sentAt: 0,
+	timer: null as ReturnType<typeof setInterval> | null
+};
+
+/**
+ * Start reading my camera into a rig: the chosen tracker, loaded the first time (MediaPipe's come from a
+ * CDN); if it cannot load, the pixel tracker, which needs nothing. Fifteen times a second; the rig goes
+ * to the host when it changes, at most fifteen times a second.
+ */
+async function avatarOn() {
+	if (avatar.timer) return;
+	avatar.timer = setInterval(avatarTick, 66);
+	if (avatar.tracker?.name === S.cams.tracker) return;
+	avatar.tracker?.close();
+	avatar.tracker = null;
+	const name = S.cams.tracker;
+	avatar.note = 'loading ' + TRACKER_LABEL[name];
+	drawChrome();
+	const t = makeTracker(name);
+	try { await t.load(); avatar.tracker = t; avatar.note = ''; }
+	catch {
+		const px = makeTracker('pixel');
+		await px.load();
+		avatar.tracker = px;
+		avatar.note = TRACKER_LABEL[name] + ' could not load: pixels instead';
+		toast(avatar.note + '.');
+	}
+	avatar.smoother.reset();
+	S.dirty = true;
+	drawChrome();
+}
+function avatarOff() {
+	if (avatar.timer) clearInterval(avatar.timer);
+	avatar.timer = null;
+	avatar.rig = '';
+	if (avatar.sent) up({ t: 'rig', r: null });
+	avatar.sent = '';
+}
+function avatarTick() {
+	const v = myCam.picture, t = avatar.tracker;
+	if (!v || !t || S.cams.look !== 'avatar') return;
+	let raw;
+	try { raw = t.track(v, v.videoWidth, v.videoHeight, performance.now()).raw; } catch { return; }
+	if (!raw) return;
+	const rig = encodeRig(avatar.smoother.push(rigOf(raw, GAINS, NO_NEUTRAL, NO_FLIPS)));
+	if (rig !== avatar.rig) { avatar.rig = rig; S.dirty = true; }
+	const now = performance.now();
+	if (rig !== avatar.sent && now - avatar.sentAt >= 60) { avatar.sent = rig; avatar.sentAt = now; up({ t: 'rig', r: rig }); }
 }
 // A page put out of sight (another app, the phone locked) turns the camera off; it stays off until turned on.
 document.addEventListener('visibilitychange', () => { if (document.hidden && myCam.on) { myCamOff(); drawChrome(); } });
@@ -1435,8 +1573,10 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && myC
 function camWindow(g: Grid, area: { x: number; y: number; w: number; h: number }, p: Person, now: number) {
 	camLetters = false;
 	if (!S.cams.open) { camOverlay.show([]); return; }
-	const others = [...S.people.values()].filter((q) => q.id !== S.me)
-		.map((q) => ({ id: q.id, name: q.st ? 'Storyteller' : q.name, loud: loudness(lvl(p), p, q, S.phase) }));
+	const avatars = S.cams.look === 'avatar';
+	// Avatars: only those whose rig the host passed on (it applies the distance and place rules).
+	const others = [...S.people.values()].filter((q) => q.id !== S.me && (!avatars || S.rigs.has(q.id)))
+		.map((q) => ({ id: q.id, name: q.st ? 'Storyteller' : q.name, loud: avatars ? Math.max(0.01, loudness(lvl(p), p, q, S.phase)) : loudness(lvl(p), p, q, S.phase) }));
 	const close = others.filter((q) => q.loud > 0).length;
 	const L0 = camLayout(area, 1 + close, S.cams.corner, S.cams.folded);
 	if (!L0) { camOverlay.show([]); return; }
@@ -1449,6 +1589,22 @@ function camWindow(g: Grid, area: { x: number; y: number; w: number; h: number }
 		const self = id === S.me;
 		const talk = talking(q) > 0.15;
 		const base = { id, label: self ? 'You' : q.st ? 'Storyteller' : q.name, ink: markOf(q), glyph: glyphOf(q), talking: talk };
+		if (avatars) {
+			const r = L.tiles[i];
+			const fit = r ? detailThatFits(r.w, r.h) : 0;
+			if (self) {
+				if (!myCam.on) return { ...base, kind: 'blank' as const, glyph: '', note: 'camera off' };
+				const rig = decodeRig(avatar.rig);
+				if (!rig) return { ...base, kind: 'blank' as const, glyph: '', note: avatar.note ? 'loading' : 'no face' };
+				const { w, h } = DETAIL_SIZE[fit as Detail];
+				return fit ? { ...base, kind: 'avatar' as const, cells: drawRig(rig, w, h) } : { ...base, kind: 'blank' as const };
+			}
+			const got = S.rigs.get(id), rig = got && decodeRig(got.rig);
+			const d = Math.min(fit, got?.detail ?? 0) as Detail;
+			if (!rig || !d) return { ...base, kind: 'blank' as const };
+			const { w, h } = DETAIL_SIZE[d];
+			return { ...base, kind: 'avatar' as const, cells: drawRig(rig, w, h) };
+		}
 		const stand = !self && (S.bots.has(id) || S.cams.standIns);
 		if (self && !myCam.on) return { ...base, kind: 'blank' as const, glyph: '', note: 'camera off' };
 		if (!self && !stand) return { ...base, kind: 'blank' as const, note: 'no picture' };
@@ -1475,6 +1631,7 @@ function camWindow(g: Grid, area: { x: number; y: number; w: number; h: number }
 			S.dirty = true;
 		}
 	});
+	if (avatars && tiles.some((t) => t.kind === 'avatar')) camLetters = true;
 	if (S.cams.folded) camLetters = false;
 	camOverlay.show(S.cams.folded ? [] : pictures);
 }
@@ -1616,7 +1773,12 @@ function sheetRows(): Row[] {
 		const b = (label: string, a: string, on: boolean) => buttonBlock([btn(label, () => act(a), { style: on ? 'on' : undefined, width: INNER })]);
 		rows.push(b(myCam.on ? 'My camera: on' : 'My camera: off', 'cams-cam', myCam.on));
 		rows.push(b(S.cams.open ? 'Window: shown' : 'Window: hidden', 'cams-open', S.cams.open));
-		rows.push(b(S.cams.look === 'video' ? 'Tiles: picture' : 'Tiles: letters', 'cams-look', S.cams.look === 'letters'));
+		rows.push(b(S.cams.look === 'avatar' ? 'Tiles: avatar' : S.cams.look === 'video' ? 'Tiles: picture' : 'Tiles: letters', 'cams-look', S.cams.look !== 'video'));
+		if (S.cams.look === 'avatar') {
+			rows.push(...prose('Avatar: your camera is read here into nine numbers (eyes, mouth, smile, head, gaze); only those are sent, and everyone draws you from them. The nearest see you clearest.' + (avatar.note ? ' (' + avatar.note + ')' : ''), 'dim'));
+			rows.push(b('Tracker: ' + TRACKER_LABEL[S.cams.tracker], 'cams-tracker', false));
+			if (S.host) rows.push(b(S.cams.places === 'talk' ? 'Avatars show: where people talk' : 'Avatars show: whenever in earshot', 'cams-places', S.cams.places === 'talk'));
+		}
 		rows.push(b(S.cams.standIns ? 'Stand-ins for all: on' : 'Stand-ins for all: off', 'cams-standins', S.cams.standIns));
 		rows.push(b('Corner: ' + CORNER_NAME[S.cams.corner], 'cams-corner', false));
 		return [close('sheet-close'), ...rows, endPanel()];
@@ -1805,7 +1967,20 @@ function act(a: string, id = '') {
 			store.set('grimoire.cams', S.cams.open ? 'on' : 'off');
 			S.dirty = true; drawChrome(); break;
 		case 'cams-cam': void myCamToggle(); break;
-		case 'cams-look': S.cams.look = S.cams.look === 'video' ? 'letters' : 'video'; store.set('grimoire.camsLook', S.cams.look); S.dirty = true; drawChrome(); break;
+		case 'cams-look':
+			S.cams.look = S.cams.look === 'avatar' ? 'video' : S.cams.look === 'video' ? 'letters' : 'avatar';
+			store.set('grimoire.camsLook', S.cams.look);
+			if (S.cams.look === 'avatar' && myCam.on) void avatarOn(); else avatarOff();
+			S.dirty = true; drawChrome(); break;
+		case 'cams-tracker':
+			S.cams.tracker = TRACKER_NAMES[(TRACKER_NAMES.indexOf(S.cams.tracker) + 1) % TRACKER_NAMES.length];
+			store.set('grimoire.avatarTracker', S.cams.tracker);
+			if (avatar.timer) { avatarOff(); void avatarOn(); }
+			S.dirty = true; drawChrome(); break;
+		case 'cams-places':
+			S.cams.places = S.cams.places === 'talk' ? 'earshot' : 'talk';
+			store.set('grimoire.avatarPlaces', S.cams.places);
+			S.dirty = true; drawChrome(); break;
 		case 'cams-standins': S.cams.standIns = !S.cams.standIns; S.dirty = true; drawChrome(); break;
 		case 'cams-corner': S.cams.corner = nextCorner(S.cams.corner); store.set('grimoire.camsCorner', S.cams.corner); S.dirty = true; drawChrome(); break;
 		case 'more': S.sheet = S.sheet === 'more' ? null : 'more'; S.stOpen = false; drawChrome(); break;
