@@ -1065,6 +1065,40 @@ export function namePlates(lines: string[]): Row | null {
 	});
 }
 
+/** How many columns a role's small portrait takes (see roleEntry): sixteen pixels wide and a frame. */
+export const ROLE_PIC_W = 18;
+/** Whether a character has a portrait to show beside its name (roleEntry takes less room without). */
+export const roleHasPicture = hasPortrait;
+/**
+ * One character named on a player's page: its small portrait at the left in a frame of its side's colour
+ * (if its portrait has been drawn; else none, and the name has the whole line), and beside it the name
+ * in gold on one or two lines, then what it is (`sub`). Starts `indent` columns in.
+ */
+export function roleEntry(role: string, name: string, team: 'good' | 'evil' | 'other', sub: string, indent: number): Row {
+	const pic = portraitOf(role);
+	const lines = nameLines(name);
+	const H = pic ? 10 : 2 + lines.length;
+	return blockRow(H, (c) => {
+		let tx = c.x + indent;
+		if (pic) {
+			const [g1, g2] = team === 'evil' ? [[14, 10, 10], [26, 14, 14]] : team === 'good' ? [[12, 16, 26], [20, 26, 42]] : [[12, 22, 16], [20, 34, 24]];
+			const GOLD = [204, 160, 66], W = 16 + 2, Hp = 16 + 2;
+			const px: number[][] = Array.from({ length: Hp }, () => Array(W).fill(-1));
+			for (let y = 0; y < Hp; y++) for (let i = 0; i < W; i++) {
+				const edge = y === 0 || y === Hp - 1 || i === 0 || i === W - 1;
+				px[y][i] = quant(edge ? GOLD : (Math.floor(i / 4) + Math.floor(y / 4)) % 2 ? g1 : g2);
+			}
+			pic.forEach((r, j) => r.forEach((hex, i) => { if (hex && px[1 + j]) px[1 + j][1 + i] = artInk(hex); }));
+			stampPixels(c.g, tx, c.y, px);
+			tx += ROLE_PIC_W + 2;
+		}
+		const room = c.x + c.w - tx;
+		const y0 = c.y + (pic ? 3 : 0);
+		lines.forEach((l, k) => c.g.text(tx, y0 + k, [...l].slice(0, room).join(''), c.ink('gold')));
+		c.g.text(tx, y0 + lines.length, [...sub].slice(0, room).join(''), c.ink('dim'));
+	});
+}
+
 /**
  * The way back and the way on, pinned to the foot of the page (the last row of a page that fits on one
  * leaf), each in the same place whatever it says: one at the left of the writing, one at the right.

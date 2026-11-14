@@ -94,3 +94,17 @@ test('an evil Traveller’s wake is their own character and the Demon, and does 
 	assert.equal(w.role, 'gunslinger');
 	assert.deepEqual(w.sections.find((x) => x.title === 'Your Demon')?.lines, ['Ada']);
 });
+
+test('the Demon’s bluffs have a page of their own, and a named character carries its id for the portrait', async () => {
+	const { nextPage } = await import('../src/ui/wakepages.ts');
+	const s = base();
+	const w = wakeFor(s, nextStep(s)!);
+	const b = w.sections.find((x) => x.title === 'Not in play')!;
+	assert.equal(b.roles?.length, b.lines.length);
+	assert.deepEqual(b.roles, s.bluffs);
+	assert.equal(nextPage(w, 'who'), 'bluffs');
+	assert.equal(nextPage(w, 'bluffs'), 'done');
+	// A wake with no bluffs (the Poisoner's) has no such page.
+	const p = ok(s, { type: 'acknowledge' });
+	assert.equal(nextPage(wakeFor(p, nextStep(p)!), 'pick'), 'done');
+});

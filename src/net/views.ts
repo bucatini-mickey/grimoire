@@ -26,6 +26,8 @@ export interface Section {
 	title: string;
 	lines: string[];
 	style: 'big' | 'text' | 'note';
+	/** For lines that name characters: which character each line is, so the page can show its portrait. */
+	roles?: CharacterId[];
 }
 
 export interface Pick {
@@ -233,7 +235,7 @@ function evilKnowledge(state: GameState, kind: string, seat: SeatId | null): Sec
 	if (kind === G.DEMON_INFO) {
 		return [
 			{ title: 'Your Minions', lines: minions.map((m) => m.name + (m.character === 'marionette' ? ' (the Marionette)' : '')), style: 'big' },
-			{ title: 'Not in play', lines: state.bluffs.map((b) => charName(state, b)), style: 'big' }
+			{ title: 'Not in play', lines: state.bluffs.map((b) => charName(state, b)), style: 'big', roles: [...state.bluffs] }
 		];
 	}
 	// An evil Traveller who joins is shown the Demon (and no one else).
@@ -254,16 +256,16 @@ export function infoSections(state: GameState, kind: string, info: Info): Sectio
 	const nm = (id: SeatId) => nameOf(state, id);
 	const cn = (id: CharacterId) => charName(state, id);
 	switch (info.kind) {
-		case 'pair': return [{ title: 'You learn', lines: ['One of these is the'], style: 'note' }, { title: '', lines: [cn(info.character)], style: 'big' }, { title: 'They are', lines: info.players.map(nm), style: 'big' }];
+		case 'pair': return [{ title: 'You learn', lines: ['One of these is the'], style: 'note' }, { title: '', lines: [cn(info.character)], style: 'big', roles: [info.character] }, { title: 'They are', lines: info.players.map(nm), style: 'big' }];
 		case 'none': return [{ title: 'You learn', lines: ['No Outsiders'], style: 'big' }, { title: '', lines: ['are in play'], style: 'note' }];
 		case 'number': return [{ title: 'You learn', lines: [kind === 'chef' ? 'Pairs of evil players sitting together' : 'Of your living neighbours, evil'], style: 'note' }, { title: '', lines: [String(info.value)], style: 'big' }];
 		case 'fortune': return [{ title: 'You learn', lines: [`Is ${nm(info.players[0])} or ${nm(info.players[1])} the Demon?`], style: 'note' }, { title: '', lines: [info.yes ? 'Yes' : 'No'], style: 'big' }];
-		case 'character': return [{ title: 'You learn', lines: ['Executed today'], style: 'note' }, { title: '', lines: [cn(info.character)], style: 'big' }];
-		case 'reveal': return [{ title: 'You learn', lines: [nm(info.player)], style: 'big' }, { title: '', lines: ['is the'], style: 'note' }, { title: '', lines: [cn(info.character)], style: 'big' }];
+		case 'character': return [{ title: 'You learn', lines: ['Executed today'], style: 'note' }, { title: '', lines: [cn(info.character)], style: 'big', roles: [info.character] }];
+		case 'reveal': return [{ title: 'You learn', lines: [nm(info.player)], style: 'big' }, { title: '', lines: ['is the'], style: 'note' }, { title: '', lines: [cn(info.character)], style: 'big', roles: [info.character] }];
 		case 'woke': return [{ title: 'You learn', lines: [`Of ${nm(info.players[0])} and ${nm(info.players[1])}, woke tonight`], style: 'note' }, { title: '', lines: [String(info.value)], style: 'big' }];
-		case 'characters': return [{ title: 'Outsiders in play', lines: info.characters.length ? info.characters.map(cn) : ['None'], style: 'big' }];
+		case 'characters': return [{ title: 'Outsiders in play', lines: info.characters.length ? info.characters.map(cn) : ['None'], style: 'big', roles: info.characters.length ? [...info.characters] : undefined }];
 		case 'yesno': return [{ title: 'You learn', lines: [YESNO_QUESTION[kind] ?? ''], style: 'note' }, { title: '', lines: [info.yes ? 'Yes' : 'No'], style: 'big' }];
-		case 'dream': return [{ title: 'You learn', lines: [nm(info.player)], style: 'big' }, { title: '', lines: ['is one of'], style: 'note' }, { title: '', lines: info.characters.map(cn), style: 'big' }];
+		case 'dream': return [{ title: 'You learn', lines: [nm(info.player)], style: 'big' }, { title: '', lines: ['is one of'], style: 'note' }, { title: '', lines: info.characters.map(cn), style: 'big', roles: [...info.characters] }];
 		case 'players': return [{ title: 'One of these is the Demon', lines: info.players.map(nm), style: 'big' }];
 		case 'same': return [{ title: 'You learn', lines: [`Are ${nm(info.players[0])} and ${nm(info.players[1])} on the same team?`], style: 'note' }, { title: '', lines: [info.yes ? 'Yes' : 'No'], style: 'big' }];
 	}

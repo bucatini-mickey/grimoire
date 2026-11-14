@@ -11,7 +11,7 @@
  * (folio: the vines, the roundel). Handed over on the Storyteller's own phone, the pages come between
  * a page naming who takes the phone and one asking for it back (main.ts).
  */
-import { COLS, blank, btn, center, centredButtons, endPanel, letteredRow, miniature, namePlate, rubric, starRow, pad, row, txt, wrap } from './ascii.ts';
+import { COLS, blank, btn, center, centredButtons, endPanel, hasPortrait, letteredRow, miniature, nameLines, namePlate, namePlates, roleEntry, rubric, starRow, pad, row, txt, wrap } from './ascii.ts';
 import type { Announcement } from '../net/protocol.ts';
 import type { Button, Row, Tone } from './ascii.ts';
 import { ALL_CHARACTERS } from '../core/index.ts';
@@ -24,7 +24,7 @@ export const CARD_INNER = CARD_COLS - 4;
 /** The block the writing stands in: inset from the page's writing so the book can decorate round it. */
 const IND = 4, BLOCK = CARD_COLS - 2 * IND;
 
-export type Page = 'who' | 'pick' | 'wait' | 'info' | 'grimoire' | 'done';
+export type Page = 'who' | 'pick' | 'wait' | 'info' | 'bluffs' | 'grimoire' | 'done';
 
 export interface PageHandlers {
 	go(page: Page): void;
@@ -58,6 +58,10 @@ const sideOf = (role?: string): 'good' | 'evil' | 'other' => {
 	const t = ALL_CHARACTERS.find((c) => c.id === role)?.team;
 	return t === 'minion' || t === 'demon' ? 'evil' : t === 'townsfolk' || t === 'outsider' ? 'good' : 'other';
 };
+const TEAM_NAME: Record<string, string> = { townsfolk: 'Townsfolk', outsider: 'Outsider', minion: 'Minion', demon: 'Demon', traveller: 'Traveller', fabled: 'Fabled' };
+const teamName = (role: string): string => TEAM_NAME[ALL_CHARACTERS.find((c) => c.id === role)?.team ?? ''] ?? '';
+/** The Demon's bluffs, if this wake shows them: they have a page of their own. */
+const bluffsOf = (w: Wake): Section | undefined => w.sections.find((s) => s.title === 'Not in play' && s.lines.length > 0);
 /** Marks a page as illuminated (folio: the vine borders and the roundel). */
 const illumined = (role?: string): Row => ({ segs: [], cls: 'illum-' + sideOf(role) });
 
@@ -72,12 +76,19 @@ export function sectionRows(sections: Section[], role?: string): Row[] {
 		// Who you are: "You are the" small, the name large on one line.
 		if (s.title === 'You are' && s.style === 'big' && s.lines.length === 1) {
 			const l = s.lines[0], name = l.replace(/^(now )?the /i, '');
-			const plate = namePlate(name, IND);
+			// (a name of two words is lettered on two lines, so "Scarlet Woman" keeps well inside the border)
+			const plate = namePlates(nameLines(name)) ?? namePlate(name, IND);
 			// (the portrait in its arch above, once it has been drawn)
 			const arch = miniature(role, sideOf(role), CARD_COLS);
 			if (plate) { rows.push(...(arch ? [arch] : [blank()]), row(txt(center('You are ' + l.slice(0, l.length - name.length).trim(), CARD_COLS), 'dim')), plate, blank()); continue; }
 		}
 		if (s.title) rows.push(heading(s.title));
+		// Characters named here are shown with their portrait where one is drawn (the page has room to scroll).
+		if (s.roles?.length === s.lines.length && s.roles.some((r) => hasPortrait(r))) {
+			s.roles.forEach((r, i) => rows.push(roleEntry(r, s.lines[i], sideOf(r), teamName(r), IND)));
+			rows.push(blank());
+			continue;
+		}
 		for (const l of s.lines) {
 			if (s.style === 'big') rows.push(...big(l));
 			else if (s.style === 'note') rows.push(...note(l));
@@ -147,9 +158,10 @@ export function revealRows(items: Announcement[]): Row[] {
 
 /** The page after this one. */
 export function nextPage(w: Wake, from: Page): Page {
-	const order: Page[] = ['who', 'pick', 'info', 'grimoire', 'done'];
+	const order: Page[] = ['who', 'pick', 'info', 'bluffs', 'grimoire', 'done'];
 	for (let i = order.indexOf(from) + 1; i < order.length; i++) {
 		const p = order[i];
+		if (p === 'bluffs' && !bluffsOf(w)) continue;
 		if (p === 'pick' && !w.pick) continue;
 		if (p === 'info' && !w.info) continue;
 		if (p === 'grimoire' && !w.grimoire) continue;
@@ -163,8 +175,15 @@ export function wakeRows(w: Wake, page: Page, picks: SeatId[], h: PageHandlers):
 	const next = (from: Page) => btn('Next', () => h.go(nextPage(w, from)), { style: 'primary' });
 	switch (page) {
 		case 'who':
-			rows.push(...sectionRows(w.sections, w.role), endPanel(), ...cardButtons([next('who')]));
+			rows.push(...sectionRows(w.sections.filter((s) => s !== bluffsOf(w)), w.role), endPanel(), ...cardButtons([next('who')]));
 			break;
+		case 'bluffs': {
+			// The Demon's bluffs, apart from the rest, so the Demon sees at once what to say.
+			const b = bluffsOf(w)!;
+			rows.push(blank(), heading('Your bluffs'), ...para('These characters are not in play. If asked, you may say you are one of them.', 'dim'), blank(),
+				...sectionRows([{ ...b, title: '' }], w.role), endPanel(), ...cardButtons([next('bluffs')]));
+			break;
+		}
 		case 'pick': {
 			const p = w.pick!;
 			rows.push(blank(), heading(p.count === 2 ? 'Choose two' : 'Choose one'), ...para(p.prompt, 'dim'), blank());
