@@ -19,6 +19,7 @@
 import { shade } from '../term/pterm.ts';
 import type { Grid, Rect, Term } from '../term/pterm.ts';
 import { cellOf, crop } from './faces.ts';
+import type { RigCell } from '../avatar/rig.ts';
 
 export type Corner = 'tr' | 'br' | 'bl' | 'tl';
 /** The corners in the order a tap on the title moves the window round them. */
@@ -114,9 +115,13 @@ export interface TileView {
 	ink: [number, number];
 	/** Their letter, for a tile with no picture. */
 	glyph: string;
-	/** Letters from a frame (faces.ts hex levels, tile-sized), a picture laid over, or nothing to show. */
-	kind: 'letters' | 'video' | 'blank';
+	/**
+	 * Letters from a frame (faces.ts hex levels, tile-sized), a picture laid over, an avatar drawn from a
+	 * rig (rig.ts: cells, centred in the tile), or nothing to show.
+	 */
+	kind: 'letters' | 'video' | 'avatar' | 'blank';
 	frame?: string;
+	cells?: RigCell[][];
 	/** Under the letter of a tile with no picture: why there is none. */
 	note?: string;
 	talking: boolean;
@@ -163,7 +168,17 @@ export function drawCamWindow(g: Grid, L: CamLayout, d: CamWindowDraw) {
 		const t = d.tiles[i];
 		if (!t) return;
 		if (t.kind === 'video') g.fill(r, VIDEO_CH, 3, VIDEO_BG);
-		else if (t.kind === 'letters' && t.frame) {
+		else if (t.kind === 'avatar' && t.cells) {
+			// The avatar centred in the tile on a dark ground: outline dim, eyes and mouth in their colour.
+			g.fill(r, ' ', 3, 0);
+			const ah = t.cells.length, aw = t.cells[0]?.length ?? 0;
+			const ox = r.x + Math.floor((r.w - aw) / 2), oy = r.y + Math.floor((r.h - ah) / 2);
+			const feature = t.ink[1] ? 5 : t.ink[0];
+			for (let yy = 0; yy < ah; yy++) for (let xx = 0; xx < aw; xx++) {
+				const c = t.cells[yy][xx];
+				if (c.ch !== ' ') g.set(ox + xx, oy + yy, c.ch, c.ink === 2 ? feature : 3, 0);
+			}
+		} else if (t.kind === 'letters' && t.frame) {
 			for (let yy = 0; yy < r.h; yy++) for (let xx = 0; xx < r.w; xx++) {
 				const c = cellOf(t.frame, xx, yy, r.w);
 				g.set(r.x + xx, r.y + yy, c.ch, levelInk(c.level), 0);

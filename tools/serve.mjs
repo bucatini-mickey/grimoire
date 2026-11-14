@@ -1,5 +1,7 @@
 // A tiny static server for the tools folder, so a phone (or another laptop) on the same wifi can open
-// tools/ascii-face.html. Read-only, GET only, the tools folder and nothing outside it; no dependencies.
+// tools/ascii-face.html or tools/avatar-test.html. Read-only, the tools folder and nothing outside it; no
+// dependencies. One thing comes back: POST /report takes a tracker report from avatar-test.html (JSON, at most
+// 256 KB, numbers about the trackers, never a picture) and keeps it in tools/reports/ (not committed).
 //
 // A phone's browser offers the camera only to https pages (or localhost), so for phones use --https:
 //   node tools/serve.mjs --https          https://<this computer's address>:8443/ascii-face.html
@@ -13,7 +15,7 @@
 // the phone to reach it.
 import { createServer as http } from 'node:http';
 import { createServer as https } from 'node:https';
-import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { networkInterfaces } from 'node:os';
 import { dirname, extname, join, normalize, sep } from 'node:path';
@@ -43,12 +45,31 @@ function certificate() {
 	return { key: readFileSync(key), cert: readFileSync(cert) };
 }
 
+function report(req, res) {
+	let body = '', big = false;
+	req.setEncoding('utf8');
+	req.on('data', (c) => { body += c; if (body.length > 256 * 1024) { big = true; req.destroy(); } });
+	req.on('end', () => {
+		if (big) return;
+		let r;
+		try { r = JSON.parse(body); } catch { res.writeHead(400).end('not JSON'); return; }
+		if (!r || r.page !== 'avatar-test') { res.writeHead(400).end('not a report'); return; }
+		const out = join(dir, 'reports');
+		mkdirSync(out, { recursive: true });
+		const file = join(out, new Date().toISOString().replace(/[:.]/g, '-') + '.json');
+		writeFileSync(file, JSON.stringify(r, null, 1));
+		console.log('report saved: ' + file);
+		res.writeHead(200, { 'content-type': 'text/plain' }).end('saved');
+	});
+}
+
 function handle(req, res) {
+	if (req.method === 'POST' && new URL(req.url, 'http://x').pathname === '/report') { report(req, res); return; }
 	if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405).end(); return; }
 	let path = decodeURIComponent(new URL(req.url, 'http://x').pathname);
 	if (path === '/') path = '/ascii-face.html';
 	const file = normalize(join(dir, path));
-	if (!file.startsWith(dir + sep) || file.includes(sep + '.cert') || !existsSync(file) || !statSync(file).isFile()) { res.writeHead(404).end('not found'); return; }
+	if (!file.startsWith(dir + sep) || file.includes(sep + '.cert') || file.includes(sep + 'reports' + sep) || !existsSync(file) || !statSync(file).isFile()) { res.writeHead(404).end('not found'); return; }
 	res.writeHead(200, { 'content-type': TYPES[extname(file)] ?? 'application/octet-stream', 'cache-control': 'no-store' });
 	res.end(req.method === 'HEAD' ? undefined : readFileSync(file));
 }
@@ -57,9 +78,9 @@ const server = secure ? https(certificate(), handle) : http(handle);
 server.listen(port, host, () => {
 	const scheme = secure ? 'https' : 'http';
 	console.log(`Serving ${dir}`);
-	console.log(`  this computer: ${scheme}://localhost:${port}/ascii-face.html`);
+	console.log(`  this computer: ${scheme}://localhost:${port}/ascii-face.html  (and /avatar-test.html)`);
 	if (host === '0.0.0.0') for (const list of Object.values(networkInterfaces())) for (const a of list ?? []) {
-		if (a.family === 'IPv4' && !a.internal) console.log(`  same wifi:     ${scheme}://${a.address}:${port}/ascii-face.html${secure ? '' : '   (no camera over plain http: use --https)'}`);
+		if (a.family === 'IPv4' && !a.internal) console.log(`  same wifi:     ${scheme}://${a.address}:${port}/avatar-test.html${secure ? '' : '   (no camera over plain http: use --https)'}`);
 	}
 	console.log('Ctrl+C to stop.');
 });

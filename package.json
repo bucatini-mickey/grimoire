@@ -12,7 +12,8 @@
 		"avatar": "node tools/avatar-inline.mjs",
 		"tools": "node tools/serve.mjs --https",
 		"sim": "node tests/sim/run.ts",
-		"mutants": "node tests/sim/mutants.ts"
+		"mutants": "node tests/sim/mutants.ts",
+		"avatar-test": "node tools/avatar-test-inline.mjs"
 	},
 	"devDependencies": {
 		"@types/node": "^24.19.1",
