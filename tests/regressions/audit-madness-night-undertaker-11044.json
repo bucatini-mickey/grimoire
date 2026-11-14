@@ -1,0 +1,178 @@
+{
+ "rule": "wake-in-order",
+ "detail": "undertaker:4 (order 78) after a step of order 82",
+ "seed": 11044,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior",
+    "Maud",
+    "Ned"
+   ],
+   "scriptId": "custom:professor,monk,chambermaid,grandmother,oracle,undertaker,courtier,gambler,lunatic,drunk,goon,recluse,baron,devils-advocate,cerenovus,no-dashii"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "lunatic",
+    "monk",
+    "professor",
+    "baron",
+    "undertaker",
+    "goon",
+    "no-dashii",
+    "chambermaid",
+    "courtier",
+    "grandmother",
+    "recluse",
+    "cerenovus",
+    "oracle",
+    "devils-advocate"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "gambler",
+    "drunk"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "character": "goon"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5
+   ],
+   "character": "goon"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "reveal",
+    "player": 0,
+    "character": "lunatic"
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     6,
+     10
+    ],
+    "value": 1
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    12
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    10
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    13
+   ],
+   "character": "lunatic"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    9
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    10
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    10
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "madness",
+   "seat": 7
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "character",
+    "character": "chambermaid"
+   }
+  }
+ ]
+}

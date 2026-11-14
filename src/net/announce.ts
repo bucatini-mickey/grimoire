@@ -34,6 +34,8 @@ export function announce(prev: GameState, events: GameEvent[], next: GameState, 
 				break;
 			}
 			case 'executed': {
+				// A madness execution at night is not announced: the room learns of the death at dawn.
+				if (prev.phase.kind === 'night') break;
 				const virgin = events.some((x) => x.type === 'ability-spent' && x.ability === 'virgin');
 				// What the room sees: the player dies (a Zombuul's first death looks like one), or is still there.
 				// Why they are still there (the Fool, the Tea Lady...) is never said.

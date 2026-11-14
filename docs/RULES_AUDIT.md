@@ -51,6 +51,7 @@ dies", "Shabaloth may regurgitate"). `night.ts:209-216` removes Pukka and Shabal
 nothing wakes: night 2 Pukka poisons seat 3, night 3 the Exorcist picks the Pukka, seat 3 stays alive and poisoned, and
 the Pukka's step never appears. The Zombuul part is fine. Either the doc or the engine is wrong; the engine has no way to
 run "the death/regurgitation half without the choosing half".
+**Fixed (grim-036), as the user ruled (11 Nov: apply abilities logically; where it is ambiguous, leave it to the Storyteller):** the official wording says the Demon "doesn't wake", so nothing is chosen, poisoned or killed by it. Whether the Pukka's "previously poisoned player dies" or the Shabaloth's "might be regurgitated" still happens without the Demon waking is genuinely open, so the engine asks. When the exorcised Demon is told who the Exorcist is (`exorcised:N`), the acknowledgement is refused with the decision `exorcised` until the Storyteller rules `idle` (nothing happens; the victim stays poisoned; no one comes back; the default button) or `acts` (the earlier victim dies and the poison ends; or the Shabaloth regurgitates, asking whom through the existing `regurgitate` question). A Demon with nothing pending (no earlier victim, nobody dead it chose last night), a drunk or poisoned one, the Imp and the Zombuul raise no question. A Shabaloth that did not choose tonight forgets last night's choices. Tests: audit-high.test.ts, tests/regressions/audit-exorcist-*.json.
 
 **A3. BMR-INNKEEPER-SAFE vs starpass [run].** Doc: the two guests cannot die tonight from anything except the Assassin.
 `engine.ts:771-775` handles only the Monk for an Imp choosing themself, then `starpass()` emits `died` directly
@@ -73,11 +74,13 @@ Ravenkeeper. Their picks are only checked for shape in `judgeInfo`.
 **A6. SNV-MUTANT / SNV-CERENOVUS [run].** Doc: madness execution "even at night; counts as the day's execution". The
 `madness` command calls `requireDay` (`engine.ts:256-263`), so at night it is refused ("It is not day."), and it also
 refuses once anyone was executed today or while a nomination is open.
+**Fixed (grim-036):** `madness` also works at night (from night 2; there is no day before night 1). It is the execution of the day just ended: refused if that day already had one (`night.dayExecuted`, set at dusk and by this command), `lastExecution` records that day (the Undertaker still sees it), the room is not told until dawn, and by day every old guard stays. Around it: the Undertaker wakes straight away if their place has passed; the Mastermind's extra day and the Minstrel's drunkenness count from the day just ended; the Innkeeper's guests survive it ("cannot die tonight"); a working Mayor is refused at night (the bounce is not modelled for an execution, so execute them by day). The Storyteller's screen offers the Madness buttons at night too. Tests: audit-high.test.ts, tests/regressions/audit-madness-night-1.json; the simulator now proposes it and checks it.
 
 **A7. TRAV-BONE-COLLECTOR [read].** Doc: the chosen dead player regains their ability, "used once-per-game abilities
 included". `engine.ts:712` only adds a `keeps-ability` effect; `spent` is not cleared (compare `revived` in `state.ts:232`), and
 `night.ts:221` still filters Professor, Courtier, Assassin, Seamstress and Philosopher on `spent`. A used one stays used.
 No test covers it.
+**Fixed (grim-036):** the Bone Collector's working choice emits `abilities-restored`, which clears the target's `spent` entries as `revived` does; a drunk or poisoned Bone Collector restores nothing. Tests: audit-high.test.ts, tests/regressions/audit-bone-collector-1.json.
 
 ## B. Gaps where the engine guesses, ignores, or cannot express a rule
 

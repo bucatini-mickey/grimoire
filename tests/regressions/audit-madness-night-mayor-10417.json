@@ -1,0 +1,116 @@
+{
+ "rule": "mayor-bounce",
+ "detail": "Fenn(mayor), a working Mayor, died though the Storyteller redirected the kill",
+ "seed": 10417,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior",
+    "Maud"
+   ],
+   "scriptId": "custom:artist,savant,sailor,flowergirl,grandmother,sage,mayor,town-crier,soldier,ravenkeeper,philosopher,lunatic,mutant,moonchild,evil-twin,devils-advocate,mastermind,fang-gu"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "grandmother",
+    "evil-twin",
+    "fang-gu",
+    "mutant",
+    "mastermind",
+    "mayor",
+    "sailor",
+    "artist",
+    "sage",
+    "town-crier",
+    "devils-advocate",
+    "savant",
+    "philosopher"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "lunatic",
+    "soldier",
+    "moonchild"
+   ],
+   "evilTwin": 12
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ],
+   "drunk": 6
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "reveal",
+    "player": 3,
+    "character": "mutant"
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "madness",
+   "seat": 5
+  }
+ ]
+}

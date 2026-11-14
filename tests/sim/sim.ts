@@ -89,6 +89,7 @@ function proposeNight(s: GameState, r: Rand): Command {
 	if (chance(0.02, r)) return { type: 'end-night' }; // too early: must be refused
 	if (chance(0.01, r) && s.seats.some((x) => x.character === 'tinker' && x.alive)) return { type: 'tinker', seat: s.seats.find((x) => x.character === 'tinker')!.id };
 	if (s.night?.arbitrary && chance(0.3, r)) return { type: 'storyteller-kill', seat: pick(seats(s), r) };
+	if (chance(0.01, r) && s.seats.some((x) => x.character === 'mutant' || x.character === 'cerenovus')) return { type: 'madness', seat: pick(alive(s), r) }; // at night too
 	if (chance(0.005, r)) return { type: 'storyteller-kill', seat: pick(seats(s), r) }; // mostly refused
 	const action = stepAction(step.kind);
 	if (action === 'acknowledge') return chance(0.97, r) ? { type: 'acknowledge' } : { type: 'choose', target: 0 };
@@ -250,6 +251,8 @@ function answer(cmd: Command, decision: string, s: GameState, r: Rand): Command 
 			const dead = s.seats.filter((x) => !x.alive).map((x) => x.id);
 			return { ...cmd, regurgitate: chance(0.5, r) || !dead.length ? null : pick(dead, r) } as Command;
 		}
+		case 'exorcised':
+			return { ...cmd, exorcised: chance(0.5, r) ? 'acts' : 'idle' } as Command;
 		case 'executionSurvives':
 			return { ...cmd, executionSurvives: chance(0.4, r) } as Command;
 		case 'poisonNeighbour':
@@ -802,6 +805,11 @@ export class Checker {
 		}
 		// Executions and shots: what the room is told is what the table sees.
 		for (const e of events) {
+			if (e.type === 'executed' && prev.phase.kind === 'night') {
+				// A madness execution at night: the room is told at dawn, not while it sleeps.
+				if (banners.some((x) => x.title === 'Execution')) this.fail('announce-execution', `${names[e.seat]}'s execution at night was announced before dawn`);
+				continue;
+			}
 			if (e.type === 'executed') {
 				const b = banners.find((x) => (x.title === 'Execution' || x.title === 'The Virgin!') && x.lines.includes(`${names[e.seat]} is executed.`));
 				if (!b) { this.fail('announce-execution', `${names[e.seat]} was executed and the room was not told`); continue; }
@@ -1015,7 +1023,7 @@ export class Checker {
 				if (e.cause === 'starpass' && !(cmd.type === 'choose' && (cmd.target === e.seat || cmd.targets?.[0] === e.seat) && v.character === 'imp')) {
 					this.fail('starpass', `${name(e.seat)} died by starpass without choosing themselves as the Imp`);
 				}
-				if ((e.cause === 'execution' || e.cause === 'slayer') && b.phase.kind !== 'day') this.fail('day-deaths', `${name(e.seat)} died by ${e.cause} at night`);
+				if (((e.cause === 'execution' && cmd.type !== 'madness') || e.cause === 'slayer') && b.phase.kind !== 'day') this.fail('day-deaths', `${name(e.seat)} died by ${e.cause} at night`);
 				if (e.cause === 'gambler') {
 					const c = cmd as Extract<Command, { type: 'choose' }>;
 					const t = c.targets?.[0] ?? c.target;
@@ -1064,6 +1072,12 @@ export class Checker {
 				this.ghostsUsed.delete(e.seat); // back to life: a fresh ghost vote when they next die
 				break;
 			}
+			// The Bone Collector: what a dead player had used is unused again.
+			case 'abilities-restored':
+				this.virginSpent.delete(e.seat);
+				this.moonchildChose.delete(e.seat);
+				this.seamstressUsed.delete(e.seat);
+				break;
 			case 'effect-added':
 				if (e.effect.kind === 'moonchild' && e.effect.by !== null) {
 					if (this.moonchildChose.has(e.effect.by)) this.fail('moonchild', `${name(e.effect.by)} chose a second time as the Moonchild`);
@@ -1100,6 +1114,7 @@ export class Checker {
 			case 'survived-execution': {
 				const ok = (e.reason === 'the Devil’s Advocate' && b.effects.some((x) => x.kind === 'survives-execution' && x.target === e.seat))
 					|| (e.reason === 'the Tea Lady' && teaLadyGuards(b, e.seat))
+					|| (e.reason === 'the Innkeeper' && b.phase.kind === 'night' && innkeeperKeeps(b, e.seat))
 					|| (e.reason === 'the Sailor' && working(b, e.seat, 'sailor'))
 					|| (e.reason === 'the Fool' && b.seats[e.seat].character === 'fool')
 					|| (e.reason === 'the Pacifist' && b.seats[e.seat].alignment === 'good' && b.seats.some((x) => working(b, x.id, 'pacifist')));
@@ -1239,6 +1254,14 @@ export class Checker {
 				break;
 			}
 			case 'executed':
+				// The only execution outside the day is the Storyteller's, for madness, at night after the first: it is the day just ended's one execution.
+				if (b.phase.kind === 'night' && cmd.type === 'madness' && (b.night?.n ?? 0) >= 2) {
+					let prior = false;
+					for (let k = this.allEvents.length - 1; k >= 0 && this.allEvents[k].type !== 'day-began'; k--) if (this.allEvents[k].type === 'executed') prior = true;
+					if (prior) this.fail('execute-once', 'two executions in one day (the second at night)');
+					this.hit('madness execution at night');
+					break;
+				}
 				if (b.phase.kind !== 'day') this.fail('execute-by-day', 'an execution outside the day');
 				if (b.day?.executed !== null) this.fail('execute-once', 'two executions in one day');
 				if (cmd.type === 'end-day' && e.seat !== b.day?.block) this.fail('execute-the-block', `${name(e.seat)} executed at dusk though ${b.day?.block === null ? 'nobody' : name(b.day!.block!)} was on the block`);
@@ -1284,7 +1307,7 @@ export class Checker {
 					// The Moonchild's curse is resolved whenever the Moonchild has chosen, not at a wake.
 					if (want.kind === 'moonchild') { /* no place on the sheet to keep */ }
 					// Woken by a death that came after their place: straight away.
-					else if (['sage', 'ravenkeeper', 'sweetheart', 'barber', 'apprentice'].includes(want.kind) && place < this.sheetAt) { /* late, allowed */ }
+					else if (['sage', 'ravenkeeper', 'sweetheart', 'barber', 'apprentice', 'undertaker'].includes(want.kind) && place < this.sheetAt) { /* late, allowed (the Undertaker: a madness execution at night after their place) */ }
 					// An evil Traveller learns the Demon first thing; a Traveller's first night (the Apprentice) comes early.
 					else if (want.kind === 'traveller-info' || (want.seat !== null && this.start!.seats[want.seat].traveller && (place < 0 || (firstOnly && teamIn(this.start!, this.start!.seats[want.seat].character) !== 'traveller')))) { /* allowed: a Traveller turned into another character by the Pit-Hag acts at its early place (a rules question, see INBOX) */ }
 					else if (place < 0) this.fail('official-night-order', `${want.kind} woke on night ${n.n}, which it never does`);

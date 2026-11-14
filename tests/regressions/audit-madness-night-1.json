@@ -1,0 +1,135 @@
+{
+ "rule": "madness-at-night",
+ "detail": "the Storyteller executed the Mutant for madness at night 2: it counts as day 1’s execution, and the room hears at dawn",
+ "seed": 0,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen"
+   ],
+   "scriptId": "sects-and-violets"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "fang-gu",
+    "cerenovus",
+    "dreamer",
+    "mutant",
+    "oracle",
+    "sage",
+    "clockmaker"
+   ],
+   "bluffs": [
+    "snake-charmer",
+    "mathematician",
+    "flowergirl"
+   ],
+   "redHerring": null,
+   "allowNonstandard": true
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge",
+   "mayorRedirect": null
+  },
+  {
+   "type": "choose",
+   "target": 4,
+   "character": "sage"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 1
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "dream",
+    "player": 0,
+    "characters": [
+     "fang-gu",
+     "clockmaker"
+    ]
+   }
+  },
+  {
+   "type": "acknowledge",
+   "mayorRedirect": null
+  },
+  {
+   "type": "acknowledge",
+   "mayorRedirect": null
+  },
+  {
+   "type": "acknowledge",
+   "mayorRedirect": null
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "end-day",
+   "executionSurvives": false
+  },
+  {
+   "type": "madness",
+   "seat": 3
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ],
+   "mayorRedirect": null,
+   "regurgitate": null,
+   "drunk": 2,
+   "character": "dreamer"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ],
+   "mayorRedirect": null,
+   "regurgitate": null,
+   "drunk": 1
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "dream",
+    "player": 0,
+    "characters": [
+     "fang-gu",
+     "clockmaker"
+    ]
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 1
+   }
+  },
+  {
+   "type": "end-night"
+  }
+ ]
+}

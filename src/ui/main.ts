@@ -1725,6 +1725,16 @@ function decisionRows(): Row[] {
 			]));
 			break;
 		}
+		case 'exorcised': {
+			// The Exorcist chose a Pukka or Shabaloth: the wording leaves it open whether the death or regurgitation that needs no choosing still happens.
+			const step = G.nextStep(state);
+			const pukka = step?.seat != null && state.seats[step.seat].character === 'pukka';
+			rows.push(...buttonRows([
+				btn(pukka ? 'Stays poisoned, no death' : 'No one comes back', () => resubmit({ exorcised: 'idle' }), { style: 'primary' }),
+				btn(pukka ? 'The earlier victim dies' : 'Someone may come back', () => resubmit({ exorcised: 'acts' }), pukka ? { style: 'danger' } : {})
+			]));
+			break;
+		}
 		case 'poisonNeighbour': {
 			const c = p as Extract<Command, { type: 'choose' }>;
 			const t = c.targets?.[0] ?? c.target!;
@@ -1970,12 +1980,14 @@ function storytellerTools(): Row[] {
 	rows.push(...juggleRows(day));
 	rows.push(...travellerRows(day));
 	rows.push(...fabledRows(day));
-	// Madness (the Mutant, the Cerenovus): the Storyteller may execute for it, by day.
+	// Madness (the Mutant, the Cerenovus): the Storyteller may execute for it, by day or at night (always the day's one execution).
 	const madness = script().characters.some((c) => c.id === 'mutant' || c.id === 'cerenovus');
-	if (day && madness && state.day!.executed === null) {
+	const nightMadness = state.phase.kind === 'night' && !!state.night && state.night.n >= 2 && (state.night.dayExecuted ?? null) === null;
+	if (madness && ((day && state.day!.executed === null) || nightMadness)) {
 		const mad = state.effects.filter((e) => e.kind === 'mad').map((e) => `${name(e.target)} (${charName(e.note ?? '')})`);
 		rows.push(blank(), rubric('Madness'));
 		rows.push(...prose(mad.length ? `Must be mad today: ${mad.join(', ')}. Execute anyone who breaks madness:` : 'Execute a player who breaks madness (a Mutant claiming Outsider):', 'dim'));
+		if (!day) rows.push(...prose('At night this counts as the execution of the day just ended.', 'dim'));
 		rows.push(...buttonRows(living.map((id) => btn(state.seats[id].name, () => act({ type: 'madness', seat: id }), { width: 10 })), INNER, 0));
 	}
 	// The Pit-Hag made a Demon: tonight's deaths are the Storyteller's.

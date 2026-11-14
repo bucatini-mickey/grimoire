@@ -98,7 +98,7 @@ see D3). Entries marked *(sim)* were found by the simulator.
 - BMR-INNKEEPER-SAFE: the two chosen cannot die tonight from anything (Demon, Minion, Townsfolk, Outsider, Traveller), except the Assassin; one of the two (Storyteller's choice) is drunk until dusk. A drunk Innkeeper protects no one, even after sobering.
 - BMR-INNKEEPER-SELF: if the Innkeeper picks themself and is the drunk one, neither is protected.
 - BMR-GAMBLER: guess a player's character; wrong means the Gambler dies (not told why); may choose anyone, even themself.
-- BMR-EXORCIST: a chosen Demon learns who the Exorcist is and does not wake to use their ability tonight; their other abilities still work (Zombuul survives, Pukka's previous victim dies, Shabaloth may regurgitate); not the same player two nights running.
+- BMR-EXORCIST: a chosen Demon learns who the Exorcist is and does not wake to use their ability tonight; the Zombuul's survival still works; the Pukka's earlier victim dying and the Shabaloth's regurgitation do not need the Demon to choose, but the wording does not say whether they still happen, so the Storyteller rules (the app asks; the engine never guesses); not the same player two nights running.
 - BMR-GOSSIP: a definite, true, public statement means the Storyteller kills a player that night; what counts is the Gossip's state at night (drunk by day, sober at night: still kills); a Gossip who dies first kills no one.
 - BMR-COURTIER: once per game, choose a character: if in play, that player is drunk for 3 nights and 3 days from now; only while the Courtier stays sober and healthy (suspended, then resumes); a drunk Courtier wastes it; one copy only if duplicated.
 - BMR-PROFESSOR: once per game, a dead Townsfolk is resurrected (regains abilities, even once-per-game; first-night ones act at once); a non-Townsfolk choice wastes it; must choose a dead player.
@@ -146,7 +146,7 @@ Where the engine models a ruling more simply than the full rule, it says **appro
 - SNV-SWEETHEART: when they die, one player is drunk for the rest of the game (works while dead).
 - SNV-KLUTZ: on learning they died, publicly chooses an alive player: if evil, their team loses.
 - SNV-BARBER: if they died today or tonight, the Demon may swap two players' characters (not another Demon); alignments stay.
-- SNV-MUTANT / SNV-CERENOVUS: madness: the Storyteller may execute them (even at night; counts as the day's execution).
+- SNV-MUTANT / SNV-CERENOVUS: madness: the Storyteller may execute them (even at night, after the first night; counts as the execution of the day just ended, so a day that already had its execution cannot have a second one; the room is told at dawn).
 - SNV-WITCH: the cursed player dies if they nominate tomorrow (the nomination still stands); with three alive the Witch loses the ability.
 - SNV-PIT-HAG: change a player to a character not in play; making a Demon makes tonight's deaths arbitrary.
 - SNV-EVIL-TWIN: twins know each other; the good twin executed: evil wins; good cannot win while both live.
@@ -191,7 +191,7 @@ Status: **tested** (tests/travellers.test.ts, and in random games by the simulat
 - TRAV-APPRENTICE: on their first night gains a Townsfolk (good) or Minion (evil) ability from the script; acts with it that night if it would; first-night-only abilities work on the Apprentice's first night.
 - TRAV-BARISTA: each night the Storyteller picks a player and either makes them sober and healthy with true information until dusk (even under the Vortox) or makes their ability act twice.
 - TRAV-HARLOT: chooses a living player each night; if they agree to show their character, both might die.
-- TRAV-BONE-COLLECTOR: once per game, a dead player regains their ability until dusk (used once-per-game abilities included); ends if the Bone Collector dies.
+- TRAV-BONE-COLLECTOR: once per game, a dead player regains their ability until dusk (used once-per-game abilities included, which are unused again); ends if the Bone Collector dies.
 - TRAV-DEVIANT: if they were funny today (the Storyteller judges), they cannot die by exile.
 
 ## Fabled

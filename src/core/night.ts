@@ -284,7 +284,7 @@ export function nightSteps(state: GameState): NightStep[] {
 }
 
 /** Steps dealt with as soon as they arise (a death; a Traveller joining at night). */
-const DEATH_TRIGGERED = new Set(['sage', 'ravenkeeper', 'sweetheart', 'barber', TRAVELLER_INFO, 'apprentice']);
+const DEATH_TRIGGERED = new Set(['sage', 'ravenkeeper', 'sweetheart', 'barber', TRAVELLER_INFO, 'apprentice', 'undertaker']);
 
 export function nextStep(state: GameState): NightStep | null {
 	return nightSteps(state).find((s) => !s.done) ?? null;

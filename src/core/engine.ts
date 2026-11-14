@@ -16,7 +16,7 @@
  * Zombuul and the Scarlet Woman are handled once, in the order the rules give.
  */
 import type { Alignment, CharacterId, Composition, DeathCause, Effect, GameEvent, GameState, Info, SeatId } from './types.ts';
-import { reduce } from './state.ts';
+import { reduce, executionDay } from './state.ts';
 import { allowedCompositions, charDef, getScript, teamAlignment, evilLearnEachOther, MIN_PLAYERS, MAX_PLAYERS } from './script.ts';
 import {
 	hasWorkingAbility, isDroisoned, judgeInfo, living, livingDemons, registrations, seat, teamOf,
@@ -47,8 +47,13 @@ export type Command =
 			fabled?: { id: string; character?: CharacterId }[];
 	  }
 	| { type: 'begin' }
-	/** Resolve a step with nothing to choose (evil team info, Spy, a new Demon being told, the Moonchild's curse). */
-	| { type: 'acknowledge'; mayorRedirect?: SeatId | null }
+	/**
+	 * Resolve a step with nothing to choose (evil team info, Spy, a new Demon being told, the Moonchild's curse).
+	 * `exorcised` (and `regurgitate`) answer the Storyteller's question when the Exorcist chose a Pukka that has an earlier victim, or a
+	 * Shabaloth that has dead players it chose last night: 'acts' (the death or regurgitation that does not need the Demon to choose happens
+	 * anyway) or 'idle' (the Demon does not wake, so nothing happens).
+	 */
+	| { type: 'acknowledge'; mayorRedirect?: SeatId | null; exorcised?: 'acts' | 'idle'; regurgitate?: SeatId | null }
 	/**
 	 * Resolve a choosing step. One player (`target`) or several (`targets`), a
 	 * character (`character`), or no one (`none`), as the ability asks. The rest
@@ -254,6 +259,19 @@ function handle(tx: Tx, cmd: Command) {
 			return emit(tx, { type: 'votes-restored' });
 		case 'klutz': return klutz(tx, cmd);
 		case 'madness': {
+			// By day, or at night: the Storyteller may execute for madness at any time, and it is always the day's one execution
+			// (at night, the day just ended).
+			if (s.phase.kind === 'night' && s.night) {
+				validTarget(s, cmd.seat);
+				if (s.night.n < 2) refuse('No day has passed yet, so no one can have broken madness.');
+				// (A game saved before `dayExecuted` existed: a death by execution on that day still counts.)
+				const had = s.night.dayExecuted ?? (s.lastExecution?.day === s.night.n - 1 ? s.lastExecution.seat : null);
+				if (had !== null) refuse('Someone was already executed on the day that has just ended.');
+				if (!s.seats[cmd.seat].alive) refuse('Only a living player can be executed for madness.');
+				// A Mayor dying at night may have the death bounce to someone else; that is not modelled for an execution, so not at night.
+				if (hasWorkingAbility(s, cmd.seat, 'mayor')) refuse('A working Mayor who dies at night may have the death bounce to another player: execute them by day instead.');
+				return execute(tx, cmd.seat);
+			}
 			const day = requireDay(s);
 			validTarget(s, cmd.seat);
 			if (day.executed !== null) refuse('Someone has already been executed today.');
@@ -460,12 +478,56 @@ function nightCommand(tx: Tx, cmd: Extract<Command, { type: 'acknowledge' | 'cho
 		else if (kind === 'spy') emit(tx, { type: 'grimoire-shown', to: who! });
 		else if (kind === 'moonchild') moonchildCurse(tx, who!);
 		else if (kind === TRAVELLER_INFO) emit(tx, { type: 'ability-spent', seat: who!, ability: 'traveller-info' });
+		else if (kind === EXORCISED) exorcisedAfter(tx, who!, cmd);
 	} else if (cmd.type === 'choose') {
 		choose(tx, kind, who!, cmd);
 	} else {
 		tell(tx, kind, who!, cmd);
 	}
 	if (tx.state.phase.kind !== 'over') emit(tx, { type: 'step-done', step: id, order: step!.order });
+}
+
+/**
+ * The Exorcist chose a Demon: it learns who the Exorcist is and does not wake. The official wording leaves two things open, so the
+ * Storyteller rules on them: the Pukka's "previously poisoned player dies" and the Shabaloth's "might be regurgitated" are parts of the
+ * ability that do not need the Demon to choose anyone. (Everything else stays as the wording has it: it does not choose, poison or kill.)
+ */
+function exorcisedAfter(tx: Tx, by: SeatId, cmd: Extract<Command, { type: 'acknowledge' }>) {
+	const s = tx.state;
+	const demon = s.seats[by].character;
+	if (demon !== 'pukka' && demon !== 'shabaloth') return;
+	// A Shabaloth that chooses no one tonight has nothing "chosen last night" for tomorrow.
+	const forget = () => { if (demon === 'shabaloth') emit(tx, { type: 'effects-ended', match: { kind: 'chose-last', by, role: 'shabaloth' } }); };
+	if (!works(tx, by, demon)) return forget();
+	const name = s.seats[by].name;
+	const victims = demon === 'pukka' ? s.effects.filter((e) => e.kind === 'poisoned' && e.role === 'pukka' && e.by === by && s.seats[e.target].alive).map((e) => e.target) : [];
+	const back = demon === 'shabaloth' ? lastChoices(s, by, 'shabaloth').filter((t) => !s.seats[t].alive) : [];
+	if (!victims.length && !back.length) return forget();
+	const who = (ids: SeatId[]) => ids.map((t) => s.seats[t].name).join(' and ');
+	if (cmd.exorcised === undefined) {
+		refuse(demon === 'pukka'
+			? `The Exorcist chose the Pukka (${name}), so it does not wake to choose. Does its earlier victim (${who(victims)}) still die tonight, or stay poisoned until the Pukka next acts? The wording does not say: your ruling.`
+			: `The Exorcist chose the Shabaloth (${name}), so it does not wake to choose. May a player it chose last night (${who(back)}) still be regurgitated tonight, or does no one come back? The wording does not say: your ruling.`, 'exorcised');
+	}
+	if (cmd.exorcised !== 'acts' && cmd.exorcised !== 'idle') refuse('Rule "acts" or "idle".', 'exorcised');
+	if (cmd.exorcised === 'idle') {
+		emit(tx, { type: 'note', text: `The Exorcist chose the ${demon === 'pukka' ? 'Pukka' : 'Shabaloth'} (${name}): ${demon === 'pukka' ? `${who(victims)} stays poisoned and does not die tonight` : 'no one is regurgitated tonight'}.` });
+		return forget();
+	}
+	if (demon === 'pukka') {
+		for (const t of victims) {
+			attemptDeath(tx, t, { cause: 'demon' });
+			emit(tx, { type: 'effects-ended', match: { kind: 'poisoned', role: 'pukka', target: t, by } });
+		}
+		emit(tx, { type: 'note', text: `The Exorcist chose the Pukka (${name}): ${who(victims)} dies anyway, by your ruling.` });
+		return;
+	}
+	if (cmd.regurgitate === undefined) refuse(`Which player the Shabaloth chose last night comes back? Choose them, or no one.`, 'regurgitate');
+	if (cmd.regurgitate !== null) {
+		if (!back.includes(cmd.regurgitate!)) refuse('Only a dead player the Shabaloth chose last night can come back.');
+		emit(tx, { type: 'revived', seat: cmd.regurgitate!, by: 'shabaloth' });
+	}
+	forget();
 }
 
 function validTarget(s: GameState, t: SeatId) {
@@ -717,7 +779,11 @@ function choose(tx: Tx, kind: string, by: SeatId, cmd: Extract<Command, { type: 
 			emit(tx, { type: 'ability-spent', seat: by, ability: 'bone-collector' });
 			const t = targets[0];
 			goonCatches(tx, by, t);
-			if (works(tx, by, kind)) emit(tx, { type: 'effect-added', effect: { kind: 'keeps-ability', target: t, by, role: 'bone-collector', until: 'dusk', whileSourceWorks: true } });
+			if (works(tx, by, kind)) {
+				emit(tx, { type: 'effect-added', effect: { kind: 'keeps-ability', target: t, by, role: 'bone-collector', until: 'dusk', whileSourceWorks: true } });
+				// "Regains their ability, once-per-game abilities included": what they had used is unused again (as when brought back to life).
+				emit(tx, { type: 'abilities-restored', seat: t });
+			}
 			return;
 		}
 		case 'apprentice': {
@@ -950,12 +1016,14 @@ function die(tx: Tx, t: SeatId, cause: DeathCause) {
 	const demonCharacter = v.character;
 	const wasMinion = teamOf(s, v.character) === 'minion';
 	emit(tx, { type: 'died', seat: t, cause });
-	// The Minstrel: a Minion dying by execution makes everyone else drunk until dusk tomorrow.
-	if (cause === 'execution' && wasMinion && tx.state.day) {
+	// The Minstrel: a Minion dying by execution makes everyone else drunk until dusk tomorrow
+	// (counted from the day of the execution: for a madness execution at night, the day just ended).
+	const exDay = executionDay(tx.state);
+	if (cause === 'execution' && wasMinion && exDay !== null) {
 		for (const m of tx.state.seats.filter((x) => abilityWorks(tx.state, x.id, 'minstrel'))) {
 			for (const x of tx.state.seats) {
 				if (x.id === m.id || (charDef(getScript(s.scriptId), x.character).team as string) === 'traveller') continue;
-				emit(tx, { type: 'effect-added', effect: { kind: 'drunk', target: x.id, by: m.id, role: 'minstrel', until: { dusk: tx.state.day.n + 2 } } });
+				emit(tx, { type: 'effect-added', effect: { kind: 'drunk', target: x.id, by: m.id, role: 'minstrel', until: { dusk: exDay + 2 } } });
 			}
 		}
 	}
@@ -1050,8 +1118,9 @@ function checkWin(tx: Tx, ctx: { demonExecuted?: boolean } = {}) {
 	if (s.phase.kind === 'over' || s.mastermind) return;
 	if (livingDemons(s).length === 0) {
 		// The Mastermind: a Demon dead by execution means one more day, not good's win.
-		if (ctx.demonExecuted && s.day && s.seats.some((x) => abilityWorks(s, x.id, 'mastermind'))) {
-			return emit(tx, { type: 'mastermind-day', day: s.day.n + 1 });
+		// (The day after the execution's day: for a madness execution at night, the day about to dawn.)
+		if (ctx.demonExecuted && executionDay(s) !== null && s.seats.some((x) => abilityWorks(s, x.id, 'mastermind'))) {
+			return emit(tx, { type: 'mastermind-day', day: executionDay(s)! + 1 });
 		}
 		// The Demon is dead, but good cannot win while both twins live (two left, and evil wins).
 		if (!twinsHold(s)) return emit(tx, { type: 'game-over', winner: 'good', reason: 'The Demon is dead.' });
@@ -1232,6 +1301,8 @@ function execute(tx: Tx, id: SeatId) {
 	const survive = (reason: string) => emit(tx, { type: 'survived-execution', seat: id, reason });
 	const st = tx.state;
 	if (st.effects.some((e) => e.kind === 'survives-execution' && e.target === id && inForce(st, e))) return survive('the Devil’s Advocate');
+	// A madness execution at night: the Innkeeper's guests cannot die tonight.
+	if (st.phase.kind === 'night' && innkeeperProtects(st, id)) return survive('the Innkeeper');
 	if (teaLadyProtects(st, id)) return survive('the Tea Lady');
 	if (abilityWorks(st, id, 'sailor')) return survive('the Sailor');
 	if (abilityWorks(st, id, 'fool') && !st.spent.includes(`${id}:fool`)) {

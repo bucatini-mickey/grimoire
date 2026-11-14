@@ -123,6 +123,8 @@ export interface NightState {
 	gossip: { by: SeatId }[];
 	/** Players who came back to life tonight (the Professor, the Shabaloth). */
 	revived: SeatId[];
+	/** Who was executed on the day that has just ended (also by a madness execution tonight): the day's one execution. */
+	dayExecuted?: SeatId | null;
 	/** Who voted and who nominated the day before (the Flowergirl, the Town Crier). */
 	dayVoters?: SeatId[];
 	dayNominators?: SeatId[];
@@ -283,6 +285,8 @@ export type GameEvent =
 	| { type: 'day-began'; n: number }
 	| { type: 'nominated'; nominator: SeatId; nominee: SeatId }
 	| { type: 'ability-spent'; seat: SeatId; ability: CharacterId }
+	/** A dead player regains their ability (the Bone Collector): every once-per-game ability they used is unused again. */
+	| { type: 'abilities-restored'; seat: SeatId }
 	| {
 			type: 'vote-tallied';
 			nominee: SeatId;
