@@ -2025,7 +2025,8 @@ function frame(g: Grid) {
 	const fit = town ? townScale(innerWidth, innerHeight, glyphRatio(), wideScreen()) : null;
 	if (fit) term!.setScale(fit.maxFont, fit.rows);
 	else term!.setScale(22, 40);
-	term!.setCols(fit ? fit.cols : key === 'cover' ? (wideScreen() ? 184 : 84) : key.startsWith('folio') ? (wideScreen() ? 2 * (COLS + 12) : COLS + 12) : key === 'leather' ? COLS + 6 : COLS);
+	term!.setMinFont(key === 'cover' ? 4 : 8);
+	term!.setCols(fit ? fit.cols : key === 'cover' ? (wideScreen() ? 184 : 100) : key.startsWith('folio') ? (wideScreen() ? 2 * (COLS + 12) : COLS + 12) : key === 'leather' ? COLS + 6 : COLS);
 	document.body.style.background = term!.palette[0];
 	document.documentElement.style.background = term!.palette[0];
 	g.clear(4, 0);

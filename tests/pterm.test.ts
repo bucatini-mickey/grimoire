@@ -47,3 +47,17 @@ test('grid draws text and boxes, and taps hit the topmost region', () => {
 	assert.equal(hit, 'over');
 	assert.equal(g.hitAt(9, 3), null);
 });
+
+test('the cover title fits a narrow phone with leather to spare (grim-042: it was clipped under about 400 px)', () => {
+	// Mirrors Term.fit(): the font is a whole number of px, and the cover may go as low as 4 px.
+	const TITLE_W = readFileSync(new URL('../art/title.png', import.meta.url)).readUInt32BE(16);
+	const ratio = 0.6, want = 100, minFont = 4;
+	for (let w = 320; w <= 430; w += 10) {
+		const font = Math.max(minFont, Math.floor(w / (want * ratio)));
+		const cols = Math.floor(w / (font * ratio));
+		assert.ok(cols >= TITLE_W + 12, `${w}px wide gives ${cols} columns for a ${TITLE_W}-pixel title`);
+	}
+	const ascii = readFileSync(new URL('../src/ui/ascii.ts', import.meta.url), 'utf8');
+	assert.match(ascii, /setMinFont\(key === 'cover' \? 4 : 8\)/);
+	assert.match(ascii, /key === 'cover' \? \(wideScreen\(\) \? 184 : 100\)/);
+});
