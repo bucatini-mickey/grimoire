@@ -2027,11 +2027,11 @@ function glyphRatio(): number {
 }
 /**
  * How wide one of the town's cells is on a phone held upright, in CSS pixels: the same on every phone, so a
- * cell is about the same size under the thumb whatever the screen (the user's pick, 15 Nov: "13 or so", tune here).
- * A 390 px phone then shows about 30 columns; a narrow one keeps at least PHONE_MIN_COLS so the bar still fits.
+ * cell is about the same size under the thumb whatever the screen (the user's pick, 15 Nov: 13 was too small, now 16; tune here).
+ * A 390 px phone then shows about 24 columns; a narrow one keeps at least PHONE_MIN_COLS so the bar still fits.
  */
-export const PHONE_CELL_PX = 13;
-const PHONE_MIN_COLS = 26;
+export const PHONE_CELL_PX = 16;
+const PHONE_MIN_COLS = 20;
 /**
  * The size of the town's cells for a screen of w by h pixels (a glyph is `ratio` wide for each unit of height).
  * A desktop's cells are big but not so big as they were (34 px, now 28), and the village shows a few more rows.

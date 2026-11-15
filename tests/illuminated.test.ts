@@ -31,7 +31,7 @@ test('the town’s cell size: desktop smaller than before, a phone’s cells abo
 		const f = townScale(w, h, ratio, false);
 		const cell = f.maxFont * ratio;
 		assert.ok(cell <= PHONE_CELL_PX + 1, `${w}x${h}: a cell is ${cell.toFixed(1)} px, about ${PHONE_CELL_PX}`);
-		assert.ok(f.cols >= 26 && f.cols * cell <= w, `${w}x${h}: ${f.cols} columns fit`);
+		assert.ok(f.cols >= 20 && f.cols * cell <= w, `${w}x${h}: ${f.cols} columns fit`);
 		if (w >= 360) assert.ok(Math.abs(cell - PHONE_CELL_PX) <= 0.7, `${w}x${h}: same cell size on every ordinary phone`);
 	}
 	// A phone on its side keeps the desktop’s rule.
@@ -43,7 +43,7 @@ test('the village bar keeps the Menu on it at phone width, not behind More', asy
 	const noop = () => {};
 	const all = ['Talk', 'End', 'People', 'Lower hand', 'Menu', 'Faces'].map((l) => btn(l, noop));
 	const more = btn('More', noop);
-	for (const cols of [30, 36, 44]) {
+	for (const cols of [20, 24, 30, 36, 44]) {
 		const { bar, more: rest } = pickBar(all, cols, (b) => b.label === 'Menu', more);
 		assert.ok(bar.some((b) => b.label === 'Menu'), `Menu on the bar at ${cols} columns`);
 		assert.ok(!rest.some((b) => b.label === 'Menu'));
