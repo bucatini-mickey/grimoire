@@ -13,7 +13,7 @@
 import { bookKey, themeOfKey } from './theme.ts';
 import type { Theme } from './theme.ts';
 import { SIGHT } from '../town/map.ts';
-import { Term, expand, shade } from '../term/pterm.ts';
+import { CLEAR, Term, expand, shade } from '../term/pterm.ts';
 import type { Grid, Palette, Rect } from '../term/pterm.ts';
 
 export const COLS = 52;
@@ -363,6 +363,18 @@ export function highlight(g: Grid, x: number, y: number, text: string): number {
 const TONE: Record<Tone, number> = { plain: 4, rubric: 8, gold: 6, evil: 8, good: 12, dim: 3, title: 5, poison: 10, drunk: 14 };
 
 let term: Term | null = null;
+/**
+ * The second grid, of finer cells, laid over the first. On a phone held upright the town's map takes big cells
+ * (PHONE_MAP_TILES across) and its bars, lines and notices are written on this one, so they stay small.
+ * Cleared (see-through, no buttons) whenever it is not in use; a tap on it that hits nothing goes to the map.
+ */
+let overlay: Term | null = null;
+/** The overlay is in use this frame. */
+let split = false;
+/** How many columns the overlay's finer cells make across a phone (the book's pages use COLS, 52). */
+export const PHONE_UI_COLS = 44;
+/** The columns the village's bars are written in: the overlay's when it is in use. */
+export const barCols = () => (split && overlay ? overlay.cols : term?.cols ?? 44);
 interface Layer { rows: Row[]; width: number; page: number; sig: string }
 const layers = new Map<unknown, Layer>();
 /** Latest on top: the card layer (set by the caller) covers the app layer. */
@@ -386,7 +398,8 @@ export const setTownBig = (f: () => boolean) => { townBig = f; };
 let hoverFn: ((cell: { x: number; y: number } | null) => void) | null = null;
 /** Where the mouse is over the grid (the village shows a name there). */
 export const setHover = (f: typeof hoverFn) => { hoverFn = f; };
-let extra: ((g: Grid) => boolean) | null = null;
+/** The village, drawn under the pages; `ui` is the overlay's grid when the map and its bars are split. */
+let extra: ((g: Grid, ui?: Grid) => boolean) | null = null;
 
 /** A leaf of the book (by day, or by candlelight at night): written on, not boxed. Over the town map
  * the pages are sheets laid on the dark streets instead, boxed as they always were. */
@@ -2061,6 +2074,14 @@ function frame(g: Grid) {
 	// (a page or sheet over the town is written to its own width, so it takes the page's cells while it is open)
 	const town = !!extra && extraShown() && townBig() && !order.some((k) => layers.get(k)?.rows.length);
 	const fit = town ? townScale(innerWidth, innerHeight, glyphRatio(), wideScreen()) : null;
+	// A phone held upright: the map in big cells, its bars on the finer overlay.
+	split = !!fit && !wideScreen() && innerWidth < innerHeight;
+	const ui = split ? ensureOverlay() : overlay;
+	if (ui) {
+		ui.clear(4, CLEAR);
+		if (split) { ui.palette = term!.palette; ui.setCols(PHONE_UI_COLS); }
+		ui.pre.style.pointerEvents = split ? 'auto' : 'none';
+	}
 	if (fit) term!.setScale(fit.maxFont, fit.rows);
 	else term!.setScale(22, 40);
 	term!.setMinFont(key === 'cover' ? 4 : 8);
@@ -2100,7 +2121,8 @@ function frame(g: Grid) {
 	// (by day gold writing is a shade under the gold of the pictures, to be read on the light page)
 	const dayBook = isBook() && !paletteKey().endsWith('-night');
 	const ink = (t: Tone | undefined) => (dayBook && t === 'gold' ? shade(6, 3) : TONE[t ?? 'plain']);
-	const under = !!extra?.(g);
+	const under = !!extra?.(g, split && ui ? ui : undefined);
+	ui?.flush();
 	// The topmost layer with rows is shown alone, as a page of its own. Over the town it is a
 	// sheet: the town fades to a ghost behind it and the sheet gets a ground of its own.
 	for (let i = order.length - 1; i >= 0; i--) {
@@ -2113,6 +2135,27 @@ function frame(g: Grid) {
 		drawLayer(g, order[i], ink, under);
 		return;
 	}
+}
+
+function ensureOverlay(): Term {
+	if (overlay) return overlay;
+	const host = document.createElement('div');
+	document.body.appendChild(host);
+	overlay = new Term(host, {
+		cols: PHONE_UI_COLS,
+		maxFont: 22,
+		rows: 10,
+		// Its own redraw (a size change) clears it and asks the main grid for a frame, which writes both.
+		onDraw: (t) => { t.clear(4, CLEAR); term?.draw(); },
+		passThrough: (ev) => term?.press(ev)
+	});
+	// Over the main grid; only its pre takes taps, and only while it is in use.
+	host.style.pointerEvents = 'none';
+	host.style.zIndex = '1';
+	// Its rows are whole cells, so a sliver is left over: at the top, where the map is anyway, not under the bar.
+	host.style.alignItems = 'flex-end';
+	overlay.pre.style.pointerEvents = 'none';
+	return overlay;
 }
 
 function ensureTerm(): Term {

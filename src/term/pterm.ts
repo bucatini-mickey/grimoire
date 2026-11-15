@@ -42,6 +42,12 @@ export function expand(p: Palette): Palette {
 	return out;
 }
 
+/**
+ * A background that paints nothing: the cell shows whatever lies under the grid. A second Term laid over
+ * the first (an overlay of finer cells for bars and menus over a map of big cells) is cleared to it.
+ */
+export const CLEAR = -1;
+
 export interface Cell {
 	ch: string;
 	fg: number;
@@ -189,6 +195,8 @@ export interface TermOptions {
 	onDraw: (t: Term) => void;
 	/** Desktop keys (PageUp, Escape...) not typed into the entry field. */
 	onKey?: (key: string, ev: KeyboardEvent) => void;
+	/** A tap on no hit region goes here instead of ending there (an overlay hands it to the Term under it). */
+	passThrough?: (ev: PointerEvent) => void;
 	/** A mouse moving over the grid: the cell under it (null when it leaves). */
 	onHover?: (cell: { x: number; y: number } | null) => void;
 }
@@ -265,21 +273,7 @@ export class Term extends Grid {
 			if (ev.key === 'Enter') this.endEntry(true);
 			else if (ev.key === 'Escape') this.endEntry(false);
 		});
-		this.pre.addEventListener('pointerdown', (ev) => {
-			const b = this.pre.getBoundingClientRect();
-			const x = Math.floor((ev.clientX - b.left) / this.cw), y = Math.floor((ev.clientY - b.top) / this.lh);
-			const fn = this.hitAt(x, y);
-			ev.preventDefault();
-			// A tap on the field being typed in keeps typing; a tap anywhere else ends it (keeping what was
-			// typed) and lets the keyboard go. Left open, every later tap would bring the keyboard back up.
-			if (this.editing) {
-				const r = this.entryAt;
-				if (r && x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h) { this.input.focus(); return; }
-				this.endEntry(true);
-			} else if (doc.activeElement === this.input) this.input.blur();
-			this.tapAt = { x, y };
-			if (fn) fn();
-		});
+		this.pre.addEventListener('pointerdown', (ev) => this.press(ev));
 		this.pre.addEventListener('pointermove', (ev) => {
 			if (ev.pointerType !== 'mouse' || !this.opts.onHover) return;
 			const b = this.pre.getBoundingClientRect();
@@ -292,6 +286,25 @@ export class Term extends Grid {
 		});
 		doc.defaultView?.addEventListener('resize', () => this.fit());
 		this.fit();
+	}
+
+	/** A tap at a point on the screen: the cell under it fires its topmost hit region (an overlay passes taps it has no use for here). */
+	press(ev: PointerEvent) {
+		const doc = this.pre.ownerDocument;
+		const b = this.pre.getBoundingClientRect();
+		const x = Math.floor((ev.clientX - b.left) / this.cw), y = Math.floor((ev.clientY - b.top) / this.lh);
+		const fn = this.hitAt(x, y);
+		if (!fn && !this.editing && this.opts.passThrough) { this.opts.passThrough(ev); return; }
+		ev.preventDefault();
+		// A tap on the field being typed in keeps typing; a tap anywhere else ends it (keeping what was
+		// typed) and lets the keyboard go. Left open, every later tap would bring the keyboard back up.
+		if (this.editing) {
+			const r = this.entryAt;
+			if (r && x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h) { this.input.focus(); return; }
+			this.endEntry(true);
+		} else if (doc.activeElement === this.input) this.input.blur();
+		this.tapAt = { x, y };
+		if (fn) fn();
 	}
 
 	/** Open text entry (call from a tap so phones raise the keyboard). `done(null)` means cancelled. */
@@ -411,13 +424,14 @@ export class Term extends Grid {
 				const key = c.fg * 256 + c.bg;
 				if (key !== cur) {
 					if (cur >= 0) out.push('</span>');
-					out.push(`<span style="color:${p[c.fg] ?? p[4]};background:${p[c.bg] ?? p[0]}">`);
+					out.push(`<span style="color:${p[c.fg] ?? p[4]};background:${c.bg === CLEAR ? 'transparent' : p[c.bg] ?? p[0]}">`);
 					cur = key;
 				}
 				if (c.wide) { out.push(/[^\x00-\x7e]/.test(c.ch) ? `<i class="w f">${esc(c.ch)}\uFE0E</i>` : `<i class="w">${esc(c.ch)}</i>`); x++; }
 				// Half blocks are painted as two exact halves of colour, so pixel pictures have no seams.
 				else if (c.ch === '▀' || c.ch === '▄') {
-					const [hi, lo] = c.ch === '▀' ? [p[c.fg] ?? p[4], p[c.bg] ?? p[0]] : [p[c.bg] ?? p[0], p[c.fg] ?? p[4]];
+					const bgc = c.bg === CLEAR ? 'transparent' : p[c.bg] ?? p[0];
+					const [hi, lo] = c.ch === '▀' ? [p[c.fg] ?? p[4], bgc] : [bgc, p[c.fg] ?? p[4]];
 					out.push(`<i style="background:linear-gradient(${hi} 50%,${lo} 50%)"> </i>`);
 				}
 				else if (c.bold) out.push(`<b>${esc(c.ch)}</b>`);

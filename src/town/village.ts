@@ -27,7 +27,7 @@ import { canDraw } from '../ui/glyphs.ts';
 import type { Look } from './avatar.ts';
 import { figureRows } from '../ui/figure.ts';
 import { faceOf, figureOf, bannerStrength, bannerStep } from './faceicon.ts';
-import { setTownBig, personInk, letterPlate, seatInk as seatInkOf, texturaPixels, setHover, INNER, onMap, btn, buttonBlock, buttonRows, drawButton, endPanel, field, isButton, listRow, paint, quant, redraw, shade, theTerm, paneled, setPalette, navRow, rubric, row, segWidth, setExtra, txt, wrap, center, pickBar } from '../ui/ascii.ts';
+import { barCols, setTownBig, personInk, letterPlate, seatInk as seatInkOf, texturaPixels, setHover, INNER, onMap, btn, buttonBlock, buttonRows, drawButton, endPanel, field, isButton, listRow, paint, quant, redraw, shade, theTerm, paneled, setPalette, navRow, rubric, row, segWidth, setExtra, txt, wrap, center, pickBar } from '../ui/ascii.ts';
 import type { Button, Row } from '../ui/ascii.ts';
 import type { Grid } from '../term/pterm.ts';
 import { hostRoom, joinRoom, newRoomCode } from '../net/link.ts';
@@ -993,29 +993,33 @@ function stampButtons(g: Grid, x: number, y: number, w: number, bs: Button[]): n
 }
 
 /** The village, drawn as cells under the grimoire's pages: map (or circle), status lines and the button bar. */
-function villageCells(g: Grid): boolean {
+function villageCells(g: Grid, ui?: Grid): boolean {
 	const t = S.town, p = me();
 	if (!shown || !t || !p) return false;
 	if (!dyn) tickMap();
 	if (!dyn) return false;
 	const now = performance.now();
+	const u = ui ?? g;
 	const stbar = S.host ? S.stActions : null;
-	const tools = barButtons(g.cols).bar;
-	const toolH = buttonRows(tools, g.cols, 0).length * 3;
+	const tools = barButtons(u.cols).bar;
+	const toolH = buttonRows(tools, u.cols, 0).length * 3;
 	const stBs = stbar ? stbar.buttons.map((b) => btn(b.label, b.act, { style: b.primary ? 'primary' : undefined })) : [];
-	const stH = stbar ? 1 + buttonRows(stBs, g.cols, 0).length * 3 : 0;
-	const mapY = 1, mapH = Math.max(4, g.rows - 3 - stH - toolH);
+	const stH = stbar ? 1 + buttonRows(stBs, u.cols, 0).length * 3 : 0;
+	const mapY = 1, mapH = Math.max(4, u.rows - 3 - stH - toolH);
+	// Split: the bars are solid, so a tap on them (not on a button) does not fall through and walk you there.
+	if (ui) { u.hit({ x: 0, y: 0, w: u.cols, h: mapY }, () => {}); u.hit({ x: 0, y: mapY + mapH, w: u.cols, h: u.rows - mapY - mapH }, () => {}); }
 	// Top line: where we are in the game.
 	const c = S.clock?.get() ?? null;
 	const sec = c ? Math.ceil(c.left / 1000) : 0;
 	const top = PHASE_NAME[S.phase] + '  ' + S.room + (S.status === 'open' ? '' : '  ' + (S.status === 'error' ? S.statusDetail : 'connecting...')) + (c ? '  ' + Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0') : '');
-	g.fill({ x: 0, y: 0, w: g.cols, h: 1 }, ' ', 5, 1);
-	g.text(1, 0, top.slice(0, g.cols - 2), 5, 1);
+	u.fill({ x: 0, y: 0, w: u.cols, h: 1 }, ' ', 5, 1);
+	u.text(1, 0, top.slice(0, u.cols - 2), 5, 1);
 	// The council sits in the great hall itself; a town without one shows the old ethereal ring.
 	// Nominations and votes: the council room, apart from the map.
-	if (S.phase === 'circle') councilRoom(g, mapY, mapH, now);
-	else mapCells(g, mapY, mapH, p, lvl(p), now);
-	if (FACES) faceStrip(g, mapY, mapH, p);
+	// Split (a phone held upright): the map fills the big cells under everything; the bars lie over it.
+	if (S.phase === 'circle') councilRoom(g, ui ? 0 : mapY, ui ? g.rows : mapH, now);
+	else mapCells(g, ui ? 0 : mapY, ui ? g.rows : mapH, p, lvl(p), now);
+	if (FACES) faceStrip(u, mapY, mapH, p);
 	// The line of what you can hear, and the passing notice.
 	const where = p.secret ? 'Private with ' + nameOf(p.with) + ': nobody else hears you'
 		: S.phase === 'night' ? (p.st ? 'Night: whoever is in this room hears you' : 'Night: at home. Only the Storyteller may visit')
@@ -1025,24 +1029,24 @@ function villageCells(g: Grid): boolean {
 		: t.room[p.x + p.y * t.w] === t.outdoors ? 'Outdoors: voices carry' : 'Indoors: voices carry through open doors';
 	const near = hearList().filter((h) => h.loud > 0).sort((a, b) => b.loud - a.loud).slice(0, 3).map((h) => (h.q.st ? 'Storyteller' : h.q.name) + ' ' + Math.round(h.loud * 100) + '%').join('  ');
 	const iy = mapY + mapH;
-	g.fill({ x: 0, y: iy, w: g.cols, h: 2 }, ' ', 3, 0);
-	g.text(1, iy, (toastMsg && toastMsg.until > now ? toastMsg.text : where).slice(0, g.cols - 2), toastMsg && toastMsg.until > now ? 6 : 3, 0);
-	g.text(1, iy + 1, (near ? 'Near: ' + near : S.voice ? '' : 'voice off').slice(0, g.cols - 2), 3, 0);
+	u.fill({ x: 0, y: iy, w: u.cols, h: ui ? u.rows - iy : 2 }, ' ', 3, 0);
+	u.text(1, iy, (toastMsg && toastMsg.until > now ? toastMsg.text : where).slice(0, u.cols - 2), toastMsg && toastMsg.until > now ? 6 : 3, 0);
+	u.text(1, iy + 1, (near ? 'Near: ' + near : S.voice ? '' : 'voice off').slice(0, u.cols - 2), 3, 0);
 	let y = iy + 2;
-	if (stbar) { g.text(1, y, stbar.text.slice(0, g.cols - 2), 6, 0); y += 1 + stampButtons(g, 0, y + 1, g.cols, stBs) - 1; }
+	if (stbar) { u.text(1, y, stbar.text.slice(0, u.cols - 2), 6, 0); y += 1 + stampButtons(u, 0, y + 1, u.cols, stBs) - 1; }
 	const from = S.asks.find((id) => S.people.has(id));
-	if (from) g.text(1, y, (nameOf(from) + (S.people.get(from)?.st || p.st ? ' asks for a private word.' : ' asks to meet you.')).slice(0, g.cols - 2), 6, 0);
-	stampButtons(g, 0, g.rows - toolH, g.cols, tools);
+	if (from) u.text(1, y, (nameOf(from) + (S.people.get(from)?.st || p.st ? ' asks for a private word.' : ' asks to meet you.')).slice(0, u.cols - 2), 6, 0);
+	stampButtons(u, 0, u.rows - toolH, u.cols, tools);
 	if (banner && banner.until > now) {
-		const w = Math.min(g.cols - 2, Math.max(banner.title.length, banner.line.length) + 4);
+		const w = Math.min(u.cols - 2, Math.max(banner.title.length, banner.line.length) + 4);
 		const lines = wrap(banner.line, w - 4);
-		const bx = Math.floor((g.cols - w) / 2);
+		const bx = Math.floor((u.cols - w) / 2);
 		// In the book's game the notice is a slip of parchment pinned over the town.
 		const [ink, ground, rule] = onMap() ? [0, 4, 15] : [4, 0, 6];
-		g.fill({ x: bx, y: mapY + 1, w, h: lines.length + 4 }, ' ', 5, ground);
-		g.box({ x: bx, y: mapY + 1, w, h: lines.length + 4 }, rule, ground, '', rule, 'double');
-		g.text(bx + Math.floor((w - banner.title.length) / 2), mapY + 2, banner.title, onMap() ? 9 : 8, ground);
-		lines.forEach((l, i) => g.text(bx + 2, mapY + 4 + i, l, ink, ground));
+		u.fill({ x: bx, y: mapY + 1, w, h: lines.length + 4 }, ' ', 5, ground);
+		u.box({ x: bx, y: mapY + 1, w, h: lines.length + 4 }, rule, ground, '', rule, 'double');
+		u.text(bx + Math.floor((w - banner.title.length) / 2), mapY + 2, banner.title, onMap() ? 9 : 8, ground);
+		lines.forEach((l, i) => u.text(bx + 2, mapY + 4 + i, l, ink, ground));
 	}
 	return true;
 }
@@ -1556,7 +1560,7 @@ function sheetRows(): Row[] {
 	}
 	if (S.sheet === 'figure' && p) return [close('sheet-close'), ...figureRows(p.name, p.ink, (look) => { up({ t: 'look', look }); if (S.host) p.look = look; drawChrome(); })];
 	if (S.sheet === 'more') {
-		const more = barButtons(theTerm()?.cols ?? 44).more;
+		const more = barButtons(barCols()).more;
 		// Each choice closes the page as it is made.
 		return [close('sheet-close'), rubric('More'), ...more.map((b) => buttonBlock([btn(b.label, () => { S.sheet = null; b.act(); drawChrome(); }, { style: b.style, width: INNER })])), endPanel()];
 	}
