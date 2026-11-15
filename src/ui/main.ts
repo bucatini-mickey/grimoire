@@ -17,7 +17,7 @@
  */
 import * as G from '../core/index.ts';
 import type { Candidate, CharacterId, Command, GameEvent, GameState, Info, SeatId, Script, Lean } from '../core/index.ts';
-import { cornerButton, leafBreak, twoLeaves, personInk, seatInk, arrowBox, bookInks, chapterRow, chipsRow, coverRow, footButtons, illuminatedRow, tickGrid, miniature, nameLines, namePlate, namePlates, navRow, pixelsRow, tabStrip } from './ascii.ts';
+import { leafBreak, twoLeaves, personInk, seatInk, arrowBox, bookInks, chapterRow, chipsRow, coverRow, footButtons, illuminatedRow, tickGrid, miniature, nameLines, namePlate, namePlates, navRow, pixelsRow, tabStrip } from './ascii.ts';
 import { CREDITS, HOW_TO_PLAY, INTERACTIONS, TIPS } from '../core/codex.ts';
 import type { CodexPage } from '../core/codex.ts';
 import { THEMES, bookKey, themeOf } from './theme.ts';
@@ -735,7 +735,9 @@ function homeScreen(): Row[] {
 	if (ui.leaf === 'players') return besideHead(playersLeaf(toLeaf('contents')));
 	if (ui.leaf === 'codex') return codexRows(toLeaf('front'));
 	if (ui.leaf === 'credits') return codexPage(CREDITS, toLeaf('front'), 'Back');
-	const head: Row[] = [navRow('Close the book', () => { ui.coverOpen = false; render(); }), headRow(), blank(), leafBreak()];
+	// Credits sits at the top right, beside Close the book, so nothing but the page's own foot is at the bottom.
+	const credits = ui.leaf === 'front' ? btn('© Credits', toLeaf('credits')) : undefined;
+	const head: Row[] = [navRow('Close the book', () => { ui.coverOpen = false; render(); }, credits), headRow(), blank(), leafBreak()];
 	// The first page: a game going to pick up, then Play and the Codex, lettered large.
 	if (ui.leaf === 'front') {
 		const rows = [...head, ...resumeRows(busy)];
@@ -743,7 +745,6 @@ function homeScreen(): Row[] {
 		// a rule of gold, and a plain word on what it holds.
 		rows.push(blank(), chapterRow('Play', 'Run a game, or join one.', toLeaf('contents')), blank(), blank());
 		rows.push(chapterRow('Codex', 'Characters, tips and how to play.', () => { ui.leaf = 'codex'; ui.codex.page = 'index'; render(); }));
-		rows.push(cornerButton(btn('© Credits', toLeaf('credits'))));
 		return rows;
 	}
 	const rows: Row[] = [navRow('Back', toLeaf('front')), blank()];

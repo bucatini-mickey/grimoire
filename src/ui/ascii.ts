@@ -1554,9 +1554,16 @@ export function tabStrip(tabs: Tab[], width = COLS): Row {
  * The way back (Home, Back, Close): always the same button, the same size, at the top left of
  * the page, so a thumb finds it in one place on every screen.
  */
-export function navRow(label: string, act: () => void): Row {
+export function navRow(label: string, act: () => void, right?: Button): Row {
 	const text = '‹ ' + label.replace(/^[<‹]s*/, '');
-	return { ...buttonBlock([btn(text, act, { style: 'quiet', width: Math.max(12, [...text].length + 4) })]), cls: 'nav' };
+	const lw = Math.max(12, [...text].length + 4);
+	if (!right) return { ...buttonBlock([btn(text, act, { style: 'quiet', width: lw })]), cls: 'nav' };
+	// A second quiet button at the right of the same line (the Credits mark on the first page).
+	const rw = Math.max(10, [...right.label].length + 4);
+	return blockRow(3, (c) => {
+		drawButton(c, c.x, c.y, Math.min(lw, c.w), btn(text, act, { style: 'quiet' }));
+		if (c.w >= lw + rw + 1) drawButton(c, c.x + c.w - rw, c.y, rw, { ...right, style: 'quiet' });
+	}, 'nav');
 }
 
 /** A run of buttons as one block row (wraps like buttonRows). */
@@ -2026,20 +2033,20 @@ function glyphRatio(): number {
 	return ratioMemo;
 }
 /**
- * How wide one of the town's cells is on a phone held upright, in CSS pixels: the same on every phone, so a
- * cell is about the same size under the thumb whatever the screen (the user's pick, 15 Nov: 13 was too small, now 16; tune here).
- * A 390 px phone then shows about 24 columns; a narrow one keeps at least PHONE_MIN_COLS so the bar still fits.
+ * How many map tiles a phone held upright shows across (each tile is two cells wide, CW in village.ts): the same
+ * on every phone, so the cells shrink or grow with the screen. The user's pick, 15 Nov: 16 tiles (11 was too few).
+ * The village's bars and lines share these cells, so more tiles also means smaller words.
  */
-export const PHONE_CELL_PX = 16;
-const PHONE_MIN_COLS = 20;
+export const PHONE_MAP_TILES = 16;
+const TILE_CELLS = 2;
 /**
  * The size of the town's cells for a screen of w by h pixels (a glyph is `ratio` wide for each unit of height).
  * A desktop's cells are big but not so big as they were (34 px, now 28), and the village shows a few more rows.
- * A phone held upright gets cells PHONE_CELL_PX wide (fewer on a very narrow phone, so at least PHONE_MIN_COLS fit).
+ * A phone held upright fits PHONE_MAP_TILES tiles to its width (never under 8 px type).
  */
 export function townScale(w: number, h: number, ratio: number, wide: boolean): { maxFont: number; rows: number; cols: number } {
 	if (wide || w >= h) return { maxFont: 28, rows: 32, cols: COLS };
-	const font = Math.max(8, Math.min(Math.round(PHONE_CELL_PX / ratio), Math.floor(w / (PHONE_MIN_COLS * ratio))));
+	const font = Math.max(8, Math.floor(w / (PHONE_MAP_TILES * TILE_CELLS * ratio)));
 	return { maxFont: font, rows: 10, cols: Math.floor(w / (font * ratio)) };
 }
 

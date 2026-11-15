@@ -21,18 +21,16 @@ test('a player\u2019s letter has a faint backing of its own ink, whichever of th
 	}
 });
 
-// The town's cells: a desktop a little less zoomed in than before (34 px); a phone held upright gets cells PHONE_CELL_PX wide.
-test('the town’s cell size: desktop smaller than before, a phone’s cells about PHONE_CELL_PX wide', async () => {
-	const { townScale, PHONE_CELL_PX } = await import('../src/ui/ascii.ts');
+// The town's cells: a desktop a little less zoomed in than before (34 px); a phone held upright shows PHONE_MAP_TILES tiles across.
+test('the town’s cell size: desktop smaller than before, a phone shows PHONE_MAP_TILES tiles across', async () => {
+	const { townScale, PHONE_MAP_TILES } = await import('../src/ui/ascii.ts');
 	const ratio = 0.6;
 	const desk = townScale(1920, 1080, ratio, true);
 	assert.ok(desk.maxFont < 34 && desk.maxFont >= 24, 'a little less than the old 34 px');
 	for (const [w, h] of [[390, 844], [360, 800], [412, 915], [430, 932], [320, 640]]) {
 		const f = townScale(w, h, ratio, false);
-		const cell = f.maxFont * ratio;
-		assert.ok(cell <= PHONE_CELL_PX + 1, `${w}x${h}: a cell is ${cell.toFixed(1)} px, about ${PHONE_CELL_PX}`);
-		assert.ok(f.cols >= 20 && f.cols * cell <= w, `${w}x${h}: ${f.cols} columns fit`);
-		if (w >= 360) assert.ok(Math.abs(cell - PHONE_CELL_PX) <= 0.7, `${w}x${h}: same cell size on every ordinary phone`);
+		assert.ok(f.cols * f.maxFont * ratio <= w, `${w}x${h}: ${f.cols} columns fit`);
+		assert.ok(f.cols >= 2 * PHONE_MAP_TILES && f.cols <= 2 * PHONE_MAP_TILES + 4, `${w}x${h}: ${f.cols} columns, about ${PHONE_MAP_TILES} tiles`);
 	}
 	// A phone on its side keeps the desktop’s rule.
 	assert.deepEqual(townScale(844, 390, ratio, false), desk);
