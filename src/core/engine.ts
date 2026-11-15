@@ -101,7 +101,7 @@ export type Command =
 	/** A dead Klutz publicly chooses a living player: if evil, good loses. */
 	| { type: 'klutz'; by: SeatId; target: SeatId }
 	/** The Storyteller executes a player for breaking madness (the Mutant, the Cerenovus): the day's execution. */
-	| { type: 'madness'; seat: SeatId }
+	| { type: 'madness'; seat: SeatId; mayorRedirect?: SeatId | null }
 	/** The Pit-Hag made a Demon tonight: the Storyteller kills whom they choose. */
 	| { type: 'storyteller-kill'; seat: SeatId }
 	/** A Traveller joins, sitting just after `after`: the player picks the character, the Storyteller the alignment. */
@@ -268,8 +268,21 @@ function handle(tx: Tx, cmd: Command) {
 				const had = s.night.dayExecuted ?? (s.lastExecution?.day === s.night.n - 1 ? s.lastExecution.seat : null);
 				if (had !== null) refuse('Someone was already executed on the day that has just ended.');
 				if (!s.seats[cmd.seat].alive) refuse('Only a living player can be executed for madness.');
-				// A Mayor dying at night may have the death bounce to someone else; that is not modelled for an execution, so not at night.
-				if (hasWorkingAbility(s, cmd.seat, 'mayor')) refuse('A working Mayor who dies at night may have the death bounce to another player: execute them by day instead.');
+				// A working Mayor executed for madness at night dies at night, so the death may bounce (the user's ruling, 15 Nov):
+				// the Mayor is still the day's execution, but lives, and the chosen player dies instead (protections still apply).
+				if (hasWorkingAbility(s, cmd.seat, 'mayor')) {
+					const to = tx.answers.mayorRedirect;
+					if (to === undefined) refuse('The Mayor would die tonight. Does someone else die instead? Choose them, or no one.', 'mayorRedirect');
+					if (to !== null) {
+						validTarget(s, to!);
+						if (to === cmd.seat) refuse('Choose someone other than the Mayor, or no one.');
+						tx.redirected = true;
+						emit(tx, { type: 'executed', seat: cmd.seat });
+						emit(tx, { type: 'kill-redirected', from: cmd.seat, to: to! });
+						attemptDeath(tx, to!, { cause: 'execution', bounced: true });
+						return checkWin(tx);
+					}
+				}
 				return execute(tx, cmd.seat);
 			}
 			const day = requireDay(s);

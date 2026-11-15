@@ -207,7 +207,7 @@ test('A6: the Innkeeper’s guests do not die to a madness execution at night (t
 	refused(t, { type: 'madness', seat: 3 }, /already executed on the day/);
 });
 
-test('A6: the Undertaker is woken straight away by a madness execution after their place has passed; a working Mayor is not executed at night', () => {
+test('A6: the Undertaker is woken straight away by a madness execution after their place has passed; a working Mayor executed at night asks about the bounce', () => {
 	// 0 fang-gu, 1 undertaker, 2 mutant, 3 mayor, 4 sage, 5 dreamer, 6 cerenovus
 	const chars = ['fang-gu', 'undertaker', 'mutant', 'mayor', 'sage', 'dreamer', 'cerenovus'];
 	const script = customScriptId(chars);
@@ -215,7 +215,7 @@ test('A6: the Undertaker is woken straight away by a madness execution after the
 	s = dusk(ok(dawn(s), { type: 'open-nominations' }));
 	s = autoNight(s, { cerenovus: { type: 'choose', target: 4, character: 'sage' }, 'fang-gu': { type: 'choose', target: 5 } });
 	assert.equal(nextStep(s), null, 'everyone has woken');
-	refused(s, { type: 'madness', seat: 3 }, /Mayor/);
+	refused(s, { type: 'madness', seat: 3 }, /Mayor would die tonight/);
 	s = ok(s, { type: 'madness', seat: 2 });
 	assert.equal(nextStep(s)?.id, 'undertaker:1', 'the Undertaker wakes now to learn the execution');
 	refused(s, { type: 'tell', info: { kind: 'character', character: 'sage' } }, /false/);
@@ -250,4 +250,21 @@ test('A6: a Minion executed for madness at night makes the Minstrel\u2019s drunk
 	assert.ok(drunk.length >= 4, 'everyone else is drunk');
 	// Executed by day 1 (a night-2 execution is day 1's), they are drunk through day 2, as a daytime execution on day 1 would do.
 	assert.ok(drunk.every((e) => typeof e.until === 'object' && e.until.dusk === 3));
+});
+
+test('grim-044: a working Mayor executed for madness at night may bounce the death; with no one, the Mayor dies', () => {
+	// 0 fang-gu, 1 undertaker, 2 mutant, 3 mayor, 4 sage, 5 dreamer, 6 cerenovus
+	const chars = ['fang-gu', 'undertaker', 'mutant', 'mayor', 'sage', 'dreamer', 'cerenovus'];
+	const script = customScriptId(chars);
+	let s = autoNight(gameOn(script, chars), { cerenovus: { type: 'choose', target: 4, character: 'sage' } });
+	s = dusk(ok(dawn(s), { type: 'open-nominations' }));
+	s = autoNight(s, { cerenovus: { type: 'choose', target: 4, character: 'sage' }, 'fang-gu': { type: 'choose', target: 5 } });
+	refused(s, { type: 'madness', seat: 3, mayorRedirect: 3 }, /other than the Mayor/);
+	const b = ok(s, { type: 'madness', seat: 3, mayorRedirect: 6 });
+	assert.equal(alive(b, 3), true, 'the Mayor lives');
+	assert.equal(alive(b, 6), false, 'the chosen player dies instead');
+	assert.equal(b.night!.dayExecuted, 3, 'it was still the day’s execution');
+	refused(b, { type: 'madness', seat: 2 }, /already executed on the day/);
+	const n = ok(s, { type: 'madness', seat: 3, mayorRedirect: null });
+	assert.equal(alive(n, 3), false, 'no bounce: the Mayor dies');
 });
