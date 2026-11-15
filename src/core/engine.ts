@@ -807,7 +807,10 @@ function choose(tx: Tx, kind: string, by: SeatId, cmd: Extract<Command, { type: 
 			goonCatches(tx, by, t);
 			if (!works(tx, by, kind)) return;
 			// The first Outsider it chooses (once a game): they become an evil Fang Gu, and the old one dies instead.
-			if (t !== by && s.seats[t].alive && teamOf(s, s.seats[t].character) === 'outsider' && !s.spent.some((x) => x.endsWith(':fang-gu'))) {
+			// Official: if the Outsider does not die (the Monk, the Innkeeper, the Tea Lady...), they do not become the Fang Gu and the Fang Gu does not die.
+			const shielded = safeFromDemon(s, t) || hasWorkingAbility(s, t, 'soldier') || innkeeperProtects(s, t) || teaLadyProtects(s, t) || abilityWorks(s, t, 'sailor')
+				|| (!!s.fabled?.some((f) => f.id === 'storm-catcher' && f.character === s.seats[t].character) && s.seats[t].alignment === 'good');
+			if (t !== by && s.seats[t].alive && !shielded && teamOf(s, s.seats[t].character) === 'outsider' && !s.spent.some((x) => x.endsWith(':fang-gu'))) {
 				emit(tx, { type: 'ability-spent', seat: by, ability: 'fang-gu' });
 				emit(tx, { type: 'became-demon', seat: t, character: 'fang-gu', via: 'fang-gu', at: tx.place });
 				emit(tx, { type: 'died', seat: by, cause: 'fang-gu' });

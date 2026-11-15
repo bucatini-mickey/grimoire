@@ -144,6 +144,38 @@ test('BMR-INNKEEPER-SAFE: an Innkeeper-protected Imp who chooses themself does n
 	assert.equal(away.seats[1].character, 'imp');
 });
 
+test('grim-040: the Innkeeper protects the Imp and makes the Imp the drunk one: the drunk Imp wakes, picks themself, and nothing happens', () => {
+	const chars = ['imp', 'scarlet-woman', 'innkeeper', 'gambler', 'grandmother', 'tinker', 'sailor'];
+	const id = customScriptId([...chars, 'washerwoman', 'librarian', 'investigator']);
+	const s0 = dusk(dawn(autoNight(gameOn(id, chars))));
+	const s = autoNight(s0, { innkeeper: { type: 'choose', targets: [0, 3], drunk: 0 }, imp: { type: 'choose', target: 0 } });
+	assert.ok(s.seats.every((x) => x.alive), 'no one died');
+	assert.equal(s.seats[0].character, 'imp');
+	assert.equal(s.seats[1].character, 'scarlet-woman', 'no Minion became the Imp, a Scarlet Woman included');
+	// A drunk Imp who names a successor changes nothing: the ability does not work.
+	const t = autoNight(s0, { innkeeper: { type: 'choose', targets: [0, 3], drunk: 0 }, imp: { type: 'choose', target: 0, newDemon: 1 } });
+	assert.ok(t.seats.every((x) => x.alive) && t.seats[1].character === 'scarlet-woman');
+	// A drunk Imp who picks someone else kills no one either.
+	const u = autoNight(s0, { innkeeper: { type: 'choose', targets: [0, 3], drunk: 0 }, imp: { type: 'choose', target: 4 } });
+	assert.ok(u.seats.every((x) => x.alive), 'a drunk Imp kills no one');
+});
+
+test('grim-040: a Fang Gu whose Outsider is protected does not jump (the Outsider does not die)', () => {
+	// 0 fang-gu, 1 innkeeper, 2 mutant, 3 witch, 4 sage, 5 dreamer, 6 clockmaker
+	const chars = ['fang-gu', 'innkeeper', 'mutant', 'witch', 'sage', 'dreamer', 'clockmaker'];
+	const id = customScriptId(chars);
+	const run = (targets: SeatId[], drunk: SeatId) => autoNight(dusk(dawn(autoNight(gameOn(id, chars)))), { innkeeper: { type: 'choose', targets, drunk }, 'fang-gu': { type: 'choose', target: 2 } });
+	const safe = run([2, 4], 4);
+	assert.equal(safe.seats[0].alive, true, 'the Fang Gu lives');
+	assert.equal(safe.seats[0].character, 'fang-gu');
+	assert.equal(safe.seats[2].character, 'mutant', 'the Outsider stays what they were');
+	assert.equal(safe.spent.some((x) => x.endsWith(':fang-gu')), false, 'the jump is still available');
+	// A drunk Innkeeper protects no one: the jump goes ahead.
+	const open = run([1, 2], 1);
+	assert.equal(open.seats[0].alive, false);
+	assert.equal(open.seats[2].character, 'fang-gu');
+});
+
 test('BMR-GAMBLER: a wrong guess kills the Gambler; a right one does not', () => {
 	// 0 po, 1 godfather, 2 gambler, 3 chambermaid, 4 fool, 5 tinker, 6 sailor
 	const chars = ['po', 'godfather', 'gambler', 'chambermaid', 'fool', 'tinker', 'sailor'];

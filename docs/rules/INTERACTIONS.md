@@ -79,6 +79,7 @@ test yet; **todo** = not yet modelled. Sources in `SOURCES.md` (mostly the offic
 - TB-SW-FIVE: the Scarlet Woman takes over only if five or more were alive just before the Demon died (Travellers not counted), and always does then. **tested** (rulings.test) and **sim** (fixed: the engine used to count Travellers)
 - TB-SW-STARPASS: with five or more alive, an Imp who kills themself must pass to the Scarlet Woman. **tested** (night.test)
 - TB-IMP-NEW-NO-KILL: a new Imp (starpass) does not kill that night. **sim**
+- TB-IMP-DRUNK-SELF: a drunk or poisoned Imp still wakes and may choose themself, but the ability does not work: no one dies and no Minion (a Scarlet Woman included) becomes the Imp. No Storyteller choice: a drunk ability has no effect. (User example, grim-040: the Innkeeper protects the Imp and makes the Imp the drunk one.)
 - TB-IMP-ATTACK-DEAD: the Imp may attack a dead player; no one dies. **sim**
 - TB-BARON-SETUP: +2 Outsiders at setup, replacing Townsfolk; it does not change back. **engine**
 - TB-SPY-GRIMOIRE: the Spy sees the whole Grimoire each night. **engine**
@@ -157,7 +158,7 @@ Where the engine models a ruling more simply than the full rule, it says **appro
 - SNV-MODEL-PHILOSOPHER **approx.**: the Philosopher is modelled as becoming the chosen character (they act as it from now on, waking tonight if its place is still to come); the real holder is drunk while the Philosopher keeps it.
 - SNV-MODEL-BARBER **approx.**: the swap may not include any Demon (the card allows the Demon itself; not modelled yet); alignments stay.
 - SNV-MODEL-PIT-HAG **approx.**: a player turned into a Demon becomes evil and is told; the old Demon stays (two Demons until one dies); "arbitrary deaths" is the Storyteller's kill button that night. A changed player acts as the new character tonight only if its place is still to come.
-- SNV-MODEL-FANG-GU **approx.**: the jump happens once per game, whatever protects the Outsider (they do not die, so protection does not apply).
+- SNV-FANG-GU-PROTECTED: the jump is a kill that must work: an Outsider the Monk, the Innkeeper, the Tea Lady or the Sailor protects does not die, so they do not become the Fang Gu, the Fang Gu does not die, and the jump stays available (official wiki; no Storyteller choice). Droisoned protectors protect no one.
 - SNV-MODEL-MATHEMATICIAN **approx.**: the number is the Storyteller's judgment; the engine accepts any count (also with the Vortox).
 - SNV-MODEL-SAVANT-ARTIST: by day, outside the engine (notes in the log).
 - SNV-MODEL-SWEETHEART **approx.**: the drunk player is chosen at the Sweetheart's place in the next night (or tonight), not at the moment of death.
