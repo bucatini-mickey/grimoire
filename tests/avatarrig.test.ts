@@ -3,19 +3,23 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import {
-	avatarShows, decodeRig, DETAIL_SIZE, detailFor, detailThatFits, drawRig, encodeRig, NEUTRAL, planRigs, rdiv, RIG_KEYS, rigInks, rigText
+	avatarShows, decodeLook, decodeRig, DEFAULT_LOOK, DETAIL_SIZE, detailFor, detailThatFits, drawRig, encodeLook, encodeRig, LOOK_LEN, NEUTRAL, planRigs, rdiv,
+	RIG_KEYS, rigInks, rigText, withVoice
 } from '../src/avatar/rig.ts';
+import { edgeGlyph, LOOK_N } from '../src/avatar/righead.ts';
+import type { Look } from '../src/avatar/righead.ts';
 import type { Detail, Rig, RigSent } from '../src/avatar/rig.ts';
-import { eyeMeasure, mouthMeasure, poseFromMatrix, poseFromPoints, Range, rawFromBlendshapes, RAW_ZERO, RigSmoother, rigOf } from '../src/avatar/trackers.ts';
+import { eyeMeasure, LookBuilder, mouthMeasure, poseFromMatrix, poseFromPoints, Range, rawFromBlendshapes, RAW_ZERO, RigSmoother, rigOf } from '../src/avatar/trackers.ts';
 
 const rig = (p: Partial<Rig> = {}): Rig => ({ ...NEUTRAL, ...p });
 
-test('a rig is nine hex digits, both ways; anything else is refused', () => {
-	const r = rig({ eyeL: 0, mouth: 15, yaw: 3 });
+test('a rig is eleven hex digits, both ways; anything else is refused', () => {
+	const r = rig({ eyeL: 0, mouth: 15, yaw: 3, browR: 2 });
 	const s = encodeRig(r);
-	assert.equal(s.length, 9);
+	assert.equal(s.length, 11);
+	assert.equal(encodeRig(NEUTRAL), 'bb088888888');
 	assert.deepEqual(decodeRig(s), r);
-	for (const bad of ['', 'bb08888888', 'bb088888g', 'BB0888888', 42, null]) assert.equal(decodeRig(bad), null);
+	for (const bad of ['', 'bb0888888', 'bb0888888888', 'bb08888888g', 'BB088888888', 42, null]) assert.equal(decodeRig(bad), null);
 	assert.equal(encodeRig(rig({ eyeL: 20, mouth: -3 })).slice(0, 3), 'fb0');
 });
 
@@ -30,31 +34,89 @@ test('the avatar fills its box at every detail, and each change of a digit shows
 		assert.equal(base.length, h);
 		for (const row of base) assert.equal(row.length, w);
 		// Blinking, opening the mouth and smiling each change the drawing.
-		for (const p of [{ eyeL: 0, eyeR: 0 }, { mouth: 15 }, { smile: 15 }, { smile: 0 }, { yaw: 15 }, { yaw: 0 }])
+		for (const p of [{ eyeL: 0, eyeR: 0 }, { mouth: 15 }, { smile: 15 }, { smile: 0 }, { yaw: 15 }, { yaw: 0 }, { browL: 15, browR: 15 }])
 			assert.notEqual(rigText(drawRig(rig(p), w, h)), rigText(base), `detail ${d}: ${JSON.stringify(p)}`);
 	}
 	const big = DETAIL_SIZE[3];
-	for (const p of [{ roll: 15 }, { pitch: 15 }, { gazeX: 15 }, { gazeY: 15 }, { eyeR: 0 }])
+	for (const p of [{ roll: 15 }, { roll: 1 }, { pitch: 15 }, { gazeX: 15 }, { gazeY: 15 }, { eyeR: 0 }, { browL: 0 }, { browR: 15 }])
 		assert.notEqual(rigText(drawRig(rig(p), big.w, big.h)), rigText(drawRig(NEUTRAL, big.w, big.h)), JSON.stringify(p));
 });
 
-test('the near avatar at rest: an oval head, two eyes, a nose, a mouth', () => {
-	assert.equal(rigText(drawRig(NEUTRAL, 16, 8)), [
-		'    ________    ',
-		'  /          \\  ',
-		' /            \\ ',
-		'| ( o )  ( o ) |',
-		'|      |       |',
-		' \\   ------   / ',
-		'  \\          /  ',
-		'    \\------/    '
-	].join('\n'));
+test('the near avatar at rest: a head under its hair, brows, eyes, a nose, a mouth', () => {
+	const t = rigText(drawRig(NEUTRAL, 16, 8));
+	assert.equal(t, [
+		'   __//~~\\\\__    ',
+		'   ////~~\\\\\\\\    ',
+		'  ||        ||   ',
+		'  | ---  --- |   ',
+		'  | (o)  (o) |   ',
+		'   |    |   |    ',
+		'   |  ----- |    ',
+		'    \\\\----//     '
+	].map((r) => r.slice(0, 16)).join('\n'));
 	assert.equal(rigText(drawRig(rig({ smile: 15 }), 5, 2)), '(o o)\n \\_/ ');
+	// Brows: raised an arch, lowered a frown sloping to the nose.
+	assert.match(rigText(drawRig(rig({ browL: 15, browR: 15 }), 16, 8)).split('\n')[3], /\/-\\.*\\-\//);
+	assert.match(rigText(drawRig(rig({ browL: 0, browR: 0 }), 16, 8)).split('\n')[3], /--\\ +\/--/);
 });
 
 test('a wink shuts one eye only, on the side it is drawn', () => {
-	const t = rigText(drawRig(rig({ eyeR: 0 }), 16, 8)).split('\n')[3];
+	const t = rigText(drawRig(rig({ eyeR: 0 }), 16, 8)).split('\n')[4];
 	assert.ok(t.slice(0, 8).includes('o') && !t.slice(8).includes('o'), t);
+});
+
+test('the whole head turns and leans: the outline and hair move, not just the features', () => {
+	const rows = (r: Rig) => rigText(drawRig(r, 16, 8)).split('\n');
+	const n = rows(NEUTRAL), right = rows(rig({ yaw: 15 })), lean = rows(rig({ roll: 15 }));
+	// The crown and the jaw both change with a turn and with a lean.
+	for (const r of [right, lean]) { assert.notEqual(r[0], n[0]); assert.notEqual(r[7], n[7]); }
+	// Turned to the drawing's right, the face slides right: the eyes' middle moves right.
+	const mid = (row: string) => { const i = [...row].map((c, k) => (c === 'o' ? k : -1)).filter((k) => k >= 0); return i.reduce((a, b) => a + b, 0) / i.length; };
+	assert.ok(mid(right[4]) > mid(n[4]), right.join('\n'));
+	// Leaning clockwise, the right eye sits lower than the left.
+	const eyeRow = (side: 'l' | 'r') => lean.findIndex((row) => { const k = row.indexOf('o'), j = row.lastIndexOf('o'); return side === 'l' ? k >= 0 && k < 8 : j >= 8; });
+	assert.ok(eyeRow('r') > eyeRow('l'), lean.join('\n'));
+});
+
+test('a look: 132 hex digits both ways; its hair and face shape the head', () => {
+	const s = encodeLook(DEFAULT_LOOK);
+	assert.equal(s.length, LOOK_LEN);
+	assert.deepEqual(decodeLook(s), DEFAULT_LOOK);
+	for (const bad of ['', s.slice(1), s.slice(0, 3) + '2' + s.slice(4), s.slice(0, -1) + 'f', null]) assert.equal(decodeLook(bad), null);
+	// Long hair: hair down both sides past the chin draws as hanging strands where the default has none.
+	const long: Look = { ...DEFAULT_LOOK, mask: DEFAULT_LOOK.mask.map((g, i) => { const x = i % LOOK_N, y = Math.floor(i / LOOK_N); return g === 0 && y >= 6 && (x === 2 || x === 3 || x === 12 || x === 13) ? 2 : g; }) };
+	const a = rigText(drawRig(NEUTRAL, 16, 8, long)), b = rigText(drawRig(NEUTRAL, 16, 8));
+	assert.notEqual(a, b);
+	assert.ok(rigInks(drawRig(NEUTRAL, 16, 8, long)).split('\n').slice(5).some((r) => r.includes('3')), 'hair below the eyes');
+	// An empty look (no head captured) draws nothing but the features.
+	const none: Look = { ...DEFAULT_LOOK, mask: DEFAULT_LOOK.mask.map(() => 0) };
+	assert.ok(!rigInks(drawRig(NEUTRAL, 16, 8, none)).includes('3'));
+});
+
+test('the outline glyph follows the edge across the cell', () => {
+	assert.equal(edgeGlyph(false, false, true, true), '_');
+	assert.equal(edgeGlyph(true, true, false, false), '-');
+	assert.equal(edgeGlyph(false, true, false, true), '|');
+	assert.equal(edgeGlyph(false, false, false, true), '/');
+	assert.equal(edgeGlyph(false, false, true, false), '\\');
+});
+
+test('the voice opens the mouth: loud enough, in step with it; never shuts one the camera opened', () => {
+	assert.equal(withVoice(NEUTRAL, 0).mouth, 0);
+	assert.equal(withVoice(NEUTRAL, 0.05).mouth, 0);
+	assert.ok(withVoice(NEUTRAL, 0.3).mouth >= 6);
+	assert.equal(withVoice(NEUTRAL, 1).mouth, 13);
+	assert.equal(withVoice(rig({ mouth: 15 }), 0.3).mouth, 15);
+});
+
+test('a look built from frames keeps what most frames saw', () => {
+	const b = new LookBuilder();
+	const face = DEFAULT_LOOK.mask.slice();
+	for (let i = 0; i < 6; i++) b.add({ mask: i === 0 ? face.map(() => 0) : face, hairLum: [40], skinLum: [200], mouthRow: 13 });
+	const l = decodeLook(b.build())!;
+	assert.deepEqual(l.mask, face);
+	assert.equal(l.hairTone, 2);
+	assert.equal(l.mouthRow, 13);
 });
 
 test('out-of-range digits are clamped, never thrown at', () => {
@@ -73,8 +135,11 @@ function golden() {
 	const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) % 16);
 	for (let i = 0; i < 40; i++) rigs.push(RIG_KEYS.map(() => rnd().toString(16)).join(''));
 	const sizes = [[16, 8], [10, 5], [5, 2], [12, 6], [8, 4], [7, 3], [20, 10], [15, 7]];
-	return { note: 'drawRig (src/avatar/rig.ts) for each rig at each size: text rows, and inks (0 ground, 1 outline, 2 features). Regenerate: UPDATE_RIG_GOLDEN=1 npm test', sizes,
-		cases: rigs.flatMap((r) => sizes.map(([w, h]) => { const c = drawRig(decodeRig(r)!, w, h); return { rig: r, w, h, text: rigText(c), inks: rigInks(c) }; })) };
+	// Two looks: the default, and a made-up one with long hair down one side and a short chin.
+	const odd = encodeLook({ ...DEFAULT_LOOK, hairTone: 12, mouthRow: 12, mask: DEFAULT_LOOK.mask.map((g, i) => { const x = i % LOOK_N, y = Math.floor(i / LOOK_N); return y >= 15 ? 0 : g === 0 && x <= 3 && y >= 4 ? 2 : g; }) });
+	const looks = ['', odd];
+	return { note: 'drawRig (src/avatar/rig.ts) for each rig and look ("" the default) at each size: text rows, and inks (0 ground, 1 outline, 2 features, 3 hair). Regenerate: UPDATE_RIG_GOLDEN=1 npm test', sizes,
+		cases: looks.flatMap((look) => rigs.flatMap((r) => sizes.map(([w, h]) => { const c = drawRig(decodeRig(r)!, w, h, look ? decodeLook(look) : null); return { rig: r, look, w, h, text: rigText(c), inks: rigInks(c) }; }))) };
 }
 test('drawRig matches its golden fixture (what the Rust twin must draw too)', () => {
 	const g = golden();
@@ -125,6 +190,8 @@ test('raw measures to digits: the middle at rest, the ends at the gains, flips a
 	assert.equal(Math.round(rigOf({ ...RAW_ZERO, yaw: 10 }, undefined, { yaw: 10, pitch: 0, roll: 0, gazeX: 0, gazeY: 0, smile: 0 }).yaw), 8);
 	const sw = rigOf({ ...RAW_ZERO, eyeL: 0 }, undefined, undefined, { eyes: true, yaw: false, pitch: false, roll: false, gazeX: false, gazeY: false });
 	assert.equal(Math.round(sw.eyeR), 0);
+	assert.equal(Math.round(rigOf({ ...RAW_ZERO, browL: 0.45 }).browL), 15);
+	assert.equal(Math.round(rigOf({ ...RAW_ZERO, browR: -0.45 }).browR), 1);
 });
 
 test('the smoother holds a still face still and still shows a blink at once', () => {
@@ -166,12 +233,17 @@ test('blendshapes to raw measures: blinks, jaw, smile, gaze by MediaPipe\'s name
 	const r = rawFromBlendshapes([
 		{ categoryName: 'eyeBlinkLeft', score: 0.9 }, { categoryName: 'eyeBlinkRight', score: 0.05 },
 		{ categoryName: 'jawOpen', score: 0.5 }, { categoryName: 'mouthSmileLeft', score: 0.6 }, { categoryName: 'mouthSmileRight', score: 0.4 },
-		{ categoryName: 'eyeLookOutRight', score: 0.6 }, { categoryName: 'eyeLookInLeft', score: 0.6 }
+		{ categoryName: 'eyeLookOutRight', score: 0.6 }, { categoryName: 'eyeLookInLeft', score: 0.6 },
+		{ categoryName: 'browDownLeft', score: 0.5 }, { categoryName: 'browOuterUpRight', score: 0.6 }, { categoryName: 'browInnerUp', score: 0.2 }
 	]);
+	assert.ok(r.browL < -0.3, 'a lowered brow frowns');
+	assert.ok(r.browR > 0.4, 'a raised brow lifts');
 	assert.equal(r.eyeL, 0);
 	assert.equal(r.eyeR, 1);
-	assert.equal(r.mouth, 0.5);
+	assert.ok(Math.abs(r.mouth - 0.7) < 1e-9, 'the jaw counts for more than it scores');
 	assert.ok(Math.abs(r.smile - 0.5) < 1e-9);
+	const sad = rawFromBlendshapes([{ categoryName: 'mouthFrownLeft', score: 0.2 }, { categoryName: 'mouthFrownRight', score: 0.2 }]);
+	assert.ok(sad.smile <= -0.5, 'a small frown score still frowns');
 	assert.ok(r.gazeX > 0.5, 'looking to the player\'s right is to the drawing\'s right');
 });
 

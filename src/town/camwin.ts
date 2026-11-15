@@ -122,6 +122,8 @@ export interface TileView {
 	kind: 'letters' | 'video' | 'avatar' | 'blank';
 	frame?: string;
 	cells?: RigCell[][];
+	/** An avatar's hair ink (from its look's hair tone). */
+	hair?: number;
 	/** Under the letter of a tile with no picture: why there is none. */
 	note?: string;
 	talking: boolean;
@@ -176,7 +178,7 @@ export function drawCamWindow(g: Grid, L: CamLayout, d: CamWindowDraw) {
 			const feature = t.ink[1] ? 5 : t.ink[0];
 			for (let yy = 0; yy < ah; yy++) for (let xx = 0; xx < aw; xx++) {
 				const c = t.cells[yy][xx];
-				if (c.ch !== ' ') g.set(ox + xx, oy + yy, c.ch, c.ink === 2 ? feature : 3, 0);
+				if (c.ch !== ' ') g.set(ox + xx, oy + yy, c.ch, c.ink === 2 ? feature : c.ink === 3 ? t.hair ?? 15 : 3, 0);
 			}
 		} else if (t.kind === 'letters' && t.frame) {
 			for (let yy = 0; yy < r.h; yy++) for (let xx = 0; xx < r.w; xx++) {

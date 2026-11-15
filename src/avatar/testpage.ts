@@ -5,7 +5,10 @@
  * Nothing is sent anywhere, except a report you choose to send to the computer serving the page
  * (tools/serve.mjs, "Send to Rosemary"): numbers about the trackers, never a picture.
  */
-import { decodeRig, drawRig, encodeRig, NEUTRAL, RIG_KEYS, DETAIL_SIZE } from './rig.ts';
+import { decodeLook, decodeRig, drawRig, encodeRig, NEUTRAL, RIG_KEYS, DETAIL_SIZE, withVoice } from './rig.ts';
+import type { Look } from './rig.ts';
+import { LOOK_N } from './righead.ts';
+import { LandmarkerTracker } from './trackers.ts';
 import type { Rig, RigCell } from './rig.ts';
 import { GAINS, makeTracker, MP_VERSION, NO_FLIPS, NO_NEUTRAL, RigSmoother, rigOf, TRACKER_LABEL, TRACKER_NAMES } from './trackers.ts';
 import type { Flips, Loaded, Neutral, Raw, Track, Tracker, TrackerName } from './trackers.ts';
@@ -31,7 +34,7 @@ const S = {
 	loaded: new Map<TrackerName, Loaded>(),
 	failed: new Map<TrackerName, string>(),
 	bad: 'none' as Bad,
-	flips: { ...NO_FLIPS, ...JSON.parse(store.get('flips') ?? '{}') } as Flips,
+	flips: { ...NO_FLIPS, ...JSON.parse(store.get('flips2') ?? '{}') } as Flips,
 	neutral: { ...NO_NEUTRAL } as Neutral,
 	smoother: new RigSmoother(),
 	lastRaw: null as Raw | null,
@@ -44,7 +47,12 @@ const S = {
 	history: [] as { t: number; rig: Rig }[],
 	fallback: false,
 	bench: null as null | { results: BenchRow[]; running: boolean },
-	t0: performance.now()
+	t0: performance.now(),
+	/** The player's captured look (righead.ts), and its digits. */
+	look: null as Look | null,
+	lookHex: '',
+	/** The microphone's level 0..1, while on (it never leaves the page either). */
+	mic: null as null | { stream: MediaStream; analyser: AnalyserNode; buf: Float32Array; level: number }
 };
 S.video.muted = true;
 S.video.playsInline = true;
@@ -146,6 +154,7 @@ function demoRig(t: number): Rig {
 	const tri = (p: number) => Math.abs(((s / p) % 2) - 1) * 2 - 1;
 	return {
 		eyeL: blink ? 0 : 11, eyeR: blink || wink ? 0 : 11,
+		browL: 8 + Math.round(tri(5) * 7), browR: 8 + Math.round(tri(5) * 7),
 		mouth: Math.round(Math.max(0, Math.sin(s * 5) * 12) * (s % 8 < 4 ? 1 : 0)), smile: 8 + Math.round(tri(9) * 7),
 		yaw: 8 + Math.round(Math.sin(s * 0.7) * 7), pitch: 8 + Math.round(Math.sin(s * 0.45) * 5), roll: 8 + Math.round(Math.sin(s * 0.33) * 6),
 		gazeX: 8 + Math.round(Math.sin(s * 1.3) * 7), gazeY: 8 + Math.round(Math.cos(s * 0.9) * 5)
@@ -174,11 +183,17 @@ function tick(now: number) {
 				foundCount++;
 				S.lastRaw = tr.raw;
 				rig = S.smoother.push(rigOf(tr.raw, GAINS, S.neutral, S.flips));
+				if (t instanceof LandmarkerTracker && t.captureLook(f.src, f.w, f.h, now) && t.look) {
+					S.look = decodeLook(t.look);
+					S.lookHex = t.look;
+					showLook();
+				}
 			}
 			drawVideo(f, tr);
 		} else if (S.failed.has(S.trackerName) && !S.trackers.has('pixel')) void ensureTracker('pixel');
 		if (f && (S.fallback || S.failed.has(S.trackerName))) $('picture').innerHTML = picture.frame(f.src, f.w, f.h).html;
 	}
+	if (rig && S.mic) rig = withVoice(rig, micLevel());
 	if (rig) {
 		S.rig = rig;
 		S.history.push({ t: now, rig });
@@ -199,14 +214,46 @@ function tick(now: number) {
 
 // ---- drawing ------------------------------------------------------------------------------------------------
 
-const INK_CLASS = ['g', 'o', 'f'];
+const INK_CLASS = ['g', 'o', 'f', 'h'];
+
+/** The captured look as a picture of letters: # hair, o face. */
+function showLook() {
+	const l = S.look;
+	if (!l) { $('look').textContent = 'No look yet: it is captured a few seconds after your face is found (Face Landmarker only).'; return; }
+	let t = '';
+	for (let y = 0; y < LOOK_N; y++) { for (let x = 0; x < LOOK_N; x++) t += ' o#'[l.mask[x + y * LOOK_N]] + ' '; t += '\n'; }
+	$('look').textContent = t + `hair tone ${l.hairTone}, skin tone ${l.skinTone}, mouth row ${l.mouthRow}; ${S.lookHex.length} digits, sent now and then`;
+}
+
+async function micToggle() {
+	if (S.mic) { for (const t of S.mic.stream.getTracks()) t.stop(); S.mic = null; ui(); return; }
+	try {
+		const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+		const ctx = new AudioContext();
+		const analyser = ctx.createAnalyser();
+		analyser.fftSize = 512;
+		ctx.createMediaStreamSource(stream).connect(analyser);
+		S.mic = { stream, analyser, buf: new Float32Array(analyser.fftSize), level: 0 };
+	} catch (e) { status('No microphone (' + (e as Error).name + ').'); }
+	ui();
+}
+/** The microphone's loudness now, 0..1 (rough, as voice.ts's level is). */
+function micLevel(): number {
+	const m = S.mic!;
+	m.analyser.getFloatTimeDomainData(m.buf as Float32Array<ArrayBuffer>);
+	let sum = 0;
+	for (const v of m.buf) sum += v * v;
+	const rms = Math.sqrt(sum / m.buf.length);
+	m.level = Math.min(1, rms * 6);
+	return m.level;
+}
 function cellsHtml(cells: RigCell[][]): string {
 	return cells.map((row) => row.map((c) => c.ch === ' ' ? ' ' : `<span class="${INK_CLASS[c.ink]}">${c.ch.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')}</span>`).join('')).join('\n');
 }
 function drawAvatars() {
 	for (const d of [3, 2, 1] as const) {
 		const { w, h } = DETAIL_SIZE[d];
-		$('av' + d).innerHTML = cellsHtml(drawRig(S.rig, w, h));
+		$('av' + d).innerHTML = cellsHtml(drawRig(S.rig, w, h, S.look));
 	}
 	$('hex').textContent = encodeRig(S.rig);
 }
@@ -227,7 +274,7 @@ function drawVideo(f: { src: CanvasImageSource; w: number; h: number }, tr: Trac
 	g.restore();
 }
 
-const SIGNED = new Set(['smile', 'yaw', 'pitch', 'roll', 'gazeX', 'gazeY']);
+const SIGNED = new Set(['smile', 'yaw', 'pitch', 'roll', 'gazeX', 'gazeY', 'browL', 'browR']);
 const UNIT: Record<string, string> = { yaw: '°', pitch: '°', roll: '°' };
 function numbers() {
 	const raw = S.source === 'demo' ? null : S.lastRaw;
@@ -247,7 +294,7 @@ function chart(now: number) {
 	const c = $<HTMLCanvasElement>('chart'), g = c.getContext('2d')!;
 	const W = c.width, H = c.height;
 	g.fillStyle = '#0b0d12'; g.fillRect(0, 0, W, H);
-	const lines: [keyof Rig, string][] = [['eyeL', '#86a9de'], ['eyeR', '#6ccfd2'], ['mouth', '#e86050'], ['smile', '#e8c460'], ['yaw', '#8fd06a'], ['gazeX', '#d09ad8']];
+	const lines: [keyof Rig, string][] = [['eyeL', '#86a9de'], ['eyeR', '#6ccfd2'], ['mouth', '#e86050'], ['smile', '#e8c460'], ['yaw', '#8fd06a'], ['browL', '#d09ad8']];
 	g.font = '10px monospace';
 	lines.forEach(([k, col], i) => {
 		g.strokeStyle = col; g.fillStyle = col;
@@ -382,6 +429,8 @@ async function sendReport() {
 function ui() {
 	$('cam').textContent = S.stream ? 'Camera: on' : 'Camera: off';
 	$('cam').classList.toggle('on', !!S.stream);
+	$('mic').textContent = S.mic ? 'Microphone: on' : 'Microphone: off';
+	$('mic').classList.toggle('on', !!S.mic);
 	$('demo').classList.toggle('on', S.source === 'demo');
 	const sel = $<HTMLSelectElement>('tracker');
 	for (const o of Array.from(sel.options)) {
@@ -403,13 +452,14 @@ function setup() {
 	$<HTMLSelectElement>('bad').innerHTML = (Object.keys(BAD_LABEL) as Bad[]).map((b) => `<option value="${b}">${BAD_LABEL[b]}</option>`).join('');
 	$('flips').innerHTML = (Object.keys(NO_FLIPS) as (keyof Flips)[]).map((k) => `<label><input type="checkbox" id="flip-${k}"> ${k}</label>`).join(' ');
 	$('cam').onclick = () => { if (S.stream) cameraOff(); else void cameraOn(); };
+	$('mic').onclick = () => { void micToggle(); };
 	$('demo').onclick = () => { demoHold = null; S.source = S.source === 'demo' ? 'camera' : 'demo'; ui(); };
 	sel.onchange = async () => { S.trackerName = sel.value as TrackerName; store.set('tracker', S.trackerName); S.smoother.reset(); if (S.stream) await ensureTracker(S.trackerName); ui(); };
 	$<HTMLSelectElement>('bad').onchange = (e) => { S.bad = (e.target as HTMLSelectElement).value as Bad; S.trackers.get(S.trackerName)?.relearn(); ui(); };
 	$('neutral').onclick = () => {
 		const r = S.lastRaw;
 		if (!r) { status('No face yet: turn the camera on and look at it.'); return; }
-		S.neutral = { yaw: r.yaw, pitch: r.pitch, roll: r.roll, gazeX: r.gazeX, gazeY: r.gazeY, smile: r.smile };
+		S.neutral = { yaw: r.yaw, pitch: r.pitch, roll: r.roll, gazeX: r.gazeX, gazeY: r.gazeY, smile: r.smile, browL: r.browL, browR: r.browR };
 		status('Neutral taken: your face as it is now draws as the middle.');
 	};
 	$('relearn').onclick = () => { S.trackers.get(S.trackerName)?.relearn(); S.neutral = { ...NO_NEUTRAL }; S.smoother.reset(); status('Forgotten: the tracker learns your face and light again.'); };
@@ -417,7 +467,7 @@ function setup() {
 	sm.value = String(S.smoother.amount);
 	$('smoothV').textContent = sm.value;
 	sm.oninput = () => { S.smoother.amount = Number(sm.value); $('smoothV').textContent = sm.value; store.set('smooth', sm.value); };
-	for (const k of Object.keys(NO_FLIPS) as (keyof Flips)[]) $<HTMLInputElement>('flip-' + k).onchange = (e) => { S.flips[k] = (e.target as HTMLInputElement).checked; store.set('flips', JSON.stringify(S.flips)); };
+	for (const k of Object.keys(NO_FLIPS) as (keyof Flips)[]) $<HTMLInputElement>('flip-' + k).onchange = (e) => { S.flips[k] = (e.target as HTMLInputElement).checked; store.set('flips2', JSON.stringify(S.flips)); };
 	$('fallback').onclick = () => { S.fallback = !S.fallback; ui(); };
 	$('bench').onclick = () => { void runBench(); };
 	$('loadAll').onclick = async () => { for (const n of TRACKER_NAMES) await ensureTracker(n); status([...S.loaded].map(([n, l]) => `${TRACKER_LABEL[n]} ${kb(l.bytes)} in ${(l.ms / 1000).toFixed(1)} s`).concat([...S.failed].map(([n, e]) => `${TRACKER_LABEL[n]} failed: ${e}`)).join(' · ')); };
@@ -432,11 +482,12 @@ function setup() {
 	// A rig typed in by hand (nine hex digits): to look at one drawing.
 	$<HTMLInputElement>('type').onchange = (e) => {
 		const r = decodeRig((e.target as HTMLInputElement).value.trim().toLowerCase());
-		if (r) { S.source = 'demo'; S.rig = r; status('Showing the typed rig. Demo off to go back.'); demoHold = r; } else status('A rig is nine hex digits, e.g. bb0888888.');
+		if (r) { S.source = 'demo'; S.rig = r; status('Showing the typed rig. Demo off to go back.'); demoHold = r; } else status('A rig is eleven hex digits, e.g. bb088888888.');
 	};
 	const last = store.get('lastReport');
 	if (last) $('report').textContent = 'Last time:\n' + (() => { try { const r = JSON.parse(last); return `${r.when}, ${r.results.length} runs. Run the comparison again to see it here.`; } catch { return ''; } })();
 	ui();
+	showLook();
 	status('Turn the camera on (or Demo). The tracker loads when the camera starts.');
 	next();
 }

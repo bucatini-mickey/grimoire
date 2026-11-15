@@ -55,10 +55,14 @@ import type { Corner, PictureTile, TileView } from './camwin.ts';
  * digits (a rig); only the rig goes to the Storyteller's phone, which passes it on to whoever may see it,
  * the nearest in most detail and most often (rig.ts planRigs). Every phone draws the avatar from the digits.
  */
-import { decodeRig, DETAIL_SIZE, detailThatFits, drawRig, encodeRig, idleRig, planRigs } from '../avatar/rig.ts';
-import type { AvatarPlaces, Detail, RigFrom, RigSent } from '../avatar/rig.ts';
-import { GAINS, makeTracker, NO_FLIPS, NO_NEUTRAL, RigSmoother, rigOf, TRACKER_LABEL, TRACKER_NAMES } from '../avatar/trackers.ts';
+import { decodeLook, decodeRig, DETAIL_SIZE, detailThatFits, drawRig, encodeRig, idleRig, planRigs, withVoice } from '../avatar/rig.ts';
+import type { AvatarPlaces, Detail, Look, RigFrom, RigSent } from '../avatar/rig.ts';
+import { GAINS, LandmarkerTracker, makeTracker, NO_FLIPS, NO_NEUTRAL, RigSmoother, rigOf, TRACKER_LABEL } from '../avatar/trackers.ts';
 import type { Tracker, TrackerName } from '../avatar/trackers.ts';
+/** The village's trackers: BlazeFace was tried and dropped (Lavender, 14 Nov: "terrible"). */
+const TRACKER_NAMES: TrackerName[] = ['landmarker', 'pixel'];
+/** A look's hair tone (0 dark .. 15 light) as an ink: dark hair brown, fair hair gold, white hair pale. */
+const hairInk = (tone: number) => (tone >= 13 ? 4 : tone >= 9 ? 6 : tone >= 6 ? 7 : 15);
 import type { Voice, VoiceMode } from './voice.ts';
 import CASTLE from '../../town/castle.tbp';
 import TALMBERG from '../../town/talmberg.tbp';
@@ -148,8 +152,11 @@ type Down =
 	| { t: 'notice'; text: string }
 	/** The faces this phone may see now (faces.ts): those in earshot, or everyone in the circle. */
 	| { t: 'faces'; faces: [string, string][] }
-	/** Avatars this phone may draw (rig.ts): [who, nine hex digits, detail]; detail 0 drops them. */
-	| { t: 'rigs'; rigs: [string, string, Detail][] };
+	/**
+	 * Avatars this phone may draw (rig.ts): [who, eleven hex digits, detail, and their look when it is new
+	 * to this phone]; detail 0 drops them.
+	 */
+	| { t: 'rigs'; rigs: [string, string, Detail, string?][] };
 type Up =
 	| { t: 'hello'; name: string; clientId: string }
 	| { t: 'at'; x: number; y: number; z?: number }
@@ -161,7 +168,9 @@ type Up =
 	/** My face now, as cells (faces.ts); null when my camera goes off. */
 	| { t: 'face'; f: string | null }
 	/** My avatar's rig now (rig.ts); null when my camera goes off. */
-	| { t: 'rig'; r: string | null };
+	| { t: 'rig'; r: string | null }
+	/** My look (righead.ts: my head and hair), when it changes; null when my camera goes off. */
+	| { t: 'look'; l: string | null };
 
 /** Walkers' inks: bright, to read on a lit map; each person gets their own. */
 export const INKS = ['#f0705a', '#86a9de', '#8fd06a', '#d09ad8', '#e8b84a', '#6ccfd2', '#f0905a', '#b0b0ff', '#d8d86a', '#f07aa0', '#7ad08a', '#e0b080', '#8ac0f0', '#e07ae0', '#7ae0c0'];
@@ -220,11 +229,14 @@ const S = {
 		/** Which face tracker reads this phone's camera. */
 		tracker: 'landmarker' as TrackerName
 	},
-	/** The avatars this phone may draw, by person: their rig and the detail it was sent for. */
+	/** The avatars this phone may draw, by person: their rig and the detail it was sent for; their looks. */
 	rigs: new Map<string, { rig: string; detail: Detail }>(),
-	/** The host: everyone's latest rig, and what each viewer was last sent. */
+	looks: new Map<string, Look>(),
+	/** The host: everyone's latest rig and look, and what each viewer was last sent. */
 	hostRigs: new Map<string, string>(),
+	hostLooks: new Map<string, string>(),
 	rigSent: new Map<string, Map<string, RigSent>>(),
+	lookSent: new Map<string, Map<string, string>>(),
 	/** Requests for a private word, waiting for an answer. */
 	asks: [] as string[],
 	/** Faces as cell frames, by person (the host: everyone's; a phone: the ones it may see). */
@@ -346,6 +358,9 @@ function onUp(from: string, msg: Up) {
 	else if (msg.t === 'rig') {
 		const r = msg.r === null ? null : decodeRig(msg.r);
 		if (r) S.hostRigs.set(from, msg.r!); else S.hostRigs.delete(from);
+	}
+	else if (msg.t === 'look') {
+		if (msg.l !== null && decodeLook(msg.l)) S.hostLooks.set(from, msg.l); else S.hostLooks.delete(from);
 	}
 	else if (msg.t === 'door') {
 		const c = msg.cell;
@@ -502,9 +517,26 @@ function relayRigs() {
 		}
 		let sent = S.rigSent.get(v);
 		if (!sent) S.rigSent.set(v, (sent = new Map()));
-		const out = planRigs(now, from, S.cams.places, sent);
+		const out: [string, string, Detail, string?][] = planRigs(now, from, S.cams.places, sent);
+		// A look goes with a rig the first time, and again only when it changes.
+		let looks = S.lookSent.get(v);
+		if (!looks) S.lookSent.set(v, (looks = new Map()));
+		for (const e of out) {
+			const l = S.hostLooks.get(e[0]);
+			if (e[2] && l && looks.get(e[0]) !== l) { e[3] = l; looks.set(e[0], l); }
+			if (!e[2]) looks.delete(e[0]);
+		}
+		// A new look for someone already shown, whose rig did not change this time.
+		for (const f of from) {
+			const l = S.hostLooks.get(f.id), shown = sent.get(f.id);
+			if (l && shown && shown.detail && looks.get(f.id) !== l && !out.some((e) => e[0] === f.id)) {
+				out.push([f.id, shown.rig, shown.detail, l]);
+				looks.set(f.id, l);
+			}
+		}
 		if (out.length) sendTo(v, { t: 'rigs', rigs: out });
 	}
+	for (const v of S.lookSent.keys()) if (!S.people.has(v)) S.lookSent.delete(v);
 	for (const v of S.rigSent.keys()) if (!S.people.has(v)) S.rigSent.delete(v);
 }
 
@@ -691,9 +723,11 @@ function up(msg: Up): boolean {
 /** What the host tells this phone (the host's own phone too). */
 function onDown(msg: Down) {
 	if (msg.t === 'rigs') {
-		for (const [id, rig, d] of msg.rigs) {
+		for (const [id, rig, d, look] of msg.rigs) {
 			if (d > 0 && decodeRig(rig)) S.rigs.set(id, { rig, detail: d });
-			else S.rigs.delete(id);
+			else { S.rigs.delete(id); S.looks.delete(id); }
+			const l = look ? decodeLook(look) : null;
+			if (l) S.looks.set(id, l);
 		}
 		S.dirty = true;
 		return;
@@ -1509,8 +1543,10 @@ const avatar = {
 	/** Why the chosen tracker is not running (loading, or failed and fallen back to pixels). */
 	note: '',
 	smoother: new RigSmoother(),
-	/** My rig as last drawn and as last sent. */
+	/** My rig as last drawn and as last sent; my look as last captured and sent. */
 	rig: '',
+	look: null as Look | null,
+	lookSent: '',
 	sent: '',
 	sentAt: 0,
 	timer: null as ReturnType<typeof setInterval> | null
@@ -1549,13 +1585,22 @@ function avatarOff() {
 	avatar.rig = '';
 	if (avatar.sent) up({ t: 'rig', r: null });
 	avatar.sent = '';
+	if (avatar.lookSent) up({ t: 'look', l: null });
+	avatar.lookSent = '';
 }
 function avatarTick() {
 	const v = myCam.picture, t = avatar.tracker;
 	if (!v || !t || S.cams.look !== 'avatar') return;
 	let raw;
-	try { raw = t.track(v, v.videoWidth, v.videoHeight, performance.now()).raw; } catch { return; }
+	const now0 = performance.now();
+	try { raw = t.track(v, v.videoWidth, v.videoHeight, now0).raw; } catch { return; }
 	if (!raw) return;
+	// Now and then the Face Landmarker captures my head and hair: sent when it changes.
+	if (t instanceof LandmarkerTracker && t.captureLook(v, v.videoWidth, v.videoHeight, now0) && t.look && t.look !== avatar.lookSent) {
+		avatar.look = decodeLook(t.look);
+		avatar.lookSent = t.look;
+		up({ t: 'look', l: t.look });
+	}
 	const rig = encodeRig(avatar.smoother.push(rigOf(raw, GAINS, NO_NEUTRAL, NO_FLIPS)));
 	if (rig !== avatar.rig) { avatar.rig = rig; S.dirty = true; }
 	const now = performance.now();
@@ -1597,13 +1642,17 @@ function camWindow(g: Grid, area: { x: number; y: number; w: number; h: number }
 				const rig = decodeRig(avatar.rig);
 				if (!rig) return { ...base, kind: 'blank' as const, glyph: '', note: avatar.note ? 'loading' : 'no face' };
 				const { w, h } = DETAIL_SIZE[fit as Detail];
-				return fit ? { ...base, kind: 'avatar' as const, cells: drawRig(rig, w, h) } : { ...base, kind: 'blank' as const };
+				// My mouth opens with my voice too, as everyone else's phone opens it with the voice it hears.
+				const look = avatar.look;
+				return fit ? { ...base, kind: 'avatar' as const, cells: drawRig(withVoice(rig, talking(q)), w, h, look), hair: hairInk(look?.hairTone ?? 4) } : { ...base, kind: 'blank' as const };
 			}
 			const got = S.rigs.get(id), rig = got && decodeRig(got.rig);
 			const d = Math.min(fit, got?.detail ?? 0) as Detail;
 			if (!rig || !d) return { ...base, kind: 'blank' as const };
 			const { w, h } = DETAIL_SIZE[d];
-			return { ...base, kind: 'avatar' as const, cells: drawRig(rig, w, h) };
+			// The mouth opens with the voice this phone hears from them: in step with the sound, nothing sent.
+			const look = S.looks.get(id) ?? null;
+			return { ...base, kind: 'avatar' as const, cells: drawRig(withVoice(rig, talking(q)), w, h, look), hair: hairInk(look?.hairTone ?? 4) };
 		}
 		const stand = !self && (S.bots.has(id) || S.cams.standIns);
 		if (self && !myCam.on) return { ...base, kind: 'blank' as const, glyph: '', note: 'camera off' };
@@ -1775,7 +1824,7 @@ function sheetRows(): Row[] {
 		rows.push(b(S.cams.open ? 'Window: shown' : 'Window: hidden', 'cams-open', S.cams.open));
 		rows.push(b(S.cams.look === 'avatar' ? 'Tiles: avatar' : S.cams.look === 'video' ? 'Tiles: picture' : 'Tiles: letters', 'cams-look', S.cams.look !== 'video'));
 		if (S.cams.look === 'avatar') {
-			rows.push(...prose('Avatar: your camera is read here into nine numbers (eyes, mouth, smile, head, gaze); only those are sent, and everyone draws you from them. The nearest see you clearest.' + (avatar.note ? ' (' + avatar.note + ')' : ''), 'dim'));
+			rows.push(...prose('Avatar: your camera is read here into eleven numbers (eyes, brows, mouth, smile, head, gaze), and now and then the shape of your head and hair; only those are sent, and everyone draws you from them. Your mouth also moves with your voice. The nearest see you clearest.' + (avatar.note ? ' (' + avatar.note + ')' : ''), 'dim'));
 			rows.push(b('Tracker: ' + TRACKER_LABEL[S.cams.tracker], 'cams-tracker', false));
 			if (S.host) rows.push(b(S.cams.places === 'talk' ? 'Avatars show: where people talk' : 'Avatars show: whenever in earshot', 'cams-places', S.cams.places === 'talk'));
 		}

@@ -20,6 +20,8 @@
  */
 import type { Rig } from './rig.ts';
 import { RIG_KEYS } from './rig.ts';
+import { encodeLook, LOOK_EYE_Y, LOOK_N } from './righead.ts';
+import type { Region } from './righead.ts';
 import { FaceFinder } from './asciiavatar.ts';
 
 // ---- raw measures to a rig ------------------------------------------------------------------------------
@@ -32,8 +34,10 @@ import { FaceFinder } from './asciiavatar.ts';
 export interface Raw {
 	eyeL: number; eyeR: number; mouth: number; smile: number;
 	yaw: number; pitch: number; roll: number; gazeX: number; gazeY: number;
+	/** Brows -1 (down, a frown) .. 1 (raised). */
+	browL: number; browR: number;
 }
-export const RAW_ZERO: Raw = { eyeL: 1, eyeR: 1, mouth: 0, smile: 0, yaw: 0, pitch: 0, roll: 0, gazeX: 0, gazeY: 0 };
+export const RAW_ZERO: Raw = { eyeL: 1, eyeR: 1, mouth: 0, smile: 0, yaw: 0, pitch: 0, roll: 0, gazeX: 0, gazeY: 0, browL: 0, browR: 0 };
 
 /** How raw measures become digits: the angles and amounts that reach the ends of the scale. */
 export interface Gains {
@@ -43,16 +47,18 @@ export interface Gains {
 	gaze: number; smile: number;
 	/** Mouth openness that reaches 15. */
 	mouth: number;
+	/** Brow movement that reaches the end. */
+	brow: number;
 }
-export const GAINS: Gains = { yawDeg: 35, pitchDeg: 25, rollDeg: 30, gaze: 0.6, smile: 0.6, mouth: 0.8 };
+export const GAINS: Gains = { yawDeg: 35, pitchDeg: 25, rollDeg: 30, gaze: 0.6, smile: 0.5, mouth: 0.7, brow: 0.45 };
 
 /** Flips, for when a camera or a tracker has a side the wrong way round (the test page has a switch each). */
 export interface Flips { eyes: boolean; yaw: boolean; pitch: boolean; roll: boolean; gazeX: boolean; gazeY: boolean; }
 export const NO_FLIPS: Flips = { eyes: false, yaw: false, pitch: false, roll: false, gazeX: false, gazeY: false };
 
 /** The resting face, taken by "Neutral": what to subtract so that it draws as the middle. */
-export interface Neutral { yaw: number; pitch: number; roll: number; gazeX: number; gazeY: number; smile: number; }
-export const NO_NEUTRAL: Neutral = { yaw: 0, pitch: 0, roll: 0, gazeX: 0, gazeY: 0, smile: 0 };
+export interface Neutral { yaw: number; pitch: number; roll: number; gazeX: number; gazeY: number; smile: number; browL?: number; browR?: number; }
+export const NO_NEUTRAL: Neutral = { yaw: 0, pitch: 0, roll: 0, gazeX: 0, gazeY: 0, smile: 0, browL: 0, browR: 0 };
 
 const clamp = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v);
 const sgn = (v: number, ends: number) => 8 + clamp(v / ends, -1, 1) * 7;
@@ -61,6 +67,7 @@ const sgn = (v: number, ends: number) => 8 + clamp(v / ends, -1, 1) * 7;
 export function rigOf(raw: Raw, g: Gains = GAINS, n: Neutral = NO_NEUTRAL, f: Flips = NO_FLIPS): Rig {
 	const flip = (on: boolean, v: number) => (on ? -v : v);
 	const [l, r] = f.eyes ? [raw.eyeR, raw.eyeL] : [raw.eyeL, raw.eyeR];
+	const [bl, br] = f.eyes ? [raw.browR, raw.browL] : [raw.browL, raw.browR];
 	return {
 		eyeL: clamp(l * 11, 0, 15),
 		eyeR: clamp(r * 11, 0, 15),
@@ -70,7 +77,9 @@ export function rigOf(raw: Raw, g: Gains = GAINS, n: Neutral = NO_NEUTRAL, f: Fl
 		pitch: sgn(flip(f.pitch, raw.pitch - n.pitch), g.pitchDeg),
 		roll: sgn(flip(f.roll, raw.roll - n.roll), g.rollDeg),
 		gazeX: sgn(flip(f.gazeX, raw.gazeX - n.gazeX), g.gaze),
-		gazeY: sgn(flip(f.gazeY, raw.gazeY - n.gazeY), g.gaze)
+		gazeY: sgn(flip(f.gazeY, raw.gazeY - n.gazeY), g.gaze),
+		browL: sgn((bl ?? 0) - (n.browL ?? 0), g.brow),
+		browR: sgn((br ?? 0) - (n.browR ?? 0), g.brow)
 	};
 }
 
@@ -85,7 +94,7 @@ export class RigSmoother {
 	private d: Rig | null = null;
 	amount = 1;
 	hold = 0.6;
-	static readonly SPEED: Rig = { eyeL: 0.75, eyeR: 0.75, mouth: 0.6, smile: 0.35, yaw: 0.4, pitch: 0.4, roll: 0.4, gazeX: 0.35, gazeY: 0.35 };
+	static readonly SPEED: Rig = { eyeL: 0.75, eyeR: 0.75, mouth: 0.7, smile: 0.4, yaw: 0.4, pitch: 0.4, roll: 0.4, gazeX: 0.35, gazeY: 0.35, browL: 0.5, browR: 0.5 };
 
 	push(r: Rig): Rig {
 		if (!this.v || !this.d) {
@@ -121,8 +130,9 @@ export function poseFromMatrix(m: ArrayLike<number>): { yaw: number; pitch: numb
 	const yaw = Math.asin(clamp(-R(2, 0), -1, 1)) * DEG;
 	const pitch = Math.atan2(R(2, 1), R(2, 2)) * DEG;
 	const roll = Math.atan2(R(1, 0), R(0, 0)) * DEG;
-	// The camera's picture is unmirrored; the avatar is a mirror: a turn and a lean change sides.
-	return { yaw: -yaw, pitch, roll: -roll };
+	// The camera's picture is unmirrored; the avatar is a mirror: a turn changes sides. Tip and lean as
+	// checked on Lavender (14 Nov: both read the wrong way round before).
+	return { yaw: -yaw, pitch: -pitch, roll };
 }
 
 /** A point, 0..1 across and down the picture as the camera gives it (unmirrored). */
@@ -163,18 +173,30 @@ export interface Category { categoryName: string; score: number; }
  * from the player's point of view, which is the mirror's too: eyeBlinkLeft is the player's left eye,
  * drawn on the left.
  */
-export function rawFromBlendshapes(cats: Category[], matrix?: ArrayLike<number> | null, shut = 0.55): Raw {
+export function rawFromBlendshapes(cats: Category[], matrix?: ArrayLike<number> | null, shut = 0.55, lm?: Pt[] | null): Raw {
 	const s: Record<string, number> = {};
 	for (const c of cats) s[c.categoryName] = c.score;
 	const v = (k: string) => s[k] ?? 0;
 	// Open from blink: a score under ~0.1 is wide awake, past `shut` is shut; wide adds to it.
 	const open = (blink: number, wide: number) => clamp((shut - blink) / (shut - 0.08), 0, 1) + wide * 0.4;
 	const pose = matrix && matrix.length >= 16 ? poseFromMatrix(matrix) : { yaw: 0, pitch: 0, roll: 0 };
+	// Talking barely moves the jaw: the gap between the lips (its share of the face's height) shows it.
+	let gap = 0;
+	if (lm && lm.length > 152) {
+		const faceH = Math.hypot(lm[10].x - lm[152].x, lm[10].y - lm[152].y) || 1;
+		gap = clamp((Math.hypot(lm[13].x - lm[14].x, lm[13].y - lm[14].y) / faceH - 0.012) / 0.12, 0, 1);
+	}
+	// Frowns score low in MediaPipe: counted two and a half times; a pressed mouth a little too.
+	const frown = (v('mouthFrownLeft') + v('mouthFrownRight')) * 1.25 + (v('mouthPressLeft') + v('mouthPressRight')) * 0.25;
+	// Brows: raised by the outer and the inner lifts, lowered by the brow-down shapes.
+	const brow = (outer: number, down: number) => outer * 0.6 + v('browInnerUp') * 0.6 - down * 1.2;
 	return {
 		eyeL: open(v('eyeBlinkLeft'), v('eyeWideLeft')),
 		eyeR: open(v('eyeBlinkRight'), v('eyeWideRight')),
-		mouth: v('jawOpen'),
-		smile: (v('mouthSmileLeft') + v('mouthSmileRight')) / 2 - (v('mouthFrownLeft') + v('mouthFrownRight')) / 2,
+		mouth: Math.max(v('jawOpen') * 1.4, gap),
+		smile: (v('mouthSmileLeft') + v('mouthSmileRight')) / 2 - frown,
+		browL: brow(v('browOuterUpLeft'), v('browDownLeft')),
+		browR: brow(v('browOuterUpRight'), v('browDownRight')),
 		...pose,
 		// The player's left eye looking out looks to their left (the drawing's left); looking in, to the right.
 		gazeX: (v('eyeLookInLeft') + v('eyeLookOutRight') - v('eyeLookOutLeft') - v('eyeLookInRight')) / 2,
@@ -261,6 +283,92 @@ export class Range {
 	reset() { this.lo = Infinity; this.hi = -Infinity; }
 }
 
+// ---- the look: the player's own head and hair ----------------------------------------------------------------
+
+/** The face's outline in Face Landmarker's 478 points, round from the top of the forehead. */
+export const FACE_OVAL = [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109];
+
+function inPolygon(x: number, y: number, poly: { x: number; y: number }[]): boolean {
+	let inside = false;
+	for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+		const a = poly[i], b = poly[j];
+		if ((a.y > y) !== (b.y > y) && x < ((b.x - a.x) * (y - a.y)) / (b.y - a.y) + a.x) inside = !inside;
+	}
+	return inside;
+}
+
+/** One frame's look: each square of the look's grid face, hair or neither, and the tones and mouth seen. */
+export interface LookFrame { mask: Region[]; hairLum: number[]; skinLum: number[]; mouthRow: number; }
+
+/**
+ * One frame's look from Face Landmarker's points (unmirrored, 0..1), the hair segmenter's confidence at a
+ * point (null: no hair known) and the picture's brightness at a point. The grid is laid on the face by the
+ * eyes, so it holds still while the head moves: a square is a quarter of the eyes' distance apart, the eyes
+ * on the line above row LOOK_EYE_Y, mirrored as the avatar is. Headphones and hats are neither face nor
+ * hair, so they are left out.
+ */
+export function lookFrame(lm: Pt[], aspect: number, hairAt: ((x: number, y: number) => number) | null, lumAt: (x: number, y: number) => number): LookFrame | null {
+	if (lm.length < 455) return null;
+	const avg = (ids: number[]) => ({ x: ids.reduce((a, i) => a + lm[i].x, 0) / ids.length, y: ids.reduce((a, i) => a + lm[i].y, 0) / ids.length });
+	const eyeA = lm.length > 473 ? lm[468] : avg([33, 133]), eyeB = lm.length > 473 ? lm[473] : avg([362, 263]);
+	// Mirrored and squared: X across (the drawing's right is the picture's left), Y down.
+	const M = (p: Pt) => ({ x: (1 - p.x) * aspect, y: p.y });
+	let l = M(eyeA), r = M(eyeB);
+	if (l.x > r.x) [l, r] = [r, l];
+	const mx = (l.x + r.x) / 2, my = (l.y + r.y) / 2, ed = Math.hypot(r.x - l.x, r.y - l.y);
+	if (ed < 1e-4) return null;
+	const a = Math.atan2(r.y - l.y, r.x - l.x), ca = Math.cos(a), sa = Math.sin(a);
+	const toPic = (u: number, v: number) => {
+		const X = mx + ed * (u * ca - v * sa), Y = my + ed * (u * sa + v * ca);
+		return { x: 1 - X / aspect, y: Y };
+	};
+	const oval = FACE_OVAL.map((i) => M(lm[i]));
+	const mask: Region[] = [], hairLum: number[] = [], skinLum: number[] = [];
+	for (let row = 0; row < LOOK_N; row++) for (let col = 0; col < LOOK_N; col++) {
+		const u = (col + 0.5 - LOOK_N / 2) / 4, v = (row + 0.5 - LOOK_EYE_Y) / 4;
+		const p = toPic(u, v);
+		const P = M(p);
+		const off = p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1;
+		let g: Region = 0;
+		if (!off && inPolygon(P.x, P.y, oval)) g = 1;
+		else if (!off && hairAt && hairAt(p.x, p.y) > 0.5) g = 2;
+		mask.push(g);
+		if (g === 1) skinLum.push(lumAt(p.x, p.y));
+		if (g === 2) hairLum.push(lumAt(p.x, p.y));
+	}
+	// The mouth: the middle of the lips, in the grid's rows.
+	const lip = M({ x: (lm[13].x + lm[14].x) / 2, y: (lm[13].y + lm[14].y) / 2 });
+	const lv = (-(lip.x - mx) * sa + (lip.y - my) * ca) / ed;
+	return { mask, hairLum, skinLum, mouthRow: Math.max(0, Math.min(15, Math.floor(LOOK_EYE_Y + lv * 4))) };
+}
+
+/** Frames of a look, built into one: each square what most frames saw; tones and the mouth by the middle value. */
+export class LookBuilder {
+	private face = new Uint8Array(LOOK_N * LOOK_N);
+	private hair = new Uint8Array(LOOK_N * LOOK_N);
+	private hairL: number[] = [];
+	private skinL: number[] = [];
+	private mouths: number[] = [];
+	frames = 0;
+	add(f: LookFrame) {
+		f.mask.forEach((g, i) => { if (g === 1) this.face[i]++; else if (g === 2) this.hair[i]++; });
+		this.hairL.push(...f.hairLum);
+		this.skinL.push(...f.skinLum);
+		this.mouths.push(f.mouthRow);
+		this.frames++;
+	}
+	build(): string {
+		const n = Math.max(1, this.frames);
+		const mask: Region[] = [];
+		for (let i = 0; i < LOOK_N * LOOK_N; i++) {
+			const fc = this.face[i], hc = this.hair[i];
+			mask.push(fc * 2 > n ? 1 : hc * 2 > n ? 2 : fc + hc > n / 2 ? (fc >= hc ? 1 : 2) : 0);
+		}
+		const mid = (v: number[], d: number) => { if (!v.length) return d; const s = v.slice().sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
+		return encodeLook({ hairTone: mid(this.hairL, 60) / 17, skinTone: mid(this.skinL, 180) / 17, mouthRow: mid(this.mouths, 13), mask });
+	}
+}
+
 // ---- browser trackers -------------------------------------------------------------------------------------
 
 /** Where MediaPipe comes from (a fixed version, from the jsDelivr CDN; the models from Google's bucket). */
@@ -268,7 +376,8 @@ export const MP_VERSION = '0.10.35';
 export const MP_BASE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VERSION}`;
 export const MODEL_URL = {
 	landmarker: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
-	blazeface: 'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite'
+	blazeface: 'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite',
+	hair: 'https://storage.googleapis.com/mediapipe-models/image_segmenter/hair_segmenter/float32/1/hair_segmenter.tflite'
 };
 
 export type TrackerName = 'landmarker' | 'blazeface' | 'pixel';
@@ -389,7 +498,47 @@ class PixelFeatures {
 export class LandmarkerTracker implements Tracker {
 	readonly name = 'landmarker' as const;
 	private fl: any = null;
+	private seg: any = null;
+	private lastLm: Pt[] | null = null;
+	private builder = new LookBuilder();
+	private grey = new Patcher();
+	private nextLook = 0;
+	/** The player's look (righead.ts) as last captured, and when; null until the first. */
+	look: string | null = null;
+	lookAt = 0;
 	shut = 0.55;
+
+	/**
+	 * Capture the look now and then: every few seconds, six frames running (the face's outline from the
+	 * landmarks, the hair from the hair segmenter), then the look is built from what most frames agree on.
+	 * Call after track() with the same picture. True when a new look is ready.
+	 */
+	captureLook(src: HTMLVideoElement | HTMLCanvasElement, sw: number, sh: number, t: number): boolean {
+		if (!this.lastLm || t < this.nextLook) return false;
+		let hair: { data: Float32Array; w: number; h: number } | null = null;
+		if (this.seg) {
+			try {
+				const r = this.seg.segmentForVideo(src, t);
+				const masks = r.confidenceMasks ?? [];
+				const m = masks[masks.length - 1];
+				if (m) hair = { data: Float32Array.from(m.getAsFloat32Array()), w: m.width, h: m.height };
+				r.close?.();
+			} catch { /* no hair this frame */ }
+		}
+		const GW = 64, GH = Math.max(1, Math.round(64 * sh / sw));
+		const lum = this.grey.grab(src, 0, 0, sw, sh, GW, GH);
+		const hm = hair;
+		const hairAt = hm ? (x: number, y: number) => hm.data[Math.min(hm.h - 1, Math.max(0, Math.floor(y * hm.h))) * hm.w + Math.min(hm.w - 1, Math.max(0, Math.floor(x * hm.w)))] : null;
+		const lumAt = (x: number, y: number) => lum[Math.min(GH - 1, Math.max(0, Math.floor(y * GH))) * GW + Math.min(GW - 1, Math.max(0, Math.floor(x * GW)))];
+		const one = lookFrame(this.lastLm, sw / sh, hairAt, lumAt);
+		if (one) this.builder.add(one);
+		if (this.builder.frames < 6) { this.nextLook = t + 80; return false; }
+		this.look = this.builder.build();
+		this.lookAt = t;
+		this.builder = new LookBuilder();
+		this.nextLook = t + 5000;
+		return true;
+	}
 
 	async load(): Promise<Loaded> {
 		const t0 = performance.now();
@@ -401,7 +550,16 @@ export class LandmarkerTracker implements Tracker {
 		});
 		let note = 'GPU';
 		try { this.fl = await mod.FaceLandmarker.createFromOptions(fileset, opts('GPU')); } catch { this.fl = await mod.FaceLandmarker.createFromOptions(fileset, opts('CPU')); note = 'CPU (no GPU)'; }
-		const files = withModel(downloaded(fromMediaPipe).filter((f) => !f.url.includes('blaze_face')), MODEL_URL.landmarker, model.byteLength);
+		// The hair segmenter, for the look: without it the look is the face alone.
+		let hairBytes = 0;
+		try {
+			const hm = await fetchModel(MODEL_URL.hair);
+			hairBytes = hm.byteLength;
+			const so = (delegate: 'GPU' | 'CPU') => ({ baseOptions: { modelAssetBuffer: hm, delegate }, runningMode: 'VIDEO', outputCategoryMask: false, outputConfidenceMasks: true });
+			try { this.seg = await mod.ImageSegmenter.createFromOptions(fileset, so('GPU')); } catch { this.seg = await mod.ImageSegmenter.createFromOptions(fileset, so('CPU')); }
+		} catch { note += ', no hair segmenter'; }
+		let files = withModel(downloaded(fromMediaPipe).filter((f) => !f.url.includes('blaze_face')), MODEL_URL.landmarker, model.byteLength);
+		if (hairBytes) files = withModel(files, MODEL_URL.hair, hairBytes);
 		return { bytes: files.reduce((a, f) => a + f.bytes, 0), ms: performance.now() - t0, files, note };
 	}
 
@@ -417,10 +575,11 @@ export class LandmarkerTracker implements Tracker {
 		const points = [33, 133, 362, 263, 1, 61, 291, 152, 10].map((i) => lm[i]).filter(Boolean);
 		let x0 = 1, y0 = 1, x1 = 0, y1 = 0;
 		for (const p of lm) { x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y); }
-		return { raw: rawFromBlendshapes(cats, m, this.shut), points, box: { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }, ms };
+		this.lastLm = lm;
+		return { raw: rawFromBlendshapes(cats, m, this.shut, lm), points, box: { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }, ms };
 	}
 	relearn() {}
-	close() { this.fl?.close?.(); this.fl = null; }
+	close() { this.fl?.close?.(); this.fl = null; this.seg?.close?.(); this.seg = null; }
 }
 
 /** BlazeFace: a box and six points from MediaPipe; eyes and mouth from the pixels. */
@@ -454,7 +613,7 @@ export class BlazeTracker implements Tracker {
 		const f = this.px.measure(src, [px(k[0]), px(k[1])], px(k[3]), span);
 		const b = det.boundingBox;
 		const box = b ? { x: b.originX / sw, y: b.originY / sh, w: b.width / sw, h: b.height / sh } : null;
-		return { raw: { ...f, ...pose }, points: k, box, ms: performance.now() - t0 };
+		return { raw: { ...f, ...pose, browL: 0, browR: 0 }, points: k, box, ms: performance.now() - t0 };
 	}
 	relearn() { this.px.relearn(); }
 	close() { this.fd?.close?.(); this.fd = null; }
@@ -483,7 +642,7 @@ export class PixelTracker implements Tracker {
 		const f = this.px.measure(src, eyes, mouth, b.s * 0.36);
 		const norm = (p: Pt) => ({ x: p.x / sw, y: p.y / sh });
 		return {
-			raw: { ...f, yaw: 0, pitch: 0, roll: 0 },
+			raw: { ...f, yaw: 0, pitch: 0, roll: 0, browL: 0, browR: 0 },
 			points: [...eyes, mouth].map(norm),
 			box: { x: b.x / sw, y: b.y / sh, w: b.s / sw, h: b.s / sh },
 			ms: performance.now() - t0

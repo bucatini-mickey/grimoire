@@ -39,11 +39,20 @@ Notes on the sizes:
   darkness is what it measures.
 - **Pixels only** is a fallback: blinks and an open mouth at best, no pose.
 
-## Recommendation (provisional)
+## Lavender, 14 November
 
-Use the **Face Landmarker**, loaded when the camera is turned on, with **Pixels only** as the fallback. The
-2.4 MB BlazeFace saving is not worth the weaker eyes and mouth unless Lavender's run shows the landmarker too
-slow (under ~12 fps) on its weak GPU. Revisit once the report is in. The village's Cameras page can switch
+Jason tried all three on Lavender (Intel Arc, 22 cores, Edge, 640x480 camera). The Face Landmarker loaded in
+0.7 s (6.86 MB). Notes: BlazeFace is "terrible"; talking was not picked up; the face too plain and not the
+player's shape; a turned head should turn as a whole; pitch and roll read the wrong way round. So: BlazeFace
+is gone from the village's choices (still on the test page); the lip gap and the voice now open the mouth;
+the head is drawn from the player's captured look (face outline and hair, with the hair segmenter: +0.78 MB,
+6.93 MB in all) and turns, tips and leans as a whole; brows added; pitch and roll flipped. The timed
+comparison was not run yet.
+
+## Recommendation
+
+Use the **Face Landmarker** (with the hair segmenter for the look), loaded when the camera is turned on, with
+**Pixels only** as the fallback. Confirmed by Lavender's try: BlazeFace's eyes and mouth are not good enough. The village's Cameras page can switch
 trackers (Tracker: ...) so each can be tried in a real game.
 
 ## How to fill in the table
