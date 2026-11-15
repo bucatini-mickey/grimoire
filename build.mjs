@@ -6,7 +6,7 @@
 //   node build.mjs          build once
 //   node build.mjs --serve  rebuild on change and serve on http://localhost:5317
 import * as esbuild from 'esbuild';
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -82,6 +82,9 @@ function icon(size) {
 }
 
 function writeAppFiles() {
+	// The webcam avatar's test page (one self-contained file, from queue/grimoire-avatar) rides along, so a laptop
+	// with a camera can open it over https: <site>/avatar-test.html. The game itself does not load it.
+	if (existsSync('tools/avatar-test.html')) copyFileSync('tools/avatar-test.html', 'dist/avatar-test.html');
 	writeFileSync('dist/icon-192.png', icon(192));
 	writeFileSync('dist/icon-512.png', icon(512));
 	writeFileSync('dist/manifest.webmanifest', JSON.stringify({

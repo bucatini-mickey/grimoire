@@ -1,0 +1,1565 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Avatar Tracker Test</title>
+<!--
+	The webcam avatar's test page (Grimoire, later Tachyon): the trackers side by side, the raw numbers beside
+	the avatar. One file: open it from disk in Chrome or Edge, or from Rosemary with `npm run tools`
+	(https://<Rosemary's address>:8443/avatar-test.html). The camera's picture never leaves the page; the
+	trackers' code and models are downloaded from jsDelivr and Google when one is first used.
+	The script below is compiled from src/avatar/testpage.ts: `npm run avatar-test` refreshes it.
+-->
+<style>
+:root { --bg: #0b0d12; --panel: #151922; --rule: #2a3040; --dim: #7e8492; --ink: #cecfd4; --bright: #fff0be; --gold: #e8c460; --red: #e86050; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.4 'Cascadia Mono', Consolas, 'DejaVu Sans Mono', Menlo, monospace; }
+main { max-width: 1100px; margin: 0 auto; padding: 12px 16px 40px; }
+h1 { font-size: 18px; color: var(--gold); margin: 4px 0 2px; font-weight: normal; }
+p { margin: 4px 0; }
+.dim { color: var(--dim); }
+.bar { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin: 10px 0; }
+button, select, input[type=text] { font: inherit; background: var(--panel); color: var(--ink); border: 1px solid var(--rule); border-radius: 4px; padding: 6px 10px; min-height: 36px; }
+button { cursor: pointer; }
+button.on { border-color: var(--gold); color: var(--bright); }
+button:disabled { opacity: 0.5; cursor: default; }
+label { white-space: nowrap; }
+.grid { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 14px; }
+@media (max-width: 760px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.box { background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 10px; min-width: 0; }
+.box h2 { font-size: 13px; color: var(--dim); font-weight: normal; margin: 0 0 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+canvas { display: block; max-width: 100%; }
+#video { width: 100%; background: #000; aspect-ratio: 4 / 3; }
+pre { margin: 0; line-height: 1.15; overflow-x: auto; }
+.avatars { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-end; }
+.avatars pre { font-size: 20px; background: var(--bg); padding: 6px 8px; border-radius: 4px; }
+.avatars .mid { font-size: 16px; }
+.avatars .far { font-size: 14px; }
+.g { color: var(--bg); } .o { color: #8a8f9c; } .f { color: var(--bright); }
+#hex { color: var(--gold); font-size: 18px; letter-spacing: 0.1em; }
+#numbers { font-size: 13px; }
+#chart { width: 100%; height: 120px; }
+#report { white-space: pre-wrap; font-size: 12px; max-height: 360px; overflow: auto; }
+#status { color: var(--bright); min-height: 1.4em; }
+#meters { color: var(--dim); font-size: 12px; }
+textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); color: var(--ink); border: 1px solid var(--rule); border-radius: 4px; padding: 6px; }
+#picture { font-size: 7px; line-height: 1; }
+</style>
+</head>
+<body>
+<main>
+<h1>Webcam avatar: tracker test</h1>
+<p class="dim">Each tracker reads your camera and gives nine numbers (eyes, mouth, smile, head turn, tip and lean, gaze). The avatar is drawn from those numbers alone, as other players would see it. Only the numbers would ever be sent; your picture stays on this page.</p>
+
+<div class="bar">
+	<button id="cam">Camera: off</button>
+	<button id="demo" title="Animate the avatar without a camera">Demo</button>
+	<label>Tracker <select id="tracker"></select></label>
+	<label>Picture <select id="bad" title="Make the picture worse on purpose: a bad webcam, a dark room"></select></label>
+	<button id="neutral" title="Look straight at the camera with a resting face, then press">Neutral</button>
+	<button id="relearn" title="Forget what the tracker learnt about your face and light">Relearn</button>
+	<label>Smoothing <input id="smooth" type="range" min="0" max="2" step="0.25"> <span id="smoothV"></span></label>
+</div>
+<div class="bar dim"><span>Flip if a side is the wrong way round:</span> <span id="flips"></span> <label><input type="checkbox" id="showVideo" checked> show video</label></div>
+<p id="status"></p>
+<p id="meters"></p>
+
+<div class="grid">
+	<div class="box">
+		<h2>Your camera (here only)</h2>
+		<canvas id="video" width="320" height="240"></canvas>
+		<p class="dim">Box and dots: where the tracker thinks your face, eyes, nose and mouth are.</p>
+	</div>
+	<div class="box">
+		<h2>The avatar, from the numbers: near, middle, far</h2>
+		<div class="avatars">
+			<pre id="av3"></pre>
+			<pre id="av2" class="mid"></pre>
+			<pre id="av1" class="far"></pre>
+			<div><span class="dim">sent:</span> <span id="hex"></span></div>
+		</div>
+		<p class="dim">Type nine hex digits to see one drawing: <input type="text" id="type" size="11" placeholder="bb0888888"></p>
+	</div>
+	<div class="box">
+		<h2>Numbers</h2>
+		<pre id="numbers"></pre>
+	</div>
+	<div class="box">
+		<h2>Last six seconds</h2>
+		<canvas id="chart" width="640" height="120"></canvas>
+		<p class="dim">A blink should drop the blue lines at once and come back; a lag shows as the drop arriving late.</p>
+	</div>
+	<div class="box" id="pictureBox" hidden>
+		<h2>Fallback: the picture avatar</h2>
+		<pre id="picture"></pre>
+	</div>
+	<div class="box">
+		<h2>Compare the trackers</h2>
+		<p class="dim">Runs each tracker for about eight seconds on the picture as it is, low-res, dark and noisy (about two minutes). Sit still, face the camera, and blink three times, slowly, in each run.</p>
+		<div class="bar">
+			<button id="bench">Run the comparison</button>
+			<button id="loadAll" title="Download all three trackers now, to see what each costs">Load trackers</button>
+			<button id="copy">Copy report</button>
+			<button id="send" hidden>Send to Rosemary</button>
+			<button id="save">Save report</button>
+			<button id="fallback">Show picture avatar</button>
+		</div>
+		<textarea id="notes" placeholder="Notes for the report: blinks lag, gaze is flipped, smile never shows..."></textarea>
+		<pre id="report" class="dim"></pre>
+	</div>
+</div>
+</main>
+<script>
+/* ==== avatar-test: BEGIN. Compiled from src/avatar/testpage.ts; refresh with `npm run avatar-test`, do not edit here. ==== */
+"use strict";
+(() => {
+  var __defProp = Object.defineProperty;
+  var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+  var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
+
+  // src/avatar/rig.ts
+  var RIG_KEYS = ["eyeL", "eyeR", "mouth", "smile", "yaw", "pitch", "roll", "gazeX", "gazeY"];
+  var RIG_LEN = RIG_KEYS.length;
+  var NEUTRAL = { eyeL: 11, eyeR: 11, mouth: 0, smile: 8, yaw: 8, pitch: 8, roll: 8, gazeX: 8, gazeY: 8 };
+  var digit = (v) => Math.max(0, Math.min(15, Math.round(v)));
+  var encodeRig = (r) => RIG_KEYS.map((k) => digit(r[k]).toString(16)).join("");
+  function decodeRig(s) {
+    if (typeof s !== "string" || s.length !== RIG_LEN || !/^[0-9a-f]+$/.test(s)) return null;
+    const r = {};
+    RIG_KEYS.forEach((k, i) => {
+      r[k] = parseInt(s[i], 16);
+    });
+    return r;
+  }
+  var DETAIL_SIZE = { 0: { w: 0, h: 0 }, 1: { w: 5, h: 2 }, 2: { w: 10, h: 5 }, 3: { w: 16, h: 8 } };
+  function rdiv(a, b) {
+    const m = Math.floor((2 * Math.abs(a) + b) / (2 * b));
+    return a < 0 ? -m : m;
+  }
+  var clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
+  var signed = (v) => clamp(clamp(Math.trunc(v), 0, 15) - 8, -7, 7);
+  var level = (v) => clamp(Math.trunc(v), 0, 15);
+  function eyeGlyph(open) {
+    return open <= 3 ? "-" : open <= 7 ? "=" : open <= 12 ? "o" : "O";
+  }
+  function mouthGlyphs(open, smile, twoRows) {
+    const s = smile >= 3 ? 1 : smile <= -3 ? -1 : 0;
+    if (open <= 3) return { top: s > 0 ? ["\\", "_", "/"] : s < 0 ? ["/", "-", "\\"] : ["-", "-", "-"], under: null };
+    if (open <= 9 || !twoRows) {
+      const mid = open <= 9 ? "=" : "O";
+      return { top: s > 0 ? ["\\", mid, "/"] : s < 0 ? ["/", mid, "\\"] : ["(", mid, ")"], under: null };
+    }
+    if (s < 0) return { top: ["/", "-", "\\"], under: ["'", "-", "'"] };
+    return { top: [".", "-", "."], under: s > 0 ? ["\\", "_", "/"] : ["'", "-", "'"] };
+  }
+  function drawRig(r, w, h) {
+    const out = Array.from({ length: h }, () => Array.from({ length: w }, () => ({ ch: " ", ink: 0 })));
+    if (w < 5 || h < 2) return out;
+    const put = (x, y, ch, ink) => {
+      if (x >= 0 && y >= 0 && x < w && y < h) out[y][x] = { ch, ink };
+    };
+    const eL = level(r.eyeL), eR = level(r.eyeR), mo = level(r.mouth);
+    const sm = signed(r.smile), yw = signed(r.yaw), pt = signed(r.pitch), rl = signed(r.roll), gx = signed(r.gazeX), gy = signed(r.gazeY);
+    const tiny = w < 8 || h < 4;
+    if (tiny) {
+      const sx2 = yw >= 4 ? 1 : yw <= -4 ? -1 : 0;
+      const gs = gx >= 5 ? 1 : gx <= -5 ? -1 : 0;
+      const mid = Math.floor((w - 1) / 2);
+      const ex = Math.max(1, Math.floor((w - 1) / 4));
+      put(0, 0, "(", 1);
+      put(w - 1, 0, ")", 1);
+      put(clamp(mid - ex + sx2 + gs, 1, w - 2), 0, eyeGlyph(eL), 2);
+      put(clamp(mid + ex + sx2 + gs, 1, w - 2), 0, eyeGlyph(eR), 2);
+      const m2 = mouthGlyphs(mo, sm, false).top;
+      const mw2 = w >= 5 ? 3 : 1;
+      const m02 = clamp(mid - Math.floor(mw2 / 2) + sx2, 0, w - mw2);
+      for (let i = 0; i < mw2; i++) put(m02 + i, 1, i === 0 ? m2[0] : i === mw2 - 1 ? m2[2] : m2[1], 2);
+      return out;
+    }
+    const inside = (x, y) => {
+      if (x < 0 || y < 0 || x >= w || y >= h) return false;
+      const X = 2 * x + 1 - w, Y = 2 * y + 1 - h;
+      return X * X * h * h + Y * Y * w * w <= w * w * h * h;
+    };
+    const span = (y) => {
+      let a = -1, b = -1;
+      for (let x = 0; x < w; x++) if (inside(x, y)) {
+        if (a < 0) a = x;
+        b = x;
+      }
+      return a < 0 ? null : [a, b];
+    };
+    let top = -1, bottom = -1;
+    for (let y = 0; y < h; y++) if (span(y)) {
+      if (top < 0) top = y;
+      bottom = y;
+    }
+    for (let y = top; y <= bottom; y++) {
+      const s = span(y);
+      if (y === top) {
+        for (let x = s[0]; x <= s[1]; x++) put(x, y, "_", 1);
+        continue;
+      }
+      if (y === bottom) {
+        for (let x = s[0]; x <= s[1]; x++) put(x, y, x === s[0] ? "\\" : x === s[1] ? "/" : "-", 1);
+        continue;
+      }
+      const a = span(y - 1)[0], b = span(y + 1)[0];
+      const brow = a > s[0] && b < s[0], jaw = a < s[0] && b > s[0];
+      put(s[0], y, brow ? "/" : jaw ? "\\" : "|", 1);
+      put(s[1], y, brow ? "\\" : jaw ? "/" : "|", 1);
+    }
+    const big = w >= 14 && h >= 7;
+    const C = w;
+    const E = 2 * rdiv(w, 5) + (w % 2 === 0 ? 1 : 0);
+    const sx = rdiv(yw * w, 7 * 8);
+    const sy = -rdiv(pt * h, 7 * 8);
+    const lean = (dx2) => {
+      if (dx2 === 0 || Math.abs(rl) < 3) return 0;
+      const low = dx2 > 0 === rl > 0;
+      if (!big) return low ? 0 : -1;
+      return low ? 1 : Math.abs(rl) >= 6 ? -1 : 0;
+    };
+    const ey = rdiv(3 * h, 8) + sy;
+    const my = Math.floor(5 * h / 7) + sy;
+    const lo = 1, hi = w - 2;
+    const eye = (dx2, open) => {
+      const x = clamp((C + dx2 - 1) / 2 + sx, big ? lo + 2 : lo, big ? hi - 2 : hi);
+      const y = clamp(ey + lean(dx2), 1, h - 2);
+      if (!big) {
+        put(clamp(x + (gx >= 4 ? 1 : gx <= -4 ? -1 : 0), lo, hi), y, eyeGlyph(open), 2);
+        return;
+      }
+      const g = gx >= 3 ? 1 : gx <= -3 ? -1 : 0;
+      const pupil = open >= 13 ? "O" : gy >= 4 ? "'" : gy <= -4 ? "." : "o";
+      for (let i = -2; i <= 2; i++) {
+        let ch;
+        if (open <= 3) ch = i === -2 || i === 2 ? " " : "-";
+        else if (i === -2) ch = "(";
+        else if (i === 2) ch = ")";
+        else if (i === g) ch = pupil;
+        else ch = open <= 7 ? "-" : " ";
+        put(clamp(x + i, lo, hi), y, ch, 2);
+      }
+    };
+    eye(-E, eL);
+    eye(E, eR);
+    const ny = ey + 1 + Math.max(lean(-E), lean(E));
+    if (big && ny < my && ny <= h - 2) {
+      const nx = clamp(Math.floor((C - 1) / 2) + sx + (yw >= 3 ? 1 : 0), lo, hi);
+      put(nx, ny, yw >= 3 ? ">" : yw <= -3 ? "<" : "|", 1);
+    }
+    const mw = w >= 14 ? 6 : w >= 8 ? 4 : 3;
+    const two = h >= 7 && my + 1 <= h - 2;
+    const m = mouthGlyphs(mo, sm, two);
+    const m0 = (C - mw) / 2 + sx;
+    const row = (y0, g) => {
+      for (let i = 0; i < mw; i++) {
+        const x = m0 + i;
+        const dx2 = 2 * x + 1 - C - 2 * sx;
+        put(clamp(x, lo, hi), clamp(y0, 1, h - 1), i === 0 ? g[0] : i === mw - 1 ? g[2] : g[1], 2);
+      }
+    };
+    row(clamp(my, 1, h - 2), m.top);
+    if (m.under) row(clamp(my + 1, 1, h - 2), m.under);
+    return out;
+  }
+
+  // src/avatar/asciiavatar.ts
+  var DEFAULTS = {
+    cols: 40,
+    fps: 20,
+    zoom: 0.5,
+    lift: 0.1,
+    black: 2,
+    white: 98,
+    gamma: 0.8,
+    sharpen: 0.8,
+    shape: 5,
+    shaped: true,
+    colour: true,
+    invert: false,
+    mirror: true,
+    track: false,
+    margin: 1.5,
+    skin: 1,
+    follow: 0.25,
+    faceExpose: true,
+    fade: 0.8,
+    oval: 1,
+    smooth: 0.5,
+    snap: 40,
+    steady: 0.25,
+    facing: "user"
+  };
+  var rowsFor = (cols) => Math.max(1, Math.round(cols / 2));
+  var DENSE = " .:-=+*#%@";
+  var RAMP = " .,:;-=+*oa#%@";
+  var INKS = ["#15110d", "#2a2017", "#3d2e20", "#503c29", "#634a32", "#76593c", "#8a6a47", "#9d7b53", "#ae8c60", "#bd9c6f", "#cbad80", "#d7bd92", "#e2cda6", "#ecdcba", "#f4e9cf", "#fbf4e4"];
+  var luma = (r, g, b) => 0.3 * r + 0.59 * g + 0.11 * b;
+  function boxDown(rgba, W, H, k) {
+    const w = Math.floor(W / k), h = Math.floor(H / k);
+    const out = new Float32Array(w * h);
+    const kk = k * k;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      let s = 0;
+      for (let dy = 0; dy < k; dy++) {
+        let i = ((y * k + dy) * W + x * k) * 4;
+        for (let dx = 0; dx < k; dx++, i += 4) s += luma(rgba[i], rgba[i + 1], rgba[i + 2]);
+      }
+      out[x + y * w] = s / kk;
+    }
+    return out;
+  }
+  function blend(prev, next2, keep, snap) {
+    const k = Math.min(0.95, Math.max(0, keep));
+    for (let i = 0; i < prev.length; i++) {
+      const d = next2[i] - prev[i];
+      prev[i] = Math.abs(d) > snap ? next2[i] : prev[i] + d * (1 - k);
+    }
+    return prev;
+  }
+  function outside(x, y, w, h, oval = 1) {
+    const r = Math.hypot((x + 0.5 - w / 2) / (w * 0.36 * oval), (y + 0.5 - h * 0.48) / (h * 0.46 * oval));
+    return Math.min(1, Math.max(0, (r - 0.9) / 0.35));
+  }
+  function exposure(v, w, h, s) {
+    const inFace = [];
+    if (s.faceExpose) {
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (outside(x, y, w, h, s.oval) < 0.5) inFace.push(v[x + y * w]);
+    }
+    const sorted = Float32Array.from(inFace.length > 8 ? inFace : Array.from(v)).sort();
+    const at = (p) => sorted[Math.floor((sorted.length - 1) * Math.min(100, Math.max(0, p)) / 100)];
+    return { lo: at(s.black), hi: at(s.white) };
+  }
+  function quantize(b, prev, steady) {
+    const x = Math.min(15, Math.max(0, b * 15));
+    if (prev >= 0 && Math.abs(x - prev) <= 0.5 + steady) return prev;
+    return Math.round(x);
+  }
+  function toLevels(v, w, h, s, lo, hi, prev = null) {
+    const span = Math.max(12, hi - lo);
+    const n = new Float32Array(w * h);
+    for (let i = 0; i < n.length; i++) n[i] = Math.pow(Math.min(1, Math.max(0, (v[i] - lo) / span)), s.gamma);
+    const out = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = x + y * w;
+      let sum = 0, k = 0;
+      if (x > 0) {
+        sum += n[i - 1];
+        k++;
+      }
+      if (x < w - 1) {
+        sum += n[i + 1];
+        k++;
+      }
+      if (y > 0) {
+        sum += n[i - w];
+        k++;
+      }
+      if (y < h - 1) {
+        sum += n[i + w];
+        k++;
+      }
+      let b = Math.min(1, Math.max(0, n[i] + (k ? n[i] - sum / k : 0) * s.sharpen));
+      if (s.invert) b = 1 - b;
+      b *= 1 - s.fade * outside(x, y, w, h, s.oval);
+      const q = quantize(b, prev ? prev[i] : -1, s.steady);
+      out[i] = q;
+      if (prev) prev[i] = q;
+    }
+    return out;
+  }
+  function cellGlyph(t, b, shape = 5, shaped = true) {
+    if (!shaped) {
+      const k = Math.round((t + b) / 2);
+      return [RAMP[Math.round(k * (RAMP.length - 1) / 15)], k];
+    }
+    const level2 = Math.max(t, b);
+    if (level2 < 2) return [" ", level2];
+    const d = t - b;
+    if (d >= shape) return [t >= 11 ? '"' : t >= 7 ? "'" : "`", level2];
+    if (d <= -shape) return [b >= 11 ? "o" : b >= 7 ? "," : ".", level2];
+    return [DENSE[Math.round((t + b) / 30 * (DENSE.length - 1))], level2];
+  }
+  var esc = (c) => c === "<" ? "&lt;" : c === ">" ? "&gt;" : c === "&" ? "&amp;" : c;
+  function toHtml(lines, inks, colour, palette = INKS) {
+    const cols = lines[0]?.length ?? 0;
+    return lines.map((line, y) => {
+      if (!colour) return Array.from(line, esc).join("");
+      let out = "", run = "", ink = -1;
+      for (let x = 0; x < cols; x++) {
+        const k = inks[x + y * cols];
+        if (k !== ink) {
+          if (run) out += `<span style="color:${palette[ink]}">${run}</span>`;
+          run = "";
+          ink = k;
+        }
+        run += esc(line[x]);
+      }
+      if (run) out += `<span style="color:${palette[ink]}">${run}</span>`;
+      return out;
+    }).join("\n");
+  }
+  function toFrame(levels, cols, rows, s) {
+    const lines = [];
+    const inks = new Uint8Array(cols * rows);
+    for (let y = 0; y < rows; y++) {
+      let line = "";
+      for (let x = 0; x < cols; x++) {
+        const [ch, k] = cellGlyph(levels[x + 2 * y * cols], levels[x + (2 * y + 1) * cols], s.shape, s.shaped);
+        line += ch;
+        inks[x + y * cols] = k;
+      }
+      lines.push(line);
+    }
+    return { cols, rows, levels, lines, inks, text: lines.join("\n"), html: toHtml(lines, inks, s.colour) };
+  }
+  var SKIN_START = { cb: 106, cr: 152, taught: false };
+  var ycc = (r, g, b) => ({
+    y: 0.299 * r + 0.587 * g + 0.114 * b,
+    cb: 128 - 0.168736 * r - 0.331264 * g + 0.5 * b,
+    cr: 128 + 0.5 * r - 0.418688 * g - 0.081312 * b
+  });
+  function isSkin(r, g, b, ref, tolerance) {
+    const c = ycc(r, g, b);
+    const d = Math.hypot((c.cb - ref.cb) / (ref.taught ? 9 : 20), (c.cr - ref.cr) / (ref.taught ? 7 : 16));
+    return c.y > 20 && c.y < 248 && d < tolerance;
+  }
+  function skinMask(rgba, w, h, ref, tolerance, win = null) {
+    const m = new Uint8Array(w * h);
+    for (let i = 0; i < w * h; i++) {
+      const x = i % w, y = (i - x) / w;
+      if (win && (x < win.x0 || x > win.x1 || y < win.y0 || y > win.y1)) continue;
+      m[i] = isSkin(rgba[i * 4], rgba[i * 4 + 1], rgba[i * 4 + 2], ref, tolerance) ? 1 : 0;
+    }
+    return m;
+  }
+  function bestPatch(mask, w, h, near, min) {
+    const seen = new Uint8Array(w * h);
+    let best = null, bestScore = 0;
+    const stack = [];
+    for (let i = 0; i < w * h; i++) {
+      if (!mask[i] || seen[i]) continue;
+      stack.push(i);
+      seen[i] = 1;
+      let n = 0, x0 = w, x1 = 0, y0 = h, y1 = 0, sx = 0, sy = 0;
+      while (stack.length) {
+        const k = stack.pop(), x = k % w, y = (k - x) / w;
+        n++;
+        sx += x;
+        sy += y;
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+        if (y < y0) y0 = y;
+        if (y > y1) y1 = y;
+        if (x > 0 && mask[k - 1] && !seen[k - 1]) {
+          seen[k - 1] = 1;
+          stack.push(k - 1);
+        }
+        if (x < w - 1 && mask[k + 1] && !seen[k + 1]) {
+          seen[k + 1] = 1;
+          stack.push(k + 1);
+        }
+        if (y > 0 && mask[k - w] && !seen[k - w]) {
+          seen[k - w] = 1;
+          stack.push(k - w);
+        }
+        if (y < h - 1 && mask[k + w] && !seen[k + w]) {
+          seen[k + w] = 1;
+          stack.push(k + w);
+        }
+      }
+      if (n < min) continue;
+      const score = n / (1 + Math.hypot(sx / n - near.x, sy / n - near.y) / 12);
+      if (score > bestScore) {
+        bestScore = score;
+        best = { x0, x1, y0, y1, cx: sx / n, cy: sy / n, n };
+      }
+    }
+    return best;
+  }
+  function squareAround(cx, cy, size, sw, sh) {
+    const s = Math.min(sw, sh, Math.max(1, size));
+    return { x: Math.max(0, Math.min(sw - s, cx - s / 2)), y: Math.max(0, Math.min(sh - s, cy - s / 2)), s };
+  }
+  function follow(box, want, k, dead = 0.02) {
+    const step = (a, b) => Math.abs(b - a) < dead * box.s ? a : a + (b - a) * k;
+    return { x: step(box.x, want.x), y: step(box.y, want.y), s: step(box.s, want.s) };
+  }
+  function fixedCrop(sw, sh, zoom, lift, pin = null) {
+    const s = Math.min(sw, sh) * zoom;
+    const at = pin ?? { x: sw / 2, y: sh / 2 - s * lift };
+    return squareAround(at.x, at.y, s, sw, sh);
+  }
+  var FIND_W = 80;
+  var FIND_H = 60;
+  var FaceFinder = class {
+    constructor() {
+      __publicField(this, "ref", { ...SKIN_START });
+      __publicField(this, "box", null);
+      /** How the face was found this frame, in words. */
+      __publicField(this, "how", "");
+      /** This frame's skin, FIND_W x FIND_H (for showing). */
+      __publicField(this, "mask", new Uint8Array(FIND_W * FIND_H));
+      __publicField(this, "cv", null);
+      __publicField(this, "g", null);
+      __publicField(this, "detector");
+      __publicField(this, "detected", null);
+      __publicField(this, "busy", false);
+    }
+    /** The picture shrunk to FIND_W x FIND_H, RGBA. */
+    small(src, sw, sh) {
+      if (!this.cv) {
+        this.cv = document.createElement("canvas");
+        this.cv.width = FIND_W;
+        this.cv.height = FIND_H;
+        this.g = this.cv.getContext("2d", { willReadFrequently: true });
+      }
+      this.g.drawImage(src, 0, 0, sw, sh, 0, 0, FIND_W, FIND_H);
+      return this.g.getImageData(0, 0, FIND_W, FIND_H).data;
+    }
+    faceDetector() {
+      if (this.detector === void 0) {
+        const FD = globalThis.FaceDetector;
+        try {
+          this.detector = FD ? new FD({ fastMode: true, maxDetectedFaces: 1 }) : null;
+        } catch {
+          this.detector = null;
+        }
+      }
+      return this.detector;
+    }
+    /** Look for the face in this frame and move the box toward it; the box (unchanged if none is found). */
+    update(src, sw, sh, s, useDetector = true) {
+      let target = null;
+      const fd = useDetector ? this.faceDetector() : null;
+      if (fd) {
+        if (!this.busy) {
+          this.busy = true;
+          fd.detect(src).then((fs) => {
+            this.detected = fs[0]?.boundingBox ?? null;
+          }, () => {
+            this.detected = null;
+          }).finally(() => {
+            this.busy = false;
+          });
+        }
+        const d = this.detected;
+        if (d) {
+          target = { cx: d.x + d.width / 2, cy: d.y + d.height / 2, size: Math.max(d.width, d.height) };
+          this.how = "browser face detector";
+        }
+      }
+      const fx = FIND_W / sw, fy = FIND_H / sh;
+      const win = this.box ? (() => {
+        const m = this.box.s * 0.9;
+        return { x0: (this.box.x - m) * fx, x1: (this.box.x + this.box.s + m) * fx, y0: (this.box.y - m) * fy, y1: (this.box.y + this.box.s + m) * fy };
+      })() : null;
+      this.mask = skinMask(this.small(src, sw, sh), FIND_W, FIND_H, this.ref, s.skin, win);
+      if (!target) {
+        const near = this.box ? { x: (this.box.x + this.box.s / 2) * fx, y: (this.box.y + this.box.s / 2) * fy } : { x: FIND_W / 2, y: FIND_H / 2 };
+        const p = bestPatch(this.mask, FIND_W, FIND_H, near, FIND_W * FIND_H * 6e-3);
+        if (p) {
+          const w = (p.x1 - p.x0 + 1) / fx, h = (p.y1 - p.y0 + 1) / fy;
+          target = { cx: p.cx / fx, cy: p.cy / fy - h * 0.08, size: Math.max(w, h * 0.85) };
+          this.how = "skin tone";
+        }
+      }
+      if (!target) {
+        this.how = "no face found: holding";
+        return this.box;
+      }
+      const want = squareAround(target.cx, target.cy, target.size * s.margin, sw, sh);
+      this.box = this.box ? follow(this.box, want, s.follow) : want;
+      return this.box;
+    }
+    /** Learn skin's colour from the 5 x 5 patch round (fx, fy) (0..1 across the unmirrored picture) and put the box there. */
+    teach(src, sw, sh, fx, fy) {
+      const d = this.small(src, sw, sh);
+      const x0 = Math.round(fx * FIND_W), y0 = Math.round(fy * FIND_H);
+      let cb = 0, cr = 0, n = 0;
+      for (let y = y0 - 2; y <= y0 + 2; y++) for (let x = x0 - 2; x <= x0 + 2; x++) {
+        if (x < 0 || y < 0 || x >= FIND_W || y >= FIND_H) continue;
+        const i = (x + y * FIND_W) * 4, c = ycc(d[i], d[i + 1], d[i + 2]);
+        cb += c.cb;
+        cr += c.cr;
+        n++;
+      }
+      if (!n) return false;
+      this.ref = { cb: cb / n, cr: cr / n, taught: true };
+      this.box = squareAround(fx * sw, fy * sh, Math.min(sw, sh) * 0.35, sw, sh);
+      return true;
+    }
+    reset() {
+      this.ref = { ...SKIN_START };
+      this.box = null;
+      this.detected = null;
+    }
+  };
+  var AsciiAvatar = class {
+    constructor(settings = {}) {
+      __publicField(this, "s");
+      __publicField(this, "finder", new FaceFinder());
+      /** Where a click pinned the crop (source picture), used when not tracking. */
+      __publicField(this, "pin", null);
+      __publicField(this, "mem", /* @__PURE__ */ new Map());
+      __publicField(this, "cv", null);
+      __publicField(this, "g", null);
+      this.s = { ...DEFAULTS, ...settings };
+    }
+    /** Change settings (any of them, any time). */
+    set(p) {
+      Object.assign(this.s, p);
+    }
+    /** Forget the last frames and the face (after a new source, say). */
+    forget() {
+      this.mem.clear();
+      this.finder.box = null;
+    }
+    /** Where to crop this frame: the followed face if tracking, else the pinned or fixed square. */
+    locate(src, sw, sh) {
+      if (this.s.track) {
+        const b = this.finder.update(src, sw, sh, this.s, !(src instanceof HTMLCanvasElement));
+        if (b) return { ...b };
+      }
+      return fixedCrop(sw, sh, this.s.zoom, this.s.lift, this.pin);
+    }
+    /** Draw the crop `c` of a picture `cols` cells wide (each size keeps its own memory of past frames). */
+    draw(src, c, cols = this.s.cols) {
+      const s = this.s, rows = rowsFor(cols), w = cols, h = rows * 2;
+      const k = Math.max(1, Math.min(4, Math.floor(192 / Math.max(w, h))));
+      const W = w * k, H = h * k;
+      if (!this.cv) {
+        this.cv = document.createElement("canvas");
+        this.g = this.cv.getContext("2d", { willReadFrequently: true });
+      }
+      const cv = this.cv, g = this.g;
+      if (cv.width !== W) cv.width = W;
+      if (cv.height !== H) cv.height = H;
+      g.save();
+      if (s.mirror) {
+        g.translate(W, 0);
+        g.scale(-1, 1);
+      }
+      g.imageSmoothingEnabled = true;
+      g.imageSmoothingQuality = "high";
+      g.drawImage(src, c.x, c.y, c.s, c.s, 0, 0, W, H);
+      g.restore();
+      const lum = boxDown(g.getImageData(0, 0, W, H).data, W, H, k);
+      const key = w + "x" + h;
+      let m = this.mem.get(key);
+      const e = exposure(m ? blend(m.v, lum, s.smooth, s.snap) : lum, w, h, s);
+      if (!m) {
+        m = { v: lum, lo: e.lo, hi: e.hi, levels: new Int8Array(w * h).fill(-1) };
+        this.mem.set(key, m);
+      } else {
+        m.lo += (e.lo - m.lo) * 0.3;
+        m.hi += (e.hi - m.hi) * 0.3;
+      }
+      return toFrame(toLevels(m.v, w, h, s, m.lo, m.hi, m.levels), cols, rows, s);
+    }
+    /** One frame from a picture sw x sh: find the face, crop, draw. */
+    frame(src, sw, sh, cols = this.s.cols) {
+      return this.draw(src, this.locate(src, sw, sh), cols);
+    }
+  };
+
+  // src/avatar/trackers.ts
+  var GAINS = { yawDeg: 35, pitchDeg: 25, rollDeg: 30, gaze: 0.6, smile: 0.6, mouth: 0.8 };
+  var NO_FLIPS = { eyes: false, yaw: false, pitch: false, roll: false, gazeX: false, gazeY: false };
+  var NO_NEUTRAL = { yaw: 0, pitch: 0, roll: 0, gazeX: 0, gazeY: 0, smile: 0 };
+  var clamp2 = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
+  var sgn = (v, ends) => 8 + clamp2(v / ends, -1, 1) * 7;
+  function rigOf(raw, g = GAINS, n = NO_NEUTRAL, f = NO_FLIPS) {
+    const flip = (on, v) => on ? -v : v;
+    const [l, r] = f.eyes ? [raw.eyeR, raw.eyeL] : [raw.eyeL, raw.eyeR];
+    return {
+      eyeL: clamp2(l * 11, 0, 15),
+      eyeR: clamp2(r * 11, 0, 15),
+      mouth: clamp2(raw.mouth / g.mouth * 15, 0, 15),
+      smile: sgn(raw.smile - n.smile, g.smile),
+      yaw: sgn(flip(f.yaw, raw.yaw - n.yaw), g.yawDeg),
+      pitch: sgn(flip(f.pitch, raw.pitch - n.pitch), g.pitchDeg),
+      roll: sgn(flip(f.roll, raw.roll - n.roll), g.rollDeg),
+      gazeX: sgn(flip(f.gazeX, raw.gazeX - n.gazeX), g.gaze),
+      gazeY: sgn(flip(f.gazeY, raw.gazeY - n.gazeY), g.gaze)
+    };
+  }
+  var _RigSmoother = class _RigSmoother {
+    constructor() {
+      __publicField(this, "v", null);
+      __publicField(this, "d", null);
+      __publicField(this, "amount", 1);
+      __publicField(this, "hold", 0.6);
+    }
+    push(r) {
+      if (!this.v || !this.d) {
+        this.v = { ...r };
+        this.d = {};
+        for (const k of RIG_KEYS) this.d[k] = Math.round(r[k]);
+        return { ...this.d };
+      }
+      for (const k of RIG_KEYS) {
+        const a = this.amount <= 0 ? 1 : Math.pow(_RigSmoother.SPEED[k], this.amount);
+        const fast = (k === "eyeL" || k === "eyeR") && r[k] < this.v[k] ? Math.max(a, 0.9) : a;
+        this.v[k] += (r[k] - this.v[k]) * fast;
+        const cur = this.d[k];
+        if (Math.abs(this.v[k] - cur) > (this.amount <= 0 ? 0.5 : this.hold)) this.d[k] = Math.round(this.v[k]);
+      }
+      return { ...this.d };
+    }
+    reset() {
+      this.v = null;
+      this.d = null;
+    }
+  };
+  __publicField(_RigSmoother, "SPEED", { eyeL: 0.75, eyeR: 0.75, mouth: 0.6, smile: 0.35, yaw: 0.4, pitch: 0.4, roll: 0.4, gazeX: 0.35, gazeY: 0.35 });
+  var RigSmoother = _RigSmoother;
+  var DEG = 180 / Math.PI;
+  function poseFromMatrix(m) {
+    const R = (i, j) => m[j * 4 + i];
+    const yaw = Math.asin(clamp2(-R(2, 0), -1, 1)) * DEG;
+    const pitch = Math.atan2(R(2, 1), R(2, 2)) * DEG;
+    const roll = Math.atan2(R(1, 0), R(0, 0)) * DEG;
+    return { yaw: -yaw, pitch, roll: -roll };
+  }
+  function poseFromPoints(a, aspect = 4 / 3, rest = 0.5) {
+    const P = (p) => ({ x: (1 - p.x) * aspect, y: p.y });
+    let l = P(a.eyeA), r = P(a.eyeB);
+    if (l.x > r.x) [l, r] = [r, l];
+    const n = P(a.nose), mo = P(a.mouth);
+    const dx = r.x - l.x, dy = r.y - l.y, d = Math.hypot(dx, dy) || 1e-6;
+    const roll = Math.atan2(dy, dx) * DEG;
+    const mid = { x: (l.x + r.x) / 2, y: (l.y + r.y) / 2 };
+    const ux = dx / d, uy = dy / d;
+    const along = ((n.x - mid.x) * ux + (n.y - mid.y) * uy) / d;
+    const down = (q) => -(q.x - mid.x) * uy + (q.y - mid.y) * ux;
+    const share = down(n) / (down(mo) || 1e-6);
+    const yaw = Math.asin(clamp2(along / 0.55, -1, 1)) * DEG;
+    const pitch = (rest - share) * 160;
+    return { yaw, pitch, roll };
+  }
+  function rawFromBlendshapes(cats, matrix, shut = 0.55) {
+    const s = {};
+    for (const c of cats) s[c.categoryName] = c.score;
+    const v = (k) => s[k] ?? 0;
+    const open = (blink, wide) => clamp2((shut - blink) / (shut - 0.08), 0, 1) + wide * 0.4;
+    const pose = matrix && matrix.length >= 16 ? poseFromMatrix(matrix) : { yaw: 0, pitch: 0, roll: 0 };
+    return {
+      eyeL: open(v("eyeBlinkLeft"), v("eyeWideLeft")),
+      eyeR: open(v("eyeBlinkRight"), v("eyeWideRight")),
+      mouth: v("jawOpen"),
+      smile: (v("mouthSmileLeft") + v("mouthSmileRight")) / 2 - (v("mouthFrownLeft") + v("mouthFrownRight")) / 2,
+      ...pose,
+      // The player's left eye looking out looks to their left (the drawing's left); looking in, to the right.
+      gazeX: (v("eyeLookInLeft") + v("eyeLookOutRight") - v("eyeLookOutLeft") - v("eyeLookInRight")) / 2,
+      gazeY: (v("eyeLookUpLeft") + v("eyeLookUpRight") - v("eyeLookDownLeft") - v("eyeLookDownRight")) / 2
+    };
+  }
+  function darkness(lum) {
+    const sorted = Float32Array.from(lum).sort();
+    const med = Math.max(8, sorted[Math.floor(sorted.length * 0.6)]);
+    const out = new Float32Array(lum.length);
+    for (let i = 0; i < lum.length; i++) out[i] = clamp2((med - lum[i]) / med, 0, 1);
+    return out;
+  }
+  function eyeMeasure(lum, w, h) {
+    const d = darkness(lum);
+    let rows = 0, mass = 0, sx = 0, sy = 0;
+    for (let y = 0; y < h; y++) {
+      const row = Array.from(d.subarray(y * w, y * w + w)).sort((a, b) => b - a);
+      const third = row.slice(0, Math.max(1, Math.floor(w / 3)));
+      if (third.reduce((a, b) => a + b, 0) / third.length > 0.28) rows++;
+      for (let x = 0; x < w; x++) {
+        const k = d[x + y * w];
+        const q = k * k;
+        mass += q;
+        sx += q * x;
+        sy += q * y;
+      }
+    }
+    const cx = mass > 0 ? sx / mass : (w - 1) / 2, cy = mass > 0 ? sy / mass : (h - 1) / 2;
+    return { open: rows / h, look: clamp2((cx - (w - 1) / 2) / ((w - 1) / 2), -1, 1), lookY: clamp2((cy - (h - 1) / 2) / ((h - 1) / 2), -1, 1), mass: mass / (w * h) };
+  }
+  function mouthMeasure(lum, w, h) {
+    const d = darkness(lum);
+    let rows = 0, wide = 0;
+    for (let y = 0; y < h; y++) {
+      let run = 0, best = 0, dark = 0;
+      for (let x = 0; x < w; x++) {
+        const k = d[x + y * w];
+        if (k > 0.3) {
+          run++;
+          dark++;
+          best = Math.max(best, run);
+        } else run = 0;
+      }
+      if (dark >= w * 0.25) rows++;
+      wide = Math.max(wide, best / w);
+    }
+    return { open: rows / h, wide };
+  }
+  var Range = class {
+    constructor(forget = 4e-3, min = 0.05) {
+      __publicField(this, "lo", Infinity);
+      __publicField(this, "hi", -Infinity);
+      __publicField(this, "forget");
+      __publicField(this, "min");
+      this.forget = forget;
+      this.min = min;
+    }
+    push(v) {
+      if (!Number.isFinite(v)) return 0.5;
+      if (this.lo === Infinity) {
+        this.lo = v;
+        this.hi = v;
+      }
+      this.lo = Math.min(v, this.lo + (this.hi - this.lo) * this.forget);
+      this.hi = Math.max(v, this.hi - (this.hi - this.lo) * this.forget);
+      const span = Math.max(this.min, this.hi - this.lo);
+      return clamp2((v - this.lo) / span, 0, 1);
+    }
+    reset() {
+      this.lo = Infinity;
+      this.hi = -Infinity;
+    }
+  };
+  var MP_VERSION = "0.10.35";
+  var MP_BASE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VERSION}`;
+  var MODEL_URL = {
+    landmarker: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+    blazeface: "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite"
+  };
+  var TRACKER_NAMES = ["landmarker", "blazeface", "pixel"];
+  var TRACKER_LABEL = { landmarker: "Face Landmarker", blazeface: "BlazeFace + pixels", pixel: "Pixels only" };
+  var load = (u) => import(
+    /* @vite-ignore */
+    u
+  );
+  var vision = null;
+  function visionRuntime() {
+    return vision ?? (vision = (async () => {
+      const mod = await load(`${MP_BASE}/vision_bundle.mjs`);
+      const fileset = await mod.FilesetResolver.forVisionTasks(`${MP_BASE}/wasm`);
+      return { mod, fileset };
+    })().catch((e) => {
+      vision = null;
+      throw e;
+    }));
+  }
+  async function fetchModel(url) {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`${url}: ${r.status}`);
+    return new Uint8Array(await r.arrayBuffer());
+  }
+  function downloaded(match) {
+    const seen = /* @__PURE__ */ new Map();
+    for (const e of performance.getEntriesByType("resource")) {
+      if (!match(e.name)) continue;
+      const b = e.transferSize || e.encodedBodySize || 0;
+      seen.set(e.name, Math.max(seen.get(e.name) ?? 0, b));
+    }
+    return [...seen].map(([url, bytes]) => ({ url, bytes }));
+  }
+  function withModel(files, url, bytes) {
+    return [...files.filter((f) => f.url !== url), { url, bytes }];
+  }
+  var fromMediaPipe = (u) => u.includes("@mediapipe/tasks-vision") || u.includes("mediapipe-models");
+  var Patcher = class {
+    constructor() {
+      __publicField(this, "cv", document.createElement("canvas"));
+      __publicField(this, "g", this.cv.getContext("2d", { willReadFrequently: true }));
+    }
+    grab(src, sx, sy, sw, sh, w, h) {
+      if (this.cv.width !== w) this.cv.width = w;
+      if (this.cv.height !== h) this.cv.height = h;
+      this.g.drawImage(src, sx, sy, Math.max(1, sw), Math.max(1, sh), 0, 0, w, h);
+      const px = this.g.getImageData(0, 0, w, h).data;
+      const out = new Float32Array(w * h);
+      for (let i = 0; i < out.length; i++) out[i] = 0.3 * px[i * 4] + 0.59 * px[i * 4 + 1] + 0.11 * px[i * 4 + 2];
+      return out;
+    }
+  };
+  var PixelFeatures = class {
+    constructor() {
+      __publicField(this, "p", new Patcher());
+      __publicField(this, "eye", [new Range(3e-3, 0.15), new Range(3e-3, 0.15)]);
+      __publicField(this, "mouthOpen", new Range(3e-3, 0.2));
+      __publicField(this, "mouthWide", new Range(2e-3, 0.08));
+      __publicField(this, "lookX", new Range(2e-3, 0.3));
+      __publicField(this, "lookY", new Range(2e-3, 0.3));
+    }
+    measure(src, eyes, mouth, span) {
+      const [onLeft, onRight] = eyes[0].x > eyes[1].x ? eyes : [eyes[1], eyes[0]];
+      const EW = 20, EH = 12, MW = 24, MH = 14;
+      const ew = span * 0.55, eh = span * 0.33;
+      const one = (e, i) => {
+        const m = eyeMeasure(this.p.grab(src, e.x - ew / 2, e.y - eh / 2, ew, eh, EW, EH), EW, EH);
+        return { open: this.eye[i].push(m.open), look: m.look, lookY: m.lookY };
+      };
+      const a = one(onLeft, 0), b = one(onRight, 1);
+      const mw = span * 1, mh = span * 0.55;
+      const mm = mouthMeasure(this.p.grab(src, mouth.x - mw / 2, mouth.y - mh * 0.4, mw, mh, MW, MH), MW, MH);
+      const gx = -(a.look + b.look) / 2, gy = -(a.lookY + b.lookY) / 2;
+      return {
+        // Shut is the bottom of the learnt range; anything in its top two thirds is fully open.
+        eyeL: clamp2(a.open * 1.5, 0, 1),
+        eyeR: clamp2(b.open * 1.5, 0, 1),
+        mouth: this.mouthOpen.push(mm.open) * 0.8,
+        smile: (this.mouthWide.push(mm.wide) - 0.5) * 0.8,
+        gazeX: (this.lookX.push(gx) - 0.5) * 1.2,
+        gazeY: (this.lookY.push(gy) - 0.5) * 1.2
+      };
+    }
+    relearn() {
+      for (const r of [...this.eye, this.mouthOpen, this.mouthWide, this.lookX, this.lookY]) r.reset();
+    }
+  };
+  var LandmarkerTracker = class {
+    constructor() {
+      __publicField(this, "name", "landmarker");
+      __publicField(this, "fl", null);
+      __publicField(this, "shut", 0.55);
+    }
+    async load() {
+      const t0 = performance.now();
+      const { mod, fileset } = await visionRuntime();
+      const model = await fetchModel(MODEL_URL.landmarker);
+      const opts = (delegate) => ({
+        baseOptions: { modelAssetBuffer: model, delegate },
+        runningMode: "VIDEO",
+        numFaces: 1,
+        outputFaceBlendshapes: true,
+        outputFacialTransformationMatrixes: true
+      });
+      let note = "GPU";
+      try {
+        this.fl = await mod.FaceLandmarker.createFromOptions(fileset, opts("GPU"));
+      } catch {
+        this.fl = await mod.FaceLandmarker.createFromOptions(fileset, opts("CPU"));
+        note = "CPU (no GPU)";
+      }
+      const files = withModel(downloaded(fromMediaPipe).filter((f) => !f.url.includes("blaze_face")), MODEL_URL.landmarker, model.byteLength);
+      return { bytes: files.reduce((a, f) => a + f.bytes, 0), ms: performance.now() - t0, files, note };
+    }
+    track(src, sw, sh, t) {
+      const t0 = performance.now();
+      const r = this.fl.detectForVideo(src, t);
+      const ms = performance.now() - t0;
+      const lm = r.faceLandmarks?.[0];
+      if (!lm) return { raw: null, points: [], box: null, ms };
+      const cats = r.faceBlendshapes?.[0]?.categories ?? [];
+      const m = r.facialTransformationMatrixes?.[0]?.data ?? null;
+      const points = [33, 133, 362, 263, 1, 61, 291, 152, 10].map((i) => lm[i]).filter(Boolean);
+      let x0 = 1, y0 = 1, x1 = 0, y1 = 0;
+      for (const p of lm) {
+        x0 = Math.min(x0, p.x);
+        y0 = Math.min(y0, p.y);
+        x1 = Math.max(x1, p.x);
+        y1 = Math.max(y1, p.y);
+      }
+      return { raw: rawFromBlendshapes(cats, m, this.shut), points, box: { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }, ms };
+    }
+    relearn() {
+    }
+    close() {
+      this.fl?.close?.();
+      this.fl = null;
+    }
+  };
+  var BlazeTracker = class {
+    constructor() {
+      __publicField(this, "name", "blazeface");
+      __publicField(this, "fd", null);
+      __publicField(this, "px", new PixelFeatures());
+      __publicField(this, "rest", 0.5);
+    }
+    async load() {
+      const t0 = performance.now();
+      const { mod, fileset } = await visionRuntime();
+      const model = await fetchModel(MODEL_URL.blazeface);
+      const opts = (delegate) => ({ baseOptions: { modelAssetBuffer: model, delegate }, runningMode: "VIDEO", minDetectionConfidence: 0.4 });
+      let note = "GPU";
+      try {
+        this.fd = await mod.FaceDetector.createFromOptions(fileset, opts("GPU"));
+      } catch {
+        this.fd = await mod.FaceDetector.createFromOptions(fileset, opts("CPU"));
+        note = "CPU (no GPU)";
+      }
+      const files = withModel(downloaded(fromMediaPipe).filter((f) => !f.url.includes("face_landmarker")), MODEL_URL.blazeface, model.byteLength);
+      return { bytes: files.reduce((a, f) => a + f.bytes, 0), ms: performance.now() - t0, files, note };
+    }
+    track(src, sw, sh, t) {
+      const t0 = performance.now();
+      const r = this.fd.detectForVideo(src, t);
+      const det = r.detections?.[0];
+      if (!det || (det.keypoints?.length ?? 0) < 4) return { raw: null, points: [], box: null, ms: performance.now() - t0 };
+      const k = det.keypoints.map((p) => ({ x: p.x, y: p.y }));
+      const pose = poseFromPoints({ eyeA: k[0], eyeB: k[1], nose: k[2], mouth: k[3] }, sw / sh, this.rest);
+      const px = (p) => ({ x: p.x * sw, y: p.y * sh });
+      const span = Math.hypot((k[0].x - k[1].x) * sw, (k[0].y - k[1].y) * sh);
+      const f = this.px.measure(src, [px(k[0]), px(k[1])], px(k[3]), span);
+      const b = det.boundingBox;
+      const box = b ? { x: b.originX / sw, y: b.originY / sh, w: b.width / sw, h: b.height / sh } : null;
+      return { raw: { ...f, ...pose }, points: k, box, ms: performance.now() - t0 };
+    }
+    relearn() {
+      this.px.relearn();
+    }
+    close() {
+      this.fd?.close?.();
+      this.fd = null;
+    }
+  };
+  var PixelTracker = class {
+    constructor() {
+      __publicField(this, "name", "pixel");
+      __publicField(this, "finder", new FaceFinder());
+      __publicField(this, "px", new PixelFeatures());
+    }
+    async load() {
+      return { bytes: 0, ms: 0, files: [], note: "nothing to download" };
+    }
+    track(src, sw, sh) {
+      const t0 = performance.now();
+      const b = this.finder.update(src, sw, sh, { skin: 1, margin: 1, follow: 0.5 }, !(src instanceof HTMLCanvasElement));
+      if (!b || this.finder.how.startsWith("no face")) return { raw: null, points: [], box: null, ms: performance.now() - t0 };
+      const at = (u, v) => ({ x: b.x + b.s * u, y: b.y + b.s * v });
+      const eyes = [at(0.32, 0.42), at(0.68, 0.42)];
+      const mouth = at(0.5, 0.76);
+      const f = this.px.measure(src, eyes, mouth, b.s * 0.36);
+      const norm = (p) => ({ x: p.x / sw, y: p.y / sh });
+      return {
+        raw: { ...f, yaw: 0, pitch: 0, roll: 0 },
+        points: [...eyes, mouth].map(norm),
+        box: { x: b.x / sw, y: b.y / sh, w: b.s / sw, h: b.s / sh },
+        ms: performance.now() - t0
+      };
+    }
+    relearn() {
+      this.px.relearn();
+      this.finder.reset();
+    }
+    close() {
+    }
+  };
+  function makeTracker(name) {
+    return name === "landmarker" ? new LandmarkerTracker() : name === "blazeface" ? new BlazeTracker() : new PixelTracker();
+  }
+
+  // src/avatar/testpage.ts
+  var $ = (id) => document.getElementById(id);
+  var store = {
+    get: (k) => {
+      try {
+        return localStorage.getItem("avatar-test." + k);
+      } catch {
+        return null;
+      }
+    },
+    set: (k, v) => {
+      try {
+        localStorage.setItem("avatar-test." + k, v);
+      } catch {
+      }
+    }
+  };
+  var BAD_LABEL = { none: "as it is", lowres: "low-res (160x120, blurry)", dark: "dark room", noisy: "noisy (grain)", all: "all three" };
+  var S = {
+    video: document.createElement("video"),
+    stream: null,
+    source: "camera",
+    trackerName: TRACKER_NAMES.find((n) => n === store.get("tracker")) ?? "landmarker",
+    trackers: /* @__PURE__ */ new Map(),
+    loaded: /* @__PURE__ */ new Map(),
+    failed: /* @__PURE__ */ new Map(),
+    bad: "none",
+    flips: { ...NO_FLIPS, ...JSON.parse(store.get("flips") ?? "{}") },
+    neutral: { ...NO_NEUTRAL },
+    smoother: new RigSmoother(),
+    lastRaw: null,
+    lastTrack: null,
+    rig: { ...NEUTRAL },
+    fps: 0,
+    ms: 0,
+    found: 0,
+    frames: 0,
+    history: [],
+    fallback: false,
+    bench: null,
+    t0: performance.now()
+  };
+  S.video.muted = true;
+  S.video.playsInline = true;
+  S.smoother.amount = Number(store.get("smooth") ?? 1);
+  var bad = document.createElement("canvas");
+  var badG = bad.getContext("2d", { willReadFrequently: true });
+  var lowCv = document.createElement("canvas");
+  lowCv.width = 160;
+  lowCv.height = 120;
+  var lowG = lowCv.getContext("2d");
+  var seed = 1;
+  var rand = () => (seed = seed * 1103515245 + 12345 & 2147483647) / 2147483647;
+  function frameSource() {
+    const v = S.video;
+    if (!S.stream || v.readyState < 2 || !v.videoWidth) return null;
+    if (S.bad === "none") return { src: v, w: v.videoWidth, h: v.videoHeight };
+    const W = v.videoWidth, H = v.videoHeight;
+    if (bad.width !== W) bad.width = W;
+    if (bad.height !== H) bad.height = H;
+    const low = S.bad === "lowres" || S.bad === "all", dark = S.bad === "dark" || S.bad === "all", noisy = S.bad === "noisy" || S.bad === "all";
+    if (low) {
+      lowG.drawImage(v, 0, 0, 160, 120);
+      badG.imageSmoothingEnabled = true;
+      badG.drawImage(lowCv, 0, 0, W, H);
+    } else badG.drawImage(v, 0, 0, W, H);
+    if (dark || noisy) {
+      const img = badG.getImageData(0, 0, W, H), d = img.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const n = noisy ? (rand() - 0.5) * 70 : 0;
+        for (let c = 0; c < 3; c++) {
+          let x = d[i + c];
+          if (dark) x = Math.pow(x / 255, 1.6) * 255 * 0.3 + 4;
+          d[i + c] = x + n;
+        }
+      }
+      badG.putImageData(img, 0, 0);
+    }
+    return { src: bad, w: W, h: H };
+  }
+  async function cameraOn() {
+    try {
+      S.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 } }, audio: false });
+    } catch (e) {
+      status(`No camera (${e.name}). It needs https, localhost or a file opened from disk, and your permission. "Demo" shows the avatar without one.`);
+      return;
+    }
+    S.video.srcObject = S.stream;
+    await S.video.play().catch(() => {
+    });
+    S.source = "camera";
+    await ensureTracker(S.trackerName);
+    ui();
+  }
+  function cameraOff() {
+    for (const t of S.stream?.getTracks() ?? []) t.stop();
+    S.stream = null;
+    S.video.srcObject = null;
+    ui();
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden && S.stream && !S.bench?.running) cameraOff();
+  });
+  async function ensureTracker(name) {
+    if (S.trackers.has(name)) return S.trackers.get(name);
+    if (S.failed.has(name)) return null;
+    status(`Loading ${TRACKER_LABEL[name]}...`);
+    const t = makeTracker(name);
+    try {
+      const info = await t.load();
+      S.trackers.set(name, t);
+      S.loaded.set(name, info);
+      status(`${TRACKER_LABEL[name]} loaded: ${kb(info.bytes)} in ${(info.ms / 1e3).toFixed(1)} s (${info.note}).`);
+      return t;
+    } catch (e) {
+      S.failed.set(name, String(e.message ?? e));
+      status(`${TRACKER_LABEL[name]} could not load (${S.failed.get(name)}). Falling back: pixels, and the picture avatar.`);
+      return null;
+    } finally {
+      ui();
+    }
+  }
+  var kb = (b) => b >= 1e6 ? (b / 1e6).toFixed(2) + " MB" : (b / 1e3).toFixed(0) + " KB";
+  var demoHold = null;
+  var picture = new AsciiAvatar({ cols: 32, track: true });
+  var lastFrame = 0;
+  var fpsCount = 0;
+  var fpsAt = performance.now();
+  var msSum = 0;
+  var foundCount = 0;
+  function demoRig(t) {
+    const s = t / 1e3;
+    const blink = s % 3.7 < 0.15;
+    const wink = s % 11 > 10.5;
+    const tri = (p) => Math.abs(s / p % 2 - 1) * 2 - 1;
+    return {
+      eyeL: blink ? 0 : 11,
+      eyeR: blink || wink ? 0 : 11,
+      mouth: Math.round(Math.max(0, Math.sin(s * 5) * 12) * (s % 8 < 4 ? 1 : 0)),
+      smile: 8 + Math.round(tri(9) * 7),
+      yaw: 8 + Math.round(Math.sin(s * 0.7) * 7),
+      pitch: 8 + Math.round(Math.sin(s * 0.45) * 5),
+      roll: 8 + Math.round(Math.sin(s * 0.33) * 6),
+      gazeX: 8 + Math.round(Math.sin(s * 1.3) * 7),
+      gazeY: 8 + Math.round(Math.cos(s * 0.9) * 5)
+    };
+  }
+  var next = () => {
+    setTimeout(() => tick(performance.now()), 15);
+  };
+  function tick(now) {
+    next();
+    if (now - lastFrame < 1e3 / 30) return;
+    lastFrame = now;
+    let rig = null;
+    if (S.source === "demo") rig = demoHold ?? demoRig(now);
+    else {
+      const f = frameSource();
+      const t = S.trackers.get(S.trackerName) ?? (S.failed.has(S.trackerName) ? S.trackers.get("pixel") : void 0);
+      if (f && t) {
+        let tr;
+        try {
+          tr = t.track(f.src, f.w, f.h, now);
+        } catch (e) {
+          status("Tracker error: " + e.message);
+          return;
+        }
+        S.lastTrack = tr;
+        msSum += tr.ms;
+        fpsCount++;
+        if (tr.raw) {
+          foundCount++;
+          S.lastRaw = tr.raw;
+          rig = S.smoother.push(rigOf(tr.raw, GAINS, S.neutral, S.flips));
+        }
+        drawVideo(f, tr);
+      } else if (S.failed.has(S.trackerName) && !S.trackers.has("pixel")) void ensureTracker("pixel");
+      if (f && (S.fallback || S.failed.has(S.trackerName))) $("picture").innerHTML = picture.frame(f.src, f.w, f.h).html;
+    }
+    if (rig) {
+      S.rig = rig;
+      S.history.push({ t: now, rig });
+      while (S.history.length && S.history[0].t < now - 6e3) S.history.shift();
+      benchSample(rig, now);
+    }
+    if (now - fpsAt >= 1e3) {
+      S.fps = fpsCount * 1e3 / (now - fpsAt);
+      S.ms = fpsCount ? msSum / fpsCount : 0;
+      S.found = fpsCount ? foundCount / fpsCount : 0;
+      fpsCount = 0;
+      msSum = 0;
+      foundCount = 0;
+      fpsAt = now;
+      meters();
+    }
+    drawAvatars();
+    numbers();
+    chart(now);
+  }
+  var INK_CLASS = ["g", "o", "f"];
+  function cellsHtml(cells) {
+    return cells.map((row) => row.map((c) => c.ch === " " ? " " : `<span class="${INK_CLASS[c.ink]}">${c.ch.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")}</span>`).join("")).join("\n");
+  }
+  function drawAvatars() {
+    for (const d of [3, 2, 1]) {
+      const { w, h } = DETAIL_SIZE[d];
+      $("av" + d).innerHTML = cellsHtml(drawRig(S.rig, w, h));
+    }
+    $("hex").textContent = encodeRig(S.rig);
+  }
+  var vcv = () => $("video");
+  function drawVideo(f, tr) {
+    if (!$("showVideo").checked) return;
+    const c = vcv(), g = c.getContext("2d");
+    const W = 320, H = Math.round(320 * f.h / f.w);
+    if (c.width !== W) c.width = W;
+    if (c.height !== H) c.height = H;
+    g.save();
+    g.translate(W, 0);
+    g.scale(-1, 1);
+    g.drawImage(f.src, 0, 0, W, H);
+    g.strokeStyle = "#e8c460";
+    g.fillStyle = "#e86050";
+    g.lineWidth = 1;
+    if (tr.box) g.strokeRect(tr.box.x * W, tr.box.y * H, tr.box.w * W, tr.box.h * H);
+    for (const p of tr.points) g.fillRect(p.x * W - 2, p.y * H - 2, 4, 4);
+    g.restore();
+  }
+  var SIGNED = /* @__PURE__ */ new Set(["smile", "yaw", "pitch", "roll", "gazeX", "gazeY"]);
+  var UNIT = { yaw: "°", pitch: "°", roll: "°" };
+  function numbers() {
+    const raw = S.source === "demo" ? null : S.lastRaw;
+    const rows = RIG_KEYS.map((k) => {
+      const d = S.rig[k];
+      const r = raw ? raw[k] : null;
+      const bar = SIGNED.has(k) ? d < 8 ? " ".repeat(d) + "#".repeat(8 - d) + "|" + " ".repeat(7) : " ".repeat(8) + "|" + "#".repeat(d - 8) + " ".repeat(15 - d) : "#".repeat(d) + ".".repeat(15 - d);
+      return `${k.padEnd(6)} ${r === null ? "     -" : (r.toFixed(UNIT[k] ? 1 : 2) + (UNIT[k] ?? "")).padStart(6)}  ${d.toString(16)}  ${bar}`;
+    });
+    $("numbers").textContent = "name     raw  hex  0 ........ 15\n" + rows.join("\n");
+  }
+  function chart(now) {
+    const c = $("chart"), g = c.getContext("2d");
+    const W = c.width, H = c.height;
+    g.fillStyle = "#0b0d12";
+    g.fillRect(0, 0, W, H);
+    const lines = [["eyeL", "#86a9de"], ["eyeR", "#6ccfd2"], ["mouth", "#e86050"], ["smile", "#e8c460"], ["yaw", "#8fd06a"], ["gazeX", "#d09ad8"]];
+    g.font = "10px monospace";
+    lines.forEach(([k, col], i) => {
+      g.strokeStyle = col;
+      g.fillStyle = col;
+      g.fillText(k, 4 + i * 44, 10);
+      g.beginPath();
+      S.history.forEach((h, j) => {
+        const x = W - (now - h.t) / 6e3 * W, y = H - 4 - h.rig[k] / 15 * (H - 18);
+        if (j) g.lineTo(x, y);
+        else g.moveTo(x, y);
+      });
+      g.stroke();
+    });
+  }
+  function meters() {
+    const parts = [S.source === "demo" ? "Demo (no camera)" : S.stream ? `Camera ${S.video.videoWidth}x${S.video.videoHeight}` : "Camera off"];
+    if (S.source === "camera" && S.stream) {
+      const tName = S.trackers.has(S.trackerName) ? TRACKER_LABEL[S.trackerName] : S.failed.has(S.trackerName) ? "Pixels only (fallback)" : "loading";
+      parts.push(tName, `${S.fps.toFixed(0)} fps`, `${S.ms.toFixed(1)} ms a frame`, `face found ${(S.found * 100).toFixed(0)}%`);
+    }
+    parts.push("the picture never leaves this page");
+    $("meters").textContent = parts.join(" · ");
+  }
+  function status(s) {
+    $("status").textContent = s;
+  }
+  var BENCH_MS = 7e3;
+  var bench = null;
+  function benchSample(rig, now) {
+    if (!bench || now < bench.start) return;
+    bench.rigs.push(rig);
+    const shut = rig.eyeL <= 3 && rig.eyeR <= 3;
+    if (shut && !bench.shut) bench.blinks++;
+    bench.shut = shut;
+  }
+  async function runBench() {
+    if (!S.stream) {
+      await cameraOn();
+      if (!S.stream) return;
+    }
+    S.bench = { results: [], running: true };
+    ui();
+    const conds = ["none", "lowres", "dark", "noisy"];
+    const keepT = S.trackerName, keepB = S.bad;
+    for (const tn of TRACKER_NAMES) {
+      const t = await ensureTracker(tn);
+      if (!t) continue;
+      for (const b of conds) {
+        S.trackerName = tn;
+        S.bad = b;
+        S.smoother.reset();
+        t.relearn();
+        const start = performance.now() + 1200;
+        bench = { tracker: tn, bad: b, start, ms: [], frames: 0, found: 0, rigs: [], shut: false, blinks: 0 };
+        const orig = t.track.bind(t);
+        t.track = (src, w, h, tt) => {
+          const r = orig(src, w, h, tt);
+          if (bench && performance.now() >= bench.start) {
+            bench.frames++;
+            bench.ms.push(r.ms);
+            if (r.raw) bench.found++;
+          }
+          return r;
+        };
+        status(`Comparison: ${TRACKER_LABEL[tn]}, picture ${BAD_LABEL[b]}. Hold your head still and blink three times, slowly.`);
+        await new Promise((r) => setTimeout(r, 1200 + BENCH_MS));
+        t.track = orig;
+        const ms = bench.ms.slice().sort((a, b2) => a - b2);
+        const sd = (k) => {
+          const v = bench.rigs.map((r) => r[k]);
+          const m = v.reduce((a, b2) => a + b2, 0) / (v.length || 1);
+          return Math.sqrt(v.reduce((a, b2) => a + (b2 - m) * (b2 - m), 0) / (v.length || 1));
+        };
+        S.bench.results.push({
+          tracker: tn,
+          bad: b,
+          fps: bench.frames / (BENCH_MS / 1e3),
+          msMedian: ms[Math.floor(ms.length / 2)] ?? 0,
+          msP90: ms[Math.floor(ms.length * 0.9)] ?? 0,
+          found: bench.frames ? bench.found / bench.frames : 0,
+          jitter: (sd("yaw") + sd("pitch") + sd("roll") + sd("gazeX")) / 4,
+          blinks: bench.blinks,
+          download: S.loaded.get(tn)?.bytes ?? 0
+        });
+        benchTable();
+      }
+    }
+    bench = null;
+    S.trackerName = keepT;
+    S.bad = keepB;
+    S.bench.running = false;
+    store.set("lastReport", JSON.stringify(report()));
+    status("Comparison done. Copy the report, or send it to Rosemary.");
+    ui();
+  }
+  function deviceInfo() {
+    let gpu = "";
+    try {
+      const gl = document.createElement("canvas").getContext("webgl");
+      const ext = gl?.getExtension("WEBGL_debug_renderer_info");
+      gpu = ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : "";
+    } catch {
+    }
+    return { userAgent: navigator.userAgent, cores: navigator.hardwareConcurrency, memoryGB: navigator.deviceMemory ?? null, gpu, camera: S.stream ? `${S.video.videoWidth}x${S.video.videoHeight}` : null };
+  }
+  function report() {
+    return {
+      page: "avatar-test",
+      when: (/* @__PURE__ */ new Date()).toISOString(),
+      mediapipe: MP_VERSION,
+      device: deviceInfo(),
+      loads: Object.fromEntries([...S.loaded].map(([k, v]) => [k, { bytes: v.bytes, ms: Math.round(v.ms), note: v.note, files: v.files }])),
+      failed: Object.fromEntries(S.failed),
+      flips: S.flips,
+      smoothing: S.smoother.amount,
+      results: S.bench?.results ?? [],
+      notes: $("notes").value
+    };
+  }
+  function reportText() {
+    const r = report();
+    const lines = [`Avatar tracker comparison, ${r.when}`, `Device: ${r.device.cores} cores, ${r.device.memoryGB ?? "?"} GB, ${r.device.gpu || "GPU unknown"}, camera ${r.device.camera ?? "off"}`, ""];
+    for (const [k, v] of Object.entries(r.loads)) lines.push(`${TRACKER_LABEL[k]}: ${kb(v.bytes)} downloaded, loaded in ${(v.ms / 1e3).toFixed(1)} s, ${v.note}`);
+    for (const [k, v] of Object.entries(r.failed)) lines.push(`${TRACKER_LABEL[k]}: FAILED to load (${v})`);
+    lines.push("", "tracker              picture     fps   ms(med/p90)  found  jitter  blinks/3");
+    for (const x of r.results) lines.push(`${TRACKER_LABEL[x.tracker].padEnd(20)} ${x.bad.padEnd(10)} ${x.fps.toFixed(0).padStart(4)}  ${x.msMedian.toFixed(1).padStart(5)}/${x.msP90.toFixed(1).padEnd(6)} ${(x.found * 100).toFixed(0).padStart(4)}%  ${x.jitter.toFixed(2).padStart(5)}   ${x.blinks}`);
+    lines.push("", `Flips: ${Object.entries(r.flips).filter(([, v]) => v).map(([k]) => k).join(", ") || "none"}; smoothing ${r.smoothing}`);
+    if (r.notes) lines.push("", "Notes: " + r.notes);
+    return lines.join("\n");
+  }
+  function benchTable() {
+    $("report").textContent = reportText();
+  }
+  async function sendReport() {
+    try {
+      const res = await fetch("report", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(report()) });
+      status(res.ok ? "Sent: Rosemary has the report." : `Not sent (${res.status}). Copy it instead.`);
+    } catch {
+      status("Not sent: this page is not served by Rosemary (npm run tools there). Copy it instead.");
+    }
+  }
+  function ui() {
+    $("cam").textContent = S.stream ? "Camera: on" : "Camera: off";
+    $("cam").classList.toggle("on", !!S.stream);
+    $("demo").classList.toggle("on", S.source === "demo");
+    const sel = $("tracker");
+    for (const o of Array.from(sel.options)) {
+      const n = o.value, l = S.loaded.get(n);
+      o.textContent = TRACKER_LABEL[n] + (l ? ` (${kb(l.bytes)})` : S.failed.has(n) ? " (failed)" : "");
+    }
+    sel.value = S.trackerName;
+    $("bad").value = S.bad;
+    $("bench").toggleAttribute("disabled", !!S.bench?.running);
+    $("send").hidden = !location.protocol.startsWith("http");
+    $("pictureBox").hidden = !(S.fallback || S.failed.has(S.trackerName));
+    for (const k of Object.keys(NO_FLIPS)) $("flip-" + k).checked = S.flips[k];
+    meters();
+  }
+  function setup() {
+    const sel = $("tracker");
+    sel.innerHTML = TRACKER_NAMES.map((n) => `<option value="${n}">${TRACKER_LABEL[n]}</option>`).join("");
+    $("bad").innerHTML = Object.keys(BAD_LABEL).map((b) => `<option value="${b}">${BAD_LABEL[b]}</option>`).join("");
+    $("flips").innerHTML = Object.keys(NO_FLIPS).map((k) => `<label><input type="checkbox" id="flip-${k}"> ${k}</label>`).join(" ");
+    $("cam").onclick = () => {
+      if (S.stream) cameraOff();
+      else void cameraOn();
+    };
+    $("demo").onclick = () => {
+      demoHold = null;
+      S.source = S.source === "demo" ? "camera" : "demo";
+      ui();
+    };
+    sel.onchange = async () => {
+      S.trackerName = sel.value;
+      store.set("tracker", S.trackerName);
+      S.smoother.reset();
+      if (S.stream) await ensureTracker(S.trackerName);
+      ui();
+    };
+    $("bad").onchange = (e) => {
+      S.bad = e.target.value;
+      S.trackers.get(S.trackerName)?.relearn();
+      ui();
+    };
+    $("neutral").onclick = () => {
+      const r = S.lastRaw;
+      if (!r) {
+        status("No face yet: turn the camera on and look at it.");
+        return;
+      }
+      S.neutral = { yaw: r.yaw, pitch: r.pitch, roll: r.roll, gazeX: r.gazeX, gazeY: r.gazeY, smile: r.smile };
+      status("Neutral taken: your face as it is now draws as the middle.");
+    };
+    $("relearn").onclick = () => {
+      S.trackers.get(S.trackerName)?.relearn();
+      S.neutral = { ...NO_NEUTRAL };
+      S.smoother.reset();
+      status("Forgotten: the tracker learns your face and light again.");
+    };
+    const sm = $("smooth");
+    sm.value = String(S.smoother.amount);
+    $("smoothV").textContent = sm.value;
+    sm.oninput = () => {
+      S.smoother.amount = Number(sm.value);
+      $("smoothV").textContent = sm.value;
+      store.set("smooth", sm.value);
+    };
+    for (const k of Object.keys(NO_FLIPS)) $("flip-" + k).onchange = (e) => {
+      S.flips[k] = e.target.checked;
+      store.set("flips", JSON.stringify(S.flips));
+    };
+    $("fallback").onclick = () => {
+      S.fallback = !S.fallback;
+      ui();
+    };
+    $("bench").onclick = () => {
+      void runBench();
+    };
+    $("loadAll").onclick = async () => {
+      for (const n of TRACKER_NAMES) await ensureTracker(n);
+      status([...S.loaded].map(([n, l]) => `${TRACKER_LABEL[n]} ${kb(l.bytes)} in ${(l.ms / 1e3).toFixed(1)} s`).concat([...S.failed].map(([n, e]) => `${TRACKER_LABEL[n]} failed: ${e}`)).join(" · "));
+    };
+    $("copy").onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(reportText());
+        status("Report copied.");
+      } catch {
+        status("Could not copy: select the report text and copy it.");
+      }
+    };
+    $("send").onclick = () => {
+      void sendReport();
+    };
+    $("save").onclick = () => {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([JSON.stringify(report(), null, 1)], { type: "application/json" }));
+      a.download = `avatar-report-${Date.now()}.json`;
+      a.click();
+    };
+    $("type").onchange = (e) => {
+      const r = decodeRig(e.target.value.trim().toLowerCase());
+      if (r) {
+        S.source = "demo";
+        S.rig = r;
+        status("Showing the typed rig. Demo off to go back.");
+        demoHold = r;
+      } else status("A rig is nine hex digits, e.g. bb0888888.");
+    };
+    const last = store.get("lastReport");
+    if (last) $("report").textContent = "Last time:\n" + (() => {
+      try {
+        const r = JSON.parse(last);
+        return `${r.when}, ${r.results.length} runs. Run the comparison again to see it here.`;
+      } catch {
+        return "";
+      }
+    })();
+    ui();
+    status("Turn the camera on (or Demo). The tracker loads when the camera starts.");
+    next();
+  }
+  setup();
+  globalThis.avatarTest = { S, ensureTracker, report };
+})();
+/* ==== avatar-test: END ==== */
+</script>
+</body>
+</html>
