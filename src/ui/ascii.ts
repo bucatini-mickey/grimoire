@@ -2013,8 +2013,6 @@ export function illuminatedRow(lines: { t: string; tone?: Tone }[]): Row {
 
 /** How far you see by day, and the steps the village fades it over past that edge (SOFT in village.ts): beyond this the map is dark. */
 export const ZONE_RADIUS = SIGHT.day + 3;
-/** The rows the village keeps for its own bars (the title, the info lines, the tool buttons). */
-const MAP_CHROME = 9;
 let ratioMemo = 0;
 /** The width of a glyph over its height at one size, measured as the terminal measures it. */
 function glyphRatio(): number {
@@ -2028,22 +2026,21 @@ function glyphRatio(): number {
 	return ratioMemo;
 }
 /**
+ * How wide one of the town's cells is on a phone held upright, in CSS pixels: the same on every phone, so a
+ * cell is about the same size under the thumb whatever the screen (the user's pick, 15 Nov: "13 or so", tune here).
+ * A 390 px phone then shows about 30 columns; a narrow one keeps at least PHONE_MIN_COLS so the bar still fits.
+ */
+export const PHONE_CELL_PX = 13;
+const PHONE_MIN_COLS = 26;
+/**
  * The size of the town's cells for a screen of w by h pixels (a glyph is `ratio` wide for each unit of height).
  * A desktop's cells are big but not so big as they were (34 px, now 28), and the village shows a few more rows.
- * A phone held upright fits the grid to the limit of the occlusion zone: the map is only as many rows tall as
- * sight and its fade reach (the rest is dark), so the cells grow until those rows fill the height; never smaller
- * than the fit to the width of 52 columns, so a short screen is not made worse.
+ * A phone held upright gets cells PHONE_CELL_PX wide (fewer on a very narrow phone, so at least PHONE_MIN_COLS fit).
  */
 export function townScale(w: number, h: number, ratio: number, wide: boolean): { maxFont: number; rows: number; cols: number } {
 	if (wide || w >= h) return { maxFont: 28, rows: 32, cols: COLS };
-	const zoneRows = 2 * ZONE_RADIUS + 1 + MAP_CHROME;
-	const byWidth = Math.floor(w / (COLS * ratio));
-	// (the terminal rounds a line to whole pixels, so count rows as it does)
-	let font = Math.max(8, byWidth);
-	while (Math.floor(h / Math.round(font * 1.2)) > zoneRows && font < 40) font++;
-	// No fewer than 36 columns: the map is as wide as the screen lets it be.
-	const capped = Math.min(font, Math.floor(w / (36 * ratio)));
-	return { maxFont: capped, rows: 10, cols: Math.floor(w / (capped * ratio)) };
+	const font = Math.max(8, Math.min(Math.round(PHONE_CELL_PX / ratio), Math.floor(w / (PHONE_MIN_COLS * ratio))));
+	return { maxFont: font, rows: 10, cols: Math.floor(w / (font * ratio)) };
 }
 
 function frame(g: Grid) {
