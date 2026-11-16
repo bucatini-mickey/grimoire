@@ -46,6 +46,14 @@ narrows the far eye; a tip moves it a row; a lean drops the lower side's brow an
   eyes; from 14x7 up, five-cell eyes with pupils, lids and gaze, brows that rise and fall, and a nose.
 - Sizes by distance (`DETAIL_SIZE`): near 16x8, middle 10x5, far 5x2, farthest none (the letter).
 
+**The design (Jason, 16 Nov):** the letter tile with a face, in the middle style. Each avatar is a 10x5 tile
+(\`AVATAR_TILE\` in Grimoire's camwin.ts) on the letter tile's faint dotted ground, the middle face drawn on
+it, and the nose's middle (ink 3) replaced by the player's letter on its plate: brows, eyes and mouth round
+their letter. Near and middle players both get this tile; far ones the 5x2 emoticon; the farthest their
+letter. The 16x8 face is kept for the test page and the fixture only. Tried and dropped on the way: a head
+outline and hair from the camera (too fussy), and the camera's own picture in letters with the features laid
+on it (the "blend"; not wanted).
+
 **The test:** `tests/fixtures/rig-golden.json` holds `drawRig`'s text and inks for 107 rigs at 8 sizes (856
 cases). The Rust version should load that file and match it cell for cell, as `pterm.ts` is kept identical.
 Regenerate it only on purpose, with `UPDATE_RIG_GOLDEN=1 npm test` in Grimoire, and copy it to Tachyon in the
