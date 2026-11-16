@@ -52,7 +52,7 @@ const FACES = false;
  * shows on your phone only; test villagers get drawn stand-ins; anyone else shows as their letter.
  */
 const CAMS = true;
-import { AVATAR_TILE, barHeight, camLayout, CamOverlay, drawCamWindow, nextPlace, paintCamera, paintStandIn, pickTiles, PLACE_SHORT, PLACES, resolvePlace, sideWidth, standIn, tileSize } from './camwin.ts';
+import { AVATAR_TILE, barHeight, camLayout, stripFor, CamOverlay, drawCamWindow, nextPlace, paintCamera, paintStandIn, pickTiles, PLACE_SHORT, PLACES, resolvePlace, sideWidth, standIn, tileSize } from './camwin.ts';
 import type { Corner, PictureTile, Place, TileView } from './camwin.ts';
 /**
  * The webcam avatar (src/avatar): your camera, on your phone only, read by a face tracker into nine hex
@@ -1111,8 +1111,14 @@ function villageCells(g: Grid, ui?: Grid): boolean {
 	const place = resolvePlace(S.cams.place, u.cols, !!ui);
 	camPlace = place;
 	const tileSz = S.cams.look === 'avatar' ? AVATAR_TILE : tileSize(u.cols);
-	camSide = CAMS && S.cams.open && place === 'side' && !S.cams.folded ? sideWidth(tileSz) : 0;
-	const barH = CAMS && S.cams.open && place !== 'side' ? barHeight(u.cols, S.cams.folded, tileSz) : 0;
+	// A strip of its own only when there are faces enough to fill most of it: with just yours (or a few) the
+	// window is a small one in the corner over the map, not a long empty band (Lavender, 16 Nov).
+	const nCams = CAMS && S.cams.open ? camTileCount(p) : 0;
+	const strip = stripFor(place, nCams, tileSz, u.cols, fullH);
+	const fullSide = strip.side, fullBar = strip.bar;
+	camPlace = strip.corner;
+	camSide = CAMS && S.cams.open && fullSide && !S.cams.folded ? sideWidth(tileSz) : 0;
+	const barH = CAMS && S.cams.open && fullBar ? barHeight(u.cols, S.cams.folded, tileSz) : 0;
 	const bar = barH && fullH - barH >= 6 ? barH : 0;
 	const mapY = fullY + (place === 'top' ? bar : 0), mapH = fullH - bar;
 	// Split: the bars are solid, so a tap on them (not on a button) does not fall through and walk you there.
@@ -1275,6 +1281,25 @@ function beaconOf(t: Town): { x: number; y: number } | null {
 	}
 	beacons.set(t, found);
 	return found;
+}
+
+/** How many tiles the camera window will show: you, those whose faces this phone has (or whom you can hear), an asker. */
+function camTileCount(p: Person): number {
+	const avatars = S.cams.look === 'avatar';
+	let n = 1;
+	for (const q of S.people.values()) if (q.id !== S.me && (avatars ? S.rigs.has(q.id) : loudness(lvl(p), p, q, S.phase) > 0)) n++;
+	if (S.asks.some((id) => S.people.has(id) && id !== S.me && !(avatars ? S.rigs.has(id) : true))) n++;
+	return n;
+}
+
+/** Who is speaking now, held a moment after they stop so the top of the camera list does not flicker. */
+let lead: { id: string; until: number } | null = null;
+function speaker(ids: string[], now: number): string | null {
+	let best: string | null = null, loud = 0.15;
+	for (const id of ids) { const q = S.people.get(id); const l = q ? talking(q) : 0; if (l > loud) { loud = l; best = id; } }
+	if (best) lead = { id: best, until: now + 1500 };
+	else if (lead && (lead.until < now || !ids.includes(lead.id))) lead = null;
+	return lead?.id ?? null;
 }
 
 /** Columns the camera window's side column takes at the right (the map and the council leave them). */
@@ -1673,6 +1698,9 @@ function camWindow(g: Grid, area: { x: number; y: number; w: number; h: number }
 	if (!L0) { camOverlay.show([]); return; }
 	const pick = pickTiles(S.me, others, L0.cap);
 	if (asker) { pick.ids = [S.me, asker, ...pick.ids.filter((id) => id !== S.me && id !== asker)].slice(0, Math.max(2, L0.cap)); }
+	// Whoever is talking goes to the top of the list (you included), held there a moment after they stop.
+	const talker = speaker([S.me, ...others.filter((q) => q.loud > 0 || q.id === asker).map((q) => q.id)], now);
+	if (talker) pick.ids = [talker, ...pick.ids.filter((id) => id !== talker)].slice(0, Math.max(1, L0.cap));
 	const L = camLayout(area, pick.ids.length, camPlace, S.cams.folded, tile)!;
 	/** How loud each is to you: the window fades the farther ones. */
 	const loudOf = new Map(others.map((q) => [q.id, q.loud]));
@@ -1765,7 +1793,8 @@ function councilRoom(g: Grid, y0: number, h: number, now: number) {
 	const W = g.cols - faceCol - camSide;
 	const cx = Math.floor(W / 2), cy = y0 + top + Math.floor((h - top - foot) / 2);
 	// A cell is twice as tall as it is wide: the table is twice as many columns across as rows.
-	const ty = Math.max(3, Math.min(Math.floor((h - top - foot) / 2) - 3, Math.floor((W / 2 - 10) / 2)));
+	// A little smaller than the room allows (16 Nov), leaving room round it for the seats' faces.
+	const ty = Math.max(3, Math.round(Math.min(Math.floor((h - top - foot) / 2) - 3, Math.floor((W / 2 - 10) / 2)) * 0.72));
 	const tx = ty * 2;
 	const inTable = (x: number, y: number) => Math.hypot(x / tx, y / ty) <= 1;
 	for (let y = -ty - 1; y <= ty + 1; y++) for (let x = -tx - 2; x <= tx + 2; x++) {
@@ -1799,23 +1828,39 @@ function councilRoom(g: Grid, y0: number, h: number, now: number) {
 	}
 	// The seats round the table: each player's letter on a plate of their colour (their face is in the camera
 	// window now: the faces once picked for the table are gone, 16 Nov), their name outward from the table.
+	// With faces at the seats, the seats sit a little further out, clear of the rim.
+	const seatFaces = ring.some((r) => { const q = [...S.people.values()].find((x) => !x.st && x.seat === r.seat); return !!q && !r.dead && (q.id === S.me ? myCam.on && !!avatar.rig : S.rigs.has(q.id)); });
 	ring.forEach((r, i) => {
 		const a = (2 * Math.PI * i) / n;
-		const sx = cx + Math.round(Math.sin(a) * (tx + 3)), sy = cy - Math.round(Math.cos(a) * (ty + 1.6));
+		const sx = cx + Math.round(Math.sin(a) * (tx + (seatFaces ? 5 : 3))), sy = cy - Math.round(Math.cos(a) * (ty + (seatFaces ? 2.2 : 1.6)));
 		const person = [...S.people.values()].find((q) => !q.st && q.seat === r.seat);
 		const [pf, pb] = personInk(r.seat);
 		const plate = v?.nominee === r.seat ? 8 : v?.raised.includes(r.seat) ? 10 : v?.counted.includes(r.seat) ? 6 : -1;
 		// A bright face on a dark plate: of what is happening to them (nominated, hand up, counted), else of their colour.
 		const hue = r.dead ? 3 : plate >= 0 ? plate : pb || pf;
 		const mark = r.dead ? '†' : (r.name[0] ?? '?').toUpperCase();
-		g.set(sx - 1, sy, mark, r.dead ? 3 : 5, shade(hue, plate >= 0 ? 2 : 1));
-		g.set(sx, sy, ' ', 5, shade(hue, plate >= 0 ? 2 : 1));
+		// Their small live face (the far avatar, 5 x 2, mouth moving with their voice), their letter between
+		// the eyes; else just the letter on its plate.
+		const rig = !person || r.dead ? null : person.id === S.me ? (myCam.on ? decodeRig(avatar.rig) : null) : decodeRig(S.rigs.get(person.id)?.rig);
+		const face = rig ? drawRig(withVoice(rig, talking(person!)), 5, 2, decodeStyle(person!.look?.style)) : null;
+		if (face) {
+			const x0 = sx - 3;
+			for (let yy = 0; yy < 2; yy++) for (let xx = 0; xx < 5; xx++) {
+				const c = face[yy][xx];
+				if (c.ch !== ' ') g.set(x0 + xx, sy - 1 + yy, c.ch, c.ink === 2 ? (talking(person!) > 0.15 ? 6 : pb || pf) : 3, 0);
+			}
+			g.set(x0 + 2, sy - 1, mark, 5, shade(hue, plate >= 0 ? 2 : 1));
+		} else {
+			g.set(sx - 1, sy, mark, r.dead ? 3 : 5, shade(hue, plate >= 0 ? 2 : 1));
+			g.set(sx, sy, ' ', 5, shade(hue, plate >= 0 ? 2 : 1));
+		}
 		if (v?.at === r.seat) g.set(sx - 2, sy, '>', 6, 0);
 		if (v?.raised.includes(r.seat)) g.set(sx + 2, sy, '^', 10, 0);
 		const s = Math.sin(a), up = Math.cos(a);
 		const label = (person?.voice && talking(person) > 0.15 ? '~' : '') + r.name.slice(0, 10);
-		const lx = Math.abs(s) < 0.3 ? sx - Math.floor(label.length / 2) : s > 0 ? sx + 3 : sx - 2 - label.length;
-		const ly = Math.abs(s) < 0.3 ? sy + (up > 0 ? -1 : 1) : sy;
+		// Names outward from the table, clear of the face when there is one.
+		const lx = Math.abs(s) < 0.3 ? sx - Math.floor(label.length / 2) : s > 0 ? sx + 3 : sx - (face ? 4 : 2) - label.length;
+		const ly = Math.abs(s) < 0.3 ? sy + (up > 0 ? (face ? -2 : -1) : 1) : sy;
 		g.text(Math.max(0, lx), ly, label, r.dead ? 3 : v?.nominee === r.seat ? 8 : pb || pf, 0);
 	});
 	// The nominee, lettered large over the table in the textura (in their colour), or plainly if it will not fit.

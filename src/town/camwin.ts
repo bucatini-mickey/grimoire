@@ -49,6 +49,17 @@ export function resolvePlace(p: Place, cols: number, split: boolean): 'side' | '
 	if (p === 'side' && split) return 'top';
 	return p;
 }
+/**
+ * Whether the window takes a strip of the screen (a column the map gives up, or a bar of rows) or sits small
+ * in a corner over the map: a strip only when its faces fill most of it, so one face is never a long empty band.
+ * Returns where to lay the window out, and which strip (if any) to take.
+ */
+export function stripFor(place: 'side' | 'top' | 'bottom', n: number, tile: { tw: number; th: number }, cols: number, rows: number): { corner: Corner; side: boolean; bar: boolean } {
+	if (place === 'side') return { corner: 'side', side: n * (tile.th + 1) + 2 >= rows * 0.5, bar: false };
+	const bar = n * (tile.tw + 1) + 1 >= cols * 0.6;
+	return { corner: bar ? place : place === 'top' ? 'tr' : 'br', side: false, bar };
+}
+
 /** A side column's width: a tile and its frame. */
 export const sideWidth = (tile = AVATAR_TILE) => tile.tw + 2;
 export const isBar = (c: Corner) => c === 'top' || c === 'bottom';

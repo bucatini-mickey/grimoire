@@ -343,3 +343,15 @@ test('a saved look keeps its face style, and drops a bad one', async () => {
 	assert.equal(cleanLook({ figure: 0, face: 0, style: '9999' }).style, undefined);
 	assert.equal(cleanLook({ figure: 0, face: 0 }).style, undefined);
 });
+
+test('the camera window takes a strip only when its faces fill most of it; else a small window in the corner', async () => {
+	const { stripFor } = await import('../src/town/camwin.ts');
+	// Just you, top bar on a 100-column screen: a small window top right, no rows taken.
+	assert.deepEqual(stripFor('top', 1, AVATAR_TILE, 100, 40), { corner: 'tr', side: false, bar: false });
+	assert.deepEqual(stripFor('bottom', 2, AVATAR_TILE, 100, 40), { corner: 'br', side: false, bar: false });
+	// Six or more across 100 columns: the full bar.
+	assert.deepEqual(stripFor('top', 6, AVATAR_TILE, 100, 40), { corner: 'top', side: false, bar: true });
+	// Down the side: one face in 40 rows is a small column over the map; four fill half of it.
+	assert.deepEqual(stripFor('side', 1, AVATAR_TILE, 140, 40), { corner: 'side', side: false, bar: false });
+	assert.deepEqual(stripFor('side', 4, AVATAR_TILE, 140, 40), { corner: 'side', side: true, bar: false });
+});
