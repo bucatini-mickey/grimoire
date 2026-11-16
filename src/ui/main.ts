@@ -33,6 +33,7 @@ import { hostRoom, newRoomCode } from '../net/link.ts';
 import type { HostLink, LinkStatus } from '../net/link.ts';
 import type { Announcement, ClockView, HostMsg, PlayerMsg, VoteView } from '../net/protocol.ts';
 import { startPlayer } from './player.ts';
+import { demoGame, isDemo } from './demo.ts';
 
 import { INKS, startVillage, villageForGame } from '../town/village.ts';
 import { AMNESIAC_IDEAS, savantPair, savantStatements } from './helpers.ts';
@@ -123,7 +124,11 @@ function load(): Saved {
 	return { events: [], marks: [], settings: { ...DEFAULT_SETTINGS }, flow: freshFlow(DEFAULT_SETTINGS) };
 }
 
+/** A demo game (#demo=..., demo.ts) is never written to the device. */
+let demoOnly = false;
+
 function save() {
+	if (demoOnly) return;
 	try {
 		localStorage.setItem(KEY, JSON.stringify(saved));
 	} catch {
@@ -3213,12 +3218,24 @@ setInterval(tick, 250);
 
 // A player's phone (#join=CODE, or "Join a game") runs the player app instead.
 const joining = location.hash.match(/^#join(?:=([A-Za-z]{4}))?/);
+// #demo=bluffs or #demo=scarlet-woman opens a fixed demo game on the screen of that name (demo.ts).
+const demoName = location.hash.match(/^#demo=([\w-]+)/)?.[1] ?? '';
+const demo = isDemo(demoName) ? demoName : null;
 // Dev mode: #village:talmberg (or :talmberg:player) walks that town straight away.
 const villageDemo = location.hash.match(/^#village(?:=([A-Za-z]{4}))?(?::(\w+))?(?::(st|player))?/);
 if (villageDemo) {
 	startVillage(root, (villageDemo[1] ?? '').toUpperCase(), villageDemo[2], villageDemo[3]);
 } else if (joining) {
 	startPlayer(root, cardRoot, (joining[1] ?? '').toUpperCase());
+} else if (demo) {
+	// A demo screen (demo.ts): a fixed game, shown on the step it is about, and never saved.
+	demoOnly = true;
+	const d = demoGame(demo);
+	saved = { events: d.events, marks: [], settings: { ...DEFAULT_SETTINGS }, flow: freshFlow(DEFAULT_SETTINGS) };
+	state = d.state;
+	ui.show = { step: d.step, page: d.page, picks: [], turn: 1 };
+	syncFlow();
+	render();
 } else if ((location.hash === '#host' && saved.net?.village) || location.hash === '#grimoire') {
 	syncFlow();
 	render();

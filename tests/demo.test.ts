@@ -1,0 +1,43 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import * as G from '../src/core/index.ts';
+import { stepRole, wakeFor } from '../src/net/views.ts';
+import { demoGame, isDemo } from '../src/ui/demo.ts';
+
+// The demo screens (#demo=bluffs, #demo=scarlet-woman) are the review snapshots' way to the changed pages (grim-043):
+// each must land on the step and page it names, using only the commands play uses.
+
+test('only the named demos are demos', () => {
+	assert.ok(isDemo('bluffs') && isDemo('scarlet-woman'));
+	assert.ok(!isDemo('') && !isDemo('constructor') && !isDemo('village'));
+});
+
+test('#demo=bluffs opens the Demon’s "Your bluffs" page with three bluffs', async () => {
+	const { nextPage, wakeRows } = await import('../src/ui/wakepages.ts');
+	const d = demoGame('bluffs');
+	const step = G.nextStep(d.state)!;
+	assert.equal(step.id, d.step);
+	assert.equal(step.kind, G.DEMON_INFO);
+	assert.equal(d.page, 'bluffs');
+	// the log replays to the same game, so what is shown is what play would show
+	assert.deepEqual(G.replay(d.events).seats, d.state.seats);
+	const w = wakeFor(d.state, step);
+	assert.equal(w.sections.find((s) => s.title === 'Not in play')?.lines.length, 3);
+	assert.equal(nextPage(w, 'who'), 'bluffs', 'the way on from the Demon’s first page is the bluffs');
+	const rows = wakeRows(w, 'bluffs', [], { go() {}, toggle() {}, confirm() {}, finish() {}, ending: 'hand-back', name: () => '', deadAtDusk: () => false });
+	const text = rows.map((r) => r.segs.map((s) => ('t' in s ? s.t : '')).join('')).join('\n');
+	assert.match(text, /Your bluffs/);
+});
+
+test('#demo=scarlet-woman opens the Scarlet Woman’s "You are" page, whose name sets on two lines', async () => {
+	const { nameLines } = await import('../src/ui/ascii.ts');
+	const d = demoGame('scarlet-woman');
+	const step = G.nextStep(d.state)!;
+	assert.equal(step.id, d.step);
+	assert.equal(step.kind, G.MINION_INFO);
+	assert.equal(d.page, 'who');
+	assert.equal(stepRole(d.state, step.kind, step.seat), 'scarlet-woman');
+	const you = wakeFor(d.state, step).sections.find((s) => s.title === 'You are')!;
+	assert.equal(you.style, 'big');
+	assert.deepEqual(nameLines(you.lines[0].replace(/^the /i, '')), ['Scarlet', 'Woman']);
+});
