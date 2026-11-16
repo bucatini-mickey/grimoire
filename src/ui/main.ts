@@ -39,7 +39,9 @@ import { demoGame, isDemo } from './demo.ts';
 import { INKS, startVillage, villageForGame } from '../town/village.ts';
 import { AMNESIAC_IDEAS, savantPair, savantStatements } from './helpers.ts';
 import type { Extra, StActions, VillageHost } from '../town/village.ts';
-import { CARD_COLS, CARD_INNER, big, cardButtons, handBackRows, handOverRows, nextPage, note, recallIndexRows, revealRows, wakeRows } from './wakepages.ts';
+import { CARD_COLS, CARD_INNER, big, cardButtons, handBackRows, handOverRows, nextPage, note, revealRows, wakeRows } from './wakepages.ts';
+import { recallRows, startRecall } from './recallflow.ts';
+import type { Recall } from './recallflow.ts';
 import type { Page } from './wakepages.ts';
 
 // ---- saved data -------------------------------------------------------------
@@ -308,6 +310,8 @@ function undo() {
 	if (mark === undefined) return;
 	saved.events = saved.events.slice(0, mark);
 	state = G.replay(saved.events);
+	// (what was shown on a night that is now undone, or before a deal that may be redone, is not kept)
+	H.forgetAfter((saved.history ??= {}), state.phase.kind === 'over' ? Infinity : state.phase.kind === 'setup' ? 0 : state.phase.n);
 	ui.message = 'Undone.';
 	ui.pending = null;
 	ui.decision = null;
@@ -325,6 +329,7 @@ function newGame() {
 	state = G.replay([]);
 	save();
 	ui.confirmNew = false;
+	ui.recall = null; // (no game's pages are carried into the next)
 	ui.message = '';
 	ui.tab = 'grimoire';
 	if (saved.net?.village) ui.mode = 'village';
@@ -664,6 +669,7 @@ function endSaved(keepLine = false) {
 	saved = { events: [], marks: [], settings: saved.settings, flow: freshFlow(saved.settings) };
 	state = G.replay([]);
 	save();
+	ui.recall = null;
 	ui.confirm = '';
 	render();
 }
@@ -1851,40 +1857,17 @@ function finishShow() {
 // (who they are, their Demon or Minions, the Demon's bluffs, then each night) and open any one: the page as
 // it was shown, from what was kept, never looked up afresh. Then the plain page that hands the phone back.
 
-interface Recall {
-	seat: SeatId;
-	/** 0: the page naming who takes the phone; 1: their pages; 2: the page handing the phone back. */
-	turn: 0 | 1 | 2;
-	/** The page open (its key), or null for the index. */
-	open: string | null;
-}
-
-/** The Storyteller hands the phone to this seat to read their pages again. */
+/** The Storyteller asks to hand the phone to this seat to read their pages again (first it asks "Hand to <name>?"). */
 function openRecall(seat: SeatId) {
+	// (not over a player's pages, or an announcement, being read)
+	if (ui.show || ui.banner) return;
 	ui.inspect = null;
-	ui.recall = { seat, turn: 0, open: null };
+	ui.recall = startRecall(seat);
 	render();
 }
 
-function recallRows(): Row[] {
-	const r = ui.recall!;
-	const close = () => { ui.recall = null; render(); };
-	if (r.turn === 0) return handOverRows(name(r.seat), () => { r.turn = 1; render(); }, { line: 'Everyone else, look away.', cancel: close });
-	if (r.turn === 2) return handBackRows(close);
-	const items = H.recallIndex(saved.history ?? {}, r.seat);
-	const item = r.open === null ? undefined : items.find((i) => i.key === r.open);
-	if (!item) {
-		const role = items[0]?.entry.role;
-		return recallIndexRows(name(r.seat), role, items.map((i) => ({ label: i.label, night: i.night, open: () => { r.open = i.key; render(); } })), () => { r.turn = 2; r.open = null; render(); });
-	}
-	const e = item.entry;
-	const options = new Map((e.choice?.options ?? []).map((o) => [o.id, o]));
-	const index = () => { r.open = null; render(); };
-	return wakeRows(H.wakeOf(e, r.seat), e.page, e.choice?.chosen ?? [], {
-		go: index, toggle() {}, confirm: index, finish: index, ending: 'hand-back', recall: index,
-		name: (id) => options.get(id)?.name ?? name(id),
-		deadAtDusk: (id) => options.get(id)?.dead ?? false
-	});
+function recallScreen(): Row[] {
+	return recallRows(ui.recall!, { history: saved.history ?? {}, name, render, close: () => { ui.recall = null; render(); } });
 }
 
 // ---- day ------------------------------------------------------------------------------------
@@ -3241,7 +3224,7 @@ function render() {
 	// In the town the page layer is empty until the drawer is pulled out.
 	paint(root, vg && !ui.drawer ? [] : paneled(vg ? drawerScreen() : screen()));
 	const voting = state.phase.kind === 'day' && !!flow().vote && !!openNomination() && (villageGame() ? ui.voteBig : !ui.voteSmall);
-	const pages = ui.banner ? bannerRows() : voting ? voteStage() : ui.show ? showRows() : ui.recall ? recallRows() : [];
+	const pages = ui.banner ? bannerRows() : voting ? voteStage() : ui.show ? showRows() : ui.recall ? recallScreen() : [];
 	paint(cardRoot, pages.length ? paneled(pages, CARD_COLS) : [], CARD_COLS);
 	updatePhones();
 	syncVillage();
@@ -3295,7 +3278,7 @@ if (villageDemo) {
 	const d = demoGame(demo);
 	saved = { events: d.events, marks: [], settings: { ...DEFAULT_SETTINGS }, flow: freshFlow(DEFAULT_SETTINGS), history: d.history };
 	state = d.state;
-	if (d.recall) ui.recall = { seat: d.recall.seat, turn: 1, open: d.recall.open };
+	if (d.recall) ui.recall = { ...startRecall(d.recall.seat), turn: d.recall.turn, open: d.recall.open };
 	else ui.show = { step: d.step, page: d.page, picks: [], turn: 1 };
 	syncFlow();
 	render();

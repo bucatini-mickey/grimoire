@@ -54,3 +54,12 @@ test('#demo=recall and #demo=recall-page open the Demon’s "Remind me" index an
 	assert.equal(page.recall!.open, bluffs.key);
 	assert.deepEqual(G.replay(page.events).seats, page.state.seats);
 });
+
+test('#demo=recall-confirm opens on the "Hand to <name>?" question, and the others on the pages', () => {
+	assert.ok(isDemo('recall-confirm'));
+	const c = demoGame('recall-confirm');
+	assert.equal(c.recall!.turn, 0);
+	assert.equal(c.state.seats[c.recall!.seat].name, 'Ada');
+	assert.equal(demoGame('recall').recall!.turn, 2);
+	assert.equal(demoGame('recall-page').recall!.turn, 2);
+});

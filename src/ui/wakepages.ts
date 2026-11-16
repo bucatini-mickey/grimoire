@@ -121,6 +121,22 @@ export function handOverRows(who: string, holding: () => void, opts: { line?: st
 	];
 }
 
+/**
+ * "Remind me", first of all: the Storyteller is asked to be sure whom the phone goes to. It names the seat and
+ * shows nothing of it, so a wrong tap on a seat (or beside Skip) costs one "Not now", never a page put in
+ * front of the wrong person.
+ */
+export function handConfirmRows(who: string, yes: () => void, no: () => void): Row[] {
+	return [
+		illumined(), blank(),
+		mid('Remind me', 'rubric'), blank(),
+		namePlate(who) ?? mid(who, 'gold'),
+		blank(), mid(`Hand to ${who}?`),
+		mid('They will read again what they were shown.', 'dim'), blank(),
+		...cardButtons([btn(`Hand to ${who}`, yes, { style: 'primary' }), btn('Not now', no, { style: 'quiet' })])
+	];
+}
+
 /** One line of the index a player reads their pages from ("Remind me"). */
 export interface RecallLine { label: string; night: number | null; open(): void }
 

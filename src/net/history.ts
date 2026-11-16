@@ -114,6 +114,20 @@ export function recordChoice(history: History, seat: SeatId, wakeId: string, cho
 	if (last?.choice) last.choice.chosen = [...chosen];
 }
 
+/**
+ * The Storyteller undid back to night `lastNight` (0: before any night began, so the characters may be dealt
+ * again). Pages shown on a later night never happened in the game as it now stands, and pages from a deal
+ * that is being redone would name the wrong character, so they are dropped. Pages from this night and
+ * earlier stay: the player did see them, even if the step is then undone and shown again.
+ */
+export function forgetAfter(history: History, lastNight: number): void {
+	for (const seat of Object.keys(history)) {
+		const kept = history[Number(seat)].filter((p) => p.night <= lastNight);
+		if (kept.length) history[Number(seat)] = kept;
+		else delete history[Number(seat)];
+	}
+}
+
 /** A seat's pages, in the order shown (a copy). */
 export function pagesFor(history: History, seat: SeatId): ShownPage[] {
 	return copy(history[seat] ?? []);
