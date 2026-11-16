@@ -126,6 +126,10 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
   var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 
   // src/avatar/rigface.ts
+  var PLAIN_STYLE = { brow: 0, eye: 0, nose: 0, mouth: 0 };
+  var BROW_FILL = ["-", "=", "~", " "];
+  var EYE_SIDES = [["(", ")"], ["[", "]"], ["<", ">"], [" ", " "]];
+  var NOSE = ["v", "v", "L", "^"];
   function rdiv(a, b) {
     const m = Math.floor((2 * Math.abs(a) + b) / (2 * b));
     return a < 0 ? -m : m;
@@ -136,19 +140,22 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
   function eyeGlyph(open) {
     return open <= 3 ? "-" : open <= 7 ? "=" : open <= 12 ? "o" : "O";
   }
-  function eyeCells(open, gx, gy, wide) {
+  function eyeCells(open, gx, gy, wide, style = 0) {
     const inner = wide - 2;
     if (open <= 3) return { row: wide === 5 ? " --- " : "---", lid: null };
+    const [l, r] = EYE_SIDES[style] ?? EYE_SIDES[0];
     const at = inner === 1 ? 0 : gx >= 3 ? 2 : gx <= -3 ? 0 : 1;
     const pupil = open <= 7 ? "-" : open >= 13 ? "O" : gy >= 4 ? "'" : gy <= -4 ? "." : "o";
     let mid = "";
     for (let i = 0; i < inner; i++) mid += i === at ? pupil : open <= 7 ? "-" : " ";
-    return { row: "(" + mid + ")", lid: open >= 13 ? wide === 5 ? " .-. " : ".-." : null };
+    return { row: l + mid + r, lid: open >= 13 ? wide === 5 ? " .-. " : ".-." : null };
   }
-  function browCells(b, wide) {
-    if (b >= 3) return wide === 5 ? "/---\\" : "/-\\";
-    if (b <= -3) return wide === 5 ? "`-._ " : "`-.";
-    return wide === 5 ? "-----" : "---";
+  function browCells(b, wide, style = 0) {
+    const f = BROW_FILL[style] ?? "-";
+    if (f === " ") return b >= 3 ? wide === 5 ? "  ^  " : " ^ " : b <= -3 ? wide === 5 ? "   \\ " : "  \\" : " ".repeat(wide);
+    if (b >= 3) return wide === 5 ? "/" + f + f + f + "\\" : "/" + f + "\\";
+    if (b <= -3) return wide === 5 ? "`" + f + "._ " : "`" + f + ".";
+    return f.repeat(wide);
   }
   var mirror = (s) => [...s].reverse().map((c) => ({ "/": "\\", "\\": "/", "`": "'", "'": "`", "(": ")", ")": "(" })[c] ?? c).join("");
   function mouthRows(open, smile, wide, rows) {
@@ -171,7 +178,7 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
   function noseCells(yw) {
     return yw >= 3 ? " \\>" : yw <= -3 ? "</ " : "/_\\";
   }
-  function drawFace(r, w, h) {
+  function drawFace(r, w, h, st = PLAIN_STYLE) {
     const out = Array.from({ length: h }, () => Array.from({ length: w }, () => ({ ch: " ", ink: 0 })));
     if (w < 5 || h < 2) return out;
     const put = (x, y, ch, ink) => {
@@ -216,21 +223,23 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
       const wide = far ? 3 : ew;
       const x0 = cx[i] - (wide === 5 ? 2 : 1);
       const dy = lean(side) + ty;
-      const brow = browCells(b, wide);
+      const brow = browCells(b, wide, st.brow);
       const by = clamp(browY + (big ? dy : ty) + (b >= 3 && big ? -1 : 0) + (b <= -3 && big ? 1 : 0), 0, h - 1);
       text(x0, by, side < 0 ? brow : mirror(brow), 2);
-      const e = eyeCells(open, gx, gy, wide);
+      const e = eyeCells(open, gx, gy, wide, st.eye);
       const ey = clamp(eyeY + dy, 0, h - 1);
       if (e.lid && big && !(b <= -3)) text(x0, ey - 1, e.lid, 2);
       text(x0, ey, e.row, 2);
     }
     const mid = Math.floor((cx[0] + cx[1]) / 2);
     const ny = clamp(noseY + ty, 0, h - 1);
-    if (big) {
+    const nx = mid + (yw >= 3 ? 1 : yw <= -3 ? -1 : 0);
+    if (st.nose) put(nx, ny, yw >= 3 ? ">" : yw <= -3 ? "<" : NOSE[st.nose], 1);
+    else if (big) {
       const n = noseCells(yw);
       text(mid - 1, ny, n, 1);
       put(mid, ny, n[1] === " " ? "_" : n[1], 3);
-    } else put(mid + (yw >= 3 ? 1 : yw <= -3 ? -1 : 0), ny, yw >= 3 ? ">" : yw <= -3 ? "<" : "v", 3);
+    } else put(nx, ny, yw >= 3 ? ">" : yw <= -3 ? "<" : "v", 3);
     const mw = big ? 8 : 4;
     const rows = h - mouthY - Math.max(0, ty);
     const m = mouthRows(mo, sm, mw, Math.max(1, rows));
@@ -241,6 +250,15 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
         put(m0 + i, clamp(my + k, 0, h - 1), row[i], 2);
       }
     });
+    if ((st.mouth === 1 || st.mouth === 3) && my - 1 >= 0) {
+      for (let d = 1; d <= (big ? 3 : 1); d++) {
+        put(nx - d, my - 1, "/", 2);
+        put(nx + d, my - 1, "\\", 2);
+      }
+    }
+    if ((st.mouth === 2 || st.mouth === 3) && my + m.length <= h - 1) {
+      for (let i = 0; i < mw; i++) put(m0 + i, my + m.length, i === 0 ? "\\" : i === mw - 1 ? "/" : "w", 2);
+    }
     return out;
   }
 
@@ -263,7 +281,7 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
     return m > r.mouth ? { ...r, mouth: m } : r;
   }
   var DETAIL_SIZE = { 0: { w: 0, h: 0 }, 1: { w: 5, h: 2 }, 2: { w: 10, h: 5 }, 3: { w: 16, h: 8 } };
-  var drawRig = (r, w, h) => drawFace(r, w, h);
+  var drawRig = (r, w, h, style = PLAIN_STYLE) => drawFace(r, w, h, style);
 
   // src/avatar/asciiavatar.ts
   var DEFAULTS = {

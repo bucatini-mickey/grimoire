@@ -25,10 +25,30 @@ import type { RigCell } from '../avatar/rig.ts';
  * Where the window sits: a corner over the map, or a bar across the whole page at the top or the bottom (a
  * sub-terminal of its own: the map gives up those rows rather than being covered).
  */
-export type Corner = 'tr' | 'br' | 'bl' | 'tl' | 'top' | 'bottom';
+export type Corner = 'tr' | 'br' | 'bl' | 'tl' | 'top' | 'bottom' | 'side';
 /** The places in the order a tap on the title moves the window round them. */
 export const CORNERS: Corner[] = ['tr', 'br', 'bl', 'tl', 'top', 'bottom'];
-export const CORNER_NAME: Record<Corner, string> = { tr: 'top right', br: 'bottom right', bl: 'bottom left', tl: 'top left', top: 'bar at the top', bottom: 'bar at the bottom' };
+export const CORNER_NAME: Record<Corner, string> = { tr: 'top right', br: 'bottom right', bl: 'bottom left', tl: 'top left', top: 'bar at the top', bottom: 'bar at the bottom', side: 'down the side' };
+
+/**
+ * Where the camera window goes (16 Nov, standardised): at the edge of the screen, never over the middle of
+ * the map. Auto: down the right-hand side on a wide screen (a desktop has room to spare at the sides), a
+ * bar across the top on a phone. Or chosen: the side, the top, the bottom.
+ */
+export type Place = 'auto' | 'side' | 'top' | 'bottom';
+export const PLACES: Place[] = ['auto', 'side', 'top', 'bottom'];
+export const PLACE_NAME: Record<Place, string> = { auto: 'auto (side on a wide screen, top on a phone)', side: 'down the side', top: 'bar at the top', bottom: 'bar at the bottom' };
+export const nextPlace = (p: Place): Place => PLACES[(PLACES.indexOf(p) + 1) % PLACES.length];
+/** Columns wide enough for a side column and still a good map (a desktop or a tablet held wide). */
+export const SIDE_FROM_COLS = 90;
+/** Where a place puts the window on a screen this wide (a phone's split grid always takes a bar). */
+export function resolvePlace(p: Place, cols: number, split: boolean): 'side' | 'top' | 'bottom' {
+	if (p === 'auto') return split || cols < SIDE_FROM_COLS ? 'top' : 'side';
+	if (p === 'side' && split) return 'top';
+	return p;
+}
+/** A side column's width: a tile and its frame. */
+export const sideWidth = (tile = AVATAR_TILE) => tile.tw + 2;
 export const isBar = (c: Corner) => c === 'top' || c === 'bottom';
 /** A bar's height in rows on a screen this wide: its frame, a row of tiles and their names (folded, its title). */
 export const barHeight = (cols: number, folded: boolean, tile = tileSize(cols)) => (folded ? 1 : tile.th + 3);
@@ -66,6 +86,15 @@ export interface CamLayout {
 export function camLayout(area: Rect, n: number, corner: Corner, folded = false, tile?: { tw: number; th: number }): CamLayout | null {
 	let { tw, th } = tile ?? tileSize(area.w);
 	const small = !!tile && tile.tw <= 10;
+	if (corner === 'side') {
+		// A column down the side: tiles one under another, as many as fit, the window as tall as they need.
+		if (tw + 2 > area.w || th + 3 > area.h) return null;
+		const cap = Math.max(1, Math.floor((area.h - 2) / (th + 1)));
+		const k = Math.max(1, Math.min(n, cap));
+		const tiles: Rect[] = [];
+		if (!folded) for (let i = 0; i < k; i++) tiles.push({ x: area.x + 1, y: area.y + 1 + i * (th + 1), w: tw, h: th });
+		return { rect: { x: area.x, y: area.y, w: tw + 2, h: folded ? 1 : k * (th + 1) + 2 }, tiles, cap };
+	}
 	if (isBar(corner)) {
 		// A bar: the whole strip it is given, one row of tiles across it, centred.
 		if (tw + 2 > area.w || (!folded && th + 3 > area.h)) return null;
@@ -149,6 +178,10 @@ export interface TileView {
 	/** Under the letter of a tile with no picture: why there is none. */
 	note?: string;
 	talking: boolean;
+	/** Fainter with distance: a shade step (0 faintest .. 3), or none for full strength. */
+	fade?: number;
+	/** They have asked you for a word: their tile is marked until you answer. */
+	asking?: boolean;
 }
 
 export interface CamWindowDraw {
@@ -173,7 +206,9 @@ export function drawCamWindow(g: Grid, L: CamLayout, d: CamWindowDraw) {
 	g.hit(L.rect, () => {});
 	const ctl = d.folded ? '[+][x]' : '[-][x]';
 	const room = Math.max(0, w - 2 - ctl.length - 1);
-	const title = (d.folded && d.tiles.length > 1 ? `${d.title} ${d.tiles.length}` : d.title).slice(0, room);
+	// A title that does not fit (a narrow side column) is left out rather than cut short.
+	const full = d.folded && d.tiles.length > 1 ? `${d.title} ${d.tiles.length}` : d.title;
+	const title = full.length <= room ? full : '';
 	if (d.folded) {
 		g.fill({ x, y, w, h: 1 }, '─', 3, 0);
 		g.text(x + 1, y, title, 6, 0);
@@ -198,12 +233,15 @@ export function drawCamWindow(g: Grid, L: CamLayout, d: CamWindowDraw) {
 			for (let yy = 0; yy < r.h; yy++) for (let xx = 0; xx < r.w; xx++) g.set(r.x + xx, r.y + yy, (xx + 2 * yy) % 4 ? ' ' : '.', shade(3, 1), 0);
 			const ah = t.cells.length, aw = t.cells[0]?.length ?? 0;
 			const ox = r.x + Math.floor((r.w - aw) / 2), oy = r.y + Math.floor((r.h - ah) / 2);
-			const feature = t.ink[1] ? 5 : t.ink[0];
+			const fd = (ink: number) => (t.fade === undefined ? ink : shade(ink, t.fade));
+			const feature = fd(t.ink[1] ? 5 : t.ink[0]);
+			// Someone asking for a word: their tile's ground in gold, flickering, until you answer.
+			if (t.asking && Math.floor(performance.now() / 500) % 2 === 0) for (let yy = 0; yy < r.h; yy++) for (let xx = 0; xx < r.w; xx++) if ((xx + 2 * yy) % 4 === 0) g.set(r.x + xx, r.y + yy, '.', 6, 0);
 			for (let yy = 0; yy < ah; yy++) for (let xx = 0; xx < aw; xx++) {
 				const c = t.cells[yy][xx];
 				if (c.ch === ' ') continue;
-				if (c.ink === 3 && t.glyph) g.set(ox + xx, oy + yy, t.glyph, t.ink[0], t.ink[1]);
-				else g.set(ox + xx, oy + yy, c.ch, c.ink === 2 ? feature : 3, 0);
+				if (c.ink === 3 && t.glyph) g.set(ox + xx, oy + yy, t.glyph, fd(t.ink[0]), t.ink[1] ? fd(t.ink[1]) : 0);
+				else g.set(ox + xx, oy + yy, c.ch, c.ink === 2 ? feature : t.fade === undefined ? 3 : shade(3, Math.max(0, t.fade - 1)), 0);
 			}
 		} else if (t.kind === 'letters' && t.frame) {
 			for (let yy = 0; yy < r.h; yy++) for (let xx = 0; xx < r.w; xx++) {
@@ -221,10 +259,12 @@ export function drawCamWindow(g: Grid, L: CamLayout, d: CamWindowDraw) {
 			}
 		}
 		// The name under it, in their colour; a note before it while they talk.
-		const label = ((t.talking ? '♪' : '') + t.label).slice(0, r.w);
+		const label = ((t.asking ? '? ' : t.talking ? '♪' : '') + t.label).slice(0, r.w);
 		const [pf, pb] = t.ink;
 		g.fill({ x: r.x, y: r.y + r.h, w: r.w, h: 1 }, ' ', 3, 0);
-		g.text(r.x + Math.floor((r.w - label.length) / 2), r.y + r.h, label, pb ? 0 : pf, pb);
+		if (t.asking) g.text(r.x + Math.floor((r.w - label.length) / 2), r.y + r.h, label, 0, 6);
+		else if (t.fade !== undefined) g.text(r.x + Math.floor((r.w - label.length) / 2), r.y + r.h, label, shade(pb || pf, t.fade), 0);
+		else g.text(r.x + Math.floor((r.w - label.length) / 2), r.y + r.h, label, pb ? 0 : pf, pb);
 		g.hit({ x: r.x, y: r.y, w: r.w, h: r.h + 1 }, () => d.onTile(t.id));
 	});
 }

@@ -22,11 +22,11 @@
  * is talking privately and which doors are locked; each phone moves its own
  * walker and asks the host for the rest.
  */
-import { PLAIN_FACE, PLAIN_FIGURE, cleanLook, filling, loadLook } from './avatar.ts';
+import { PLAIN_FIGURE, cleanLook, filling, loadLook } from './avatar.ts';
 import { canDraw } from '../ui/glyphs.ts';
 import type { Look } from './avatar.ts';
 import { figureRows } from '../ui/figure.ts';
-import { faceOf, figureOf, bannerStrength, bannerStep } from './faceicon.ts';
+import { figureOf, bannerStrength, bannerStep } from './faceicon.ts';
 import { barCols, setTownBig, personInk, letterPlate, seatInk as seatInkOf, texturaPixels, setHover, INNER, onMap, btn, buttonBlock, buttonRows, drawButton, endPanel, field, isButton, listRow, paint, quant, redraw, shade, theTerm, paneled, setPalette, navRow, rubric, row, segWidth, setExtra, txt, wrap, center, pickBar } from '../ui/ascii.ts';
 import type { Button, Row } from '../ui/ascii.ts';
 import type { Grid } from '../term/pterm.ts';
@@ -52,14 +52,14 @@ const FACES = false;
  * shows on your phone only; test villagers get drawn stand-ins; anyone else shows as their letter.
  */
 const CAMS = true;
-import { AVATAR_TILE, barHeight, camLayout, CamOverlay, CORNER_NAME, CORNERS, drawCamWindow, isBar, nextCorner, paintCamera, paintStandIn, pickTiles, standIn, tileSize } from './camwin.ts';
-import type { Corner, PictureTile, TileView } from './camwin.ts';
+import { AVATAR_TILE, barHeight, camLayout, CamOverlay, drawCamWindow, nextPlace, paintCamera, paintStandIn, pickTiles, PLACE_NAME, PLACES, resolvePlace, sideWidth, standIn, tileSize } from './camwin.ts';
+import type { Corner, PictureTile, Place, TileView } from './camwin.ts';
 /**
  * The webcam avatar (src/avatar): your camera, on your phone only, read by a face tracker into nine hex
  * digits (a rig); only the rig goes to the Storyteller's phone, which passes it on to whoever may see it,
  * the nearest in most detail and most often (rig.ts planRigs). Every phone draws the avatar from the digits.
  */
-import { decodeRig, DETAIL_SIZE, detailThatFits, drawRig, encodeRig, idleRig, planRigs, withVoice } from '../avatar/rig.ts';
+import { decodeRig, decodeStyle, DETAIL_SIZE, detailThatFits, drawRig, encodeRig, idleRig, NEUTRAL, planRigs, withVoice } from '../avatar/rig.ts';
 import type { AvatarPlaces, Detail, RigFrom, RigSent } from '../avatar/rig.ts';
 import { GAINS, makeTracker, NO_FLIPS, NO_NEUTRAL, RigSmoother, rigOf, TRACKER_LABEL } from '../avatar/trackers.ts';
 import type { Tracker, TrackerName } from '../avatar/trackers.ts';
@@ -226,7 +226,7 @@ const S = {
 	 * stand-in faces for everyone (to try the window with nobody else's camera).
 	 */
 	cams: {
-		open: true, folded: false, corner: 'tr' as Corner, look: 'avatar' as 'avatar' | 'video' | 'letters', standIns: false,
+		open: true, folded: false, place: 'auto' as Place, look: 'avatar' as 'avatar' | 'video' | 'letters', standIns: false,
 		/** Where avatars show (the Storyteller's choice, as their phone passes rigs on): rig.ts AvatarPlaces. */
 		places: 'talk' as AvatarPlaces,
 		/** Which face tracker reads this phone's camera. */
@@ -262,7 +262,7 @@ const store = {
 };
 S.showFaces = store.get('grimoire.faces') !== 'off';
 S.cams.open = store.get('grimoire.cams') !== 'off';
-S.cams.corner = CORNERS.find((c) => c === store.get('grimoire.camsCorner')) ?? 'tr';
+S.cams.place = PLACES.find((c) => c === store.get('grimoire.camsPlace')) ?? 'auto';
 S.cams.look = (['avatar', 'video', 'letters'] as const).find((l) => l === store.get('grimoire.camsLook')) ?? 'avatar';
 S.cams.places = store.get('grimoire.avatarPlaces') === 'earshot' ? 'earshot' : 'talk';
 S.cams.tracker = TRACKER_NAMES.find((n) => n === store.get('grimoire.avatarTracker')) ?? 'landmarker';
@@ -1044,6 +1044,9 @@ function toolButtons(): Button[] {
 	const asker = S.asks.map((id) => S.people.get(id)).find(Boolean);
 	if (asker) return [btn(asker.st || p?.st ? 'Talk' : 'Meet', () => act('accept'), { style: 'primary' }), btn('Not now', () => act('decline'))];
 	const bs: Button[] = [];
+	// Beside a door: Lock or Unlock, always first and never behind More.
+	const door = doorBeside();
+	if (door !== null) bs.push(btn(S.town!.locked.has(door) ? 'Unlock' : 'Lock', () => act('door'), { style: 'primary' }));
 	if (p?.with) bs.push(btn(p.secret ? 'End' : 'Call off', () => act('end')));
 	// Meeting another player: the way to them.
 	const mate = p?.with ? S.people.get(p.with) : null;
@@ -1057,8 +1060,6 @@ function toolButtons(): Button[] {
 	else { bs.push(btn('Talk', () => act('voice-mic'), { style: 'primary' })); later.push(btn('Listen only', () => act('voice-listen'))); }
 	for (const e of S.extra()) (e.primary || e.pin ? bs : later).push(btn(e.label, e.act, { style: e.primary || e.pin ? 'primary' : undefined }));
 	if (S.phase === 'dusk' && (!S.game || S.town?.council) && p && !p.st && S.town && gathering(S.town)) bs.push(btn('My seat', () => act('seat'), { style: 'primary' }));
-	const door = doorBeside();
-	if (door !== null) bs.push(btn(S.town!.locked.has(door) ? 'Unlock' : 'Lock', () => act('door')));
 	if (S.host) bs.push(btn('Menu', () => act('st-toggle'), { style: S.stOpen ? 'on' : undefined }));
 	bs.push(btn('People', () => act('people')));
 	if (p && !p.st) later.push(btn('My figure and face', () => act('figure')));
@@ -1071,7 +1072,7 @@ function toolButtons(): Button[] {
 function barButtons(cols: number): { bar: Button[]; more: Button[] } {
 	const more = btn('More', () => act('more'), { style: S.sheet === 'more' ? 'on' : 'quiet' });
 	// The Menu (the way out of the walk) never falls behind More, however narrow the phone.
-	return pickBar(toolButtons(), cols, (b) => b.label === 'Menu', more);
+	return pickBar(toolButtons(), cols, (b) => b.label === 'Menu' || b.label === 'Lock' || b.label === 'Unlock', more);
 }
 
 /** Stamp wrapped buttons at (x, y) in `w` columns; returns the height used. */
@@ -1104,9 +1105,15 @@ function villageCells(g: Grid, ui?: Grid): boolean {
 	const stH = stbar ? 1 + buttonRows(stBs, u.cols, 0).length * 3 : 0;
 	const fullY = 1, fullH = Math.max(4, u.rows - 3 - stH - toolH);
 	// The camera bar, when the window is one: rows of its own above or below the map, which gives them up.
-	const barH = CAMS && S.cams.open && isBar(S.cams.corner) ? barHeight(u.cols, S.cams.folded, S.cams.look === 'avatar' ? AVATAR_TILE : undefined) : 0;
+	// The camera window at the edge of the screen (camwin.ts Place): a column down the right on a wide
+	// screen, whose columns the map gives up; a bar across the top or bottom, whose rows it gives up.
+	const place = resolvePlace(S.cams.place, u.cols, !!ui);
+	camPlace = place;
+	const tileSz = S.cams.look === 'avatar' ? AVATAR_TILE : tileSize(u.cols);
+	camSide = CAMS && S.cams.open && place === 'side' && !S.cams.folded ? sideWidth(tileSz) : 0;
+	const barH = CAMS && S.cams.open && place !== 'side' ? barHeight(u.cols, S.cams.folded, tileSz) : 0;
 	const bar = barH && fullH - barH >= 6 ? barH : 0;
-	const mapY = fullY + (S.cams.corner === 'top' ? bar : 0), mapH = fullH - bar;
+	const mapY = fullY + (place === 'top' ? bar : 0), mapH = fullH - bar;
 	// Split: the bars are solid, so a tap on them (not on a button) does not fall through and walk you there.
 	if (ui) { u.hit({ x: 0, y: 0, w: u.cols, h: mapY }, () => {}); u.hit({ x: 0, y: mapY + mapH, w: u.cols, h: u.rows - mapY - mapH }, () => {}); }
 	// Top line: where we are in the game.
@@ -1121,7 +1128,7 @@ function villageCells(g: Grid, ui?: Grid): boolean {
 	if (S.phase === 'circle') councilRoom(g, ui ? 0 : mapY, ui ? g.rows : mapH, now);
 	else mapCells(g, ui ? 0 : mapY, ui ? g.rows : mapH, p, lvl(p), now);
 	if (FACES) faceStrip(u, mapY, mapH, p);
-	if (CAMS) camWindow(u, bar ? { x: 0, y: S.cams.corner === 'top' ? fullY : fullY + fullH - bar, w: u.cols, h: bar } : { x: 0, y: mapY, w: u.cols, h: mapH }, p, now);
+	if (CAMS) camWindow(u, place === 'side' ? { x: u.cols - sideWidth(tileSz), y: fullY, w: sideWidth(tileSz), h: fullH } : bar ? { x: 0, y: place === 'top' ? fullY : fullY + fullH - bar, w: u.cols, h: bar } : { x: 0, y: mapY, w: u.cols, h: mapH }, p, now);
 	// The line of what you can hear, and the passing notice.
 	const where = p.secret ? 'Private with ' + nameOf(p.with) + ': nobody else hears you'
 		: S.phase === 'night' ? (p.st ? 'Night: whoever is in this room hears you' : 'Night: at home. Only the Storyteller may visit')
@@ -1269,8 +1276,13 @@ function beaconOf(t: Town): { x: number; y: number } | null {
 	return found;
 }
 
+/** Columns the camera window's side column takes at the right (the map and the council leave them). */
+let camSide = 0;
+/** Where the camera window was put last frame. */
+let camPlace: Corner = 'top';
+
 function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: number) {
-	const cols = g.cols;
+	const cols = g.cols - camSide;
 	const x0 = Math.round(cam.x) - Math.floor(cols / CW / 2), y0 = Math.round(cam.y) - Math.floor(mapH / 2);
 	view = { x0, y0: y0 - mapY };
 	/** The screen column of a town column. */
@@ -1639,34 +1651,45 @@ function camWindow(g: Grid, area: { x: number; y: number; w: number; h: number }
 		.map((q) => ({ id: q.id, name: q.st ? 'Storyteller' : q.name, loud: avatars ? Math.max(0.01, loudness(lvl(p), p, q, S.phase)) : loudness(lvl(p), p, q, S.phase) }));
 	const close = others.filter((q) => q.loud > 0).length;
 	const tile = avatars ? AVATAR_TILE : undefined;
-	const L0 = camLayout(area, 1 + close, S.cams.corner, S.cams.folded, tile);
+	// Someone asking you for a word comes right after you, wherever they are, until you answer.
+	const asker = S.asks.find((id) => S.people.has(id) && id !== S.me) ?? null;
+	const L0 = camLayout(area, 1 + close + (asker ? 1 : 0), camPlace, S.cams.folded, tile);
 	if (!L0) { camOverlay.show([]); return; }
 	const pick = pickTiles(S.me, others, L0.cap);
-	const L = camLayout(area, pick.ids.length, S.cams.corner, S.cams.folded, tile)!;
+	if (asker) { pick.ids = [S.me, asker, ...pick.ids.filter((id) => id !== S.me && id !== asker)].slice(0, Math.max(2, L0.cap)); }
+	const L = camLayout(area, pick.ids.length, camPlace, S.cams.folded, tile)!;
+	/** How loud each is to you: the window fades the farther ones. */
+	const loudOf = new Map(others.map((q) => [q.id, q.loud]));
 	const { tw, th } = L.tiles[0] ? { tw: L.tiles[0].w, th: L.tiles[0].h } : tileSize(area.w);
 	const pictures: PictureTile[] = [];
 	const tiles: TileView[] = pick.ids.map((id, i) => {
 		const q = S.people.get(id)!;
 		const self = id === S.me;
 		const talk = talking(q) > 0.15;
-		const base = { id, label: self ? 'You' : q.st ? 'Storyteller' : q.name, ink: markOf(q), glyph: glyphOf(q), talking: talk };
+		// Fainter the farther they are (you and anyone near at full strength); marked while they ask for a word.
+		const loud = self ? 1 : loudOf.get(id) ?? 0;
+		const fade = loud >= 0.66 ? undefined : loud >= 0.33 ? 3 : 2;
+		const base = { id, label: self ? 'You' : q.st ? 'Storyteller' : q.name, ink: markOf(q), glyph: glyphOf(q), talking: talk, fade, asking: id === asker };
 		if (avatars) {
 			const r = L.tiles[i];
 			const fit = r ? detailThatFits(r.w, r.h) : 0;
+			const style = decodeStyle(q.look?.style);
 			if (self) {
-				if (!myCam.on) return { ...base, kind: 'blank' as const, glyph: '', note: 'camera off' };
-				const rig = decodeRig(avatar.rig);
+				// Your own tile is always there: your face at rest while the camera is off, so you see your style.
+				const rig = myCam.on ? decodeRig(avatar.rig) : NEUTRAL;
 				if (!rig) return { ...base, kind: 'blank' as const, glyph: '', note: avatar.note ? 'loading' : 'no face' };
 				const { w, h } = DETAIL_SIZE[fit as Detail];
 				// My mouth opens with my voice too, as everyone else's phone opens it with the voice it hears.
-				return fit ? { ...base, kind: 'avatar' as const, cells: drawRig(withVoice(rig, talking(q)), w, h) } : { ...base, kind: 'blank' as const };
+				return fit ? { ...base, label: myCam.on ? 'You' : 'You (off)', kind: 'avatar' as const, cells: drawRig(withVoice(rig, talking(q)), w, h, style) } : { ...base, kind: 'blank' as const };
 			}
-			const got = S.rigs.get(id), rig = got && decodeRig(got.rig);
-			const d = Math.min(fit, got?.detail ?? 0) as Detail;
+			const got = S.rigs.get(id);
+			// Someone asking from out of sight: their face at rest, so the mark shows.
+			const rig = got ? decodeRig(got.rig) : id === asker ? NEUTRAL : null;
+			const d = Math.min(fit, got?.detail ?? (id === asker ? 2 : 0)) as Detail;
 			if (!rig || !d) return { ...base, kind: 'blank' as const };
 			const { w, h } = DETAIL_SIZE[d];
 			// The mouth opens with the voice this phone hears from them: in step with the sound, nothing sent.
-			return { ...base, kind: 'avatar' as const, cells: drawRig(withVoice(rig, talking(q)), w, h) };
+			return { ...base, kind: 'avatar' as const, cells: drawRig(withVoice(rig, talking(q)), w, h, style) };
 		}
 		const stand = !self && (S.bots.has(id) || S.cams.standIns);
 		if (self && !myCam.on) return { ...base, kind: 'blank' as const, glyph: '', note: 'camera off' };
@@ -1684,7 +1707,7 @@ function camWindow(g: Grid, area: { x: number; y: number; w: number; h: number }
 	const title = S.phase === 'circle' ? 'The circle' : S.phase === 'night' ? 'Night' : p.with ? 'Private' : 'Near you';
 	drawCamWindow(g, L, {
 		title, tiles, more: pick.more, folded: S.cams.folded,
-		onMove: () => { S.cams.corner = nextCorner(S.cams.corner); store.set('grimoire.camsCorner', S.cams.corner); S.dirty = true; redraw(); },
+		onMove: () => { S.cams.place = nextPlace(S.cams.place); store.set('grimoire.camsPlace', S.cams.place); S.dirty = true; redraw(); },
 		onFold: () => { S.cams.folded = !S.cams.folded; S.dirty = true; redraw(); },
 		onClose: () => act('cams-open'),
 		onTile: (id) => {
@@ -1722,7 +1745,7 @@ function councilRoom(g: Grid, y0: number, h: number, now: number) {
 	// The faces keep the right edge: the room is centred in what is left.
 	const p = me();
 	const faceCol = FACES && S.showFaces && p && (S.host ? facesFor(p) : [...S.faces]).length ? FACE_W + 1 : 0;
-	const W = g.cols - faceCol;
+	const W = g.cols - faceCol - camSide;
 	const cx = Math.floor(W / 2), cy = y0 + top + Math.floor((h - top - foot) / 2);
 	// A cell is twice as tall as it is wide: the table is twice as many columns across as rows.
 	const ty = Math.max(3, Math.min(Math.floor((h - top - foot) / 2) - 3, Math.floor((W / 2 - 10) / 2)));
@@ -1757,7 +1780,8 @@ function councilRoom(g: Grid, y0: number, h: number, now: number) {
 		const t = `${c.label ? c.label + ' ' : ''}${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
 		g.text(cx - Math.floor(t.length / 2), cy + cr + 1, t, c.running ? 6 : 3, shade(6, 0));
 	}
-	// The seats round the table: each player's face in their colour, their name outward from the table.
+	// The seats round the table: each player's letter on a plate of their colour (their face is in the camera
+	// window now: the faces once picked for the table are gone, 16 Nov), their name outward from the table.
 	ring.forEach((r, i) => {
 		const a = (2 * Math.PI * i) / n;
 		const sx = cx + Math.round(Math.sin(a) * (tx + 3)), sy = cy - Math.round(Math.cos(a) * (ty + 1.6));
@@ -1766,8 +1790,9 @@ function councilRoom(g: Grid, y0: number, h: number, now: number) {
 		const plate = v?.nominee === r.seat ? 8 : v?.raised.includes(r.seat) ? 10 : v?.counted.includes(r.seat) ? 6 : -1;
 		// A bright face on a dark plate: of what is happening to them (nominated, hand up, counted), else of their colour.
 		const hue = r.dead ? 3 : plate >= 0 ? plate : pb || pf;
-		const face = faceOf(person, r.seat, r.dead);
-		g.setWide(sx - 1, sy, filling(canDraw(face) ? face : PLAIN_FACE), hue, shade(hue, plate >= 0 ? 1 : 0));
+		const mark = r.dead ? '†' : (r.name[0] ?? '?').toUpperCase();
+		g.set(sx - 1, sy, mark, r.dead ? 3 : 5, shade(hue, plate >= 0 ? 2 : 1));
+		g.set(sx, sy, ' ', 5, shade(hue, plate >= 0 ? 2 : 1));
 		if (v?.at === r.seat) g.set(sx - 2, sy, '>', 6, 0);
 		if (v?.raised.includes(r.seat)) g.set(sx + 2, sy, '^', 10, 0);
 		const s = Math.sin(a), up = Math.cos(a);
@@ -1850,7 +1875,7 @@ function sheetRows(): Row[] {
 			if (S.host) rows.push(b(S.cams.places === 'talk' ? 'Avatars show: where people talk' : 'Avatars show: whenever in earshot', 'cams-places', S.cams.places === 'talk'));
 		}
 		rows.push(b(S.cams.standIns ? 'Stand-ins for all: on' : 'Stand-ins for all: off', 'cams-standins', S.cams.standIns));
-		rows.push(b('Place: ' + CORNER_NAME[S.cams.corner], 'cams-corner', false));
+		rows.push(b('Place: ' + PLACE_NAME[S.cams.place], 'cams-corner', false));
 		return [close('sheet-close'), ...rows, endPanel()];
 	}
 	if (S.sheet === 'people') {
@@ -2058,7 +2083,7 @@ function act(a: string, id = '') {
 			store.set('grimoire.avatarPlaces', S.cams.places);
 			S.dirty = true; drawChrome(); break;
 		case 'cams-standins': S.cams.standIns = !S.cams.standIns; S.dirty = true; drawChrome(); break;
-		case 'cams-corner': S.cams.corner = nextCorner(S.cams.corner); store.set('grimoire.camsCorner', S.cams.corner); S.dirty = true; drawChrome(); break;
+		case 'cams-corner': S.cams.place = nextPlace(S.cams.place); store.set('grimoire.camsPlace', S.cams.place); S.dirty = true; drawChrome(); break;
 		case 'more': S.sheet = S.sheet === 'more' ? null : 'more'; S.stOpen = false; drawChrome(); break;
 		case 'sheet-close': S.sheet = null; drawChrome(); break;
 		case 'ask': up({ t: 'ask', to: id }); S.sheet = null; drawChrome(); break;

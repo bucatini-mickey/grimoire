@@ -24,8 +24,10 @@
  *   9 browL   signed: above 8 the left brow is raised, below it lowered (a frown)
  *  10 browR   the right brow
  */
-import { drawFace } from './rigface.ts';
-export { rdiv } from './rigface.ts';
+import { drawFace, PLAIN_STYLE } from './rigface.ts';
+import type { FaceStyle } from './rigface.ts';
+export { decodeStyle, encodeStyle, PLAIN_STYLE, rdiv, STYLE_NAMES, STYLE_PARTS } from './rigface.ts';
+export type { FaceStyle } from './rigface.ts';
 
 export interface Rig {
 	eyeL: number; eyeR: number; mouth: number; smile: number;
@@ -86,8 +88,8 @@ export function detailThatFits(w: number, h: number, most: Detail = 3): Detail {
  */
 export interface RigCell { ch: string; ink: 0 | 1 | 2 | 3; }
 
-/** The avatar for a rig in w x h cells. See rigface.ts. */
-export const drawRig = (r: Rig, w: number, h: number): RigCell[][] => drawFace(r, w, h);
+/** The avatar for a rig in w x h cells, in its player's style (rigface.ts FaceStyle). */
+export const drawRig = (r: Rig, w: number, h: number, style: FaceStyle = PLAIN_STYLE): RigCell[][] => drawFace(r, w, h, style);
 
 /** The avatar as lines of text (for tests, the test page and the fixture). */
 export const rigText = (cells: RigCell[][]) => cells.map((row) => row.map((c) => c.ch).join('')).join('\n');

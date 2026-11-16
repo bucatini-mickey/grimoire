@@ -288,3 +288,49 @@ test('avatar tiles are the letter tile with a face: the middle face\'s size, the
 	assert.equal(c.tiles.length, 6);
 	assert.ok(c.rect.w <= 60 && c.rect.h <= 14, JSON.stringify(c.rect));
 });
+
+test('a face style: four digits both ways, each part changing the face; the plain style draws as before', async () => {
+	const { decodeStyle, encodeStyle, PLAIN_STYLE, STYLE_PARTS } = await import('../src/avatar/rig.ts');
+	assert.equal(encodeStyle(PLAIN_STYLE), '0000');
+	assert.deepEqual(decodeStyle('1203'), { brow: 1, eye: 2, nose: 0, mouth: 3 });
+	for (const bad of ['', '0004', '00000', 'abcd', null, 7]) assert.deepEqual(decodeStyle(bad), PLAIN_STYLE);
+	assert.equal(rigText(drawRig(NEUTRAL, 10, 5, PLAIN_STYLE)), rigText(drawRig(NEUTRAL, 10, 5)));
+	for (const part of STYLE_PARTS) for (const v of [1, 2, 3]) {
+		const st = { ...PLAIN_STYLE, [part]: v };
+		for (const [w, h] of [[10, 5], [16, 8]]) {
+			const both = (c: ReturnType<typeof drawRig>) => rigText(c) + rigInks(c);
+			assert.notEqual(both(drawRig(NEUTRAL, w, h, st)), both(drawRig(NEUTRAL, w, h)), `${part} ${v} at ${w}x${h}`);
+		}
+	}
+	// The letter goes on the nose only when the nose is "my letter".
+	const ink3 = (st: object) => rigInks(drawRig(NEUTRAL, 10, 5, { ...PLAIN_STYLE, ...st })).includes('3');
+	assert.ok(ink3({}));
+	assert.ok(!ink3({ nose: 2 }));
+	// No brows still shows a raise and a frown.
+	const none = { ...PLAIN_STYLE, brow: 3 };
+	assert.equal(rigText(drawRig(NEUTRAL, 16, 8, none)).split('\n')[1].trim(), '');
+	assert.ok(rigText(drawRig(rig({ browL: 15, browR: 15 }), 16, 8, none)).includes('^'));
+});
+
+test('the camera window goes to the edge: down the side on a wide screen, a bar on a phone', async () => {
+	const { resolvePlace, sideWidth, nextPlace, PLACES } = await import('../src/town/camwin.ts');
+	assert.equal(resolvePlace('auto', 140, false), 'side');
+	assert.equal(resolvePlace('auto', 60, false), 'top');
+	assert.equal(resolvePlace('auto', 140, true), 'top', 'a phone\'s split grid takes a bar');
+	assert.equal(resolvePlace('side', 140, true), 'top');
+	assert.equal(resolvePlace('bottom', 140, false), 'bottom');
+	assert.deepEqual(PLACES.map(nextPlace), ['side', 'top', 'bottom', 'auto']);
+	assert.equal(sideWidth(), 12);
+	const L = camLayout({ x: 128, y: 1, w: 12, h: 40 }, 4, 'side', false, AVATAR_TILE)!;
+	assert.deepEqual(L.rect, { x: 128, y: 1, w: 12, h: 4 * 6 + 2 });
+	assert.ok(L.tiles.every((t, i) => t.x === 129 && t.y === 2 + i * 6 && t.w === 10 && t.h === 5));
+	assert.equal(camLayout({ x: 128, y: 1, w: 12, h: 40 }, 20, 'side', false, AVATAR_TILE)!.cap, 6);
+	assert.equal(camLayout({ x: 128, y: 1, w: 12, h: 40 }, 3, 'side', true, AVATAR_TILE)!.rect.h, 1);
+});
+
+test('a saved look keeps its face style, and drops a bad one', async () => {
+	const { cleanLook } = await import('../src/town/avatar.ts');
+	assert.equal(cleanLook({ figure: 0, face: 0, style: '1230' }).style, '1230');
+	assert.equal(cleanLook({ figure: 0, face: 0, style: '9999' }).style, undefined);
+	assert.equal(cleanLook({ figure: 0, face: 0 }).style, undefined);
+});

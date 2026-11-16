@@ -21,6 +21,31 @@
  */
 import type { Rig, RigCell } from './rig.ts';
 
+/**
+ * A face's style, chosen by its player (the village's "My figure and face" page): four digits, 0..3 each.
+ *   brow   0 a line -----, 1 thick =====, 2 wavy ~~~~~, 3 none (only a raise or frown shows)
+ *   eye    0 round ( o ), 1 square [ o ], 2 pointed < o >, 3 bare   o
+ *   nose   0 the player's letter (where a game draws it; else v), 1 v, 2 L, 3 ^
+ *   mouth  0 plain, 1 a moustache, 2 a beard, 3 both
+ */
+export interface FaceStyle { brow: number; eye: number; nose: number; mouth: number; }
+export const PLAIN_STYLE: FaceStyle = { brow: 0, eye: 0, nose: 0, mouth: 0 };
+export const STYLE_PARTS: (keyof FaceStyle)[] = ['brow', 'eye', 'nose', 'mouth'];
+/** The names of each part's four choices, for the page that picks them. */
+export const STYLE_NAMES: Record<keyof FaceStyle, string[]> = {
+	brow: ['Line', 'Thick', 'Wavy', 'None'], eye: ['Round', 'Square', 'Pointed', 'Bare'],
+	nose: ['My letter', 'v', 'L', '^'], mouth: ['Plain', 'Moustache', 'Beard', 'Both']
+};
+export const encodeStyle = (st: FaceStyle) => STYLE_PARTS.map((k) => String(Math.max(0, Math.min(3, Math.trunc(st[k]) || 0)))).join('');
+/** Four digits 0..3 as a style; anything else is the plain one. */
+export function decodeStyle(v: unknown): FaceStyle {
+	if (typeof v !== 'string' || !/^[0-3]{4}$/.test(v)) return { ...PLAIN_STYLE };
+	return { brow: +v[0], eye: +v[1], nose: +v[2], mouth: +v[3] };
+}
+const BROW_FILL = ['-', '=', '~', ' '];
+const EYE_SIDES: [string, string][] = [['(', ')'], ['[', ']'], ['<', '>'], [' ', ' ']];
+const NOSE = ['v', 'v', 'L', '^'];
+
 /** a / b rounded to the nearest, halves away from zero (b > 0). */
 export function rdiv(a: number, b: number): number {
 	const m = Math.floor((2 * Math.abs(a) + b) / (2 * b));
@@ -41,21 +66,25 @@ export function eyeGlyph(open: number): string {
  * by its glyph up or down (gy); half shut, a lid over it; shut, a line. Its row of lid above (wide open only)
  * comes back as `lid`.
  */
-export function eyeCells(open: number, gx: number, gy: number, wide: 3 | 5): { row: string; lid: string | null } {
+export function eyeCells(open: number, gx: number, gy: number, wide: 3 | 5, style = 0): { row: string; lid: string | null } {
 	const inner = wide - 2;
 	if (open <= 3) return { row: wide === 5 ? ' --- ' : '---', lid: null };
+	const [l, r] = EYE_SIDES[style] ?? EYE_SIDES[0];
 	const at = inner === 1 ? 0 : gx >= 3 ? 2 : gx <= -3 ? 0 : 1;
 	const pupil = open <= 7 ? '-' : open >= 13 ? 'O' : gy >= 4 ? "'" : gy <= -4 ? '.' : 'o';
 	let mid = '';
 	for (let i = 0; i < inner; i++) mid += i === at ? pupil : open <= 7 ? '-' : ' ';
-	return { row: '(' + mid + ')', lid: open >= 13 ? (wide === 5 ? ' .-. ' : '.-.') : null };
+	return { row: l + mid + r, lid: open >= 13 ? (wide === 5 ? ' .-. ' : '.-.') : null };
 }
 
 /** A brow `wide` cells across, from its outer end to its inner: raised an arch, lowered sloping to the nose. */
-export function browCells(b: number, wide: 3 | 5): string {
-	if (b >= 3) return wide === 5 ? '/---\\' : '/-\\';
-	if (b <= -3) return wide === 5 ? '`-._ ' : '`-.';
-	return wide === 5 ? '-----' : '---';
+export function browCells(b: number, wide: 3 | 5, style = 0): string {
+	const f = BROW_FILL[style] ?? '-';
+	// No brows: only a raise (a lifted point) or a frown (a slope at the nose) shows.
+	if (f === ' ') return b >= 3 ? (wide === 5 ? '  ^  ' : ' ^ ') : b <= -3 ? (wide === 5 ? '   \\ ' : '  \\') : ' '.repeat(wide);
+	if (b >= 3) return wide === 5 ? '/' + f + f + f + '\\' : '/' + f + '\\';
+	if (b <= -3) return wide === 5 ? '`' + f + '._ ' : '`' + f + '.';
+	return f.repeat(wide);
 }
 /** A brow drawn on the right: the left one mirrored. */
 const mirror = (s: string) => [...s].reverse().map((c) => ({ '/': '\\', '\\': '/', '`': "'", "'": '`', '(': ')', ')': '(' } as Record<string, string>)[c] ?? c).join('');
@@ -89,7 +118,7 @@ export function noseCells(yw: number): string {
 }
 
 /** The avatar for a rig in w x h cells (w >= 5, h >= 2): near (from 14 x 7), middle (from 8 x 4), else far. */
-export function drawFace(r: Rig, w: number, h: number): RigCell[][] {
+export function drawFace(r: Rig, w: number, h: number, st: FaceStyle = PLAIN_STYLE): RigCell[][] {
 	const out: RigCell[][] = Array.from({ length: h }, () => Array.from({ length: w }, () => ({ ch: ' ', ink: 0 as const })));
 	if (w < 5 || h < 2) return out;
 	const put = (x: number, y: number, ch: string, ink: RigCell['ink']) => {
@@ -143,10 +172,10 @@ export function drawFace(r: Rig, w: number, h: number): RigCell[][] {
 		const x0 = cx[i] - (wide === 5 ? 2 : 1);
 		const dy = lean(side) + ty;
 		// Brow: raised a row up, lowered a row down (onto the lid's row), mirrored on the right.
-		const brow = browCells(b, wide);
+		const brow = browCells(b, wide, st.brow);
 		const by = clamp(browY + (big ? dy : ty) + (b >= 3 && big ? -1 : 0) + (b <= -3 && big ? 1 : 0), 0, h - 1);
 		text(x0, by, side < 0 ? brow : mirror(brow), 2);
-		const e = eyeCells(open, gx, gy, wide);
+		const e = eyeCells(open, gx, gy, wide, st.eye);
 		const ey = clamp(eyeY + dy, 0, h - 1);
 		if (e.lid && big && !(b <= -3)) text(x0, ey - 1, e.lid, 2);
 		text(x0, ey, e.row, 2);
@@ -156,8 +185,11 @@ export function drawFace(r: Rig, w: number, h: number): RigCell[][] {
 	// The nose; its middle cell is ink 3, the place a game may put the player's own mark instead (Grimoire's
 	// camera tiles put their letter there, on its plate: the letter tile with a face round it).
 	const ny = clamp(noseY + ty, 0, h - 1);
-	if (big) { const n = noseCells(yw); text(mid - 1, ny, n, 1); put(mid, ny, n[1] === ' ' ? '_' : n[1], 3); }
-	else put(mid + (yw >= 3 ? 1 : yw <= -3 ? -1 : 0), ny, yw >= 3 ? '>' : yw <= -3 ? '<' : 'v', 3);
+	// A chosen nose (style 1..3) is the player's own glyph: no letter goes there.
+	const nx = mid + (yw >= 3 ? 1 : yw <= -3 ? -1 : 0);
+	if (st.nose) put(nx, ny, yw >= 3 ? '>' : yw <= -3 ? '<' : NOSE[st.nose], 1);
+	else if (big) { const n = noseCells(yw); text(mid - 1, ny, n, 1); put(mid, ny, n[1] === ' ' ? '_' : n[1], 3); }
+	else put(nx, ny, yw >= 3 ? '>' : yw <= -3 ? '<' : 'v', 3);
 
 	// The mouth: as wide as the eyes' inner edges, as tall as the rows left; a lean slants its ends.
 	const mw = big ? 8 : 4;
@@ -171,5 +203,13 @@ export function drawFace(r: Rig, w: number, h: number): RigCell[][] {
 			put(m0 + i, clamp(my + k, 0, h - 1), row[i], 2);
 		}
 	});
+	// A moustache on the row over the mouth, either side of the nose; a beard on the row under it.
+	if ((st.mouth === 1 || st.mouth === 3) && my - 1 >= 0) {
+		// Even either side of the nose: one cell each way in the middle face, three in the near one.
+		for (let d = 1; d <= (big ? 3 : 1); d++) { put(nx - d, my - 1, '/', 2); put(nx + d, my - 1, '\\', 2); }
+	}
+	if ((st.mouth === 2 || st.mouth === 3) && my + m.length <= h - 1) {
+		for (let i = 0; i < mw; i++) put(m0 + i, my + m.length, i === 0 ? '\\' : i === mw - 1 ? '/' : 'w', 2);
+	}
 	return out;
 }
