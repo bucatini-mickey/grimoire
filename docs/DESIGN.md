@@ -8,6 +8,15 @@
 
 All three share one rules engine. Modes 2 and 3 differ only in who holds which screen and how events travel.
 
+### Single phone: recall ("Remind me")
+
+When the Storyteller hands the one phone round, a page is gone once turned. A player must be able to ask for all of it again, so each seat keeps a history of what it was shown (note of 11 Nov: "I need to be able to recall all info, including demon bluffs").
+
+- **"All info" for a seat** is the pages shown to it, in order: its role, ability and alignment; on night 1 the Demon (and fellow Minions) for a Minion, the Minions for the Demon; the Demon's *Your bluffs* page; and every choice page and night-result page after that, each with its night. The Spy's look at the grimoire is a page too.
+- **Replays, never recomputes.** Recall draws exactly the pages already shown and nothing new: no fresh grimoire look-up, no newer answer, no information the player was not given. A Drunk or poisoned player gets back the false answer they were given (and the Drunk their pretend Townsfolk), never the truth, and nothing tells them they were deceived. A page is recorded when it is put in front of the player, so what is kept is what they saw even if the Storyteller then undoes the step. If the Storyteller backs out and shows a different answer, both showings are kept (`showing` 1, 2), since the player saw both.
+- **The data** (`src/net/history.ts`): `saved.history[seat]` is a list of `ShownPage`, each with a `kind` (`role`, `evil-team`, `bluffs`, `choice`, `night-result`, `grimoire`), the `night`, the `page` (which `wakepages.ts` page it was) and the words on it (`sections`, a choice's options and what was chosen, or the grimoire as shown). `wakeOf(entry, seat)` rebuilds a wake that `wakeRows` draws exactly as before, so the "Remind me" screen (grim-046) only picks pages and draws them. Older saves load with an empty history (`reviveHistory`).
+- **Storyteller-side only.** It sits beside the saved game, not in `GameState`, so `views.ts` cannot send it and phones, the share summary and the village never receive it. Phone mode keeps its own per-player log (`logEntry`); this is for hand-the-phone only. Tests: tests/history.test.ts.
+
 ### Village: shared homes at night
 
 When there are more players than homes, several share a room (`sendHome` gives homes by seat modulo the number of homes). The rule at night:

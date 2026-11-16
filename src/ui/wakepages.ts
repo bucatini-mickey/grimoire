@@ -16,6 +16,7 @@ import type { Announcement } from '../net/protocol.ts';
 import type { Button, Row, Tone } from './ascii.ts';
 import { ALL_CHARACTERS } from '../core/index.ts';
 import type { SeatId } from '../core/index.ts';
+import { bluffsOf } from '../net/views.ts';
 import type { Section, Wake } from '../net/views.ts';
 
 /** Cards are as wide as the page, so what a player is told is large and plain. */
@@ -60,8 +61,6 @@ const sideOf = (role?: string): 'good' | 'evil' | 'other' => {
 };
 const TEAM_NAME: Record<string, string> = { townsfolk: 'Townsfolk', outsider: 'Outsider', minion: 'Minion', demon: 'Demon', traveller: 'Traveller', fabled: 'Fabled' };
 const teamName = (role: string): string => TEAM_NAME[ALL_CHARACTERS.find((c) => c.id === role)?.team ?? ''] ?? '';
-/** The Demon's bluffs, if this wake shows them: they have a page of their own. */
-const bluffsOf = (w: Wake): Section | undefined => w.sections.find((s) => s.title === 'Not in play' && s.lines.length > 0);
 /** Marks a page as illuminated (folio: the vine borders and the roundel). */
 const illumined = (role?: string): Row => ({ segs: [], cls: 'illum-' + sideOf(role) });
 

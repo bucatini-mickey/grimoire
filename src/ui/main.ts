@@ -28,6 +28,7 @@ import { COLS, INNER, Canvas, letteredRow, shade, titleRow, blank, blockRow, box
 import type { Button, Row, Seg, Tone } from './ascii.ts';
 import * as T from './timer.ts';
 import * as V from '../net/views.ts';
+import * as H from '../net/history.ts';
 import { announce } from '../net/announce.ts';
 import { hostRoom, newRoomCode } from '../net/link.ts';
 import type { HostLink, LinkStatus } from '../net/link.ts';
@@ -103,6 +104,8 @@ interface Saved {
 	net?: { room: string; claims: Record<string, SeatId>; village?: boolean; lobby?: { client: string; name: string }[] };
 	/** What each player's phone has been shown at night (views.ts logEntry), by seat. */
 	log?: Record<number, V.LogEntry[]>;
+	/** What each seat was shown on this phone at night, page by page, to show again (net/history.ts). Storyteller-side only; never sent to a phone. */
+	history?: H.History;
 }
 
 function freshFlow(settings: Settings): Flow {
@@ -116,7 +119,7 @@ function load(): Saved {
 			const s = JSON.parse(raw) as Saved;
 			G.replay(s.events); // throws if the log is unreadable
 			const settings = { ...DEFAULT_SETTINGS, ...s.settings };
-			return { events: s.events, marks: s.marks ?? [], settings, flow: { ...freshFlow(settings), ...s.flow }, net: s.net };
+			return { events: s.events, marks: s.marks ?? [], settings, flow: { ...freshFlow(settings), ...s.flow }, net: s.net, log: s.log, history: H.reviveHistory(s.history) };
 		}
 	} catch {
 		/* fall through to a fresh game */
@@ -1790,21 +1793,32 @@ function showRows(): Row[] {
 	if (!step || step.id !== sh.step) { ui.show = null; return []; }
 	const w = withNote(V.wakeFor(state, step, ui.draftInfo), step);
 	// First, whose turn it is; last, the phone back to the Storyteller.
-	if (sh.turn === 0) return handOverRows(step.seat === null ? groupLabel(step.kind).split(':')[0] : name(step.seat), () => { sh.turn = 1; render(); });
+	if (sh.turn === 0) return handOverRows(step.seat === null ? groupLabel(step.kind).split(':')[0] : name(step.seat), () => { sh.turn = 1; noteShown(w, sh.page); render(); });
 	if (sh.page === 'done') return handBackRows(finishShow);
 	return wakeRows(w, sh.page, sh.picks, {
-		go: (page) => { sh.page = page; render(); },
+		go: (page) => { sh.page = page; noteShown(w, page); render(); },
 		toggle: (id) => {
 			if (sh.picks.includes(id)) sh.picks = sh.picks.filter((p) => p !== id);
 			else { sh.picks.push(id); if (sh.picks.length > (w.pick?.count ?? 1)) sh.picks.shift(); }
 			render();
 		},
-		confirm: () => { sh.page = nextPage(w, 'pick'); render(); },
+		confirm: () => { if (w.seat !== null) H.recordChoice((saved.history ??= {}), w.seat, w.id, sh.picks); sh.page = nextPage(w, 'pick'); noteShown(w, sh.page); render(); },
 		finish: finishShow,
 		ending: 'hand-back',
 		name,
 		deadAtDusk: (id) => V.deadAtDusk(state, id)
 	});
+}
+
+/**
+ * A page has just been put in front of the player on this phone: keep it in their history, as drawn
+ * (the Drunk's or a poisoned player's false answer is what is in w, so that is what is kept).
+ */
+function noteShown(w: V.Wake, page: Page) {
+	if (w.seat === null || state.phase.kind !== 'night') return;
+	const e = H.shownPage(w, page, state.phase.n, { name, dead: (id) => V.deadAtDusk(state, id) });
+	if (e) H.record((saved.history ??= {}), w.seat, e);
+	save();
 }
 
 /** The phone is back with the Storyteller: record what happened. */
