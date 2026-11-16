@@ -9,9 +9,7 @@ import { decodeRig, drawRig, encodeRig, NEUTRAL, RIG_KEYS, DETAIL_SIZE, withVoic
 import type { Rig, RigCell } from './rig.ts';
 import { GAINS, makeTracker, MP_VERSION, NO_FLIPS, NO_NEUTRAL, RigSmoother, rigOf, TRACKER_LABEL, TRACKER_NAMES } from './trackers.ts';
 import type { Flips, Loaded, Neutral, Raw, Track, Tracker, TrackerName } from './trackers.ts';
-import { AsciiAvatar, INKS } from './asciiavatar.ts';
-import { blendCells, blendCrop, blendSize, cellOfPoint } from './blend.ts';
-import type { BlendCell } from './blend.ts';
+import { AsciiAvatar } from './asciiavatar.ts';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const store = {
@@ -141,32 +139,6 @@ const kb = (b: number) => (b >= 1e6 ? (b / 1e6).toFixed(2) + ' MB' : (b / 1e3).t
 /** A rig typed in by hand, held still in demo mode until Demo is pressed again. */
 let demoHold: Rig | null = null;
 const picture = new AsciiAvatar({ cols: 32, track: true });
-/** The camera in letters for the blend: cropped to the face here, from the tracker's points. */
-const blendPic = new AsciiAvatar({ track: false, mirror: true });
-
-function blendHtml(cells: BlendCell[][]): string {
-	const e = (c: string) => (c === '<' ? '&lt;' : c === '>' ? '&gt;' : c === '&' ? '&amp;' : c);
-	return cells.map((row) => row.map((c) => c.ch === ' ' ? ' ' : c.feature ? `<span class="f">${e(c.ch)}</span>` : `<span style="color:${INKS[c.level]}">${e(c.ch)}</span>`).join('')).join('\n');
-}
-
-/**
- * The blend at all three sizes: the camera in letters, cropped round the face (Face Landmarker's points),
- * with the avatar's features laid over it. Needs the landmarker; the others give no eye corners.
- */
-function drawBlends(src: HTMLVideoElement | HTMLCanvasElement, sw: number, sh: number, tr: Track, rig: Rig) {
-	const p = tr.points;
-	if (S.trackerName !== 'landmarker' || p.length < 5) { $('blendNote').textContent = 'The blend needs the Face Landmarker and a face in view.'; return; }
-	$('blendNote').textContent = '';
-	const face = { eyeOuterA: p[0], eyeOuterB: p[3], nose: p[4] };
-	const crop = blendCrop(face, sw, sh);
-	const eyeMid = { x: (p[0].x + p[1].x + p[2].x + p[3].x) / 4, y: (p[0].y + p[1].y + p[2].y + p[3].y) / 4 };
-	for (const d of [3, 2, 1] as const) {
-		const { cols, rows } = blendSize(d);
-		const fr = blendPic.draw(src, crop, cols);
-		const eyes = cellOfPoint(eyeMid, crop, sw, sh, cols, rows), nose = cellOfPoint(p[4], crop, sw, sh, cols, rows);
-		$('blend' + d).innerHTML = blendHtml(blendCells(fr.lines, fr.inks, cols, rows, rig, d, eyes, nose));
-	}
-}
 let lastFrame = 0, fpsCount = 0, fpsAt = performance.now(), msSum = 0, foundCount = 0;
 
 function demoRig(t: number): Rig {
@@ -205,7 +177,6 @@ function tick(now: number) {
 				foundCount++;
 				S.lastRaw = tr.raw;
 				rig = S.smoother.push(rigOf(tr.raw, GAINS, S.neutral, S.flips));
-				drawBlends(f.src, f.w, f.h, tr, S.mic ? withVoice(rig, S.mic.level) : rig);
 			}
 			drawVideo(f, tr);
 		} else if (S.failed.has(S.trackerName) && !S.trackers.has('pixel')) void ensureTracker('pixel');

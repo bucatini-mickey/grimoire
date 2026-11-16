@@ -288,27 +288,3 @@ test('avatar tiles are the letter tile with a face: the middle face\'s size, the
 	assert.equal(c.tiles.length, 6);
 	assert.ok(c.rect.w <= 60 && c.rect.h <= 14, JSON.stringify(c.rect));
 });
-
-test('the blend: the camera\'s letters cropped round the face, the avatar\'s features laid on its eyes and nose', async () => {
-	const { blendCells, blendCrop, blendSize, cellOfPoint } = await import('../src/avatar/blend.ts');
-	assert.deepEqual([1, 2, 3].map((d) => blendSize(d as 1 | 2 | 3)), [{ cols: 9, rows: 5 }, { cols: 17, rows: 9 }, { cols: 27, rows: 14 }]);
-	const sw = 640, sh = 480;
-	const p = { eyeOuterA: { x: 0.44, y: 0.42 }, eyeOuterB: { x: 0.56, y: 0.42 }, nose: { x: 0.5, y: 0.5 } };
-	const c = blendCrop(p, sw, sh);
-	// Centred across on the face, a little below the eyes.
-	assert.ok(Math.abs(c.x + c.s / 2 - 320) < 1e-9 && c.y + c.s / 2 > 0.42 * sh);
-	// Mirrored: the picture's left is the drawing's right.
-	const L = cellOfPoint({ x: 0.45, y: 0.5 }, c, sw, sh, 20, 10), R = cellOfPoint({ x: 0.55, y: 0.5 }, c, sw, sh, 20, 10);
-	assert.ok(L.x > R.x);
-	for (const d of [1, 2, 3] as const) {
-		const { cols, rows } = blendSize(d);
-		const lines = Array.from({ length: rows }, () => ':'.repeat(cols));
-		const inks = new Array(cols * rows).fill(12);
-		const eyes = cellOfPoint({ x: 0.5, y: 0.42 }, c, sw, sh, cols, rows), nose = cellOfPoint(p.nose, c, sw, sh, cols, rows);
-		const out = blendCells(lines, inks, cols, rows, NEUTRAL, d, eyes, nose);
-		// The eyes land on the eyes' row; the picture shows round them; under them it is dimmed.
-		assert.ok(out[eyes.y].some((x) => x.feature && /[o(]/.test(x.ch)), `size ${d}: eyes on row ${eyes.y}`);
-		assert.ok(out[0][0].ch === ':' && out[0][0].level === 12, 'the picture outside the face is as it was');
-		assert.ok(out[eyes.y].some((x) => !x.feature && x.level < 12), 'the picture under the features is dimmed');
-	}
-});
