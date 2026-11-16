@@ -1,0 +1,97 @@
+{
+ "rule": "dead-do-not-wake",
+ "detail": "Esme (dead) woke as exorcised",
+ "seed": 70412,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen"
+   ],
+   "scriptId": "custom:clockmaker,washerwoman,artist,minstrel,professor,fool,virgin,exorcist,tinker,mutant,butler,drunk,scarlet-woman,pit-hag,poisoner,baron,pukka,vigormortis"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "vigormortis",
+    "pit-hag",
+    "professor",
+    "artist",
+    "virgin",
+    "exorcist",
+    "fool"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "butler",
+    "minstrel",
+    "tinker"
+   ],
+   "fabled": [
+    {
+     "id": "doomsayer"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ],
+   "character": "pukka"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "storyteller-kill",
+   "seat": 4
+  },
+  {
+   "type": "acknowledge"
+  }
+ ]
+}

@@ -58,7 +58,9 @@ export const CREDITS: CodexPage = {
 		'This book is an unofficial fan project, made as a helper for Storytellers. It is not affiliated with, endorsed by or sponsored by The Pandemonium Institute.',
 		'## The words and the pictures',
 		'The ability text in this book is our own paraphrase, not the official wording. For the real thing, see the game’s own almanac and the official tools.',
-		'The drawings, the book’s binding and the village are made for this app. If you enjoy the game, please buy it and support its makers.'
+		'The drawings, the book’s binding and the village are made for this app. If you enjoy the game, please buy it and support its makers.',
+		'## Who made it',
+		'Designed by Jason Summers, with a fair bit of vibe coding.'
 	]
 };
 

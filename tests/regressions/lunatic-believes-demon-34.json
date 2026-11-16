@@ -1,0 +1,60 @@
+{
+ "rule": "lunatic-believes-demon",
+ "detail": "Cael the Lunatic believes lunatic",
+ "seed": 34,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory"
+   ],
+   "scriptId": "custom:chambermaid,slayer,chef,tea-lady,empath,mayor,philosopher,grandmother,sage,gossip,oracle,klutz,mutant,lunatic,barber,witch,assassin,poisoner,pit-hag,godfather,zombuul,imp"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "chambermaid",
+    "empath",
+    "slayer",
+    "mayor",
+    "grandmother",
+    "gossip",
+    "zombuul",
+    "philosopher",
+    "poisoner",
+    "pit-hag"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "oracle",
+    "chef",
+    "barber"
+   ],
+   "fabled": [
+    {
+     "id": "storm-catcher",
+     "character": "empath"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ],
+   "character": "lunatic"
+  }
+ ]
+}

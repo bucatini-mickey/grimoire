@@ -1,0 +1,209 @@
+{
+ "rule": "butler",
+ "detail": "Fenn(butler) (Butler) voted without their master, unnoted",
+ "seed": 61364,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn"
+   ],
+   "scriptId": "custom:ravenkeeper,pacifist,gossip,clockmaker,empath,exorcist,innkeeper,philosopher,minstrel,undertaker,courtier,klutz,tinker,moonchild,butler,evil-twin,cerenovus,godfather,po,shabaloth"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "exorcist",
+    "cerenovus",
+    "po",
+    "minstrel",
+    "clockmaker",
+    "butler"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "ravenkeeper",
+    "pacifist",
+    "gossip"
+   ],
+   "fabled": [
+    {
+     "id": "toymaker"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5
+   ],
+   "character": "butler"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 1
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 2,
+   "nominee": 5
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ],
+   "character": "courtier"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ]
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "madness",
+   "seat": 3
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ],
+   "character": "clockmaker"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 2,
+   "nominee": 1
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    4
+   ]
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T6",
+   "character": "bone-collector",
+   "alignment": "good",
+   "after": 0
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ]
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 0,
+   "nominee": 0
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    4,
+    5
+   ]
+  }
+ ]
+}

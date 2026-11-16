@@ -177,7 +177,8 @@ const undo = [], redo = [];
 const KINDS = {
 	margins: { label: 'Margin figures', file: 'margins.json', pictures: true },
 	portraits: { label: 'Portraits', file: 'portraits.json', size: [16, 16] },
-	ornaments: { label: 'Ornaments', file: 'ornaments.json' }
+	ornaments: { label: 'Ornaments', file: 'ornaments.json' },
+	icon: { label: 'App icon', file: 'app-icon.json' }
 };
 let kind = 'margins';
 /** Each kind's drawing, kept while another is shown: its data, where it was, its unsaved changes, its undo. */

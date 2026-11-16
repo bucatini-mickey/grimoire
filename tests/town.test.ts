@@ -165,19 +165,25 @@ test('a locked door stops walkers and the eye; the Storyteller walks through', a
 	}
 });
 
-test('a private word: the two hear each other anywhere, and nobody else hears them', () => {
-	const a = { id: 'a', ...INSIDE, with: 'b' }, b = { id: 'b', ...HALL, with: 'a' }, c = { id: 'c', x: INSIDE.x + 1, y: INSIDE.y };
-	assert.equal(loudness(town, a, b, 'day'), 1);
+test('a private word with the Storyteller: the two hear each other anywhere, and nobody else hears them', () => {
+	const a = { id: 'a', ...INSIDE, with: 'st', secret: true }, st = { id: 'st', ...HALL, st: true, with: 'a', secret: true }, c = { id: 'c', x: INSIDE.x + 1, y: INSIDE.y };
+	assert.equal(loudness(town, a, st, 'day'), 1);
 	assert.equal(loudness(town, a, c, 'day'), 0);
 	assert.equal(loudness(town, c, a, 'day'), 0);
+});
+
+test('two players meeting: their voices carry as usual, to each other and to anyone beside them', () => {
+	const a = { id: 'a', ...INSIDE, with: 'b' }, b = { id: 'b', ...HALL, with: 'a' }, c = { id: 'c', x: INSIDE.x + 1, y: INSIDE.y };
+	assert.equal(loudness(town, a, b, 'day'), loudness(town, { id: 'a', ...INSIDE }, { id: 'b', ...HALL }, 'day'), 'no nearer for being paired');
+	assert.ok(loudness(town, a, c, 'day') > 0, 'someone beside them hears');
 });
 
 test('the circle: everyone hears everyone; night: only the Storyteller, in the room they visit', () => {
 	const a = { id: 'a', ...INSIDE }, b = { id: 'b', ...BACK };
 	assert.equal(loudness(town, a, b, 'circle'), 1);
 	assert.equal(loudness(town, a, { id: 'n', x: 13, y: 35 }, 'night'), 0);
-	assert.equal(loudness(town, a, { id: 'st', x: 13, y: 36, st: true }, 'night'), 1);
-	assert.equal(loudness(town, b, { id: 'st', x: 13, y: 36, st: true }, 'night'), 0);
+	assert.equal(loudness(town, a, { id: 'st', x: 13, y: 36, st: true, visiting: 'a' }, 'night'), 1);
+	assert.equal(loudness(town, b, { id: 'st', x: 13, y: 36, st: true, visiting: 'a' }, 'night'), 0);
 });
 
 test('double doors are one door; the Storyteller walks through walls like a ghost', async () => {

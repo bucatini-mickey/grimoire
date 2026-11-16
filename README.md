@@ -54,7 +54,19 @@ Phones call each other directly (WebRTC through PeerJS), only while in earshot. 
 
 ## Putting it on phones
 
-The build is a static site in `dist/`. Pushing to `main` publishes it with GitHub Pages (`.github/workflows/pages.yml`, after the type check and tests pass) at <https://bucatini-mickey.github.io/grimoire/>; any other https host works too. Share the link. On a phone, open it and choose *Add to Home Screen* (Android Chrome may offer *Install app*): it gets the clocktower icon, opens full screen, and keeps working offline. Nothing to install from an app store, no accounts.
+The build is a static site in `dist/`. Pushing to `main` publishes it with GitHub Pages (`.github/workflows/pages.yml`, after the type check and tests pass) at <https://bucatini-mickey.github.io/grimoire/>; any other https host works too. Share the link. On a phone, open it and choose *Add to Home Screen* (Android Chrome may offer *Install app*): it gets the book's icon (a rubric G in a gold frame, unless you have designed your own), opens full screen, and keeps working offline. Nothing to install from an app store, no accounts.
+
+### The app icon
+
+The icon is one picture, the same for everyone: `art/app-icon.json`. Open `tools/margin-editor.html` in Chrome or Edge, press *Open art folder*, pick `Grimoire/art`, choose the *App icon* tab, draw and save. The next build makes `icon-192.png` and `icon-512.png` from it.
+
+An app already on a home screen keeps the icon it was added with until it is removed and added again.
+
+### Figures and faces
+
+Each player has two glyphs: a figure who walks the village and a face at the voting table, 30 of each at most. Change the lists in the [Figure Picker](https://claude.ai/artifact/QcLujdZ4QWYHKk9xQNMcqD): it is private to the owner's Claude account, opens in any browser on any machine with nothing to install (pinned in the claude.ai sidebar; also listed at claude.ai/code/artifacts), and saves to the page itself, so every device sees the same picks. It hides what that device's fonts cannot draw, so a phone may offer fewer than a laptop.
+
+The picks reach the game by hand. In a Claude session, read the page's `picks/mine` document, write its `figure` and `face` lists to `art/figure-picks.json`, run `node tools/sync-figures.mjs`, then build and push. Everything ever picked is in `art/figure-picks-all.json`, and the page's source is `tools/figure-picker.html`.
 
 ## Running it
 

@@ -8,6 +8,16 @@
 
 All three share one rules engine. Modes 2 and 3 differ only in who holds which screen and how events travel.
 
+### Village: shared homes at night
+
+When there are more players than homes, several share a room (`sendHome` gives homes by seat modulo the number of homes). The rule at night:
+
+- A housemate of the visited player neither hears the Storyteller's visit nor sees the Storyteller. They also see and hear none of the visited player's reactions or messages.
+- The visited player sees and hears exactly what a lone player in that room would. A housemate being present changes nothing for them.
+- The Storyteller still sees and hears everything (All ears is unchanged). Day, dusk and the circle are unchanged.
+- How it is done: map.ts `visitedBy` settles who is visited (the player chosen, else the room's only player); `loudness` (ears) and `perceives` (eyes: sprite, lantern, name, People list) both read it. The host sends each phone only what `perceives` allows, so a housemate's phone is never told where the Storyteller or anyone else is, and voice calls to those who may not hear are closed at once. Tests: tests/nighthomes.test.ts.
+- Open question, with the user (INBOX.md): can housemates see each other asleep? Until answered, they are hidden from each other at night.
+
 ## Why TypeScript, not Python / Broadside's engine
 
 The game has to run on players' phones without installing anything, so it has to run in a browser, which means JavaScript. TypeScript keeps the rules typed, and Node 22+ runs it directly for tests. The engine has no dependencies. Broadside's engine is Python and terminal-only, so nothing is shared at code level. What carries over is the shape: a fixed-width cell grid (`ascii.ts` ~ Broadside's `render/buffer.py`) and an event log. `ascii.ts` deliberately knows nothing about Clocktower, so it could drive menus elsewhere.
@@ -52,6 +62,10 @@ Recommendation when we get there: WebRTC with the host on the Storyteller's phon
 
 - The Imp kills before the Fortune Teller, Butler and other later wakes (official order). What players see on the phone at night never gives a death away early: only players dead when the night began are marked.
 - The red herring is always a good player, however it is set. The Drunk may be one of the Demon's bluffs when not in play.
+
+## The app icon
+
+`src/ui/appicon.ts` draws every icon: a symbol and four colours (ground, leaf, frame, ink) as plain RGBA, so `build.mjs` writes the shipped `icon-192.png` / `icon-512.png` with it and the page draws the Storyteller's design (and the previews) with the same function. A design is kept in `localStorage` (`grimoire.icon`); at start and on *Use this icon* it is put on the page's `icon`, `apple-touch-icon` and manifest links (PNG data URLs; a blob manifest with absolute `start_url` and `scope`). A browser can't change an installed app's icon, only the icon an app is added with, so the designer says plainly that the app must be added again. The default stays the shipped icon (the capital G); with no design saved nothing is touched.
 
 ## Things to verify against official sources
 

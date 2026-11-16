@@ -111,14 +111,20 @@ export interface NightState {
 	done: string[];
 	/** Who died tonight, in order. */
 	deaths: SeatId[];
+	/** Who was alive when night fell: what the room knows until dawn, whoever is killed or brought back in the night. */
+	aliveAtDusk: SeatId[];
 	/** A Minion who caught the Demon tonight (starpass) does not also kill tonight. */
 	demonMadeTonight: SeatId | null;
 	/** Who died the day before this night (the Zombuul wakes only if no one did; the Godfather if an Outsider did). */
 	dayDeaths: SeatId[];
+	/** Whether one of them was an Outsider when they died (the Godfather); a later change of character does not alter it. */
+	dayOutsiderDied?: boolean;
 	/** True statements the Gossip made the day before. */
 	gossip: { by: SeatId }[];
 	/** Players who came back to life tonight (the Professor, the Shabaloth). */
 	revived: SeatId[];
+	/** Who was executed on the day that has just ended (also by a madness execution tonight): the day's one execution. */
+	dayExecuted?: SeatId | null;
 	/** Who voted and who nominated the day before (the Flowergirl, the Town Crier). */
 	dayVoters?: SeatId[];
 	dayNominators?: SeatId[];
@@ -279,6 +285,8 @@ export type GameEvent =
 	| { type: 'day-began'; n: number }
 	| { type: 'nominated'; nominator: SeatId; nominee: SeatId }
 	| { type: 'ability-spent'; seat: SeatId; ability: CharacterId }
+	/** A dead player regains their ability (the Bone Collector): every once-per-game ability they used is unused again. */
+	| { type: 'abilities-restored'; seat: SeatId }
 	| {
 			type: 'vote-tallied';
 			nominee: SeatId;

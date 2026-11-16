@@ -1,17 +1,18 @@
 // Bundles the grimoire into ONE self-contained HTML file: dist/grimoire.html
 // (and dist/index.html). It runs from file://, a phone's Downloads folder, or
 // any static host. Beside it go the pieces that make it an installable app
-// when served over https: a manifest, icons drawn from the pixel clocktower,
+// when served over https: a manifest, icons drawn by src/ui/appicon.ts,
 // and a service worker that keeps it working offline.
 //   node build.mjs          build once
 //   node build.mjs --serve  rebuild on change and serve on http://localhost:5317
 import * as esbuild from 'esbuild';
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync, readdirSync } from 'node:fs';
 import { decodePng } from './tools/art.mjs';
+import { DEFAULT_ICON, renderIcon } from './src/ui/appicon.ts';
 
 process.chdir(dirname(fileURLToPath(import.meta.url)));
 
@@ -61,25 +62,29 @@ function png(w, h, rgba) {
 	return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
 }
 
-/** The icon: a rubric G, an illuminated capital, on dark vellum in a gold square. */
-const G = ['.####', '#....', '#.###', '#...#', '.###.'];
+/**
+ * The icon files, the same for everyone: the first figure in art/app-icon.json (drawn in
+ * tools/margin-editor.html, "App icon"), each pixel a square block, its empty cells the first ink.
+ * Without that file, the default design that src/ui/appicon.ts draws.
+ */
 function icon(size) {
-	const bg = [0x16, 0x11, 0x0c, 255], gold = [0xd4, 0xa7, 0x3a, 255], ink = [0xc8, 0x41, 0x2f, 255], leaf = [0x22, 0x1a, 0x12, 255];
+	if (!existsSync('art/app-icon.json')) return png(size, size, Buffer.from(renderIcon(DEFAULT_ICON, size).rgba));
+	const { ink, figures } = JSON.parse(readFileSync('art/app-icon.json', 'utf8'));
+	const rows = Object.values(figures)[0];
+	const n = Math.max(rows.length, ...rows.map((r) => r.length));
+	const hex = (c) => ink[c] ?? Object.values(ink)[0];
 	const rgba = Buffer.alloc(size * size * 4);
-	for (let i = 0; i < size * size; i++) rgba.set(bg, i * 4);
-	const sq = Math.floor(size * 0.72), x0 = Math.floor((size - sq) / 2);
-	const k = Math.floor(sq / 7);
-	const put = (x, y, c) => rgba.set(c, (y * size + x) * 4);
-	for (let y = 0; y < sq; y++) for (let x = 0; x < sq; x++) put(x0 + x, x0 + y, x < 4 || y < 4 || x >= sq - 4 || y >= sq - 4 ? gold : leaf);
-	const gx = x0 + Math.floor((sq - 5 * k) / 2), gy = x0 + Math.floor((sq - 5 * k) / 2);
-	G.forEach((line, y) => [...line].forEach((ch, x) => {
-		if (ch !== '#') return;
-		for (let dy = 0; dy < k; dy++) for (let dx = 0; dx < k; dx++) put(gx + x * k + dx, gy + y * k + dy, ink);
-	}));
+	for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+		const h = hex(rows[Math.floor((y * n) / size)]?.[Math.floor((x * n) / size)]);
+		rgba.write(h.slice(1) + 'ff', (y * size + x) * 4, 'hex');
+	}
 	return png(size, size, rgba);
 }
 
 function writeAppFiles() {
+	// The webcam avatar's test page (one self-contained file, from queue/grimoire-avatar) rides along, so a laptop
+	// with a camera can open it over https: <site>/avatar-test.html. The game itself does not load it.
+	if (existsSync('tools/avatar-test.html')) copyFileSync('tools/avatar-test.html', 'dist/avatar-test.html');
 	writeFileSync('dist/icon-192.png', icon(192));
 	writeFileSync('dist/icon-512.png', icon(512));
 	writeFileSync('dist/manifest.webmanifest', JSON.stringify({

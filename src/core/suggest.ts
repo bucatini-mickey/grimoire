@@ -76,7 +76,7 @@ export function suggestInfo(state: GameState, role: string, to: SeatId, chosen: 
 }
 
 /** Every answer of the right shape, for the roles answered by trying (small lists). */
-function possibleAnswers(state: GameState, role: string, to: SeatId, chosen: SeatId[]): Info[] {
+export function possibleAnswers(state: GameState, role: string, to: SeatId, chosen: SeatId[]): Info[] {
 	const script = getScript(state.scriptId);
 	const others = state.seats.filter((x) => x.id !== to).map((x) => x.id);
 	const numbers = (max: number): Info[] => Array.from({ length: max + 1 }, (_, value) => ({ kind: 'number', value }));
@@ -86,6 +86,10 @@ function possibleAnswers(state: GameState, role: string, to: SeatId, chosen: Sea
 		case 'juggler':
 		case 'mathematician':
 			return numbers(state.seats.length);
+		case 'chambermaid': {
+			const pick = chosen.length === 2 ? chosen : state.seats.filter((x) => x.alive && x.id !== to).slice(0, 2).map((x) => x.id);
+			return pick.length === 2 ? [0, 1, 2].map((value): Info => ({ kind: 'woke', players: [pick[0], pick[1]], value })) : [];
+		}
 		case 'flowergirl':
 		case 'town-crier':
 			return [{ kind: 'yesno', yes: true }, { kind: 'yesno', yes: false }];

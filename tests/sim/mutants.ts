@@ -2,7 +2,8 @@
  * Test the tests: plant one rule bug at a time in the engine and check the
  * simulator catches it. Each bug is put back afterwards, whatever happens.
  *
- *   node tests/sim/mutants.ts [games per bug]
+ *   node tests/sim/mutants.ts [games per bug] [name pattern]
+ *   QUICK=1 node tests/sim/mutants.ts ...   stop at the first broken rule instead of cutting the game down
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -18,8 +19,13 @@ const files = {
 	state: new URL('../../src/core/state.ts', import.meta.url),
 	tb: new URL('../../src/core/scripts/trouble-brewing.ts', import.meta.url),
 	order: new URL('../../src/core/scripts/night-order.ts', import.meta.url),
-	bmr: new URL('../../src/core/scripts/bad-moon-rising.ts', import.meta.url)
+	bmr: new URL('../../src/core/scripts/bad-moon-rising.ts', import.meta.url),
+	announce: new URL('../../src/net/announce.ts', import.meta.url),
+	views: new URL('../../src/net/views.ts', import.meta.url),
+	candidates: new URL('../../src/core/candidates.ts', import.meta.url)
 };
+/** Planted bugs only the random custom scripts can reach (the Imp and the Innkeeper are on no one official script): played with `mix`. */
+const MIXED = new Set(['Innkeeper-protected Imp starpasses', 'Drunk Juggler not woken']);
 /** One planted bug: a name, a file, and one or more [from, to] replacements in it. */
 type Mutant = [name: string, file: keyof typeof files, from: string, to: string, ...more: string[]];
 const MUTANTS: Mutant[] = [
@@ -52,10 +58,14 @@ const MUTANTS: Mutant[] = [
 	// Bad Moon Rising
 	['Tea Lady ignored', 'engine', "if (teaLadyProtects(s, t)) return prevent('the Tea Lady');", ''],
 	['Sober Sailor dies', 'engine', "if (abilityWorks(s, t, 'sailor')) return prevent('the Sailor');", ''],
-	['Innkeeper ignored', 'engine', "if (night && s.effects.some((e) => e.kind === 'safe-tonight' && e.target === t)) return prevent('the Innkeeper');", ''],
+	['Innkeeper ignored', 'engine', "if (night && innkeeperProtects(s, t)) return prevent('the Innkeeper');", ''],
+	['Drunk Innkeeper protects', 'rules', '(e.by === null || !isDroisoned(state, e.by)));', 'true);'],
+	['Innkeeper-protected Imp starpasses', 'engine', 'if (innkeeperProtects(tx.state, by)) return emit(', 'if (false) return emit('],
 	['Fool saved every time', 'engine', "if (abilityWorks(s, t, 'fool') && !s.spent.includes(`${t}:fool`)) {", "if (abilityWorks(s, t, 'fool')) {"],
 	['Zombuul dies at once', 'engine', "if (abilityWorks(s, t, 'zombuul') && !v.undead) {", 'if (false) {'],
-	['Goon never catches', 'engine', "if (!abilityWorks(s, target, 'goon') || target === by) return false;", 'return false;'],
+	['Goon ignores information steps', 'engine', 'for (const c of tellChoices(kind, cmd.info)) goonCatches(tx, to, c);', ''],
+	['Drunk Juggler not woken', 'engine', "if (s.seats[cmd.by].believes !== 'juggler') return;", "if (s.seats[cmd.by].character !== 'juggler') return;"],
+	['Goon never catches', 'rules', "if (!abilityWorks(state, target, 'goon') || target === by) return [];", 'return [];'],
 	['Minstrel silent', 'engine', "for (const m of tx.state.seats.filter((x) => abilityWorks(tx.state, x.id, 'minstrel'))) {", 'for (const m of tx.state.seats.filter((x) => x.id < 0)) {'],
 	['Mastermind forgotten', 'engine', "if (ctx.demonExecuted && s.day && s.seats.some((x) => abilityWorks(s, x.id, 'mastermind'))) {", 'if (false) {'],
 	['Assassin stopped by protection', 'engine', "attemptDeath(tx, t, { cause: 'assassin', ignoreProtection: true });", "attemptDeath(tx, t, { cause: 'assassin', ignoreProtection: false });"],
@@ -93,7 +103,22 @@ const MUTANTS: Mutant[] = [
 	['Bureaucrat ignored', 'engine', "(s.effects.some((e) => e.kind === 'vote-x3' && e.target === v && inForce(s, e)) ? 3 : 1)", '1'],
 	['Voudon needs a majority', 'engine', 'const needed = voudon ? 1 : Math.ceil(living(s).length / 2);', 'const needed = Math.ceil(living(s).length / 2);'],
 	['Exile stopped by protection', 'engine', "emit(tx, { type: 'died', seat: cmd.traveller, cause: 'exile' });", "attemptDeath(tx, cmd.traveller, { cause: 'exile' });"],
-	['Professor revives anyone', 'engine', "if (ok && teamOf(s, s.seats[t].character) === 'townsfolk') emit(tx, { type: 'revived'", "if (ok) emit(tx, { type: 'revived'"]
+	['Professor revives anyone', 'engine', "if (ok && teamOf(s, s.seats[t].character) === 'townsfolk') emit(tx, { type: 'revived'", "if (ok) emit(tx, { type: 'revived'"],
+	// Invariants added by the audit (win conditions, registration, Mayor, starpass, Scarlet Woman, Virgin, Slayer, Saint, ghost votes, what the room is told)
+	['Scarlet Woman counts Travellers', 'engine', 'const aliveBefore = livingResidents(s).length; // the Scarlet Woman counts the players alive, not the Travellers', 'const aliveBefore = living(s).length + s.seats.filter((x) => x.undead).length;', 'const aliveBefore = livingResidents(s).length;\n\tconst sw = scarletWomanCatches(s, aliveBefore);', 'const aliveBefore = living(s).length;\n\tconst sw = scarletWomanCatches(s, aliveBefore);'],
+	['Scarlet Woman never takes over', 'engine', 'if (aliveBefore < 5) return null;', 'return null;'],
+	['Saint executed, game goes on', 'engine', "return emit(tx, { type: 'game-over', winner: 'evil', reason: 'The Saint was executed.' });", 'return;'],
+	['Virgin never fires', 'engine', 'if (townsfolk) execute(tx, nominator);', ''],
+	['Virgin fires every time', 'engine', "if (hasAbility(s, nominee, 'virgin') && v.alive && !s.spent.includes(`${nominee}:virgin`)) {", "if (hasAbility(s, nominee, 'virgin') && v.alive) {"],
+	['Mayor bounce lands nowhere', 'engine', 'return attemptDeath(tx, to!, { ...d, bounced: true });', 'return false;'],
+	['Poisoned Mayor bounces', 'engine', "if (night && !d.bounced && hasWorkingAbility(s, t, 'mayor')) {", "if (night && !d.bounced && seat(s, t).character === 'mayor') {"],
+	['Slayer never hits', 'engine', "hit = mustRegisterAsTeam(s, target, 'demon');", 'hit = false;'],
+	['Dead vote twice', 'engine', "if (!p.alive && !p.ghostVote) refuse(`${p.name} is dead and has used their vote.`);", ''],
+	['Dawn names the brought back', 'announce', 'alive.has(d) && !next.seats[d].alive', 'true'],
+	['Execution of a Zombuul looks like nothing', 'announce', "const dies = events.some((x) => (x.type === 'died' || x.type === 'seems-dead') && x.seat === e.seat);", "const dies = events.some((x) => x.type === 'died' && x.seat === e.seat);"],
+	['The circle shows night deaths', 'views', "if (state.phase.kind === 'night' && state.night) return !state.night.aliveAtDusk.includes(id);", ''],
+	['The circle shows the characters', 'views', 'order: [...state.order],', 'order: [...state.order], characters: state.seats.map((x) => x.character),'],
+	['Offered truths under the Vortox', 'candidates', 'if (v.truthful && lying) return;', '']
 ];
 
 let caught = 0;
@@ -111,7 +136,7 @@ for (const [name, file, ...pairs] of MUTANTS) {
 	writeFileSync(url, planted);
 	let out = '';
 	try {
-		out = execFileSync(process.execPath, [fileURLToPath(new URL('./run.ts', import.meta.url)), games, '1'], { encoding: 'utf8' });
+		out = execFileSync(process.execPath, [fileURLToPath(new URL(process.env.QUICK ? './first.ts' : './run.ts', import.meta.url)), games, '1', ...(MIXED.has(name) ? ['mix'] : [])], { encoding: 'utf8' });
 	} catch (e) {
 		out = (e as { stdout?: string }).stdout ?? String(e);
 	} finally {

@@ -1,0 +1,285 @@
+{
+ "rule": "butler",
+ "detail": "the Butler was noted as voting without their master when they did not",
+ "seed": 263,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior",
+    "Maud",
+    "Ned"
+   ],
+   "scriptId": "custom:slayer,sage,ravenkeeper,innkeeper,gossip,investigator,town-crier,artist,fool,philosopher,courtier,seamstress,tinker,saint,butler,spy,devils-advocate,godfather,po,vigormortis"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "seamstress",
+    "artist",
+    "town-crier",
+    "philosopher",
+    "butler",
+    "po",
+    "spy",
+    "sage",
+    "devils-advocate",
+    "godfather",
+    "courtier",
+    "ravenkeeper",
+    "fool",
+    "saint"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "investigator",
+    "tinker",
+    "slayer"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "choose",
+   "character": "butler"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "character": "po"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "characters",
+    "characters": [
+     "butler",
+     "butler",
+     "saint"
+    ]
+   }
+  },
+  {
+   "type": "choose",
+   "targets": [
+    13
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "same",
+    "players": [
+     6,
+     7
+    ],
+    "yes": true
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 8,
+   "nominee": 12
+  },
+  {
+   "type": "vote",
+   "voters": [
+    1,
+    3,
+    4,
+    6,
+    7,
+    10,
+    13
+   ]
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    11
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "yesno",
+    "yes": true
+   }
+  },
+  {
+   "type": "choose",
+   "targets": [
+    13
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    11
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    13
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    12
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "yesno",
+    "yes": false
+   }
+  },
+  {
+   "type": "choose",
+   "targets": [
+    9
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    11
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "yesno",
+    "yes": false
+   }
+  },
+  {
+   "type": "choose",
+   "targets": [
+    13
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 0,
+   "nominee": 1
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    2,
+    3,
+    4,
+    5,
+    9,
+    13
+   ]
+  }
+ ]
+}

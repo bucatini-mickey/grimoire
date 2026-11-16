@@ -30,7 +30,17 @@ test(`${GAMES} random games keep every rule, and cover the interesting parts`, (
 		'asked: drunk', 'asked: regurgitate', 'asked: executionSurvives',
 		// Sects & Violets
 		'script: sects-and-violets', 'won: evil: the Klutz', 'won: evil: the Evil Twin', 'won: evil: No one was executed while the Vortox lives.',
-		'via snake-charmer', 'via fang-gu', 'via pit-hag', 'died: witch', 'died: fang-gu', 'died: storyteller']) {
+		'via snake-charmer', 'via fang-gu', 'via pit-hag', 'died: witch', 'died: fang-gu', 'died: storyteller',
+		// The tricky rules each check needs to meet: drunk and poisoned information, registration, the Mayor, starpass,
+		// the Scarlet Woman, the Virgin, the Slayer, the Butler, the Saint, ghost votes, ties, what the room is told, undo
+		'cover: a drunk or poisoned player is woken', 'cover: a drunk or poisoned player is offered false answers', 'cover: registration makes an answer true',
+		'cover: mayor bounce', 'cover: starpass: the Monk protects the Imp', 'cover: starpass: the Scarlet Woman catches it', 'cover: starpass: the only Minion becomes the Imp',
+		'cover: starpass: the Storyteller picks the Minion', 'cover: starpass: no Minion left', 'cover: scarlet-woman declines: fewer than five alive',
+		'cover: virgin executes a Townsfolk', 'cover: virgin nominated a second time', 'cover: virgin nominated by a non-Townsfolk', 'cover: virgin nominated by a Spy or Recluse',
+		'cover: slayer hits', 'cover: slayer misses', 'cover: butler votes with the master', 'cover: butler votes without the master',
+		'cover: saint executed while drunk or poisoned', 'cover: ghost vote used', 'cover: vote tied with someone on the block', 'cover: a tie broken by a higher vote',
+		'cover: dusk executes the block', 'cover: the room is told an executed player does not die', 'cover: the Zombuul seems to die by execution',
+		'cover: undo: a command played again', 'cover: undo: back to an earlier command']) {
 		assert.ok((seen[k] ?? 0) > 0, `never happened in ${GAMES} games: ${k}`);
 	}
 });

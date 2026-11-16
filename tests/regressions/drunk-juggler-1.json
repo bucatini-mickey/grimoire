@@ -1,0 +1,154 @@
+{
+ "rule": "juggler-wakes",
+ "detail": "a Drunk who thought they were the Juggler juggled, and was never woken the next night",
+ "seed": 0,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen"
+   ],
+   "scriptId": "custom:imp,poisoner,goon,fortune-teller,chambermaid,dreamer,seamstress,ravenkeeper,butler,monk,empath,chef,juggler,drunk,washerwoman"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "imp",
+    "poisoner",
+    "drunk",
+    "washerwoman",
+    "chef",
+    "empath",
+    "monk"
+   ],
+   "bluffs": [
+    "goon",
+    "fortune-teller",
+    "chambermaid"
+   ],
+   "drunkBelieves": "juggler",
+   "redHerring": null,
+   "allowNonstandard": true
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge",
+   "mayorRedirect": null
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ],
+   "mayorRedirect": null,
+   "regurgitate": null,
+   "drunk": 2
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "pair",
+    "players": [
+     0,
+     4
+    ],
+    "character": "chef"
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 1
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "acknowledge",
+   "mayorRedirect": null
+  },
+  {
+   "type": "acknowledge",
+   "mayorRedirect": null
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "juggle",
+   "by": 2,
+   "guesses": [
+    {
+     "player": 0,
+     "character": "imp"
+    },
+    {
+     "player": 4,
+     "character": "chef"
+    }
+   ]
+  },
+  {
+   "type": "end-day",
+   "executionSurvives": false
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ],
+   "mayorRedirect": null,
+   "regurgitate": null,
+   "drunk": 2
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ],
+   "mayorRedirect": null,
+   "regurgitate": null,
+   "drunk": 1
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ],
+   "mayorRedirect": null,
+   "regurgitate": null,
+   "drunk": 1
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 5
+   }
+  },
+  {
+   "type": "end-night"
+  }
+ ]
+}

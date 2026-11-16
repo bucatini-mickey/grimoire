@@ -1,0 +1,179 @@
+{
+ "rule": "fang-gu",
+ "detail": "the Fang Gu jumped a second time",
+ "seed": 6413,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory"
+   ],
+   "scriptId": "sects-and-violets"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "cerenovus",
+    "artist",
+    "sage",
+    "fang-gu",
+    "juggler",
+    "pit-hag",
+    "sweetheart",
+    "town-crier",
+    "savant",
+    "dreamer"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "barber",
+    "oracle",
+    "philosopher"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ],
+   "character": "snake-charmer"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "dream",
+    "player": 2,
+    "characters": [
+     "sage",
+     "evil-twin"
+    ]
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ],
+   "character": "flowergirl"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "dream",
+    "player": 0,
+    "characters": [
+     "cerenovus",
+     "clockmaker"
+    ]
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "yesno",
+    "yes": false
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "yesno",
+    "yes": false
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T10",
+   "character": "bone-collector",
+   "alignment": "good",
+   "after": 7
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ],
+   "character": "mathematician"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ],
+   "character": "sweetheart"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ]
+  }
+ ]
+}

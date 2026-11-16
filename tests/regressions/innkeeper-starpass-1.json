@@ -1,0 +1,117 @@
+{
+ "rule": "innkeeper",
+ "detail": "an Imp the Innkeeper kept safe chose themself and starpassed",
+ "seed": 0,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen"
+   ],
+   "scriptId": "custom:imp,scarlet-woman,innkeeper,gambler,grandmother,tinker,sailor,washerwoman,librarian,investigator"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "imp",
+    "scarlet-woman",
+    "innkeeper",
+    "gambler",
+    "grandmother",
+    "tinker",
+    "sailor"
+   ],
+   "bluffs": [
+    "washerwoman",
+    "librarian",
+    "investigator"
+   ],
+   "redHerring": null,
+   "allowNonstandard": true
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge",
+   "mayorRedirect": null
+  },
+  {
+   "type": "acknowledge",
+   "mayorRedirect": null
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ],
+   "mayorRedirect": null,
+   "regurgitate": null,
+   "drunk": 6
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "reveal",
+    "player": 2,
+    "character": "innkeeper"
+   }
+  },
+  {
+   "type": "acknowledge",
+   "mayorRedirect": null
+  },
+  {
+   "type": "acknowledge",
+   "mayorRedirect": null
+  },
+  {
+   "type": "acknowledge",
+   "mayorRedirect": null
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day",
+   "executionSurvives": false
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ],
+   "mayorRedirect": null,
+   "regurgitate": null,
+   "drunk": 6
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0,
+    3
+   ],
+   "drunk": 3
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ],
+   "mayorRedirect": null,
+   "regurgitate": null,
+   "drunk": 1,
+   "character": "scarlet-woman"
+  },
+  {
+   "type": "choose",
+   "target": 0
+  }
+ ]
+}

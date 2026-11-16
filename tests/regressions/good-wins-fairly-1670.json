@@ -1,0 +1,117 @@
+{
+ "rule": "good-wins-fairly",
+ "detail": "good won: The Demon is dead.",
+ "seed": 1670,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen"
+   ],
+   "scriptId": "custom:pacifist,slayer,ravenkeeper,courtier,tea-lady,exorcist,mayor,soldier,goon,recluse,tinker,lunatic,spy,pit-hag,mastermind,vigormortis"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "ravenkeeper",
+    "soldier",
+    "pit-hag",
+    "mayor",
+    "slayer",
+    "vigormortis",
+    "exorcist"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "pacifist",
+    "lunatic",
+    "goon"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ],
+   "character": "mastermind"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ]
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T7",
+   "character": "gnome",
+   "alignment": "evil",
+   "after": 1
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 4,
+   "nominee": 5
+  },
+  {
+   "type": "vote",
+   "voters": [
+    2,
+    4,
+    6,
+    7
+   ]
+  },
+  {
+   "type": "end-day"
+  }
+ ]
+}

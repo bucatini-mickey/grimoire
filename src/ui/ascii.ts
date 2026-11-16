@@ -10,9 +10,10 @@
  * Nothing here knows about the game.
  */
 
-import { themeOfKey } from './theme.ts';
+import { bookKey, themeOfKey } from './theme.ts';
+import type { Theme } from './theme.ts';
 import { SIGHT } from '../town/map.ts';
-import { Term, expand, shade } from '../term/pterm.ts';
+import { CLEAR, Term, expand, shade } from '../term/pterm.ts';
 import type { Grid, Palette, Rect } from '../term/pterm.ts';
 
 export const COLS = 52;
@@ -79,7 +80,30 @@ export const blockRow = (h: number, draw: Block['draw'], cls?: string): Row => (
 /** The width a segment takes on the grid. A button is a box: label, a space each side, a border each side. */
 export function segWidth(s: Seg): number {
 	if (!isButton(s)) return [...s.t].length;
-	return s.width ?? [...s.label].length + 4;
+	return s.width ?? Math.max(...s.label.split('\n').map((l) => [...l].length)) + 4;
+}
+
+/** How tall a button is: three lines, and one more for each further line of a label that wraps. */
+export const buttonH = (b: Button): number => 2 + b.label.split('\n').length;
+
+/** Names longer than this, and made of more than one word, are set on two lines. */
+export const WRAP_NAME_AT = 10;
+
+/**
+ * A character's name as the lines it is set on: one for a short name or a single word, otherwise
+ * two, broken at the space that leaves the lines most even (the first the longer on a tie), so a
+ * button or heading takes less width. The name itself is never changed.
+ */
+export function nameLines(name: string): string[] {
+	const words = name.split(' ');
+	if (words.length < 2 || [...name].length <= WRAP_NAME_AT) return [name];
+	let best = [name], widest = Infinity;
+	for (let i = 1; i < words.length; i++) {
+		const a = words.slice(0, i).join(' '), b = words.slice(i).join(' ');
+		const w = Math.max([...a].length, [...b].length);
+		if (w < widest) { widest = w; best = [a, b]; }
+	}
+	return best;
 }
 
 /**
@@ -119,7 +143,13 @@ export function wrap(text: string, width = INNER): string[] {
 	const out: string[] = [];
 	for (const para of text.split('\n')) {
 		let line = '';
-		for (const word of para.split(/\s+/).filter(Boolean)) {
+		for (let word of para.split(/\s+/).filter(Boolean)) {
+			// (a word longer than the line, a link, is cut to fit: it must not run off the screen)
+			while (word.length > width) {
+				if (line) { out.push(line); line = ''; }
+				out.push(word.slice(0, width));
+				word = word.slice(width);
+			}
 			if (!line) line = word;
 			else if (line.length + 1 + word.length <= width) line += ' ' + word;
 			else {
@@ -333,6 +363,18 @@ export function highlight(g: Grid, x: number, y: number, text: string): number {
 const TONE: Record<Tone, number> = { plain: 4, rubric: 8, gold: 6, evil: 8, good: 12, dim: 3, title: 5, poison: 10, drunk: 14 };
 
 let term: Term | null = null;
+/**
+ * The second grid, of finer cells, laid over the first. On a phone held upright the town's map takes big cells
+ * (PHONE_MAP_TILES across) and its bars, lines and notices are written on this one, so they stay small.
+ * Cleared (see-through, no buttons) whenever it is not in use; a tap on it that hits nothing goes to the map.
+ */
+let overlay: Term | null = null;
+/** The overlay is in use this frame. */
+let split = false;
+/** How many columns the overlay's finer cells make across a phone (the book's pages use COLS, 52). */
+export const PHONE_UI_COLS = 44;
+/** The columns the village's bars are written in: the overlay's when it is in use. */
+export const barCols = () => (split && overlay ? overlay.cols : term?.cols ?? 44);
 interface Layer { rows: Row[]; width: number; page: number; sig: string }
 const layers = new Map<unknown, Layer>();
 /** Latest on top: the card layer (set by the caller) covers the app layer. */
@@ -356,7 +398,8 @@ export const setTownBig = (f: () => boolean) => { townBig = f; };
 let hoverFn: ((cell: { x: number; y: number } | null) => void) | null = null;
 /** Where the mouse is over the grid (the village shows a name there). */
 export const setHover = (f: typeof hoverFn) => { hoverFn = f; };
-let extra: ((g: Grid) => boolean) | null = null;
+/** The village, drawn under the pages; `ui` is the overlay's grid when the map and its bars are split. */
+let extra: ((g: Grid, ui?: Grid) => boolean) | null = null;
 
 /** A leaf of the book (by day, or by candlelight at night): written on, not boxed. Over the town map
  * the pages are sheets laid on the dark streets instead, boxed as they always were. */
@@ -445,7 +488,7 @@ export function quant(c: number[]): number {
 export { shade };
 export const theTerm = () => term;
 
-const lineH = (r: Row) => (r.cls === 'leaf-break' ? 0 : r.block ? r.block.h : r.segs.some(isButton) ? 3 : 1);
+const lineH = (r: Row) => (r.cls === 'leaf-break' ? 0 : r.block ? r.block.h : r.segs.some(isButton) ? Math.max(...r.segs.filter(isButton).map(buttonH)) : 1);
 
 /**
  * Where the right-hand leaf begins when the book lies open on a wide screen (what comes before is the
@@ -470,8 +513,8 @@ export function drawButton(c: Ctx, x: number, y: number, w: number, b: Button) {
 		// On a leaf of the book a button is a ruled frame round its words: the main one in a double rule
 		// of red, its words highlighted (HL); a chosen one a plate of gold, a quiet one in a faint rule.
 		// A wide button's spare room grows a vine.
-		const label = [...b.label].slice(0, Math.max(1, w - 4)).join('');
-		const bw = Math.min(w, [...label].length + 4), lx = x + 2;
+		const lines = b.label.split('\n').map((l) => [...l].slice(0, Math.max(1, w - 4)).join('')), h = lines.length + 2, label = lines[0];
+		const bw = Math.min(w, Math.max(...lines.map((l) => [...l].length)) + 4), lx = x + 2;
 		const [ink, rule, line, ground]: [number, number, 'single' | 'double', number] =
 			st === 'primary' ? [8, 8, 'double', -1]
 			: st === 'danger' ? [8, 8, 'single', -1]
@@ -480,15 +523,23 @@ export function drawButton(c: Ctx, x: number, y: number, w: number, b: Button) {
 			: st === 'quiet' ? [3, 2, 'single', -1]
 			: st === 'off' ? [2, 1, 'single', -1]
 			: [5, 3, 'single', -1];
-		if (ground >= 0) g.fill({ x: x + 1, y: y + 1, w: bw - 2, h: 1 }, ' ', ink, ground);
+		if (ground >= 0) g.fill({ x: x + 1, y: y + 1, w: bw - 2, h: lines.length }, ' ', ink, ground);
 		// (else the page shows through, but not its grain: no specks round the label)
-		else for (let i = 1; i < bw - 1; i++) { const cell = g.get(x + i, y + 1); g.set(x + i, y + 1, ' ', ink, cell ? cell.bg : 0); }
-		const [h, v, tl, tr, bl, br] = line === 'double' ? ['═', '║', '╔', '╗', '╚', '╝'] : ['─', '│', '┌', '┐', '└', '┘'];
+		else for (let k = 0; k < lines.length; k++) for (let i = 1; i < bw - 1; i++) { const cell = g.get(x + i, y + 1 + k); g.set(x + i, y + 1 + k, ' ', ink, cell ? cell.bg : 0); }
+		const [hz, v, tl, tr, bl, br] = line === 'double' ? ['═', '║', '╔', '╗', '╚', '╝'] : ['─', '│', '┌', '┐', '└', '┘'];
 		const at = (cx: number, cy: number, ch: string) => { const cell = g.get(cx, cy); g.set(cx, cy, ch, rule, cell ? cell.bg : 0); };
-		for (let i = 1; i < bw - 1; i++) { at(x + i, y, h); at(x + i, y + 2, h); }
-		at(x, y, tl); at(x + bw - 1, y, tr); at(x, y + 2, bl); at(x + bw - 1, y + 2, br);
-		at(x, y + 1, v); at(x + bw - 1, y + 1, v);
-		if (st === 'split') {
+		for (let i = 1; i < bw - 1; i++) { at(x + i, y, hz); at(x + i, y + h - 1, hz); }
+		at(x, y, tl); at(x + bw - 1, y, tr); at(x, y + h - 1, bl); at(x + bw - 1, y + h - 1, br);
+		for (let k = 1; k <= lines.length; k++) { at(x, y + k, v); at(x + bw - 1, y + k, v); }
+		if (lines.length > 1) {
+			// (a name on several lines: each centred in the frame, in the button's colours)
+			lines.forEach((l, k) => {
+				const cx = x + 2 + Math.floor((bw - 4 - [...l].length) / 2);
+				if (st === 'primary' || st === 'danger') { g.fill({ x: x + 1, y: y + 1 + k, w: bw - 2, h: 1 }, ' ', HL.fg, HL.bg); highlight(g, cx, y + 1 + k, l); }
+				else if (ground >= 0) g.text(cx, y + 1 + k, l, ink, ground);
+				else g.text(cx, y + 1 + k, l, ink);
+			});
+		} else if (st === 'split') {
 			// Gold the half that acts, red the half acted on: a player who picks themselves.
 			const half = Math.floor(bw / 2);
 			g.fill({ x: x + 1, y: y + 1, w: half - 1, h: 1 }, ' ', ink, 6);
@@ -504,7 +555,7 @@ export function drawButton(c: Ctx, x: number, y: number, w: number, b: Button) {
 		// (in each look its own: a leafy vine, a pine bough, a chain with its links, the sea and its bubbles)
 		const [run, knot] = ({ medieval: ['~', '♣'], grimm: ['~', '♠'], clockwork: ['-', '○'], lovecraft: ['≈', '°'] } as const)[themeOfKey(paletteKey())];
 		if (w - bw >= 4 && st !== 'off') for (let i = bw; i < w; i++) g.set(x + i, y + 1, (i - bw) % 4 === 2 ? knot : run, 10);
-		if (!b.disabled) c.hit({ x, y, w, h: 3 }, b.act);
+		if (!b.disabled) c.hit({ x, y, w, h }, b.act);
 		return;
 	}
 	// label ink, ground, rule, initial, rule style
@@ -524,12 +575,13 @@ export function drawButton(c: Ctx, x: number, y: number, w: number, b: Button) {
 		: st === 'quiet' ? [3, 1, 2, 3, 'single']
 		: st === 'off' ? [2, 1, 2, 2, 'single']
 		: [5, 1, 6, 8, 'single'];
-	g.fill({ x, y, w, h: 3 }, ' ', fg, bg);
-	g.box({ x, y, w, h: 3 }, edge, bg, '', edge, line);
+	const all = b.label.split('\n'), bh = all.length + 2;
+	g.fill({ x, y, w, h: bh }, ' ', fg, bg);
+	g.box({ x, y, w, h: bh }, edge, bg, '', edge, line);
 	const room = Math.max(1, w - 4);
-	const label = [...b.label].slice(0, room).join('');
+	const label = [...all[0]].slice(0, room).join('');
 	const lx = x + 2 + Math.floor((room - [...label].length) / 2);
-	g.text(lx, y + 1, label, fg, bg);
+	all.forEach((l, k) => { const t = [...l].slice(0, room).join(''); g.text(x + 2 + Math.floor((room - [...t].length) / 2), y + 1 + k, t, fg, bg); });
 	// (one who picks themselves: the right half red)
 	if (st === 'split') for (let i = x + Math.floor(w / 2); i < x + w - 1; i++) { const cl = g.get(i, y + 1); if (cl) { cl.bg = 8; cl.fg = 0; } }
 	// The main one's first letter (or numeral) in its own colour, bold.
@@ -537,7 +589,7 @@ export function drawButton(c: Ctx, x: number, y: number, w: number, b: Button) {
 		const lead = label.match(/^[IVXLC]+(?=\.)/)?.[0].length ?? (/\p{L}/u.test(label[0] ?? '') ? 1 : 0);
 		for (let k = 0; k < lead; k++) { g.set(lx + k, y + 1, [...label][k], cap === fg ? 6 : cap, bg); g.bold(lx + k, y + 1); }
 	}
-	if (!b.disabled) c.hit({ x, y, w, h: 3 }, b.act);
+	if (!b.disabled) c.hit({ x, y, w, h: bh }, b.act);
 }
 
 /**
@@ -890,29 +942,38 @@ export function wordBox(word: string, act: () => void, w = 24, h = 11): Row {
 	});
 }
 
-/** A gothic arrow, pointing up: a broad head with barbs hooked back, a long banded shaft, a knotted tail. */
-const ARROW = [
-	'.....G.....',
-	'....GWG....',
-	'...GGWGG...',
-	'..GGGWGGG..',
-	'.GGGGWGGGG.',
-	'GGG.GDG.GGG',
-	'GG..GGG..GG',
-	'G...GDG...G',
-	'....GGG....',
-	'....GDG....',
-	'....GGG....',
-	'....GDG....',
-	'....GGG....',
-	'...G.G.G...',
-	'...GGGGG...',
-	'....G.G....'
-];
+/**
+ * A hand-inked arrow, pointing up, as pixels (1 = wet ink, 2 = dry, thin ink): a pen stroke for the
+ * shaft that wavers a little and thins towards the tail, two barbs drawn as quick tapering strokes,
+ * and a small blot where the pen first touched. The wobble comes from a fixed hash, so it never shimmers.
+ */
+function inkedArrow(): number[][] {
+	const W = 15, H = 18, px: number[][] = Array.from({ length: H }, () => Array(W).fill(0));
+	const wob = (k: number) => (cellHash(k, 7) % 100) / 100 - 0.5;
+	// A stroke from (x0,y0) to (x1,y1), its half-width running from r0 to r1; edges are ragged, the thin end dry.
+	const stroke = (x0: number, y0: number, x1: number, y1: number, r0: number, r1: number, seed: number) => {
+		const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) * 2);
+		for (let s = 0; s <= n; s++) {
+			const t = s / n, r = r0 + (r1 - r0) * t + wob(seed + s) * 0.5;
+			const cx = x0 + (x1 - x0) * t + wob(seed * 3 + s) * 0.9, cy = y0 + (y1 - y0) * t;
+			for (let y = Math.floor(cy - r - 1); y <= Math.ceil(cy + r + 1); y++) for (let x = Math.floor(cx - r - 1); x <= Math.ceil(cx + r + 1); x++) {
+				if (x < 0 || y < 0 || x >= W || y >= H || Math.hypot(x - cx, y - cy) > r + 0.35) continue;
+				const v = r < 0.8 && cellHash(x + seed, y) % 3 === 0 ? 2 : 1;
+				if (px[y][x] === 0 || v === 1) px[y][x] = v;
+			}
+		}
+	};
+	stroke(7, 3, 7.6, 16.5, 1.3, 0.35, 11);   // the shaft: heavy at the head, a hair at the tail
+	stroke(7, 1.5, 2.2, 7, 1.1, 0.3, 23);   // the left barb
+	stroke(7, 1.5, 11.8, 6.6, 1.2, 0.3, 37); // the right barb, a touch shorter and heavier
+	stroke(7, 1.4, 7, 1.8, 1.7, 1.5, 41);   // the blot at the point
+	stroke(6.6, 16, 9.2, 17, 0.5, 0.4, 53); // a flick of the pen at the tail
+	return px;
+}
 
 /**
  * An answer tapped from across the table (the vote's hand up, hand down), in a square box: a double
- * rule of red set with gold lozenges, a gothic arrow gilt and edged in red pointing up or down, and
+ * rule of red set with gold lozenges, an arrow hand-inked in the page's ink pointing up or down, and
  * under it what it means.
  */
 export function arrowBox(dir: 'up' | 'down', label: string, act: () => void, w = 24, h = 12): Row {
@@ -923,14 +984,12 @@ export function arrowBox(dir: 'up' | 'down', label: string, act: () => void, w =
 		for (let j = 1; j < h - 1; j++) { at(x0, y0 + j, '║', 8); at(x0 + w - 1, y0 + j, '║', 8); }
 		for (const [x, y] of [[x0, y0], [x0 + w - 1, y0], [x0, y0 + h - 1], [x0 + w - 1, y0 + h - 1], [x0 + (w >> 1), y0], [x0 + (w >> 1), y0 + h - 1], [x0, y0 + (h >> 1)], [x0 + w - 1, y0 + (h >> 1)]]) at(x, y, '♦', 6);
 		for (const [x, y] of [[x0 + 2, y0 + 1], [x0 + w - 3, y0 + 1], [x0 + 2, y0 + h - 2], [x0 + w - 3, y0 + h - 2]]) at(x, y, '·', 6);
-		// The arrow: gilt (its lights paler, its bands deeper), edged in red all round.
-		const art = dir === 'up' ? ARROW : [...ARROW].reverse();
-		const aw = art[0].length + 2, ah = art.length + 2;
-		const px: number[][] = Array.from({ length: ah + (ah % 2) }, () => Array(aw).fill(-1));
-		const GOLD = quant([210, 168, 70]), PALE = quant([238, 216, 150]), DEEP = quant([150, 112, 44]);
-		art.forEach((r, y) => [...r].forEach((p, i) => { if (p !== '.') px[y + 1][i + 1] = p === 'W' ? PALE : p === 'D' ? DEEP : GOLD; }));
-		const on = (y: number, i: number) => art[y - 1]?.[i - 1] !== undefined && art[y - 1][i - 1] !== '.';
-		for (let y = 0; y < ah; y++) for (let i = 0; i < aw; i++) if (px[y][i] === -1 && [[-1, 0], [1, 0], [0, -1], [0, 1]].some(([dy, dx]) => on(y + dy, i + dx))) px[y][i] = 8;
+		// The arrow: hand-inked in the page's own ink (dry strokes in the dimmer ink), no gilding.
+		const art = inkedArrow();
+		if (dir === 'down') art.reverse();
+		const aw = art[0].length;
+		const wet = c.ink('plain'), dry = c.ink('dim');
+		const px: number[][] = art.map((r) => r.map((p) => (p === 1 ? wet : p === 2 ? dry : -1)));
 		const ay = y0 + 1 + Math.max(0, Math.floor((h - 3 - px.length / 2) / 2));
 		stampPixels(c.g, c.x + Math.floor((c.w - aw) / 2), ay, px);
 		c.g.text(c.x + Math.floor((c.w - label.length) / 2), ay + px.length / 2, label, 8);
@@ -1006,6 +1065,54 @@ export function namePlate(name: string, indent = 0): Row | null {
 }
 
 /**
+ * A name lettered on its lines (see nameLines) as one block, so the lines never part across the
+ * foot of a leaf. Null if the face lacks a letter.
+ */
+export function namePlates(lines: string[]): Row | null {
+	const plates = lines.map((l) => namePlate(l));
+	if (plates.some((p) => !p?.block)) return null;
+	if (plates.length === 1) return plates[0];
+	return blockRow(plates.reduce((k, p) => k + p!.block!.h, 0), (c) => {
+		let y = c.y;
+		for (const p of plates) { p!.block!.draw({ ...c, y }); y += p!.block!.h; }
+	});
+}
+
+/** How many columns a role's small portrait takes (see roleEntry): sixteen pixels wide and a frame. */
+export const ROLE_PIC_W = 18;
+/** Whether a character has a portrait to show beside its name (roleEntry takes less room without). */
+export const roleHasPicture = hasPortrait;
+/**
+ * One character named on a player's page: its small portrait at the left in a frame of its side's colour
+ * (if its portrait has been drawn; else none, and the name has the whole line), and beside it the name
+ * in gold on one or two lines, then what it is (`sub`). Starts `indent` columns in.
+ */
+export function roleEntry(role: string, name: string, team: 'good' | 'evil' | 'other', sub: string, indent: number): Row {
+	const pic = portraitOf(role);
+	const lines = nameLines(name);
+	const H = pic ? 10 : 2 + lines.length;
+	return blockRow(H, (c) => {
+		let tx = c.x + indent;
+		if (pic) {
+			const [g1, g2] = team === 'evil' ? [[14, 10, 10], [26, 14, 14]] : team === 'good' ? [[12, 16, 26], [20, 26, 42]] : [[12, 22, 16], [20, 34, 24]];
+			const GOLD = [204, 160, 66], W = 16 + 2, Hp = 16 + 2;
+			const px: number[][] = Array.from({ length: Hp }, () => Array(W).fill(-1));
+			for (let y = 0; y < Hp; y++) for (let i = 0; i < W; i++) {
+				const edge = y === 0 || y === Hp - 1 || i === 0 || i === W - 1;
+				px[y][i] = quant(edge ? GOLD : (Math.floor(i / 4) + Math.floor(y / 4)) % 2 ? g1 : g2);
+			}
+			pic.forEach((r, j) => r.forEach((hex, i) => { if (hex && px[1 + j]) px[1 + j][1 + i] = artInk(hex); }));
+			stampPixels(c.g, tx, c.y, px);
+			tx += ROLE_PIC_W + 2;
+		}
+		const room = c.x + c.w - tx;
+		const y0 = c.y + (pic ? 3 : 0);
+		lines.forEach((l, k) => c.g.text(tx, y0 + k, [...l].slice(0, room).join(''), c.ink('gold')));
+		c.g.text(tx, y0 + lines.length, [...sub].slice(0, room).join(''), c.ink('dim'));
+	});
+}
+
+/**
  * The way back and the way on, pinned to the foot of the page (the last row of a page that fits on one
  * leaf), each in the same place whatever it says: one at the left of the writing, one at the right.
  */
@@ -1017,11 +1124,11 @@ export function footButtons(back?: Button, on?: Button): Row {
 		if (on) drawButton(c, c.x + c.w - w, c.y, w, fit(on));
 	}, 'foot');
 }
-/** One small quiet button in the foot's right-hand corner (the Credits mark on the first page). */
+/** One small quiet button in the foot's left-hand corner (the Credits mark on the first page). */
 export function cornerButton(b: Button): Row {
 	return blockRow(3, (c) => {
 		const w = Math.min(c.w, Math.max(10, [...b.label].length + 4));
-		drawButton(c, c.x + c.w - w, c.y, w, { ...b, style: 'quiet' });
+		drawButton(c, c.x, c.y, w, { ...b, style: 'quiet' });
 	}, 'foot');
 }
 /** A pinned row's place: at the foot of the page, if the writing above leaves room. */
@@ -1460,18 +1567,29 @@ export function tabStrip(tabs: Tab[], width = COLS): Row {
  * The way back (Home, Back, Close): always the same button, the same size, at the top left of
  * the page, so a thumb finds it in one place on every screen.
  */
-export function navRow(label: string, act: () => void): Row {
+export function navRow(label: string, act: () => void, right?: Button): Row {
 	const text = '‹ ' + label.replace(/^[<‹]s*/, '');
-	return { ...buttonBlock([btn(text, act, { style: 'quiet', width: Math.max(12, [...text].length + 4) })]), cls: 'nav' };
+	const lw = Math.max(12, [...text].length + 4);
+	if (!right) return { ...buttonBlock([btn(text, act, { style: 'quiet', width: lw })]), cls: 'nav' };
+	// A second quiet button at the right of the same line (the Credits mark on the first page).
+	const rw = Math.max(10, [...right.label].length + 4);
+	return blockRow(3, (c) => {
+		drawButton(c, c.x, c.y, Math.min(lw, c.w), btn(text, act, { style: 'quiet' }));
+		if (c.w >= lw + rw + 1) drawButton(c, c.x + c.w - rw, c.y, rw, { ...right, style: 'quiet' });
+	}, 'nav');
 }
 
 /** A run of buttons as one block row (wraps like buttonRows). */
 export function buttonBlock(buttons: Button[], width = INNER, gap = 1): Row {
 	const lines = buttonRows(buttons, width, gap);
-	return blockRow(Math.max(1, lines.length) * 3, (c) => {
+	// (a run is as tall as its tallest button: a name that wraps makes its run taller)
+	const hs = lines.map((r) => Math.max(3, ...r.segs.filter(isButton).map(buttonH)));
+	return blockRow(hs.reduce((k, h) => k + h, 0) || 3, (c) => {
+		let y = c.y;
 		lines.forEach((r, i) => {
 			let x = c.x;
-			for (const s of r.segs) { if (isButton(s)) drawButton(c, x, c.y + i * 3, segWidth(s), s); x += segWidth(s); }
+			for (const s of r.segs) { if (isButton(s)) drawButton(c, x, y, segWidth(s), s); x += segWidth(s); }
+			y += hs[i];
 		});
 	});
 }
@@ -1915,8 +2033,6 @@ export function illuminatedRow(lines: { t: string; tone?: Tone }[]): Row {
 
 /** How far you see by day, and the steps the village fades it over past that edge (SOFT in village.ts): beyond this the map is dark. */
 export const ZONE_RADIUS = SIGHT.day + 3;
-/** The rows the village keeps for its own bars (the title, the info lines, the tool buttons). */
-const MAP_CHROME = 9;
 let ratioMemo = 0;
 /** The width of a glyph over its height at one size, measured as the terminal measures it. */
 function glyphRatio(): number {
@@ -1930,22 +2046,21 @@ function glyphRatio(): number {
 	return ratioMemo;
 }
 /**
+ * How many map tiles a phone held upright shows across (each tile is two cells wide, CW in village.ts): the same
+ * on every phone, so the cells shrink or grow with the screen. The user's pick, 15 Nov: 16 tiles (11 was too few).
+ * The village's bars and lines share these cells, so more tiles also means smaller words.
+ */
+export const PHONE_MAP_TILES = 16;
+const TILE_CELLS = 2;
+/**
  * The size of the town's cells for a screen of w by h pixels (a glyph is `ratio` wide for each unit of height).
  * A desktop's cells are big but not so big as they were (34 px, now 28), and the village shows a few more rows.
- * A phone held upright fits the grid to the limit of the occlusion zone: the map is only as many rows tall as
- * sight and its fade reach (the rest is dark), so the cells grow until those rows fill the height; never smaller
- * than the fit to the width of 52 columns, so a short screen is not made worse.
+ * A phone held upright fits PHONE_MAP_TILES tiles to its width (never under 8 px type).
  */
 export function townScale(w: number, h: number, ratio: number, wide: boolean): { maxFont: number; rows: number; cols: number } {
 	if (wide || w >= h) return { maxFont: 28, rows: 32, cols: COLS };
-	const zoneRows = 2 * ZONE_RADIUS + 1 + MAP_CHROME;
-	const byWidth = Math.floor(w / (COLS * ratio));
-	// (the terminal rounds a line to whole pixels, so count rows as it does)
-	let font = Math.max(8, byWidth);
-	while (Math.floor(h / Math.round(font * 1.2)) > zoneRows && font < 40) font++;
-	// No fewer than 36 columns: the map is as wide as the screen lets it be.
-	const capped = Math.min(font, Math.floor(w / (36 * ratio)));
-	return { maxFont: capped, rows: 10, cols: Math.floor(w / (capped * ratio)) };
+	const font = Math.max(8, Math.floor(w / (PHONE_MAP_TILES * TILE_CELLS * ratio)));
+	return { maxFont: font, rows: 10, cols: Math.floor(w / (font * ratio)) };
 }
 
 function frame(g: Grid) {
@@ -1956,11 +2071,21 @@ function frame(g: Grid) {
 	// The cover is a picture, drawn fine: many more columns (small cells, two pixels each).
 	// A book on a wide screen lies open: room for two leaves.
 	// The town on a desktop: bigger cells, fewer of them, so its small things read.
-	const town = !!extra && extraShown() && townBig();
+	// (a page or sheet over the town is written to its own width, so it takes the page's cells while it is open)
+	const town = !!extra && extraShown() && townBig() && !order.some((k) => layers.get(k)?.rows.length);
 	const fit = town ? townScale(innerWidth, innerHeight, glyphRatio(), wideScreen()) : null;
+	// A phone held upright: the map in big cells, its bars on the finer overlay.
+	split = !!fit && !wideScreen() && innerWidth < innerHeight;
+	const ui = split ? ensureOverlay() : overlay;
+	if (ui) {
+		ui.clear(4, CLEAR);
+		if (split) { ui.palette = term!.palette; ui.setCols(PHONE_UI_COLS); }
+		ui.pre.style.pointerEvents = split ? 'auto' : 'none';
+	}
 	if (fit) term!.setScale(fit.maxFont, fit.rows);
 	else term!.setScale(22, 40);
-	term!.setCols(fit ? fit.cols : key === 'cover' ? (wideScreen() ? 184 : 84) : key.startsWith('folio') ? (wideScreen() ? 2 * (COLS + 12) : COLS + 12) : key === 'leather' ? COLS + 6 : COLS);
+	term!.setMinFont(key === 'cover' ? 4 : 8);
+	term!.setCols(fit ? fit.cols : key === 'cover' ? (wideScreen() ? 184 : 100) : key.startsWith('folio') ? (wideScreen() ? 2 * (COLS + 12) : COLS + 12) : key === 'leather' ? COLS + 6 : COLS);
 	document.body.style.background = term!.palette[0];
 	document.documentElement.style.background = term!.palette[0];
 	g.clear(4, 0);
@@ -1996,7 +2121,8 @@ function frame(g: Grid) {
 	// (by day gold writing is a shade under the gold of the pictures, to be read on the light page)
 	const dayBook = isBook() && !paletteKey().endsWith('-night');
 	const ink = (t: Tone | undefined) => (dayBook && t === 'gold' ? shade(6, 3) : TONE[t ?? 'plain']);
-	const under = !!extra?.(g);
+	const under = !!extra?.(g, split && ui ? ui : undefined);
+	ui?.flush();
 	// The topmost layer with rows is shown alone, as a page of its own. Over the town it is a
 	// sheet: the town fades to a ghost behind it and the sheet gets a ground of its own.
 	for (let i = order.length - 1; i >= 0; i--) {
@@ -2009,6 +2135,27 @@ function frame(g: Grid) {
 		drawLayer(g, order[i], ink, under);
 		return;
 	}
+}
+
+function ensureOverlay(): Term {
+	if (overlay) return overlay;
+	const host = document.createElement('div');
+	document.body.appendChild(host);
+	overlay = new Term(host, {
+		cols: PHONE_UI_COLS,
+		maxFont: 22,
+		rows: 10,
+		// Its own redraw (a size change) clears it and asks the main grid for a frame, which writes both.
+		onDraw: (t) => { t.clear(4, CLEAR); term?.draw(); },
+		passThrough: (ev) => term?.press(ev)
+	});
+	// Over the main grid; only its pre takes taps, and only while it is in use.
+	host.style.pointerEvents = 'none';
+	host.style.zIndex = '1';
+	// Its rows are whole cells, so a sliver is left over: at the top, where the map is anyway, not under the bar.
+	host.style.alignItems = 'flex-end';
+	overlay.pre.style.pointerEvents = 'none';
+	return overlay;
 }
 
 function ensureTerm(): Term {
@@ -2052,4 +2199,50 @@ export function paint(root: unknown, rows: Row[], width = COLS) {
 	if (rows.length && !old?.rows.length) { const k = order.indexOf(root); if (k >= 0) order.splice(k, 1); }
 	if (!order.includes(root)) order.push(root);
 	t.draw();
+}
+
+// ---- the icon designer's pieces -----------------------------------------------------------------
+
+/** A book's sixteen inks as it is read by candlelight (the icon is drawn on a dark ground, so it takes these). */
+export const bookInks = (theme: Theme): string[] => [...PALETTES[bookKey(theme, true)]].slice(0, 16);
+
+/**
+ * A row of colour chips to choose from, two cells wide and two tall in the colour, three apiece to
+ * hit. The chosen one carries a star. Colours are drawn in the nearest of the page's inks.
+ */
+export function chipsRow(hexes: string[], on: string, pick: (hex: string) => void): Row {
+	const per = Math.floor(INNER / 3), lines = Math.ceil(hexes.length / per);
+	return blockRow(lines * 3, (c) => {
+		hexes.forEach((hex, i) => {
+			const x = c.x + (i % per) * 3, y = c.y + Math.floor(i / per) * 3;
+			const bg = quant([1, 3, 5].map((k) => parseInt(hex.slice(k, k + 2), 16)));
+			const lum = [1, 3, 5].reduce((a, k, j) => a + parseInt(hex.slice(k, k + 2), 16) * [0.3, 0.59, 0.11][j], 0);
+			const chosen = hex.toLowerCase() === on.toLowerCase();
+			c.g.fill({ x, y, w: 2, h: 2 }, ' ', 4, bg);
+			if (chosen) c.g.set(x, y, '*', lum > 110 ? 0 : 5, bg);
+			c.hit({ x, y, w: 3, h: 3 }, () => pick(hex));
+		});
+	});
+}
+
+/**
+ * An icon shown at several sizes, as pixels two to a cell: the first big, the others stacked beside it,
+ * so the eye can judge how it reads from the home screen down to a browser tab.
+ */
+export function pixelsRow(render: (size: number) => { w: number; h: number; rgba: Uint8Array }, sizes: number[]): Row {
+	const [big, ...small] = sizes;
+	const gap = 2, smallW = Math.max(0, ...small), total = big + (small.length ? gap + smallW : 0);
+	const stack = small.reduce((a, s) => a + Math.ceil(s / 2), 0) + Math.max(0, small.length - 1);
+	return blockRow(Math.max(Math.ceil(big / 2), stack), (c) => {
+		const put = (size: number, x: number, y: number) => {
+			const { w, h, rgba } = render(size);
+			const px = Array.from({ length: h }, (_, j) => Array.from({ length: w }, (_, i) => quant([rgba[(j * w + i) * 4], rgba[(j * w + i) * 4 + 1], rgba[(j * w + i) * 4 + 2]])));
+			stampPixels(c.g, x, y, px);
+			return Math.ceil(h / 2);
+		};
+		const x0 = c.x + Math.max(0, Math.floor((c.w - total) / 2));
+		put(big, x0, c.y);
+		let y = c.y;
+		for (const s of small) y += put(s, x0 + big + gap, y) + 1;
+	});
 }

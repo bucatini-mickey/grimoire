@@ -22,7 +22,12 @@ test yet; **todo** = not yet modelled. Sources in `SOURCES.md` (mostly the offic
 - GEN-TIE: an execution needs votes of at least half the living and more than any other nominee today; a tie clears the block. **sim**
 - GEN-NOMINATE-ONCE: a player may nominate once a day and be nominated once a day; only the living nominate. **sim**
 - GEN-GHOST-VOTE: the dead may vote once more in the game. **sim**
-- GEN-TWO-LEFT: evil wins when only two players live (Travellers not counted). **sim** (no Travellers yet)
+- GEN-TWO-LEFT: evil wins when only two players live (Travellers not counted). **sim**
+- GEN-EXECUTE-BLOCK: dusk executes whoever is on the block and no one when it is empty; the block is tracked in the simulator from the vote tallies alone. **sim**
+- GEN-ANNOUNCE: the room is told only what it can see: who died at dawn (not someone killed and brought back in the night), each vote, executions (the player dies, does not die, or was already dead; never why), the Virgin, the Slayer, the winner; never a save, a starpass, a takeover, a poisoning. **tested** (announce.test) and **sim**
+- GEN-CIRCLE-AT-NIGHT: until dawn the circle on the players' phones is the circle as it was at dusk: no death and no coming back to life shows. **tested** (announce.test) and **sim**
+- GEN-UNDO: undo drops the last command's events and replays: the game is exactly as it was, and the command plays again the same. **sim**
+- GEN-OFFERS: the Storyteller is offered only true answers for a sober player, only false ones under a working Vortox, and anything well-formed for a drunk or poisoned player. **tested** (snv.test) and **sim**
 - GEN-DEMON-DEAD: good wins when the Demon dies (unless something takes over). **sim**
 - GEN-INFO-RULES-TRUE: the rules are always told truly, even to the drunk or poisoned. (Storyteller practice)
 - GEN-LEARN-OWN-CHANGE: a player told of a change to their own character or alignment learns it truly, drunk or not (not information). **todo**
@@ -71,9 +76,10 @@ test yet; **todo** = not yet modelled. Sources in `SOURCES.md` (mostly the offic
 - TB-SAINT-POISONED: a poisoned Saint executed: the game goes on. **sim**
 - TB-POISONER-DIES: the Poisoner's poison ends when the Poisoner dies or becomes the Imp. **sim**
 - TB-POISONER-DUSK: poison lasts the night and the next day, ending at dusk. **sim**
-- TB-SW-FIVE: the Scarlet Woman takes over only if five or more were alive just before the Demon died (Travellers not counted). **sim**
+- TB-SW-FIVE: the Scarlet Woman takes over only if five or more were alive just before the Demon died (Travellers not counted), and always does then. **tested** (rulings.test) and **sim** (fixed: the engine used to count Travellers)
 - TB-SW-STARPASS: with five or more alive, an Imp who kills themself must pass to the Scarlet Woman. **tested** (night.test)
 - TB-IMP-NEW-NO-KILL: a new Imp (starpass) does not kill that night. **sim**
+- TB-IMP-DRUNK-SELF: a drunk or poisoned Imp still wakes and may choose themself, but the ability does not work: no one dies and no Minion (a Scarlet Woman included) becomes the Imp. No Storyteller choice: a drunk ability has no effect. (User example, grim-040: the Innkeeper protects the Imp and makes the Imp the drunk one.)
 - TB-IMP-ATTACK-DEAD: the Imp may attack a dead player; no one dies. **sim**
 - TB-BARON-SETUP: +2 Outsiders at setup, replacing Townsfolk; it does not change back. **engine**
 - TB-SPY-GRIMOIRE: the Spy sees the whole Grimoire each night. **engine**
@@ -93,7 +99,7 @@ see D3). Entries marked *(sim)* were found by the simulator.
 - BMR-INNKEEPER-SAFE: the two chosen cannot die tonight from anything (Demon, Minion, Townsfolk, Outsider, Traveller), except the Assassin; one of the two (Storyteller's choice) is drunk until dusk. A drunk Innkeeper protects no one, even after sobering.
 - BMR-INNKEEPER-SELF: if the Innkeeper picks themself and is the drunk one, neither is protected.
 - BMR-GAMBLER: guess a player's character; wrong means the Gambler dies (not told why); may choose anyone, even themself.
-- BMR-EXORCIST: a chosen Demon learns who the Exorcist is and does not wake to use their ability tonight; their other abilities still work (Zombuul survives, Pukka's previous victim dies, Shabaloth may regurgitate); not the same player two nights running.
+- BMR-EXORCIST: a chosen Demon learns who the Exorcist is and does not wake to use their ability tonight; the Zombuul's survival still works; the Pukka's earlier victim dying and the Shabaloth's regurgitation do not need the Demon to choose, but the wording does not say whether they still happen, so the Storyteller rules (the app asks; the engine never guesses); not the same player two nights running.
 - BMR-GOSSIP: a definite, true, public statement means the Storyteller kills a player that night; what counts is the Gossip's state at night (drunk by day, sober at night: still kills); a Gossip who dies first kills no one.
 - BMR-COURTIER: once per game, choose a character: if in play, that player is drunk for 3 nights and 3 days from now; only while the Courtier stays sober and healthy (suspended, then resumes); a drunk Courtier wastes it; one copy only if duplicated.
 - BMR-PROFESSOR: once per game, a dead Townsfolk is resurrected (regains abilities, even once-per-game; first-night ones act at once); a non-Townsfolk choice wastes it; must choose a dead player.
@@ -141,7 +147,7 @@ Where the engine models a ruling more simply than the full rule, it says **appro
 - SNV-SWEETHEART: when they die, one player is drunk for the rest of the game (works while dead).
 - SNV-KLUTZ: on learning they died, publicly chooses an alive player: if evil, their team loses.
 - SNV-BARBER: if they died today or tonight, the Demon may swap two players' characters (not another Demon); alignments stay.
-- SNV-MUTANT / SNV-CERENOVUS: madness: the Storyteller may execute them (even at night; counts as the day's execution).
+- SNV-MUTANT / SNV-CERENOVUS: madness: the Storyteller may execute them (even at night, after the first night; counts as the execution of the day just ended, so a day that already had its execution cannot have a second one; the room is told at dawn).
 - SNV-WITCH: the cursed player dies if they nominate tomorrow (the nomination still stands); with three alive the Witch loses the ability.
 - SNV-PIT-HAG: change a player to a character not in play; making a Demon makes tonight's deaths arbitrary.
 - SNV-EVIL-TWIN: twins know each other; the good twin executed: evil wins; good cannot win while both live.
@@ -152,7 +158,7 @@ Where the engine models a ruling more simply than the full rule, it says **appro
 - SNV-MODEL-PHILOSOPHER **approx.**: the Philosopher is modelled as becoming the chosen character (they act as it from now on, waking tonight if its place is still to come); the real holder is drunk while the Philosopher keeps it.
 - SNV-MODEL-BARBER **approx.**: the swap may not include any Demon (the card allows the Demon itself; not modelled yet); alignments stay.
 - SNV-MODEL-PIT-HAG **approx.**: a player turned into a Demon becomes evil and is told; the old Demon stays (two Demons until one dies); "arbitrary deaths" is the Storyteller's kill button that night. A changed player acts as the new character tonight only if its place is still to come.
-- SNV-MODEL-FANG-GU **approx.**: the jump happens once per game, whatever protects the Outsider (they do not die, so protection does not apply).
+- SNV-FANG-GU-PROTECTED: the jump is a kill that must work: an Outsider the Monk, the Innkeeper, the Tea Lady or the Sailor protects does not die, so they do not become the Fang Gu, the Fang Gu does not die, and the jump stays available (official wiki; no Storyteller choice). Droisoned protectors protect no one.
 - SNV-MODEL-MATHEMATICIAN **approx.**: the number is the Storyteller's judgment; the engine accepts any count (also with the Vortox).
 - SNV-MODEL-SAVANT-ARTIST: by day, outside the engine (notes in the log).
 - SNV-MODEL-SWEETHEART **approx.**: the drunk player is chosen at the Sweetheart's place in the next night (or tonight), not at the moment of death.
@@ -186,7 +192,7 @@ Status: **tested** (tests/travellers.test.ts, and in random games by the simulat
 - TRAV-APPRENTICE: on their first night gains a Townsfolk (good) or Minion (evil) ability from the script; acts with it that night if it would; first-night-only abilities work on the Apprentice's first night.
 - TRAV-BARISTA: each night the Storyteller picks a player and either makes them sober and healthy with true information until dusk (even under the Vortox) or makes their ability act twice.
 - TRAV-HARLOT: chooses a living player each night; if they agree to show their character, both might die.
-- TRAV-BONE-COLLECTOR: once per game, a dead player regains their ability until dusk (used once-per-game abilities included); ends if the Bone Collector dies.
+- TRAV-BONE-COLLECTOR: once per game, a dead player regains their ability until dusk (used once-per-game abilities included, which are unused again); ends if the Bone Collector dies.
 - TRAV-DEVIANT: if they were funny today (the Storyteller judges), they cannot die by exile.
 
 ## Fabled

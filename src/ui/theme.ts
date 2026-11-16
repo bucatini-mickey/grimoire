@@ -36,7 +36,6 @@ export function themeOfKey(key: string): Theme {
 export interface TownInfo { key: string; name: string; theme: Theme; }
 export const TOWN_LIST: TownInfo[] = [
 	{ key: 'talmberg', name: 'Talmberg', theme: 'medieval' },
-	{ key: 'keep', name: 'The Keep', theme: 'medieval' },
 	{ key: 'castle', name: 'Ravensburg', theme: 'medieval' },
 	{ key: 'hamlet', name: 'Ashcombe', theme: 'medieval' },
 	{ key: 'abbey', name: 'The Abbey', theme: 'medieval' },

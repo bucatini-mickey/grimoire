@@ -35,9 +35,9 @@ const BY_TOWN: Record<string, Weather> = {
 	whitechapel: { ...CALM, fog: 1.7, fogTint: [96, 90, 62] },
 	castle: CALM,
 	keep: { ...CALM, fog: 0.4 },
-	hamlet: { ...CALM, graze: true, fog: 1.2, fogTint: [124, 132, 118] },
-	abbey: { ...CALM, fog: 1.25, fogTint: [134, 134, 126] },
-	liner: { ...CALM, rain: true, storm: true, fog: 1.3, fogTint: [76, 88, 90] }
+	hamlet: { ...CALM, graze: true, fog: 1.2, fogTint: [120, 128, 116] },
+	abbey: { ...CALM, fog: 1.25, fogTint: [128, 128, 122] },
+	liner: { ...CALM, rain: true, storm: true, fog: 1.3, fogTint: [70, 82, 84] }
 };
 export const weatherOf = (town: string): Weather => BY_TOWN[town] ?? CALM;
 export const animated = (w: Weather) => w.rain || w.snow || w.beam || w.storm || w.graze;

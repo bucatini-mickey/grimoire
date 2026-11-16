@@ -1,0 +1,131 @@
+{
+ "rule": "drunk-believes-townsfolk",
+ "detail": "Isolde the Drunk believes drunk",
+ "seed": 106,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit"
+   ],
+   "scriptId": "custom:courtier,virgin,slayer,clockmaker,savant,sailor,dreamer,fool,empath,tea-lady,drunk,lunatic,tinker,scarlet-woman,cerenovus,evil-twin,devils-advocate,pit-hag,shabaloth"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "tinker",
+    "savant",
+    "sailor",
+    "devils-advocate",
+    "pit-hag",
+    "shabaloth",
+    "clockmaker",
+    "empath",
+    "virgin",
+    "slayer",
+    "dreamer"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "lunatic",
+    "courtier",
+    "drunk"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ],
+   "drunk": 2
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 1
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "dream",
+    "player": 3,
+    "characters": [
+     "devils-advocate",
+     "courtier"
+    ]
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ],
+   "drunk": 2
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ],
+   "character": "drunk"
+  }
+ ]
+}

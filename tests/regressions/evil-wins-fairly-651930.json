@@ -1,0 +1,84 @@
+{
+ "rule": "evil-wins-fairly",
+ "detail": "evil won: The good twin, Esme, was executed.",
+ "seed": 651930,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme"
+   ],
+   "scriptId": "custom:oracle,exorcist,minstrel,clockmaker,gossip,artist,gambler,tea-lady,librarian,virgin,philosopher,klutz,barber,butler,tinker,evil-twin,baron,po"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "artist",
+    "evil-twin",
+    "librarian",
+    "po",
+    "minstrel"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "oracle",
+    "exorcist",
+    "clockmaker"
+   ],
+   "evilTwin": 4,
+   "fabled": [
+    {
+     "id": "toymaker"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "none"
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 3,
+   "nominee": 4
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T5",
+   "character": "judge",
+   "alignment": "evil",
+   "after": 1
+  },
+  {
+   "type": "judge",
+   "by": 5,
+   "verdict": "condemn"
+  }
+ ]
+}

@@ -1,0 +1,196 @@
+{
+ "rule": "zombuul",
+ "detail": "T6(zombuul) died for real at the Zombuul's first death",
+ "seed": 51643,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme"
+   ],
+   "scriptId": "custom:virgin,chef,dreamer,grandmother,tea-lady,fool,sailor,gossip,mathematician,pacifist,snake-charmer,tinker,barber,lunatic,pit-hag,baron,witch,spy,zombuul,shabaloth"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "tinker",
+    "sailor",
+    "baron",
+    "zombuul",
+    "lunatic"
+   ],
+   "redHerring": null,
+   "bluffs": []
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ],
+   "drunk": 2
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 2,
+   "nominee": 3
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    1,
+    3
+   ]
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T5",
+   "character": "deviant",
+   "alignment": "evil",
+   "after": 0
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T6",
+   "character": "apprentice",
+   "alignment": "evil",
+   "after": 2
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "character": "pit-hag"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ],
+   "drunk": 0
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ],
+   "character": "shabaloth"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ],
+   "drunk": 1
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ],
+   "character": "tea-lady"
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T7",
+   "character": "scapegoat",
+   "alignment": "evil",
+   "after": 4
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ]
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ],
+   "character": "zombuul"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ]
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "exile",
+   "traveller": 6,
+   "supporters": [
+    0,
+    1,
+    3,
+    4,
+    7
+   ]
+  }
+ ]
+}

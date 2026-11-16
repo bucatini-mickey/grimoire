@@ -1,0 +1,209 @@
+{
+ "rule": "vigormortis",
+ "detail": "Cael(scarlet-woman), a dead scarlet-woman the Vigormortis kept, never woke",
+ "seed": 126,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior",
+    "Maud",
+    "Ned"
+   ],
+   "scriptId": "custom:seamstress,town-crier,ravenkeeper,professor,fool,slayer,philosopher,clockmaker,minstrel,monk,barber,goon,recluse,scarlet-woman,pit-hag,poisoner,assassin,cerenovus,vigormortis"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "professor",
+    "cerenovus",
+    "scarlet-woman",
+    "ravenkeeper",
+    "pit-hag",
+    "monk",
+    "slayer",
+    "philosopher",
+    "vigormortis",
+    "minstrel",
+    "fool",
+    "seamstress",
+    "clockmaker",
+    "town-crier"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "goon",
+    "barber",
+    "recluse"
+   ],
+   "fabled": [
+    {
+     "id": "storm-catcher",
+     "character": "professor"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ],
+   "character": "slayer"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 4
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "same",
+    "players": [
+     10,
+     3
+    ],
+    "yes": true
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "character": "slayer"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    9
+   ],
+   "character": "philosopher"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ],
+   "character": "recluse"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ],
+   "poisonNeighbour": 6
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "yesno",
+    "yes": false
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    10
+   ],
+   "character": "philosopher"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "yesno",
+    "yes": false
+   }
+  },
+  {
+   "type": "end-night"
+  }
+ ]
+}

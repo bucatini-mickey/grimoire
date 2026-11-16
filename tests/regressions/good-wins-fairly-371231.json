@@ -1,0 +1,104 @@
+{
+ "rule": "good-wins-fairly",
+ "detail": "good won: The Demon is dead.",
+ "seed": 371231,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen"
+   ],
+   "scriptId": "custom:courtier,sailor,chambermaid,virgin,gambler,gossip,juggler,pacifist,klutz,barber,tinker,mastermind,godfather,no-dashii"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "mastermind",
+    "gambler",
+    "courtier",
+    "chambermaid",
+    "sailor",
+    "juggler",
+    "no-dashii"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "tinker",
+    "gossip",
+    "virgin"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ],
+   "drunk": 4
+  },
+  {
+   "type": "choose",
+   "character": "mastermind"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     0,
+     4
+    ],
+    "value": 1
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "swap-seats",
+   "a": 0,
+   "b": 2
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 2,
+   "nominee": 6
+  },
+  {
+   "type": "vote",
+   "voters": [
+    0,
+    2,
+    4,
+    6
+   ]
+  },
+  {
+   "type": "end-day"
+  }
+ ]
+}

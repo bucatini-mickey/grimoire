@@ -1,0 +1,175 @@
+{
+ "rule": "exorcised-pukka",
+ "detail": "the Exorcist chose the Pukka, which had a victim from night 1; ruling: idle",
+ "seed": 0,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde"
+   ],
+   "scriptId": "bad-moon-rising"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "pukka",
+    "godfather",
+    "chambermaid",
+    "gambler",
+    "grandmother",
+    "tinker",
+    "sailor",
+    "fool",
+    "exorcist"
+   ],
+   "bluffs": [
+    "innkeeper",
+    "gossip",
+    "courtier"
+   ],
+   "redHerring": null,
+   "allowNonstandard": true
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "choose",
+   "target": 6,
+   "drunk": 6
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "characters",
+    "characters": [
+     "tinker"
+    ]
+   }
+  },
+  {
+   "type": "choose",
+   "target": 2
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "reveal",
+    "player": 2,
+    "character": "chambermaid"
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     0,
+     1
+    ],
+    "value": 2
+   }
+  },
+  {
+   "type": "acknowledge",
+   "mayorRedirect": null
+  },
+  {
+   "type": "acknowledge",
+   "mayorRedirect": null
+  },
+  {
+   "type": "acknowledge",
+   "mayorRedirect": null
+  },
+  {
+   "type": "acknowledge",
+   "mayorRedirect": null
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day",
+   "executionSurvives": false
+  },
+  {
+   "type": "choose",
+   "target": 6,
+   "drunk": 6
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ],
+   "mayorRedirect": null,
+   "regurgitate": null,
+   "drunk": 1,
+   "character": "godfather"
+  },
+  {
+   "type": "choose",
+   "target": 0
+  },
+  {
+   "type": "acknowledge",
+   "exorcised": "idle"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "woke",
+    "players": [
+     0,
+     1
+    ],
+    "value": 0
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day",
+   "executionSurvives": false
+  },
+  {
+   "type": "choose",
+   "target": 6,
+   "drunk": 6
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ],
+   "mayorRedirect": null,
+   "regurgitate": null,
+   "drunk": 1,
+   "character": "godfather"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ],
+   "mayorRedirect": null,
+   "regurgitate": null,
+   "drunk": 1
+  },
+  {
+   "type": "choose",
+   "target": 3
+  }
+ ]
+}

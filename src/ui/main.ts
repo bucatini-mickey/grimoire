@@ -17,10 +17,11 @@
  */
 import * as G from '../core/index.ts';
 import type { Candidate, CharacterId, Command, GameEvent, GameState, Info, SeatId, Script, Lean } from '../core/index.ts';
-import { cornerButton, leafBreak, twoLeaves, personInk, seatInk, arrowBox, chapterRow, coverRow, footButtons, illuminatedRow, tickGrid, miniature, namePlate, navRow, tabStrip } from './ascii.ts';
+import { leafBreak, twoLeaves, personInk, seatInk, arrowBox, bookInks, chapterRow, chipsRow, coverRow, footButtons, illuminatedRow, tickGrid, miniature, nameLines, namePlate, namePlates, navRow, pixelsRow, tabStrip } from './ascii.ts';
 import { CREDITS, HOW_TO_PLAY, INTERACTIONS, TIPS } from '../core/codex.ts';
 import type { CodexPage } from '../core/codex.ts';
-import { bookKey, themeOf } from './theme.ts';
+import { THEMES, bookKey, themeOf } from './theme.ts';
+import type { Theme } from './theme.ts';
 import { LobbyVoice } from '../town/lobbyvoice.ts';
 import type { Tab as TabSpec } from './ascii.ts';
 import { COLS, INNER, Canvas, letteredRow, shade, titleRow, blank, blockRow, boxRow, btn, buttonBlock, buttonRows, center, endPanel, field, frameBottom, frameTop, listRow, paint, paneled, pad, redraw, row, rubric, rule, segWidth, setDynamic, setExtra, setPalette, txt, wrap } from './ascii.ts';
@@ -28,6 +29,7 @@ import type { Button, Row, Seg, Tone } from './ascii.ts';
 import * as T from './timer.ts';
 import * as V from '../net/views.ts';
 import * as NB from '../net/notebook.ts';
+import { announce } from '../net/announce.ts';
 import { hostRoom, newRoomCode } from '../net/link.ts';
 import type { HostLink, LinkStatus } from '../net/link.ts';
 import type { Announcement, ClockView, HostMsg, PlayerMsg, VoteView } from '../net/protocol.ts';
@@ -222,6 +224,10 @@ const ui = {
 	setup: 'script' as 'script' | 'players' | 'characters' | 'seats' | 'fabled',
 	/** Reading the book of characters (over whatever page it was opened from). */
 	reading: false,
+	/** Showing the shareable setup page (settings). */
+	sharing: false,
+	/** The share page just copied the summary. */
+	shareCopied: false,
 	/** A second tap to confirm starting again (settings). */
 	confirmRestart: '' as '' | 'same' | 'new',
 	/** The edition for a new game ('custom' to pick characters). */
@@ -268,7 +274,7 @@ function actAll(cmds: Command[]): boolean {
 	saved.events.push(...r.events);
 	const before = state;
 	state = r.state;
-	ui.banner = announce(before, r.events, r.state);
+	ui.banner = announce(before, r.events, r.state, seatInk);
 	ui.remote = null;
 	if (ui.banner) toPlayers({ t: 'announce', items: ui.banner });
 	ui.message = '';
@@ -282,55 +288,6 @@ function actAll(cmds: Command[]): boolean {
 	save();
 	render();
 	return true;
-}
-
-/**
- * What the room needs to hear from what just happened: deaths at dawn,
- * votes, executions, the Virgin and the Slayer, and the end of the game.
- * Only public facts: a Monk's save, a starpass or a Scarlet Woman taking
- * over are never announced.
- */
-function announce(prev: GameState, events: GameEvent[], next: GameState): Banner[] | null {
-	const out: Banner[] = [];
-	const nm = (id: SeatId) => next.seats[id]?.name ?? '?';
-	// A death is written large in the dead player's own colour; the winners in their team's ink.
-	const named = (id: SeatId) => ({ text: nm(id), ink: seatInk(Math.max(0, next.order.indexOf(id))) });
-	for (const e of events) {
-		switch (e.type) {
-			case 'day-began': {
-				const dead = prev.night?.deaths ?? [];
-				out.push({ title: `Day ${e.n} dawns`, lines: dead.length ? dead.map((d) => `${nm(d)} died in the night.`) : ['Nobody died in the night.'], big: dead.map(named) });
-				break;
-			}
-			case 'vote-tallied': {
-				const block = next.day?.block ?? null;
-				const lines = [e.outcome === 'on-the-block' ? `${nm(e.nominee)} is about to die.`
-					: e.outcome === 'tied' ? 'A tie: nobody is about to die.' : `Not enough. ${e.needed} were needed.`];
-				if (e.outcome === 'not-enough' && block !== null) lines.push(`${nm(block)} is still about to die.`);
-				out.push({ title: `${e.votes} vote${e.votes === 1 ? '' : 's'} for ${nm(e.nominee)}`, lines });
-				break;
-			}
-			case 'executed': {
-				const virgin = events.some((x) => x.type === 'ability-spent' && x.ability === 'virgin');
-				const died = events.some((x) => x.type === 'died' && x.seat === e.seat);
-				out.push(virgin
-					? { title: 'The Virgin!', lines: [`${nm(e.seat)} nominated the Virgin.`, `${nm(e.seat)} is executed and dies.`] }
-					: { title: 'Execution', lines: [`${nm(e.seat)} is executed.`, died ? `${nm(e.seat)} dies.` : `${nm(e.seat)} was already dead.`], big: died ? [named(e.seat)] : [] });
-				break;
-			}
-			case 'slayer-shot':
-				out.push({ title: 'The Slayer', lines: [`${nm(e.by)} shoots ${nm(e.target)}.`, e.hit ? `${nm(e.target)} dies.` : 'Nothing happens.'], big: e.hit ? [named(e.target)] : [] });
-				break;
-			case 'game-over':
-				out.push({ title: e.winner === 'good' ? 'Good wins' : 'Evil wins', lines: [e.reason], big: [{ text: e.winner === 'good' ? 'Good' : 'Evil', ink: e.winner === 'good' ? 12 : 8 }, { text: 'wins', ink: e.winner === 'good' ? 12 : 8 }] });
-				break;
-		}
-	}
-	const dusk = events.some((e) => e.type === 'night-began') && prev.phase.kind === 'day';
-	if (dusk && !events.some((e) => e.type === 'executed') && prev.day?.executed === null) {
-		out.push({ title: 'Dusk', lines: ['Nobody is executed today.'] });
-	}
-	return out.length ? out : null;
 }
 
 function bannerRows(): Row[] {
@@ -632,7 +589,7 @@ function header(): Row[] {
 		p.kind === 'night' ? `Night ${p.n}` :
 		p.kind === 'day' ? `Day ${p.n}` : 'Game over';
 	const inSettings = ui.tab === 'settings' || ui.tab === 'options' || ui.tab === 'phones';
-	const tab = (t: Tab, label: string, on = ui.tab === t): TabSpec => ({ label, on, act: () => { ui.tab = t; ui.reading = false; ui.confirmRestart = ''; render(); } });
+	const tab = (t: Tab, label: string, on = ui.tab === t): TabSpec => ({ label, on, act: () => { ui.tab = t; ui.reading = false; ui.sharing = false; ui.confirmRestart = ''; render(); } });
 	return [
 		listRow(phase, 'rubric', [btn('Undo', undo, { disabled: !saved.marks.length, style: 'quiet' })], COLS),
 		tabStrip([
@@ -783,13 +740,18 @@ function homeScreen(): Row[] {
 	// Shut: the cover alone. Open: the first page, the illuminated G at its head.
 	if (!ui.coverOpen) return [coverRow(() => { ui.coverOpen = true; ui.leaf = 'front'; render(); })];
 	const toLeaf = (l: typeof ui.leaf) => () => { ui.leaf = l; ui.confirm = ''; render(); };
-	if (ui.leaf === 'st') return storytellerLeaf(busy, toLeaf('contents'));
-	if (ui.leaf === 'players') return playersLeaf(toLeaf('contents'));
+	// The book's head (the illuminated G and its words); on the open book it has the left leaf to itself.
+	const headRow = () => illuminatedRow([
+		{ t: 'the book of the Storyteller' }, { t: 'for Blood on the Clocktower,' }, { t: 'wherein the game is kept,', tone: 'dim' }, { t: 'its nights and its dead.', tone: 'dim' }
+	]);
+	const besideHead = (rows: Row[]) => (twoLeaves() ? [rows[0], headRow(), leafBreak(), ...rows.slice(1)] : rows);
+	if (ui.leaf === 'st') return besideHead(storytellerLeaf(busy, toLeaf('contents')));
+	if (ui.leaf === 'players') return besideHead(playersLeaf(toLeaf('contents')));
 	if (ui.leaf === 'codex') return codexRows(toLeaf('front'));
 	if (ui.leaf === 'credits') return codexPage(CREDITS, toLeaf('front'), 'Back');
-	const head: Row[] = [navRow('Close the book', () => { ui.coverOpen = false; render(); }), illuminatedRow([
-		{ t: 'the book of the Storyteller' }, { t: 'for Blood on the Clocktower,' }, { t: 'wherein the game is kept,', tone: 'dim' }, { t: 'its nights and its dead.', tone: 'dim' }
-	]), blank()];
+	// Credits sits at the top right, beside Close the book, so nothing but the page's own foot is at the bottom.
+	const credits = ui.leaf === 'front' ? btn('© Credits', toLeaf('credits')) : undefined;
+	const head: Row[] = [navRow('Close the book', () => { ui.coverOpen = false; render(); }, credits), headRow(), blank(), leafBreak()];
 	// The first page: a game going to pick up, then Play and the Codex, lettered large.
 	if (ui.leaf === 'front') {
 		const rows = [...head, ...resumeRows(busy)];
@@ -797,12 +759,11 @@ function homeScreen(): Row[] {
 		// a rule of gold, and a plain word on what it holds.
 		rows.push(blank(), chapterRow('Play', 'Run a game, or join one.', toLeaf('contents')), blank(), blank());
 		rows.push(chapterRow('Codex', 'Characters, tips and how to play.', () => { ui.leaf = 'codex'; ui.codex.page = 'index'; render(); }));
-		rows.push(cornerButton(btn('© Credits', toLeaf('credits'))));
 		return rows;
 	}
 	const rows: Row[] = [navRow('Back', toLeaf('front')), blank()];
 	rows.push(...resumeRows(busy));
-	return contentsRows(rows, toLeaf);
+	return besideHead(contentsRows(rows, toLeaf));
 }
 
 /** A game going, to pick up from the book's first page or its contents. */
@@ -854,7 +815,10 @@ function codexRows(home: () => void): Row[] {
 		const rows: Row[] = [navRow(sc.name, to('list'))];
 		const arch = miniature(c.id, side, COLS);
 		if (arch) rows.push(arch);
-		rows.push(namePlate(c.name) ?? row(txt(center(c.name, INNER), 'gold', 'heading')), row(txt(center(TEAM[c.team] ?? c.team, INNER), side === 'evil' ? 'evil' : 'good')), blank());
+		// (a long name of two words is lettered on two lines, so each line can be set larger)
+		const lines = nameLines(c.name);
+		rows.push(namePlates(lines) ?? row(txt(center(lines.join(' '), INNER), 'gold', 'heading')));
+		rows.push(row(txt(center(TEAM[c.team] ?? c.team, INNER), side === 'evil' ? 'evil' : 'good')), blank());
 		const prev = sc.chars[at - 1], next = sc.chars[at + 1];
 		const back = btn(prev ? '< ' + prev.name : '< Back', prev ? to('char', { char: prev.id }) : to('list'), { style: 'quiet' });
 		const on = next ? btn(next.name + ' >', to('char', { char: next.id }), { style: 'primary' }) : undefined;
@@ -877,7 +841,7 @@ function codexRows(home: () => void): Row[] {
 			if (!of.length) continue;
 			// The open book: the good on the left leaf, the evil and the rest on the right.
 			if (team === 'minion' && twoLeaves()) rows.push(leafBreak());
-			rows.push(blank(), rubric(label), ...buttonRows(of.map((c) => btn(c.name, to('char', { char: c.id })))), endPanel());
+			rows.push(blank(), rubric(label), buttonBlock(of.map((c) => btn(nameLines(c.name).join('\n'), to('char', { char: c.id }), { aria: c.name }))), endPanel());
 		}
 		return rows;
 	}
@@ -1371,6 +1335,37 @@ function readingPage(): Row[] {
 	return rows;
 }
 
+/** The script and player count of the setup as it stands, whether or not a game has begun. Never reads who is what. */
+function shareSource(): { sc: Script; players: number | null } {
+	if (state.seats.length) return { sc: script(), players: state.seats.filter((x) => !x.traveller).length };
+	let sc: Script | undefined;
+	try { sc = ui.scriptId === 'custom' ? G.getScript(G.customScriptId(ui.customIds)) : G.SCRIPTS[ui.scriptId]; } catch { sc = undefined; }
+	const n = ui.names.split('\n').filter((l) => l.trim()).length;
+	return { sc: sc ?? G.getScript('trouble-brewing'), players: n || null };
+}
+
+/** Settings: a summary of the setup to send to people (script JSON, counts, modifiers), as text or a file. */
+function sharePage(): Row[] {
+	const { sc, players } = shareSource();
+	const text = G.setupSummary(sc, players);
+	const rows: Row[] = [...pageHead('Share the setup', ['Settings', () => { ui.sharing = false; render(); }])];
+	rows.push(...prose('The script (in the official format other tools import), the number of players and the team counts. It holds no seats, no characters in play and no bluffs, so it is safe to send.', 'dim'), blank());
+	const preview = text.slice(0, text.indexOf('\n\nScript (official JSON'));
+	for (const l of preview.split('\n')) rows.push(...prose(l));
+	rows.push(blank(), ...prose(`The ${sc.characters.length}-character script in JSON goes in the copy and the file.`, 'dim'), blank());
+	rows.push(buttonBlock([btn(ui.shareCopied ? 'Copied' : 'Copy as text', () => {
+		void navigator.clipboard?.writeText(text).then(() => { ui.shareCopied = true; render(); setTimeout(() => { ui.shareCopied = false; render(); }, 2000); });
+	}, { width: INNER, style: 'primary' }), btn('Download as a file', () => {
+		const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+		const a = document.createElement('a');
+		a.href = url; a.download = G.summaryFileName(sc);
+		document.body.appendChild(a); a.click(); a.remove();
+		setTimeout(() => URL.revokeObjectURL(url), 1000);
+	}, { width: INNER })]));
+	rows.push(blank(), onward('Back', () => { ui.sharing = false; render(); }));
+	return rows;
+}
+
 /** The grimoire's settings, each thing a page of its own: the clocks, the phones, the characters, starting again, home. */
 function settingsScreen(): Row[] {
 	const rows: Row[] = [rubric('Settings')];
@@ -1379,6 +1374,7 @@ function settingsScreen(): Row[] {
 	entry('The clocks', 'How long the discussion, nominations and speeches run.', to('options'));
 	entry(link ? 'Players\u2019 phones (room open)' : 'Players\u2019 phones', 'Link each player\u2019s phone, and the village.', to('phones'));
 	entry('The characters', 'What each character of this script does.', () => { ui.reading = true; render(); });
+	entry('Share the setup', 'The script and the team counts, as text or a file to send. Nothing secret.', () => { ui.sharing = true; ui.shareCopied = false; render(); });
 	const names = state.seats.map((x) => x.name);
 	const sure = (k: typeof ui.confirmRestart, label: string, sub: string, run: () => void) =>
 		entry(ui.confirmRestart === k ? label + ': sure? This game ends' : label, ui.confirmRestart === k ? 'Tap again to start again.' : sub, () => { if (ui.confirmRestart === k) { ui.confirmRestart = ''; run(); } else { ui.confirmRestart = k; render(); } }, ui.confirmRestart === k ? 'danger' : undefined);
@@ -1505,7 +1501,8 @@ rows.push(...prose(who ? `${who.name}, the ${charName(stepRole(kind, who.id))}${
 		rows.push(...tellRows(kind, step.seat!));
 		const info = ui.draftInfo;
 		// A falsehood to a hale player waits until the Storyteller insists.
-		const allowed = info && (G.judgeInfo(state, step.seat!, kind, info).truthful || G.isDroisoned(state, step.seat!) || ui.draftOverride);
+		const told = info ? afterPicks(kind, step.seat!, info) : state;
+		const allowed = info && (G.judgeInfo(told, step.seat!, kind, info).truthful || G.isDroisoned(told, step.seat!) || ui.draftOverride);
 		if (info && allowed) {
 			if (phone) rows.push(...buttonRows([sendWake(true)]));
 			rows.push(...buttonRows([
@@ -1589,12 +1586,20 @@ function chooseRows(kind: string, seat: SeatId | null, handOver: Button): Row[] 
 
 const LEAN_LABEL: Record<Lean, string> = { neutral: 'Neutral', good: 'Helps good', evil: 'Helps evil' };
 
+/** The game as it will stand once they have chosen (what the answer names, else the picks): choosing the Goon first tonight makes them drunk. */
+function afterPicks(kind: string, to: SeatId, info?: Info | null): GameState {
+	return G.afterGoon(state, kind, to, info ? G.tellChoices(kind, info) : ui.picks);
+}
+
 /** The Storyteller choosing what an information role learns. */
 function tellRows(kind: string, to: SeatId): Row[] {
 	const rows: Row[] = [];
 	const need = playerPicks(kind, state, to);
 	if (need) rows.push(...prose(`They chose ${ui.picks.map(name).join(' and ')}.`, 'gold'), blank());
-	const droisoned = G.isDroisoned(state, to);
+	const caught = afterPicks(kind, to);
+	const goon = need ? ui.picks.find((p) => caught !== state && caught.seats[p].character === 'goon') : undefined;
+	if (goon !== undefined) rows.push(...prose(`The Goon: ${name(goon)} is the first to be chosen tonight, so ${name(to)} is drunk until dusk and ${name(goon)} is now ${caught.seats[goon].alignment}.`, 'evil'), blank());
+	const droisoned = G.isDroisoned(caught, to);
 	rows.push(...prose(droisoned
 		? 'Drunk or poisoned: you may tell them anything, true or false.'
 		: 'Sober and healthy: they must be told the truth.', droisoned ? 'evil' : 'dim'));
@@ -1618,7 +1623,7 @@ function tellRows(kind: string, to: SeatId): Row[] {
 
 	const info = ui.draftInfo;
 	if (info) {
-		const v = G.judgeInfo(state, to, kind, info);
+		const v = G.judgeInfo(afterPicks(kind, to, info), to, kind, info);
 		rows.push(blank(), rubric('To tell'), ...prose(infoText(info, kind), 'gold'));
 		rows.push(...prose(v.truthful ? 'This is true.' : `This is FALSE. ${v.reason}`, v.truthful ? 'good' : 'evil'));
 		if (!v.truthful && !droisoned && !ui.draftOverride) {
@@ -1632,7 +1637,7 @@ function tellRows(kind: string, to: SeatId): Row[] {
 /** Making an answer by hand: tap players, pick a character or number. */
 function composeRows(kind: string, to: SeatId): Row[] {
 	const rows: Row[] = [];
-	const truthful = (info: Info) => G.judgeInfo(state, to, kind, info).truthful;
+	const truthful = (info: Info) => G.judgeInfo(afterPicks(kind, to, info), to, kind, info).truthful;
 	const choose = (info: Info) => { ui.draftInfo = info; ui.draftOverride = false; render(); };
 	const pick = (info: Info, label: string) =>
 		btn(label, () => choose(info), { style: JSON.stringify(ui.draftInfo) === JSON.stringify(info) ? 'on' : truthful(info) ? 'primary' : undefined });
@@ -1732,6 +1737,16 @@ function decisionRows(): Row[] {
 			rows.push(...buttonRows([
 				...last.map((id) => btn(`${name(id)} comes back`, () => resubmit({ regurgitate: id }), { style: 'primary' })),
 				btn('No one comes back', () => resubmit({ regurgitate: null }))
+			]));
+			break;
+		}
+		case 'exorcised': {
+			// The Exorcist chose a Pukka or Shabaloth: the wording leaves it open whether the death or regurgitation that needs no choosing still happens.
+			const step = G.nextStep(state);
+			const pukka = step?.seat != null && state.seats[step.seat].character === 'pukka';
+			rows.push(...buttonRows([
+				btn(pukka ? 'Stays poisoned, no death' : 'No one comes back', () => resubmit({ exorcised: 'idle' }), { style: 'primary' }),
+				btn(pukka ? 'The earlier victim dies' : 'Someone may come back', () => resubmit({ exorcised: 'acts' }), pukka ? { style: 'danger' } : {})
 			]));
 			break;
 		}
@@ -1845,7 +1860,8 @@ function timerControls(key: 'day' | 'nom' | 'speech'): Row[] {
 	const t = timerOf(key)!;
 	const now = Date.now();
 	return buttonRows([
-		btn(T.running(t) ? 'Pause' : 'Start', () => setTimer(key, T.toggle(timerOf(key)!, Date.now())), { style: T.running(t) ? undefined : 'primary' }),
+		// (Start on a clock at 0:00 does nothing, so it is shown as not available until time is added)
+		btn(T.running(t) ? 'Pause' : 'Start', () => setTimer(key, T.toggle(timerOf(key)!, Date.now())), { style: T.running(t) ? undefined : T.canStart(t, now) ? 'primary' : 'quiet', disabled: !T.running(t) && !T.canStart(t, now) }),
 		btn('Restart', () => setTimer(key, T.restart(timerOf(key)!, Date.now())), { style: 'quiet' }),
 		btn('-30s', () => setTimer(key, T.extend(timerOf(key)!, -30_000, Date.now())), { style: 'quiet', disabled: T.remaining(t, now) === 0 }),
 		btn('+30s', () => setTimer(key, T.extend(timerOf(key)!, 30_000, Date.now())), { style: 'quiet' })
@@ -1979,12 +1995,14 @@ function storytellerTools(): Row[] {
 	rows.push(...juggleRows(day));
 	rows.push(...travellerRows(day));
 	rows.push(...fabledRows(day));
-	// Madness (the Mutant, the Cerenovus): the Storyteller may execute for it, by day.
+	// Madness (the Mutant, the Cerenovus): the Storyteller may execute for it, by day or at night (always the day's one execution).
 	const madness = script().characters.some((c) => c.id === 'mutant' || c.id === 'cerenovus');
-	if (day && madness && state.day!.executed === null) {
+	const nightMadness = state.phase.kind === 'night' && !!state.night && state.night.n >= 2 && (state.night.dayExecuted ?? null) === null;
+	if (madness && ((day && state.day!.executed === null) || nightMadness)) {
 		const mad = state.effects.filter((e) => e.kind === 'mad').map((e) => `${name(e.target)} (${charName(e.note ?? '')})`);
 		rows.push(blank(), rubric('Madness'));
 		rows.push(...prose(mad.length ? `Must be mad today: ${mad.join(', ')}. Execute anyone who breaks madness:` : 'Execute a player who breaks madness (a Mutant claiming Outsider):', 'dim'));
+		if (!day) rows.push(...prose('At night this counts as the execution of the day just ended.', 'dim'));
 		rows.push(...buttonRows(living.map((id) => btn(state.seats[id].name, () => act({ type: 'madness', seat: id }), { width: 10 })), INNER, 0));
 	}
 	// The Pit-Hag made a Demon: tonight's deaths are the Storyteller's.
@@ -2188,7 +2206,7 @@ function voteRows(nominee: SeatId, needed: number): Row[] {
 		const id = v.order[v.index];
 		const s = state.seats[id];
 		const note = s.alive ? '' : ' (spends their ghost vote)';
-		const master = G.butlerMaster(state);
+		const master = G.butlerMaster(state, id);
 		const butler = G.hasWorkingAbility(state, id, 'butler') && master !== null
 			? ` Butler: only if ${name(master)} votes.` : '';
 		rows.push(...prose(`${s.name}?${note}${butler}`, 'gold'));
@@ -2271,7 +2289,7 @@ function voteStage(): Row[] {
 		const hand = phoneHand(id);
 		if (hand !== null) rows.push(mid(hand ? 'Hand UP on their phone' : 'Hand down on their phone', 'dim'));
 		if (!s.alive) rows.push(mid('(spends their ghost vote)', 'dim'));
-		const master = G.butlerMaster(state);
+		const master = G.butlerMaster(state, id);
 		if (G.hasWorkingAbility(state, id, 'butler') && master !== null) rows.push(mid(`Butler: only if ${name(master)} votes`, 'dim'));
 		// (the two the same width, one above the other)
 		// Up above Down, each in a square box the same size.
@@ -2446,6 +2464,16 @@ function optionsScreen(): Row[] {
 	return rows;
 }
 
+// ---- the app icon ----------------------------------------------------------------------------------
+//
+// The icon on the home screen, designed here (src/ui/appicon.ts): a symbol and four colours from the
+// book's own inks. Kept in this browser and put on the page's icons and manifest at once; a phone
+// that already has the app on its home screen keeps the old picture until the app is added again.
+
+const ICON_SIZES = [28, 16, 12];
+const THEME_NAMES: Record<Theme, string> = { medieval: 'Medieval', grimm: 'Grimm', clockwork: 'Clockwork', lovecraft: 'Lovecraft' };
+
+
 // ---- players' phones -----------------------------------------------------------------------
 //
 // The Storyteller's phone hosts a room; players' phones join it (see
@@ -2580,9 +2608,9 @@ function villageActions(): StActions | null {
 			}
 			const seat = who.id;
 			const chose = need ? ` chose ${ui.picks.map(name).join(' and ')}` : '';
-			const droisoned = G.isDroisoned(state, seat);
 			const info = ui.draftInfo;
-			if (info && (G.judgeInfo(state, seat, step.kind, info).truthful || droisoned || ui.draftOverride)) {
+			const droisoned = G.isDroisoned(afterPicks(step.kind, seat, info), seat);
+			if (info && (G.judgeInfo(afterPicks(step.kind, seat, info), seat, step.kind, info).truthful || droisoned || ui.draftOverride)) {
 				const told = phone
 					? { label: `Tell ${who.name}`, primary: true, act: () => wakePhone(step, phone, true) }
 					: { label: 'Done: I told them', primary: true, act: () => void act({ type: 'tell', info, override: ui.draftOverride }) };
@@ -3055,6 +3083,7 @@ function phonesScreen(): Row[] {
 
 function screen(): Row[] {
 	if (ui.reading) return readingPage();
+	if (ui.sharing) return sharePage();
 	if (saved.net?.village && state.phase.kind === 'setup') {
 		return state.seats.length ? draftScreen(['Lobby', () => { undo(); ui.message = ''; }]) : hostLobbyPage();
 	}
@@ -3139,6 +3168,7 @@ let lastKind = state.phase.kind;
 
 function drawerScreen(): Row[] {
 	if (ui.reading) return readingPage();
+	if (ui.sharing) return sharePage();
 	const p = state.phase;
 	const phase = p.kind === 'setup' ? 'Setting the Table' : p.kind === 'night' ? `Night ${p.n}` : p.kind === 'day' ? `Day ${p.n}` : 'Game over';
 	const tab = ui.drawer ?? 'actions';
@@ -3209,21 +3239,25 @@ function render() {
 
 /** Update the clocks in place, without redrawing; buzz once when one runs out. */
 const buzzed = new Set<string>();
+const faces = T.faceWatch();
 function tick() {
 	const now = Date.now();
 	let running = false;
+	let moved = false;
 	for (const key of ['day', 'nom', 'speech'] as const) {
 		const t = timerOf(key);
 		if (!t) continue;
 		running = true;
 		const left = T.remaining(t, now);
+		// (a clock's face changes once a second: only then is the page redrawn)
+		if (faces.changed(key, T.clock(left))) moved = true;
 		const id = key + ':' + flow().dayN + ':' + (state.day?.nominations.length ?? 0);
 		if (left === 0 && T.running(t) && !buzzed.has(id)) {
 			buzzed.add(id);
 			try { navigator.vibrate?.([200, 100, 200]); } catch { /* not supported */ }
 		}
 	}
-	if (running) redraw();
+	if (running && moved) redraw();
 }
 /** The clocks, drawn into the cells as they are laid out. */
 const dynamicText = (d: Record<string, string>): string | null => {
@@ -3235,7 +3269,7 @@ setInterval(tick, 250);
 
 // A player's phone (#join=CODE, or "Join a game") runs the player app instead.
 const joining = location.hash.match(/^#join(?:=([A-Za-z]{4}))?/);
-// Dev mode: #village:keep (or :keep:player) walks that town straight away.
+// Dev mode: #village:talmberg (or :talmberg:player) walks that town straight away.
 const villageDemo = location.hash.match(/^#village(?:=([A-Za-z]{4}))?(?::(\w+))?(?::(st|player))?/);
 if (villageDemo) {
 	startVillage(root, (villageDemo[1] ?? '').toUpperCase(), villageDemo[2], villageDemo[3]);

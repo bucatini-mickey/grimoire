@@ -1,0 +1,125 @@
+{
+ "rule": "wake-in-order",
+ "detail": "ravenkeeper:2 (order 75) after a step of order 79",
+ "seed": 71369,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen"
+   ],
+   "scriptId": "custom:dreamer,courtier,washerwoman,fortune-teller,mathematician,librarian,mayor,soldier,innkeeper,seamstress,ravenkeeper,goon,sweetheart,pit-hag,devils-advocate,baron,vigormortis,shabaloth"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "mathematician",
+    "fortune-teller",
+    "ravenkeeper",
+    "mayor",
+    "dreamer",
+    "pit-hag",
+    "vigormortis"
+   ],
+   "redHerring": 0,
+   "bluffs": [
+    "washerwoman",
+    "courtier",
+    "soldier"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     0,
+     4
+    ],
+    "yes": true
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "dream",
+    "player": 5,
+    "characters": [
+     "pit-hag",
+     "dreamer"
+    ]
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ],
+   "character": "shabaloth"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "storyteller-kill",
+   "seat": 6
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     4,
+     0
+    ],
+    "yes": true
+   }
+  },
+  {
+   "type": "storyteller-kill",
+   "seat": 2
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "reveal",
+    "player": 0,
+    "character": "mathematician"
+   }
+  }
+ ]
+}

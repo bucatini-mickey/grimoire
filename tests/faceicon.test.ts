@@ -1,13 +1,17 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { iconOf, bannerStrength, bannerStep, NEAR_MAX, FACE_ME, FACE_OTHER, FACE_DEAD } from '../src/town/faceicon.ts';
+import { FACES, FIGURES } from '../src/town/avatar.ts';
+import { faceOf, figureOf, bannerStrength, bannerStep, NEAR_MAX, FACE_DEAD } from '../src/town/faceicon.ts';
 
-test('a player is a face with their initial beside it; yours is the hollow one', () => {
-	assert.deepEqual(iconOf({ name: 'ada' }, false), [FACE_OTHER, 'A']);
-	assert.deepEqual(iconOf({ name: 'ada' }, true), [FACE_ME, 'A']);
-	assert.equal(iconOf({ name: 'ada', dead: true }, false)[0], FACE_DEAD);
-	assert.equal(iconOf({ name: '', }, false)[1], '?');
-	assert.notEqual(FACE_ME, FACE_OTHER);
+test('a player walks as a figure of their own, and sits at the table as a face; the dead are a dagger', () => {
+	assert.equal(figureOf({}, 3), figureOf({}, 3), 'each keeps their own');
+	assert.notEqual(figureOf({}, 0), figureOf({}, 1));
+	const look = { figure: 3, face: 2 };
+	assert.equal(figureOf({ look }, 1), FIGURES[3], 'the figure they chose comes first');
+	assert.equal(faceOf({ look }, 1), FACES[2], 'and the face');
+	assert.equal(figureOf({ dead: true, look }, 1), FACE_DEAD);
+	assert.equal(faceOf({ look }, 1, true), FACE_DEAD);
+	assert.equal(typeof faceOf(undefined, 4), 'string', 'someone not in the village still has a face');
 });
 
 test('the name banner is full close by, fades with distance and is gone beyond reach', () => {

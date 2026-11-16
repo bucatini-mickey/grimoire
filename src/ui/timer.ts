@@ -47,3 +47,23 @@ export function clock(ms: number): string {
 	const s = Math.ceil(ms / 1000);
 	return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
+
+/** Whether Start can do anything: a paused clock with time left. (On 0:00 it does nothing, so the button must not look live.) */
+export const canStart = (t: Timer, now: number) => t.startedAt === null && !expired(t, now);
+
+/**
+ * Remembers what each clock last showed. The screen ticks four times a second, but a clock's face only
+ * changes once a second; redrawing the whole page for nothing keeps the phone busy when a tap arrives.
+ * `changed` is true when `face` differs from the last one seen for `key` (and records it).
+ */
+export function faceWatch() {
+	const seen = new Map<string, string>();
+	return {
+		changed(key: string, face: string): boolean {
+			if (seen.get(key) === face) return false;
+			seen.set(key, face);
+			return true;
+		},
+		forget(key?: string) { if (key === undefined) seen.clear(); else seen.delete(key); }
+	};
+}

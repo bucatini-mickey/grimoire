@@ -1,0 +1,183 @@
+{
+ "rule": "virgin",
+ "detail": "Esme(virgin) executed on nominating Esme(virgin)",
+ "seed": 50085,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal",
+    "Isolde",
+    "Jory",
+    "Kit",
+    "Lior"
+   ],
+   "scriptId": "custom:clockmaker,minstrel,dreamer,professor,virgin,gambler,grandmother,fortune-teller,ravenkeeper,empath,pacifist,mathematician,drunk,goon,moonchild,butler,witch,poisoner,cerenovus,baron,zombuul,imp"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "imp",
+    "minstrel",
+    "pacifist",
+    "witch",
+    "virgin",
+    "cerenovus",
+    "dreamer",
+    "clockmaker",
+    "moonchild",
+    "empath",
+    "fortune-teller",
+    "goon"
+   ],
+   "redHerring": 2,
+   "bluffs": [
+    "butler",
+    "professor",
+    "grandmother"
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    11
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    11
+   ],
+   "character": "goon"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     2,
+     7
+    ],
+    "yes": true
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 3
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "dream",
+    "player": 8,
+    "characters": [
+     "moonchild",
+     "witch"
+    ]
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ],
+   "character": "virgin"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ]
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 0
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     11,
+     10
+    ],
+    "yes": false
+   }
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "dream",
+    "player": 2,
+    "characters": [
+     "pacifist",
+     "witch"
+    ]
+   }
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "open-nominations"
+  },
+  {
+   "type": "nominate",
+   "nominator": 4,
+   "nominee": 4
+  }
+ ]
+}

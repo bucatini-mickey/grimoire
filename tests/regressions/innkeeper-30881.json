@@ -1,0 +1,68 @@
+{
+ "rule": "innkeeper",
+ "detail": "Dorn(fang-gu) died though the Innkeeper kept them safe",
+ "seed": 30881,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme"
+   ],
+   "scriptId": "custom:sailor,seamstress,sage,innkeeper,clockmaker,flowergirl,tea-lady,investigator,oracle,saint,butler,tinker,spy,assassin,fang-gu,pukka"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "innkeeper",
+    "spy",
+    "saint",
+    "fang-gu",
+    "tea-lady"
+   ],
+   "redHerring": null,
+   "bluffs": []
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0,
+    3
+   ],
+   "drunk": 0
+  },
+  {
+   "type": "choose",
+   "targets": [
+    2
+   ]
+  }
+ ]
+}

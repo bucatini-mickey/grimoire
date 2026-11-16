@@ -1,0 +1,173 @@
+{
+ "rule": "monk",
+ "detail": "Esme(cerenovus) saved by a Monk who did not protect them",
+ "seed": 671330,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen"
+   ],
+   "scriptId": "custom:empath,ravenkeeper,gambler,mathematician,professor,snake-charmer,monk,exorcist,innkeeper,juggler,sweetheart,mutant,pit-hag,godfather,cerenovus,devils-advocate,scarlet-woman,po"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "monk",
+    "ravenkeeper",
+    "exorcist",
+    "po",
+    "cerenovus",
+    "empath",
+    "professor"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "snake-charmer",
+    "sweetheart",
+    "gambler"
+   ],
+   "fabled": [
+    {
+     "id": "ferryman"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ],
+   "character": "gambler"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "number",
+    "value": 1
+   }
+  },
+  {
+   "type": "skip",
+   "reason": "the robot skips"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "madness",
+   "seat": 5
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ],
+   "character": "ravenkeeper"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ]
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T8",
+   "character": "judge",
+   "alignment": "evil",
+   "after": 0
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T9",
+   "character": "apprentice",
+   "alignment": "good",
+   "after": 0
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "character": "monk"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    4
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    8
+   ],
+   "character": "mutant"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    7
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6,
+    4,
+    8
+   ]
+  }
+ ]
+}

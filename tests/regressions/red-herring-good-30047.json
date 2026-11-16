@@ -1,0 +1,81 @@
+{
+ "rule": "red-herring-good",
+ "detail": "the red herring is evil",
+ "seed": 30047,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme"
+   ],
+   "scriptId": "custom:slayer,monk,grandmother,seamstress,fortune-teller,innkeeper,ravenkeeper,snake-charmer,investigator,professor,exorcist,sailor,mutant,goon,drunk,butler,pit-hag,scarlet-woman,devils-advocate,godfather,spy,zombuul,vigormortis"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "zombuul",
+    "exorcist",
+    "professor",
+    "fortune-teller",
+    "pit-hag"
+   ],
+   "redHerring": 1,
+   "bluffs": [
+    "slayer",
+    "monk",
+    "grandmother"
+   ],
+   "fabled": [
+    {
+     "id": "toymaker"
+    },
+    {
+     "id": "ferryman"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "fortune",
+    "players": [
+     0,
+     4
+    ],
+    "yes": true
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ],
+   "character": "vigormortis"
+  }
+ ]
+}

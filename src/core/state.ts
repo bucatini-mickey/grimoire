@@ -27,6 +27,13 @@ export function emptyState(): GameState {
 	};
 }
 
+/**
+ * The day an execution now belongs to: today, or at night (a madness execution) the day just ended. Null before any day.
+ */
+export function executionDay(s: GameState): number | null {
+	return s.day ? s.day.n : s.night && s.phase.kind === 'night' ? s.night.n - 1 : null;
+}
+
 export function reduce(prev: GameState, e: GameEvent): GameState {
 	const s = structuredClone(prev);
 	switch (e.type) {
@@ -55,8 +62,10 @@ export function reduce(prev: GameState, e: GameEvent): GameState {
 		case 'night-began':
 			s.phase = { kind: 'night', n: e.n };
 			s.night = {
-				n: e.n, done: [], deaths: [], demonMadeTonight: null, revived: [],
+				n: e.n, done: [], deaths: [], aliveAtDusk: s.seats.filter((x) => x.alive).map((x) => x.id), demonMadeTonight: null, revived: [],
 				dayDeaths: [...(s.day?.deaths ?? [])],
+				dayExecuted: s.day?.executed ?? null,
+				dayOutsiderDied: (s.day?.deaths ?? []).some((d) => charDef(getScript(s.scriptId), s.seats[d].character).team === 'outsider'),
 				dayVoters: [...new Set((s.day?.nominations ?? []).flatMap((x) => x.voters ?? []))],
 				dayNominators: (s.day?.nominations ?? []).map((x) => x.nominator),
 				demonKills: [],
@@ -92,14 +101,18 @@ export function reduce(prev: GameState, e: GameEvent): GameState {
 			if (s.night) s.night.deaths.push(e.seat);
 			if (s.night && s.phase.kind === 'night' && e.cause === 'demon') (s.night.demonKills ??= []).push(e.seat);
 			if (s.day && s.phase.kind === 'day') s.day.deaths.push(e.seat);
-			if (e.cause === 'execution' && s.day) {
-				s.lastExecution = { day: s.day.n, seat: e.seat };
+			// By day, or at night (madness): the execution of that day, or of the day just ended.
+			const exDay = executionDay(s);
+			if (e.cause === 'execution' && exDay !== null) {
+				s.lastExecution = { day: exDay, seat: e.seat };
 				// Every living Cannibal eats them: their ability, or (evil) poison until a good player is executed.
-				const eaten = { character: seat.character, evil: seat.alignment === 'evil', day: s.day.n };
+				const eaten = { character: seat.character, evil: seat.alignment === 'evil', day: exDay };
 				for (const c of s.seats) if (c.character === 'cannibal' && c.alive && c.id !== e.seat) c.eaten = eaten;
 			}
 			// The dead have no ability: effects that live on their source end (the Poisoner's poison).
-			s.effects = s.effects.filter((x) => !(x.endsWithSource && x.by === e.seat));
+			// A dead Minion the Vigormortis kept loses the ability with the Vigormortis, and what it did ends too.
+			const lost = s.effects.filter((x) => x.kind === 'keeps-ability' && x.by === e.seat && !s.seats[x.target as number].alive).map((x) => x.target);
+			s.effects = s.effects.filter((x) => !(x.endsWithSource && (x.by === e.seat || (x.by !== null && lost.includes(x.by)))));
 			break;
 		}
 
@@ -132,7 +145,10 @@ export function reduce(prev: GameState, e: GameEvent): GameState {
 			seat.believes = e.believes;
 			if (s.night && s.phase.kind === 'night') (s.night.changed ??= []).push({ seat: e.seat, at: e.at ?? 0 });
 			// What they did as their old character, and that ends with them, ends (a Poisoner turned into something else).
-			s.effects = s.effects.filter((x) => !(x.endsWithSource && x.by === e.seat && x.role !== e.character));
+			{
+				const lost = s.effects.filter((x) => x.kind === 'keeps-ability' && x.by === e.seat && x.role !== e.character && !s.seats[x.target as number].alive).map((x) => x.target);
+				s.effects = s.effects.filter((x) => !(x.endsWithSource && x.by === e.seat && x.role !== e.character) && !(x.endsWithSource && x.by !== null && lost.includes(x.by)));
+			}
 			// A dead Minion's kept ability (the Vigormortis) was that Minion's: it ends.
 			s.effects = s.effects.filter((x) => !(x.kind === 'keeps-ability' && x.target === e.seat));
 			break;
@@ -170,6 +186,11 @@ export function reduce(prev: GameState, e: GameEvent): GameState {
 			s.spent.push(`${e.seat}:${e.ability}`);
 			break;
 
+		case 'abilities-restored':
+			// (Not the Fang Gu's jump: that is once a game for the whole game, whoever the Fang Gu is; see SNV-MODEL-FANG-GU.)
+			s.spent = s.spent.filter((x) => !x.startsWith(`${e.seat}:`) || x.endsWith(':fang-gu'));
+			break;
+
 		case 'vote-tallied': {
 			const day = s.day!;
 			const nom = day.nominations[day.nominations.length - 1];
@@ -187,6 +208,8 @@ export function reduce(prev: GameState, e: GameEvent): GameState {
 
 		case 'executed':
 			if (s.day) s.day.executed = e.seat;
+			// A madness execution at night is the execution of the day just ended.
+			else if (s.night && s.phase.kind === 'night') s.night.dayExecuted = e.seat;
 			break;
 
 		case 'seats-swapped': {

@@ -1,0 +1,114 @@
+{
+ "rule": "vigormortis",
+ "detail": "T6(witch), a dead witch the Vigormortis kept, never woke",
+ "seed": 60206,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn"
+   ],
+   "scriptId": "custom:professor,seamstress,savant,minstrel,tea-lady,artist,innkeeper,librarian,mayor,flowergirl,pacifist,drunk,mutant,goon,klutz,spy,witch,assassin,evil-twin,vigormortis"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "professor",
+    "savant",
+    "vigormortis",
+    "mayor",
+    "minstrel",
+    "witch"
+   ],
+   "redHerring": null,
+   "bluffs": []
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ]
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "traveller-joins",
+   "name": "T6",
+   "character": "apprentice",
+   "alignment": "evil",
+   "after": 3
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "choose",
+   "character": "witch"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    1
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ],
+   "poisonNeighbour": 4
+  },
+  {
+   "type": "choose",
+   "none": true
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    5
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    0
+   ]
+  },
+  {
+   "type": "end-night"
+  }
+ ]
+}

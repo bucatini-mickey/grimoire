@@ -1,0 +1,106 @@
+{
+ "rule": "announce-dawn",
+ "detail": "dawn says [Dorn] died, but [] did",
+ "seed": 21,
+ "commands": [
+  {
+   "type": "create",
+   "names": [
+    "Ada",
+    "Bram",
+    "Cael",
+    "Dorn",
+    "Esme",
+    "Fenn",
+    "Gwen",
+    "Hal"
+   ],
+   "scriptId": "bad-moon-rising"
+  },
+  {
+   "type": "assign",
+   "characters": [
+    "professor",
+    "godfather",
+    "fool",
+    "minstrel",
+    "pacifist",
+    "shabaloth",
+    "gambler",
+    "tea-lady"
+   ],
+   "redHerring": null,
+   "bluffs": [
+    "sailor",
+    "exorcist",
+    "lunatic"
+   ],
+   "fabled": [
+    {
+     "id": "doomsayer"
+    }
+   ]
+  },
+  {
+   "type": "begin"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "tell",
+   "info": {
+    "kind": "characters",
+    "characters": []
+   }
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "acknowledge"
+  },
+  {
+   "type": "end-night"
+  },
+  {
+   "type": "end-day",
+   "executionSurvives": true
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6
+   ],
+   "character": "gossip"
+  },
+  {
+   "type": "choose",
+   "targets": [
+    6,
+    3
+   ]
+  },
+  {
+   "type": "choose",
+   "targets": [
+    3
+   ]
+  },
+  {
+   "type": "end-night"
+  }
+ ]
+}
