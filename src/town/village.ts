@@ -27,7 +27,7 @@ import { canDraw } from '../ui/glyphs.ts';
 import type { Look } from './avatar.ts';
 import { figureRows } from '../ui/figure.ts';
 import { faceOf, figureOf, bannerStrength, bannerStep } from './faceicon.ts';
-import { barCols, setTownBig, personInk, letterPlate, seatInk as seatInkOf, texturaPixels, setHover, INNER, onMap, btn, buttonBlock, buttonRows, drawButton, endPanel, field, isButton, listRow, paint, quant, redraw, shade, theTerm, setMapColours, MAP_AT, MAP_ROOM, paneled, setPalette, navRow, rubric, row, segWidth, setExtra, txt, wrap, center, pickBar } from '../ui/ascii.ts';
+import { barCols, setTownBig, personInk, letterPlate, seatInk as seatInkOf, texturaPixels, setHover, INNER, onMap, btn, buttonBlock, buttonRows, drawButton, endPanel, field, isButton, listRow, paint, quant, redraw, shade, theTerm, theOverlay, setMapColours, MAP_AT, MAP_ROOM, paneled, setPalette, navRow, rubric, row, segWidth, setExtra, txt, wrap, center, pickBar } from '../ui/ascii.ts';
 import type { Button, Row } from '../ui/ascii.ts';
 import type { Grid } from '../term/pterm.ts';
 import { hostRoom, joinRoom, newRoomCode } from '../net/link.ts';
@@ -1051,6 +1051,21 @@ function stampButtons(g: Grid, x: number, y: number, w: number, bs: Button[]): n
 	return lines.length * 3;
 }
 
+/**
+ * Split (a phone held upright): the rows of the map's big cells that show whole between the top line and the
+ * bars below, which lie on the finer grid over it (its rows mapY to mapY + mapH are the open map). Measured
+ * where the two grids really sit on the screen (they need not start at the same place), else by proportion.
+ */
+function openBand(rows: number, uRows: number, mapY: number, mapH: number): { top: number; bottom: number } {
+	const a = theTerm()?.pre.getBoundingClientRect(), b = theOverlay()?.pre.getBoundingClientRect();
+	if (!a || !b || !a.height || !b.height) return { top: Math.ceil((mapY * rows) / uRows), bottom: Math.floor(((mapY + mapH) * rows) / uRows) - 1 };
+	const lh = a.height / rows, ulh = b.height / uRows;
+	const y0 = b.top + mapY * ulh - a.top, y1 = b.top + (mapY + mapH) * ulh - a.top;
+	// A row counts when no more than a fifth of it is under a bar.
+	const top = Math.max(0, Math.ceil(y0 / lh - 0.2)), bottom = Math.min(rows - 1, Math.floor(y1 / lh + 0.2) - 1);
+	return bottom > top ? { top, bottom } : { top: 0, bottom: rows - 1 };
+}
+
 /** The village, drawn as cells under the grimoire's pages: map (or circle), status lines and the button bar. */
 function villageCells(g: Grid, ui?: Grid): boolean {
 	const t = S.town, p = me();
@@ -1077,7 +1092,7 @@ function villageCells(g: Grid, ui?: Grid): boolean {
 	// Nominations and votes: the council room, apart from the map.
 	// Split (a phone held upright): the map fills the big cells under everything; the bars lie over it.
 	if (S.phase === 'circle') councilRoom(g, ui ? 0 : mapY, ui ? g.rows : mapH, now);
-	else mapCells(g, ui ? 0 : mapY, ui ? g.rows : mapH, p, lvl(p), now);
+	else mapCells(g, ui ? 0 : mapY, ui ? g.rows : mapH, p, lvl(p), now, ui ? openBand(g.rows, u.rows, mapY, mapH) : undefined);
 	if (FACES) faceStrip(u, mapY, mapH, p);
 	// The line of what you can hear, and the passing notice.
 	const where = p.secret ? 'Private with ' + nameOf(p.with) + ': nobody else hears you'
@@ -1226,7 +1241,11 @@ function beaconOf(t: Town): { x: number; y: number } | null {
 	return found;
 }
 
-function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: number) {
+/**
+ * Draw the town's map in rows mapY.. of `g`. `seen` is the band of those rows (from the map's first) not
+ * covered by bars: on a phone held upright the map runs under the bars, and the markers must stay out from under them.
+ */
+function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: number, seen: { top: number; bottom: number } = { top: 0, bottom: mapH - 1 }) {
 	const cols = g.cols;
 	const x0 = Math.round(cam.x) - Math.floor(cols / CW / 2), y0 = Math.round(cam.y) - Math.floor(mapH / 2);
 	view = { x0, y0: y0 - mapY };
@@ -1446,7 +1465,10 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 	// Everyone off the screen (or on another floor) is marked at its edge, an arrow and their letter
 	// pointing the way, so nobody is ever hard to find. Not at night: then the town is shut indoors.
 	if (S.phase !== 'night') {
-		const vw = Math.floor(cols / CW), mx = (vw - 1) / 2, my = (mapH - 1) / 2;
+		// The visible map: whole squares across, the rows between the bars.
+		const vw = Math.floor(cols / CW), top = Math.max(0, seen.top), bottom = Math.min(mapH - 1, seen.bottom);
+		// From where you stand (the camera's middle square) toward them, out to the edge of what shows.
+		const mx = Math.floor(vw / 2), my = Math.floor(mapH / 2);
 		for (const q of S.people.values()) {
 			if (q.id === S.me || (q.st && !p.st && S.phase !== 'day')) continue;
 			// The one you are meeting is marked in gold, so the two of you find each other.
@@ -1454,18 +1476,23 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 			const d = shownAt.get(q.id) ?? q;
 			const cx = Math.round(d.x) - x0, cy = Math.round(d.y) - y0;
 			const dz = (q.z ?? 0) - (p.z ?? 0);
-			const onScreen = cx >= 0 && cx < vw && cy >= 0 && cy < mapH;
+			const onScreen = cx >= 0 && cx < vw && cy >= top && cy <= bottom;
 			if (onScreen && !dz) continue;
 			const dx = cx - mx, dy = cy - my;
-			const k = onScreen ? 1 : Math.min((mx - 1) / Math.max(Math.abs(dx), 0.01), (my - 0.5) / Math.max(Math.abs(dy), 0.01));
-			const ex = Math.round(mx + dx * k), ey = Math.round(my + dy * k);
+			// How far along the way the edge is: the nearer of the side and the top or bottom it heads for.
+			const kx = dx > 0 ? (vw - 1 - mx) / dx : dx < 0 ? -mx / dx : Infinity;
+			const ky = dy > 0 ? (bottom - my) / dy : dy < 0 ? (top - my) / dy : Infinity;
+			const k = onScreen ? 1 : Math.min(kx, ky);
+			const ex = Math.max(0, Math.min(vw - 1, Math.round(mx + dx * k))), ey = Math.max(top, Math.min(bottom, Math.round(my + dy * k)));
 			const arrow = dz && onScreen ? (dz > 0 ? '^' : 'v') : Math.abs(dx) > Math.abs(dy) * 2 ? (dx > 0 ? '>' : '<') : dy > 0 ? 'v' : '^';
 			const [fg, bg] = markOf(q);
 			const ink = mate ? 6 : bg || fg;
-			const sx = ex * CW;
-			g.set(sx, mapY + ey, glyphOf(q), bg && !mate ? fg : 0, ink);
-			g.bold(sx, mapY + ey);
-			g.set(sx + (dx > 0 && !onScreen ? -1 : 1), mapY + ey, arrow, ink, mate ? 0 : 0);
+			// A marker fills one square: on the left side the arrow leads (<A), elsewhere it follows (A>, Av, A^).
+			// (on the right side, flush with the last column, even when the screen ends in half a square)
+			const sx = ex === vw - 1 ? cols - CW : ex * CW, lead = arrow === '<';
+			g.set(lead ? sx + 1 : sx, mapY + ey, glyphOf(q), bg && !mate ? fg : 0, ink);
+			g.bold(lead ? sx + 1 : sx, mapY + ey);
+			g.set(lead ? sx : sx + 1, mapY + ey, arrow, ink, 0);
 		}
 		// On the screen and on your floor: a gold ring round the one you are meeting.
 		const mate = p.with ? S.people.get(p.with) : null;

@@ -499,6 +499,8 @@ export function quant(c: number[]): number {
 }
 export { shade };
 export const theTerm = () => term;
+/** The finer grid laid over the town on a phone held upright (null until first wanted). */
+export const theOverlay = () => overlay;
 
 const lineH = (r: Row) => (r.cls === 'leaf-break' ? 0 : r.block ? r.block.h : r.segs.some(isButton) ? Math.max(...r.segs.filter(isButton).map(buttonH)) : 1);
 
