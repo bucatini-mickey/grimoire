@@ -21,10 +21,17 @@ import type { Grid, Rect, Term } from '../term/pterm.ts';
 import { cellOf, crop } from './faces.ts';
 import type { RigCell } from '../avatar/rig.ts';
 
-export type Corner = 'tr' | 'br' | 'bl' | 'tl';
-/** The corners in the order a tap on the title moves the window round them. */
-export const CORNERS: Corner[] = ['tr', 'br', 'bl', 'tl'];
-export const CORNER_NAME: Record<Corner, string> = { tr: 'top right', br: 'bottom right', bl: 'bottom left', tl: 'top left' };
+/**
+ * Where the window sits: a corner over the map, or a bar across the whole page at the top or the bottom (a
+ * sub-terminal of its own: the map gives up those rows rather than being covered).
+ */
+export type Corner = 'tr' | 'br' | 'bl' | 'tl' | 'top' | 'bottom';
+/** The places in the order a tap on the title moves the window round them. */
+export const CORNERS: Corner[] = ['tr', 'br', 'bl', 'tl', 'top', 'bottom'];
+export const CORNER_NAME: Record<Corner, string> = { tr: 'top right', br: 'bottom right', bl: 'bottom left', tl: 'top left', top: 'bar at the top', bottom: 'bar at the bottom' };
+export const isBar = (c: Corner) => c === 'top' || c === 'bottom';
+/** A bar's height in rows on a screen this wide: its frame, a row of tiles and their names (folded, its title). */
+export const barHeight = (cols: number, folded: boolean) => (folded ? 1 : tileSize(cols).th + 3);
 export const nextCorner = (c: Corner): Corner => CORNERS[(CORNERS.indexOf(c) + 1) % CORNERS.length];
 
 /** A blank cell under a picture: a no-break space on its own ground, so the picture knows it is uncovered. */
@@ -53,6 +60,16 @@ export interface CamLayout {
  */
 export function camLayout(area: Rect, n: number, corner: Corner, folded = false): CamLayout | null {
 	let { tw, th } = tileSize(area.w);
+	if (isBar(corner)) {
+		// A bar: the whole strip it is given, one row of tiles across it, centred.
+		if (tw + 2 > area.w || (!folded && th + 3 > area.h)) return null;
+		const cap = Math.max(1, Math.floor((area.w - 1) / (tw + 1)));
+		const k = Math.max(1, Math.min(n, cap));
+		const x0 = area.x + Math.floor((area.w - (k * (tw + 1) + 1)) / 2);
+		const tiles: Rect[] = [];
+		if (!folded) for (let i = 0; i < k; i++) tiles.push({ x: x0 + 1 + i * (tw + 1), y: area.y + 1, w: tw, h: th });
+		return { rect: { x: area.x, y: area.y, w: area.w, h: folded ? 1 : th + 3 }, tiles, cap };
+	}
 	while (tw > 8 && (tw + 2 > area.w || th + 3 > area.h)) { tw -= 2; th = tw / 2; }
 	if (tw + 2 > area.w || th + 3 > area.h) return null;
 	const across = Math.max(1, Math.min(area.w >= 100 ? 3 : 2, Math.floor((area.w - 1) / (tw + 1))));
@@ -122,8 +139,6 @@ export interface TileView {
 	kind: 'letters' | 'video' | 'avatar' | 'blank';
 	frame?: string;
 	cells?: RigCell[][];
-	/** An avatar's hair ink (from its look's hair tone). */
-	hair?: number;
 	/** Under the letter of a tile with no picture: why there is none. */
 	note?: string;
 	talking: boolean;
@@ -178,7 +193,7 @@ export function drawCamWindow(g: Grid, L: CamLayout, d: CamWindowDraw) {
 			const feature = t.ink[1] ? 5 : t.ink[0];
 			for (let yy = 0; yy < ah; yy++) for (let xx = 0; xx < aw; xx++) {
 				const c = t.cells[yy][xx];
-				if (c.ch !== ' ') g.set(ox + xx, oy + yy, c.ch, c.ink === 2 ? feature : c.ink === 3 ? t.hair ?? 15 : 3, 0);
+				if (c.ch !== ' ') g.set(ox + xx, oy + yy, c.ch, c.ink === 2 ? feature : 3, 0);
 			}
 		} else if (t.kind === 'letters' && t.frame) {
 			for (let yy = 0; yy < r.h; yy++) for (let xx = 0; xx < r.w; xx++) {

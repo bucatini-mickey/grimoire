@@ -5,10 +5,7 @@
  * Nothing is sent anywhere, except a report you choose to send to the computer serving the page
  * (tools/serve.mjs, "Send to Rosemary"): numbers about the trackers, never a picture.
  */
-import { decodeLook, decodeRig, drawRig, encodeRig, NEUTRAL, RIG_KEYS, DETAIL_SIZE, withVoice } from './rig.ts';
-import type { Look } from './rig.ts';
-import { LOOK_N } from './righead.ts';
-import { LandmarkerTracker } from './trackers.ts';
+import { decodeRig, drawRig, encodeRig, NEUTRAL, RIG_KEYS, DETAIL_SIZE, withVoice } from './rig.ts';
 import type { Rig, RigCell } from './rig.ts';
 import { GAINS, makeTracker, MP_VERSION, NO_FLIPS, NO_NEUTRAL, RigSmoother, rigOf, TRACKER_LABEL, TRACKER_NAMES } from './trackers.ts';
 import type { Flips, Loaded, Neutral, Raw, Track, Tracker, TrackerName } from './trackers.ts';
@@ -48,9 +45,6 @@ const S = {
 	fallback: false,
 	bench: null as null | { results: BenchRow[]; running: boolean },
 	t0: performance.now(),
-	/** The player's captured look (righead.ts), and its digits. */
-	look: null as Look | null,
-	lookHex: '',
 	/** The microphone's level 0..1, while on (it never leaves the page either). */
 	mic: null as null | { stream: MediaStream; analyser: AnalyserNode; buf: Float32Array; level: number }
 };
@@ -183,11 +177,6 @@ function tick(now: number) {
 				foundCount++;
 				S.lastRaw = tr.raw;
 				rig = S.smoother.push(rigOf(tr.raw, GAINS, S.neutral, S.flips));
-				if (t instanceof LandmarkerTracker && t.captureLook(f.src, f.w, f.h, now) && t.look) {
-					S.look = decodeLook(t.look);
-					S.lookHex = t.look;
-					showLook();
-				}
 			}
 			drawVideo(f, tr);
 		} else if (S.failed.has(S.trackerName) && !S.trackers.has('pixel')) void ensureTracker('pixel');
@@ -214,16 +203,7 @@ function tick(now: number) {
 
 // ---- drawing ------------------------------------------------------------------------------------------------
 
-const INK_CLASS = ['g', 'o', 'f', 'h'];
-
-/** The captured look as a picture of letters: # hair, o face. */
-function showLook() {
-	const l = S.look;
-	if (!l) { $('look').textContent = 'No look yet: it is captured a few seconds after your face is found (Face Landmarker only).'; return; }
-	let t = '';
-	for (let y = 0; y < LOOK_N; y++) { for (let x = 0; x < LOOK_N; x++) t += ' o#'[l.mask[x + y * LOOK_N]] + ' '; t += '\n'; }
-	$('look').textContent = t + `hair tone ${l.hairTone}, skin tone ${l.skinTone}, mouth row ${l.mouthRow}; ${S.lookHex.length} digits, sent now and then`;
-}
+const INK_CLASS = ['g', 'o', 'f'];
 
 async function micToggle() {
 	if (S.mic) { for (const t of S.mic.stream.getTracks()) t.stop(); S.mic = null; ui(); return; }
@@ -253,7 +233,7 @@ function cellsHtml(cells: RigCell[][]): string {
 function drawAvatars() {
 	for (const d of [3, 2, 1] as const) {
 		const { w, h } = DETAIL_SIZE[d];
-		$('av' + d).innerHTML = cellsHtml(drawRig(S.rig, w, h, S.look));
+		$('av' + d).innerHTML = cellsHtml(drawRig(S.rig, w, h));
 	}
 	$('hex').textContent = encodeRig(S.rig);
 }
@@ -487,7 +467,6 @@ function setup() {
 	const last = store.get('lastReport');
 	if (last) $('report').textContent = 'Last time:\n' + (() => { try { const r = JSON.parse(last); return `${r.when}, ${r.results.length} runs. Run the comparison again to see it here.`; } catch { return ''; } })();
 	ui();
-	showLook();
 	status('Turn the camera on (or Demo). The tracker loads when the camera starts.');
 	next();
 }

@@ -20,8 +20,6 @@
  */
 import type { Rig } from './rig.ts';
 import { RIG_KEYS } from './rig.ts';
-import { encodeLook, LOOK_EYE_Y, LOOK_N } from './righead.ts';
-import type { Region } from './righead.ts';
 import { FaceFinder } from './asciiavatar.ts';
 
 // ---- raw measures to a rig ------------------------------------------------------------------------------
@@ -283,90 +281,33 @@ export class Range {
 	reset() { this.lo = Infinity; this.hi = -Infinity; }
 }
 
-// ---- the look: the player's own head and hair ----------------------------------------------------------------
-
-/** The face's outline in Face Landmarker's 478 points, round from the top of the forehead. */
-export const FACE_OVAL = [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109];
-
-function inPolygon(x: number, y: number, poly: { x: number; y: number }[]): boolean {
-	let inside = false;
-	for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-		const a = poly[i], b = poly[j];
-		if ((a.y > y) !== (b.y > y) && x < ((b.x - a.x) * (y - a.y)) / (b.y - a.y) + a.x) inside = !inside;
-	}
-	return inside;
-}
-
-/** One frame's look: each square of the look's grid face, hair or neither, and the tones and mouth seen. */
-export interface LookFrame { mask: Region[]; hairLum: number[]; skinLum: number[]; mouthRow: number; }
+// ---- resting levels: brows behind glasses, a face that rests smiling or not --------------------------------
 
 /**
- * One frame's look from Face Landmarker's points (unmirrored, 0..1), the hair segmenter's confidence at a
- * point (null: no hair known) and the picture's brightness at a point. The grid is laid on the face by the
- * eyes, so it holds still while the head moves: a square is a quarter of the eyes' distance apart, the eyes
- * on the line above row LOOK_EYE_Y, mirrored as the avatar is. Headphones and hats are neither face nor
- * hair, so they are left out.
+ * Measures each face rests at differently: brows (glasses' frames sit near them, and some faces rest with
+ * brows high or low) and the smile (a resting face is rarely exactly neutral). Each is measured against its
+ * own resting level, learnt as it goes: quickly in the first second, then slowly, and only from values near
+ * it, so a held frown or smile is not learnt away. A steady offset reads as rest; only movement shows.
  */
-export function lookFrame(lm: Pt[], aspect: number, hairAt: ((x: number, y: number) => number) | null, lumAt: (x: number, y: number) => number): LookFrame | null {
-	if (lm.length < 455) return null;
-	const avg = (ids: number[]) => ({ x: ids.reduce((a, i) => a + lm[i].x, 0) / ids.length, y: ids.reduce((a, i) => a + lm[i].y, 0) / ids.length });
-	const eyeA = lm.length > 473 ? lm[468] : avg([33, 133]), eyeB = lm.length > 473 ? lm[473] : avg([362, 263]);
-	// Mirrored and squared: X across (the drawing's right is the picture's left), Y down.
-	const M = (p: Pt) => ({ x: (1 - p.x) * aspect, y: p.y });
-	let l = M(eyeA), r = M(eyeB);
-	if (l.x > r.x) [l, r] = [r, l];
-	const mx = (l.x + r.x) / 2, my = (l.y + r.y) / 2, ed = Math.hypot(r.x - l.x, r.y - l.y);
-	if (ed < 1e-4) return null;
-	const a = Math.atan2(r.y - l.y, r.x - l.x), ca = Math.cos(a), sa = Math.sin(a);
-	const toPic = (u: number, v: number) => {
-		const X = mx + ed * (u * ca - v * sa), Y = my + ed * (u * sa + v * ca);
-		return { x: 1 - X / aspect, y: Y };
-	};
-	const oval = FACE_OVAL.map((i) => M(lm[i]));
-	const mask: Region[] = [], hairLum: number[] = [], skinLum: number[] = [];
-	for (let row = 0; row < LOOK_N; row++) for (let col = 0; col < LOOK_N; col++) {
-		const u = (col + 0.5 - LOOK_N / 2) / 4, v = (row + 0.5 - LOOK_EYE_Y) / 4;
-		const p = toPic(u, v);
-		const P = M(p);
-		const off = p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1;
-		let g: Region = 0;
-		if (!off && inPolygon(P.x, P.y, oval)) g = 1;
-		else if (!off && hairAt && hairAt(p.x, p.y) > 0.5) g = 2;
-		mask.push(g);
-		if (g === 1) skinLum.push(lumAt(p.x, p.y));
-		if (g === 2) hairLum.push(lumAt(p.x, p.y));
-	}
-	// The mouth: the middle of the lips, in the grid's rows.
-	const lip = M({ x: (lm[13].x + lm[14].x) / 2, y: (lm[13].y + lm[14].y) / 2 });
-	const lv = (-(lip.x - mx) * sa + (lip.y - my) * ca) / ed;
-	return { mask, hairLum, skinLum, mouthRow: Math.max(0, Math.min(15, Math.floor(LOOK_EYE_Y + lv * 4))) };
-}
-
-/** Frames of a look, built into one: each square what most frames saw; tones and the mouth by the middle value. */
-export class LookBuilder {
-	private face = new Uint8Array(LOOK_N * LOOK_N);
-	private hair = new Uint8Array(LOOK_N * LOOK_N);
-	private hairL: number[] = [];
-	private skinL: number[] = [];
-	private mouths: number[] = [];
-	frames = 0;
-	add(f: LookFrame) {
-		f.mask.forEach((g, i) => { if (g === 1) this.face[i]++; else if (g === 2) this.hair[i]++; });
-		this.hairL.push(...f.hairLum);
-		this.skinL.push(...f.skinLum);
-		this.mouths.push(f.mouthRow);
-		this.frames++;
-	}
-	build(): string {
-		const n = Math.max(1, this.frames);
-		const mask: Region[] = [];
-		for (let i = 0; i < LOOK_N * LOOK_N; i++) {
-			const fc = this.face[i], hc = this.hair[i];
-			mask.push(fc * 2 > n ? 1 : hc * 2 > n ? 2 : fc + hc > n / 2 ? (fc >= hc ? 1 : 2) : 0);
+export class Recentre {
+	private rest: Record<'browL' | 'browR' | 'smile', number> | null = null;
+	private n = 0;
+	/** How far the resting level may drift from zero (it is a correction, not a reading). */
+	limit = 0.5;
+	push(raw: Raw): Raw {
+		const keys = ['browL', 'browR', 'smile'] as const;
+		if (!this.rest) this.rest = { browL: raw.browL, browR: raw.browR, smile: raw.smile };
+		this.n++;
+		const out = { ...raw };
+		for (const k of keys) {
+			const v = raw[k], r = this.rest[k];
+			const rate = this.n < 15 ? 0.2 : Math.abs(v - r) < 0.2 ? 0.01 : 0;
+			this.rest[k] = clamp(r + (v - r) * rate, -this.limit, this.limit);
+			out[k] = v - this.rest[k];
 		}
-		const mid = (v: number[], d: number) => { if (!v.length) return d; const s = v.slice().sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
-		return encodeLook({ hairTone: mid(this.hairL, 60) / 17, skinTone: mid(this.skinL, 180) / 17, mouthRow: mid(this.mouths, 13), mask });
+		return out;
 	}
+	reset() { this.rest = null; this.n = 0; }
 }
 
 // ---- browser trackers -------------------------------------------------------------------------------------
@@ -376,8 +317,7 @@ export const MP_VERSION = '0.10.35';
 export const MP_BASE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VERSION}`;
 export const MODEL_URL = {
 	landmarker: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
-	blazeface: 'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite',
-	hair: 'https://storage.googleapis.com/mediapipe-models/image_segmenter/hair_segmenter/float32/1/hair_segmenter.tflite'
+	blazeface: 'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite'
 };
 
 export type TrackerName = 'landmarker' | 'blazeface' | 'pixel';
@@ -498,47 +438,9 @@ class PixelFeatures {
 export class LandmarkerTracker implements Tracker {
 	readonly name = 'landmarker' as const;
 	private fl: any = null;
-	private seg: any = null;
-	private lastLm: Pt[] | null = null;
-	private builder = new LookBuilder();
-	private grey = new Patcher();
-	private nextLook = 0;
-	/** The player's look (righead.ts) as last captured, and when; null until the first. */
-	look: string | null = null;
-	lookAt = 0;
 	shut = 0.55;
-
-	/**
-	 * Capture the look now and then: every few seconds, six frames running (the face's outline from the
-	 * landmarks, the hair from the hair segmenter), then the look is built from what most frames agree on.
-	 * Call after track() with the same picture. True when a new look is ready.
-	 */
-	captureLook(src: HTMLVideoElement | HTMLCanvasElement, sw: number, sh: number, t: number): boolean {
-		if (!this.lastLm || t < this.nextLook) return false;
-		let hair: { data: Float32Array; w: number; h: number } | null = null;
-		if (this.seg) {
-			try {
-				const r = this.seg.segmentForVideo(src, t);
-				const masks = r.confidenceMasks ?? [];
-				const m = masks[masks.length - 1];
-				if (m) hair = { data: Float32Array.from(m.getAsFloat32Array()), w: m.width, h: m.height };
-				r.close?.();
-			} catch { /* no hair this frame */ }
-		}
-		const GW = 64, GH = Math.max(1, Math.round(64 * sh / sw));
-		const lum = this.grey.grab(src, 0, 0, sw, sh, GW, GH);
-		const hm = hair;
-		const hairAt = hm ? (x: number, y: number) => hm.data[Math.min(hm.h - 1, Math.max(0, Math.floor(y * hm.h))) * hm.w + Math.min(hm.w - 1, Math.max(0, Math.floor(x * hm.w)))] : null;
-		const lumAt = (x: number, y: number) => lum[Math.min(GH - 1, Math.max(0, Math.floor(y * GH))) * GW + Math.min(GW - 1, Math.max(0, Math.floor(x * GW)))];
-		const one = lookFrame(this.lastLm, sw / sh, hairAt, lumAt);
-		if (one) this.builder.add(one);
-		if (this.builder.frames < 6) { this.nextLook = t + 80; return false; }
-		this.look = this.builder.build();
-		this.lookAt = t;
-		this.builder = new LookBuilder();
-		this.nextLook = t + 5000;
-		return true;
-	}
+	/** Brows and smile against their resting levels (glasses, resting faces). */
+	centre = new Recentre();
 
 	async load(): Promise<Loaded> {
 		const t0 = performance.now();
@@ -550,16 +452,7 @@ export class LandmarkerTracker implements Tracker {
 		});
 		let note = 'GPU';
 		try { this.fl = await mod.FaceLandmarker.createFromOptions(fileset, opts('GPU')); } catch { this.fl = await mod.FaceLandmarker.createFromOptions(fileset, opts('CPU')); note = 'CPU (no GPU)'; }
-		// The hair segmenter, for the look: without it the look is the face alone.
-		let hairBytes = 0;
-		try {
-			const hm = await fetchModel(MODEL_URL.hair);
-			hairBytes = hm.byteLength;
-			const so = (delegate: 'GPU' | 'CPU') => ({ baseOptions: { modelAssetBuffer: hm, delegate }, runningMode: 'VIDEO', outputCategoryMask: false, outputConfidenceMasks: true });
-			try { this.seg = await mod.ImageSegmenter.createFromOptions(fileset, so('GPU')); } catch { this.seg = await mod.ImageSegmenter.createFromOptions(fileset, so('CPU')); }
-		} catch { note += ', no hair segmenter'; }
-		let files = withModel(downloaded(fromMediaPipe).filter((f) => !f.url.includes('blaze_face')), MODEL_URL.landmarker, model.byteLength);
-		if (hairBytes) files = withModel(files, MODEL_URL.hair, hairBytes);
+		const files = withModel(downloaded(fromMediaPipe).filter((f) => !f.url.includes('blaze_face')), MODEL_URL.landmarker, model.byteLength);
 		return { bytes: files.reduce((a, f) => a + f.bytes, 0), ms: performance.now() - t0, files, note };
 	}
 
@@ -575,11 +468,10 @@ export class LandmarkerTracker implements Tracker {
 		const points = [33, 133, 362, 263, 1, 61, 291, 152, 10].map((i) => lm[i]).filter(Boolean);
 		let x0 = 1, y0 = 1, x1 = 0, y1 = 0;
 		for (const p of lm) { x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y); }
-		this.lastLm = lm;
-		return { raw: rawFromBlendshapes(cats, m, this.shut, lm), points, box: { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }, ms };
+		return { raw: this.centre.push(rawFromBlendshapes(cats, m, this.shut, lm)), points, box: { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }, ms };
 	}
-	relearn() {}
-	close() { this.fl?.close?.(); this.fl = null; this.seg?.close?.(); this.seg = null; }
+	relearn() { this.centre.reset(); }
+	close() { this.fl?.close?.(); this.fl = null; }
 }
 
 /** BlazeFace: a box and six points from MediaPipe; eyes and mouth from the pixels. */

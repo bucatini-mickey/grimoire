@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Grid } from '../src/term/pterm.ts';
 import type { Rect } from '../src/term/pterm.ts';
-import { camLayout, CORNERS, drawCamWindow, nextCorner, pickTiles, standIn, tileSize, uncovered, VIDEO_BG, VIDEO_CH } from '../src/town/camwin.ts';
+import { camLayout, CORNERS, drawCamWindow, isBar, nextCorner, pickTiles, standIn, tileSize, uncovered, VIDEO_BG, VIDEO_CH } from '../src/town/camwin.ts';
 import type { CamWindowDraw, TileView } from '../src/town/camwin.ts';
 import { cellOf, crop, FACE_W, testFace, toFrame } from '../src/town/faces.ts';
 
@@ -12,7 +12,7 @@ const overlap = (a: Rect, b: Rect) => a.x < b.x + b.w && b.x < a.x + a.w && a.y 
 
 test('the window sits in its corner of the map, its tiles inside it and apart', () => {
 	const map = { x: 0, y: 1, w: 44, h: 24 };
-	for (const corner of CORNERS) for (let n = 1; n <= 7; n++) {
+	for (const corner of CORNERS.filter((c) => !isBar(c))) for (let n = 1; n <= 7; n++) {
 		const L = camLayout(map, n, corner)!;
 		assert.ok(inside(L.rect, map), `${corner} ${n}`);
 		assert.equal(L.tiles.length, Math.min(n, L.cap));
@@ -47,8 +47,9 @@ test('the window keeps small on a short map, folds to its title, and gives up wh
 	assert.equal(folded.tiles.length, 0);
 	assert.equal(camLayout({ x: 0, y: 0, w: 44, h: 5 }, 1, 'tr'), null);
 	assert.equal(camLayout({ x: 0, y: 0, w: 8, h: 20 }, 1, 'tr'), null);
-	assert.equal(nextCorner('tl'), 'tr');
-	assert.deepEqual(CORNERS.map(nextCorner), ['br', 'bl', 'tl', 'tr']);
+	assert.equal(nextCorner('tl'), 'top');
+	assert.equal(nextCorner('bottom'), 'tr');
+	assert.deepEqual(CORNERS.map(nextCorner), ['br', 'bl', 'tl', 'top', 'bottom', 'tr']);
 });
 
 test('who shows: you first, then those you can hear, loudest first and steady, the rest counted', () => {

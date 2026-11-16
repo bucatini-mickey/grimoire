@@ -2,14 +2,13 @@
  * rig.ts - the webcam avatar's shared part: a few numbers in, cells out.
  *
  * A face tracker (trackers.ts, in the browser only) reads the camera and gives a Rig: eleven numbers, each
- * one hex digit (0..15), eleven bytes a frame on the wire, in the same hex style as faces.ts. Now and then
- * it also captures a Look (righead.ts): the player's own head and hair, 132 digits, sent rarely. Only
- * those leave the phone; never a picture. Every phone draws the avatar from them with drawRig, a pure
+ * one hex digit (0..15), eleven bytes a frame on the wire, in the same hex style as faces.ts. Only those leave
+ * the phone; never a picture. Every phone draws the avatar from them with drawRig, a pure
  * function from numbers to cells.
  *
  * drawRig is written for a second home: Tachyon will draw the same avatar in Rust (docs/avatar-tachyon.md).
  * So it uses whole numbers only (no floats, no trigonometry beyond fixed tables, no rounding left to a
- * language), and tests/fixtures/rig-golden.json holds the cells it draws for a set of rigs and looks at
+ * language), and tests/fixtures/rig-golden.json holds the cells it draws for a set of rigs at
  * every size, for the Rust version to be tested against cell for cell, as pterm.ts is kept identical.
  *
  * The digits, in order (signed ones read 8 as the middle, so -8..7, drawn as -7..7):
@@ -25,10 +24,8 @@
  *   9 browL   signed: above 8 the left brow is raised, below it lowered (a frown)
  *  10 browR   the right brow
  */
-import { drawHead } from './righead.ts';
-import type { Look } from './righead.ts';
-export { DEFAULT_LOOK, decodeLook, encodeLook, LOOK_LEN, rdiv } from './righead.ts';
-export type { Look } from './righead.ts';
+import { drawFace } from './rigface.ts';
+export { rdiv } from './rigface.ts';
 
 export interface Rig {
 	eyeL: number; eyeR: number; mouth: number; smile: number;
@@ -83,11 +80,11 @@ export function detailThatFits(w: number, h: number, most: Detail = 3): Detail {
 
 // ---- the drawing -----------------------------------------------------------------------------------
 
-/** One cell: its glyph and its ink: 0 ground, 1 the head's outline and the nose, 2 eyes, brows and mouth, 3 hair. */
-export interface RigCell { ch: string; ink: 0 | 1 | 2 | 3; }
+/** One cell: its glyph and its ink: 0 ground, 1 the nose and the far face's brackets, 2 eyes, brows and mouth. */
+export interface RigCell { ch: string; ink: 0 | 1 | 2; }
 
-/** The avatar for a rig (and the player's look, if captured) in w x h cells. See righead.ts. */
-export const drawRig = (r: Rig, w: number, h: number, look?: Look | null): RigCell[][] => drawHead(r, w, h, look ?? undefined);
+/** The avatar for a rig in w x h cells. See rigface.ts. */
+export const drawRig = (r: Rig, w: number, h: number): RigCell[][] => drawFace(r, w, h);
 
 /** The avatar as lines of text (for tests, the test page and the fixture). */
 export const rigText = (cells: RigCell[][]) => cells.map((row) => row.map((c) => c.ch).join('')).join('\n');
@@ -162,10 +159,10 @@ export function idleRig(k: number, ms: number, talk: boolean): Rig {
 	const blink = (s % (3.1 + (k % 3) * 0.6)) < 0.16;
 	const r = (v: number) => Math.round(v);
 	return {
-		eyeL: blink ? 0 : 11, eyeR: blink ? 0 : 11, browL: 8 + r(Math.sin(s * 0.5 + k) * 5), browR: 8 + r(Math.sin(s * 0.5 + k) * 5),
+		eyeL: blink ? 0 : 11, eyeR: blink ? 0 : 11, browL: 8 + r(Math.sin(s * 0.31 + k) * 4), browR: 8 + r(Math.sin(s * 0.31 + k) * 4),
 		mouth: talk ? r(Math.max(0, Math.sin(s * 9) * 11)) : 0,
-		smile: 8 + r(Math.sin(s * 0.21 + k) * 5),
-		yaw: 8 + r(Math.sin(s * 0.37 + k) * 6), pitch: 8 + r(Math.sin(s * 0.29) * 3), roll: 8 + r(Math.sin(s * 0.23 + k * 2) * 4),
+		smile: 8 + r(Math.sin(s * 0.21 + k) * 4),
+		yaw: 8 + r(Math.sin(s * 0.37 + k) * 3), pitch: 8 + r(Math.sin(s * 0.29) * 2), roll: 8 + r(Math.sin(s * 0.23 + k * 2) * 2),
 		gazeX: 8 + r(Math.sin(s * 0.9 + k) * 6), gazeY: 8 + r(Math.sin(s * 0.6) * 3)
 	};
 }
