@@ -36,6 +36,9 @@ pre { margin: 0; line-height: 1.15; overflow-x: auto; }
 .avatars pre { font-size: 20px; background: var(--bg); padding: 6px 8px; border-radius: 4px; }
 .avatars .mid { font-size: 16px; }
 .avatars .far { font-size: 14px; }
+.tile { font-size: 15px; line-height: 1.2; background: var(--bg); padding: 4px 6px; border-radius: 4px; }
+.plate { background: #86a9de; color: var(--bg); }
+.d { color: #2a3040; }
 .g { color: var(--bg); } .o { color: #8a8f9c; } .f { color: var(--bright); } .h { color: #b08a5a; }
 #hex { color: var(--gold); font-size: 18px; letter-spacing: 0.1em; }
 #numbers { font-size: 13px; }
@@ -73,6 +76,9 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
 		<p class="dim">Box and dots: where the tracker thinks your face, eyes, nose and mouth are.</p>
 	</div>
 	<div class="box">
+		<h2>In the village: your letter tile, with a face</h2>
+		<div class="avatars"><pre id="tile" class="tile"></pre></div>
+		<p class="dim">What others see near you: the middle face round your letter. The bigger ones below are for checking the numbers.</p>
 		<h2>The avatar, from the numbers: near, middle, far</h2>
 		<div class="avatars">
 			<pre id="av3"></pre>
@@ -219,8 +225,12 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
       text(x0, ey, e.row, 2);
     }
     const mid = Math.floor((cx[0] + cx[1]) / 2);
-    if (big) text(mid - 1 + (w % 2 === 0 ? 0 : 0), clamp(noseY + ty, 0, h - 1), noseCells(yw), 1);
-    else put(mid + (yw >= 3 ? 1 : yw <= -3 ? -1 : 0), clamp(noseY + ty, 0, h - 1), yw >= 3 ? ">" : yw <= -3 ? "<" : "v", 1);
+    const ny = clamp(noseY + ty, 0, h - 1);
+    if (big) {
+      const n = noseCells(yw);
+      text(mid - 1, ny, n, 1);
+      put(mid, ny, n[1] === " " ? "_" : n[1], 3);
+    } else put(mid + (yw >= 3 ? 1 : yw <= -3 ? -1 : 0), ny, yw >= 3 ? ">" : yw <= -3 ? "<" : "v", 3);
     const mw = big ? 8 : 4;
     const rows = h - mouthY - Math.max(0, ty);
     const m = mouthRows(mo, sm, mw, Math.max(1, rows));
@@ -1282,7 +1292,7 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
     numbers();
     chart(now);
   }
-  var INK_CLASS = ["g", "o", "f"];
+  var INK_CLASS = ["g", "o", "f", "o"];
   async function micToggle() {
     if (S.mic) {
       for (const t of S.mic.stream.getTracks()) t.stop();
@@ -1311,10 +1321,11 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
     m.level = Math.min(1, rms * 6);
     return m.level;
   }
-  function cellsHtml(cells) {
-    return cells.map((row) => row.map((c) => c.ch === " " ? " " : `<span class="${INK_CLASS[c.ink]}">${c.ch.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")}</span>`).join("")).join("\n");
+  function cellsHtml(cells, mark = "", dots = false) {
+    return cells.map((row, y) => row.map((c, x) => c.ch === " " ? dots && (x + 2 * y) % 4 === 0 ? '<span class="d">.</span>' : " " : c.ink === 3 && mark ? `<span class="plate">${mark}</span>` : `<span class="${INK_CLASS[c.ink]}">${c.ch.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")}</span>`).join("")).join("\n");
   }
   function drawAvatars() {
+    $("tile").innerHTML = cellsHtml(drawRig(S.rig, DETAIL_SIZE[2].w, DETAIL_SIZE[2].h), "J", true);
     for (const d of [3, 2, 1]) {
       const { w, h } = DETAIL_SIZE[d];
       $("av" + d).innerHTML = cellsHtml(drawRig(S.rig, w, h));

@@ -80,8 +80,11 @@ export function detailThatFits(w: number, h: number, most: Detail = 3): Detail {
 
 // ---- the drawing -----------------------------------------------------------------------------------
 
-/** One cell: its glyph and its ink: 0 ground, 1 the nose and the far face's brackets, 2 eyes, brows and mouth. */
-export interface RigCell { ch: string; ink: 0 | 1 | 2; }
+/**
+ * One cell: its glyph and its ink: 0 ground, 1 the nose's sides and the far face's brackets, 2 eyes, brows
+ * and mouth, 3 the nose's middle (where a game may draw the player's own mark instead).
+ */
+export interface RigCell { ch: string; ink: 0 | 1 | 2 | 3; }
 
 /** The avatar for a rig in w x h cells. See rigface.ts. */
 export const drawRig = (r: Rig, w: number, h: number): RigCell[][] => drawFace(r, w, h);

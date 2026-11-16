@@ -31,7 +31,12 @@ export const CORNERS: Corner[] = ['tr', 'br', 'bl', 'tl', 'top', 'bottom'];
 export const CORNER_NAME: Record<Corner, string> = { tr: 'top right', br: 'bottom right', bl: 'bottom left', tl: 'top left', top: 'bar at the top', bottom: 'bar at the bottom' };
 export const isBar = (c: Corner) => c === 'top' || c === 'bottom';
 /** A bar's height in rows on a screen this wide: its frame, a row of tiles and their names (folded, its title). */
-export const barHeight = (cols: number, folded: boolean) => (folded ? 1 : tileSize(cols).th + 3);
+export const barHeight = (cols: number, folded: boolean, tile = tileSize(cols)) => (folded ? 1 : tile.th + 3);
+/**
+ * An avatar's tile: the middle face's own size (rig.ts DETAIL_SIZE[2]), the letter tile with a face round
+ * the letter (Lavender, 16 Nov: the full avatar is not needed, and smaller is better on a PC).
+ */
+export const AVATAR_TILE = { tw: 10, th: 5 };
 export const nextCorner = (c: Corner): Corner => CORNERS[(CORNERS.indexOf(c) + 1) % CORNERS.length];
 
 /** A blank cell under a picture: a no-break space on its own ground, so the picture knows it is uncovered. */
@@ -58,8 +63,9 @@ export interface CamLayout {
  * screen) and two down, never more than seven tenths of the map's height. Smaller tiles on a small map;
  * null when not even one fits. Folded, it is its title row alone.
  */
-export function camLayout(area: Rect, n: number, corner: Corner, folded = false): CamLayout | null {
-	let { tw, th } = tileSize(area.w);
+export function camLayout(area: Rect, n: number, corner: Corner, folded = false, tile?: { tw: number; th: number }): CamLayout | null {
+	let { tw, th } = tile ?? tileSize(area.w);
+	const small = !!tile && tile.tw <= 10;
 	if (isBar(corner)) {
 		// A bar: the whole strip it is given, one row of tiles across it, centred.
 		if (tw + 2 > area.w || (!folded && th + 3 > area.h)) return null;
@@ -72,7 +78,8 @@ export function camLayout(area: Rect, n: number, corner: Corner, folded = false)
 	}
 	while (tw > 8 && (tw + 2 > area.w || th + 3 > area.h)) { tw -= 2; th = tw / 2; }
 	if (tw + 2 > area.w || th + 3 > area.h) return null;
-	const across = Math.max(1, Math.min(area.w >= 100 ? 3 : 2, Math.floor((area.w - 1) / (tw + 1))));
+	// Small tiles: more of them across a corner window.
+	const across = Math.max(1, Math.min(small ? (area.w >= 100 ? 5 : 3) : area.w >= 100 ? 3 : 2, Math.floor((area.w - 1) / (tw + 1))));
 	const down = Math.max(1, Math.min(2, Math.floor((area.h * 0.7 - 2) / (th + 1))));
 	const cap = across * down;
 	const k = Math.max(1, Math.min(n, cap));
@@ -186,14 +193,17 @@ export function drawCamWindow(g: Grid, L: CamLayout, d: CamWindowDraw) {
 		if (!t) return;
 		if (t.kind === 'video') g.fill(r, VIDEO_CH, 3, VIDEO_BG);
 		else if (t.kind === 'avatar' && t.cells) {
-			// The avatar centred in the tile on a dark ground: outline dim, eyes and mouth in their colour.
-			g.fill(r, ' ', 3, 0);
+			// The letter tile's faint ground, the face over it: eyes, brows and mouth in their colour, the
+			// nose's sides dim, and the nose itself their letter on its plate.
+			for (let yy = 0; yy < r.h; yy++) for (let xx = 0; xx < r.w; xx++) g.set(r.x + xx, r.y + yy, (xx + 2 * yy) % 4 ? ' ' : '.', shade(3, 1), 0);
 			const ah = t.cells.length, aw = t.cells[0]?.length ?? 0;
 			const ox = r.x + Math.floor((r.w - aw) / 2), oy = r.y + Math.floor((r.h - ah) / 2);
 			const feature = t.ink[1] ? 5 : t.ink[0];
 			for (let yy = 0; yy < ah; yy++) for (let xx = 0; xx < aw; xx++) {
 				const c = t.cells[yy][xx];
-				if (c.ch !== ' ') g.set(ox + xx, oy + yy, c.ch, c.ink === 2 ? feature : 3, 0);
+				if (c.ch === ' ') continue;
+				if (c.ink === 3 && t.glyph) g.set(ox + xx, oy + yy, t.glyph, t.ink[0], t.ink[1]);
+				else g.set(ox + xx, oy + yy, c.ch, c.ink === 2 ? feature : 3, 0);
 			}
 		} else if (t.kind === 'letters' && t.frame) {
 			for (let yy = 0; yy < r.h; yy++) for (let xx = 0; xx < r.w; xx++) {

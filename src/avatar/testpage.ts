@@ -203,7 +203,7 @@ function tick(now: number) {
 
 // ---- drawing ------------------------------------------------------------------------------------------------
 
-const INK_CLASS = ['g', 'o', 'f'];
+const INK_CLASS = ['g', 'o', 'f', 'o'];
 
 async function micToggle() {
 	if (S.mic) { for (const t of S.mic.stream.getTracks()) t.stop(); S.mic = null; ui(); return; }
@@ -227,10 +227,14 @@ function micLevel(): number {
 	m.level = Math.min(1, rms * 6);
 	return m.level;
 }
-function cellsHtml(cells: RigCell[][]): string {
-	return cells.map((row) => row.map((c) => c.ch === ' ' ? ' ' : `<span class="${INK_CLASS[c.ink]}">${c.ch.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')}</span>`).join('')).join('\n');
+/** The avatar as HTML; with `mark`, the nose's middle is that letter on a plate (as the village's tiles draw it). */
+function cellsHtml(cells: RigCell[][], mark = '', dots = false): string {
+	return cells.map((row, y) => row.map((c, x) => c.ch === ' ' ? (dots && (x + 2 * y) % 4 === 0 ? '<span class="d">.</span>' : ' ')
+		: c.ink === 3 && mark ? `<span class="plate">${mark}</span>` : `<span class="${INK_CLASS[c.ink]}">${c.ch.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')}</span>`).join('')).join('\n');
 }
 function drawAvatars() {
+	// The village's tile: the middle face round your letter, on the letter tile's faint ground.
+	$('tile').innerHTML = cellsHtml(drawRig(S.rig, DETAIL_SIZE[2].w, DETAIL_SIZE[2].h), 'J', true);
 	for (const d of [3, 2, 1] as const) {
 		const { w, h } = DETAIL_SIZE[d];
 		$('av' + d).innerHTML = cellsHtml(drawRig(S.rig, w, h));

@@ -153,8 +153,11 @@ export function drawFace(r: Rig, w: number, h: number): RigCell[][] {
 	}
 
 	const mid = Math.floor((cx[0] + cx[1]) / 2);
-	if (big) text(mid - 1 + (w % 2 === 0 ? 0 : 0), clamp(noseY + ty, 0, h - 1), noseCells(yw), 1);
-	else put(mid + (yw >= 3 ? 1 : yw <= -3 ? -1 : 0), clamp(noseY + ty, 0, h - 1), yw >= 3 ? '>' : yw <= -3 ? '<' : 'v', 1);
+	// The nose; its middle cell is ink 3, the place a game may put the player's own mark instead (Grimoire's
+	// camera tiles put their letter there, on its plate: the letter tile with a face round it).
+	const ny = clamp(noseY + ty, 0, h - 1);
+	if (big) { const n = noseCells(yw); text(mid - 1, ny, n, 1); put(mid, ny, n[1] === ' ' ? '_' : n[1], 3); }
+	else put(mid + (yw >= 3 ? 1 : yw <= -3 ? -1 : 0), ny, yw >= 3 ? '>' : yw <= -3 ? '<' : 'v', 3);
 
 	// The mouth: as wide as the eyes' inner edges, as tall as the rows left; a lean slants its ends.
 	const mw = big ? 8 : 4;

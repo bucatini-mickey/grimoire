@@ -5,7 +5,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import {
 	avatarShows, decodeRig, DETAIL_SIZE, detailFor, detailThatFits, drawRig, encodeRig, NEUTRAL, planRigs, rdiv, RIG_KEYS, rigInks, rigText, withVoice
 } from '../src/avatar/rig.ts';
-import { barHeight, camLayout, CORNERS, isBar } from '../src/town/camwin.ts';
+import { AVATAR_TILE, barHeight, camLayout, CORNERS, isBar } from '../src/town/camwin.ts';
 import type { Detail, Rig, RigSent } from '../src/avatar/rig.ts';
 import { eyeMeasure, mouthMeasure, poseFromMatrix, poseFromPoints, Range, rawFromBlendshapes, RAW_ZERO, Recentre, RigSmoother, rigOf } from '../src/avatar/trackers.ts';
 
@@ -268,4 +268,23 @@ test('the camera window as a bar: the whole width, one row of tiles, centred; a 
 	assert.equal(barHeight(80, true), 1);
 	// A corner window is unchanged.
 	assert.equal(camLayout({ x: 0, y: 1, w: 80, h: 30 }, 2, 'tr')!.rect.w, 35);
+});
+
+test('avatar tiles are the letter tile with a face: the middle face\'s size, the nose the player\'s mark', () => {
+	assert.deepEqual(AVATAR_TILE, { tw: DETAIL_SIZE[2].w, th: DETAIL_SIZE[2].h });
+	assert.equal(detailThatFits(AVATAR_TILE.tw, AVATAR_TILE.th), 2);
+	// The nose's middle is ink 3 (where the letter goes), once, in the middle face; the far face has none.
+	const ink3 = (w: number, h: number) => rigInks(drawRig(NEUTRAL, w, h)).split('').filter((c) => c === '3').length;
+	assert.equal(ink3(10, 5), 1);
+	assert.equal(ink3(16, 8), 1);
+	assert.equal(ink3(5, 2), 0);
+	// Smaller: a bar of them is 8 rows, not 11, and fits more people across.
+	assert.equal(barHeight(80, false, AVATAR_TILE), 8);
+	const area = { x: 0, y: 1, w: 80, h: 8 };
+	assert.equal(camLayout(area, 20, 'top', false, AVATAR_TILE)!.cap, 7);
+	assert.equal(camLayout({ ...area, h: 11 }, 20, 'top')!.cap, 4);
+	// A corner window of them holds more across, and stays small.
+	const c = camLayout({ x: 0, y: 1, w: 120, h: 40 }, 6, 'tr', false, AVATAR_TILE)!;
+	assert.equal(c.tiles.length, 6);
+	assert.ok(c.rect.w <= 60 && c.rect.h <= 14, JSON.stringify(c.rect));
 });

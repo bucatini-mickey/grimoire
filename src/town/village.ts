@@ -48,7 +48,7 @@ const FACES = false;
  * shows on your phone only; test villagers get drawn stand-ins; anyone else shows as their letter.
  */
 const CAMS = true;
-import { barHeight, camLayout, CamOverlay, CORNER_NAME, CORNERS, drawCamWindow, isBar, nextCorner, paintCamera, paintStandIn, pickTiles, standIn, tileSize } from './camwin.ts';
+import { AVATAR_TILE, barHeight, camLayout, CamOverlay, CORNER_NAME, CORNERS, drawCamWindow, isBar, nextCorner, paintCamera, paintStandIn, pickTiles, standIn, tileSize } from './camwin.ts';
 import type { Corner, PictureTile, TileView } from './camwin.ts';
 /**
  * The webcam avatar (src/avatar): your camera, on your phone only, read by a face tracker into nine hex
@@ -1046,7 +1046,7 @@ function villageCells(g: Grid): boolean {
 	const stH = stbar ? 1 + buttonRows(stBs, g.cols, 0).length * 3 : 0;
 	const fullY = 1, fullH = Math.max(4, g.rows - 3 - stH - toolH);
 	// The camera bar, when the window is one: rows of its own above or below the map, which gives them up.
-	const barH = CAMS && S.cams.open && isBar(S.cams.corner) ? barHeight(g.cols, S.cams.folded) : 0;
+	const barH = CAMS && S.cams.open && isBar(S.cams.corner) ? barHeight(g.cols, S.cams.folded, S.cams.look === 'avatar' ? AVATAR_TILE : undefined) : 0;
 	const bar = barH && fullH - barH >= 6 ? barH : 0;
 	const mapY = fullY + (S.cams.corner === 'top' ? bar : 0), mapH = fullH - bar;
 	// Top line: where we are in the game.
@@ -1584,10 +1584,11 @@ function camWindow(g: Grid, area: { x: number; y: number; w: number; h: number }
 	const others = [...S.people.values()].filter((q) => q.id !== S.me && (!avatars || S.rigs.has(q.id)))
 		.map((q) => ({ id: q.id, name: q.st ? 'Storyteller' : q.name, loud: avatars ? Math.max(0.01, loudness(lvl(p), p, q, S.phase)) : loudness(lvl(p), p, q, S.phase) }));
 	const close = others.filter((q) => q.loud > 0).length;
-	const L0 = camLayout(area, 1 + close, S.cams.corner, S.cams.folded);
+	const tile = avatars ? AVATAR_TILE : undefined;
+	const L0 = camLayout(area, 1 + close, S.cams.corner, S.cams.folded, tile);
 	if (!L0) { camOverlay.show([]); return; }
 	const pick = pickTiles(S.me, others, L0.cap);
-	const L = camLayout(area, pick.ids.length, S.cams.corner, S.cams.folded)!;
+	const L = camLayout(area, pick.ids.length, S.cams.corner, S.cams.folded, tile)!;
 	const { tw, th } = L.tiles[0] ? { tw: L.tiles[0].w, th: L.tiles[0].h } : tileSize(area.w);
 	const pictures: PictureTile[] = [];
 	const tiles: TileView[] = pick.ids.map((id, i) => {
