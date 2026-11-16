@@ -39,7 +39,7 @@ import { demoGame, isDemo } from './demo.ts';
 import { INKS, startVillage, villageForGame } from '../town/village.ts';
 import { AMNESIAC_IDEAS, savantPair, savantStatements } from './helpers.ts';
 import type { Extra, StActions, VillageHost } from '../town/village.ts';
-import { CARD_COLS, CARD_INNER, big, cardButtons, handBackRows, handOverRows, nextPage, note, revealRows, wakeRows } from './wakepages.ts';
+import { CARD_COLS, CARD_INNER, big, cardButtons, handBackRows, handOverRows, nextPage, note, recallIndexRows, revealRows, wakeRows } from './wakepages.ts';
 import type { Page } from './wakepages.ts';
 
 // ---- saved data -------------------------------------------------------------
@@ -175,6 +175,8 @@ const ui = {
 	question: '',
 	/** The phone in a player's hands, page by page. */
 	show: null as Show | null,
+	/** "Remind me": the phone in a player's hands to read the pages they were shown again (recallRows). */
+	recall: null as Recall | null,
 	/** What the Storyteller wrote for a character the app does not model (what they learn), for that step. */
 	wakeNote: { step: '', text: '' },
 	/** Something the whole room should hear, shown large until dismissed. */
@@ -311,6 +313,7 @@ function undo() {
 	ui.decision = null;
 	ui.question = '';
 	ui.show = null;
+	ui.recall = null;
 	clearPicks();
 	syncFlow();
 	save();
@@ -1507,6 +1510,7 @@ rows.push(...prose(who ? `${who.name}, the ${charName(stepRole(kind, who.id))}${
 	}
 	const later = steps.filter((s) => !s.done && s.id !== step.id).map((s) => (s.seat === null ? groupLabel(s.kind).split(':')[0] : `${name(s.seat)} (${charName(stepRole(s.kind, s.seat))})`));
 	const quiet: Button[] = [btn('Skip', () => act({ type: 'skip', reason: 'Storyteller skipped' }), { style: 'quiet' })];
+	if (who && !phone) quiet.push(btn(`Remind ${who.name}`, () => openRecall(who.id), { style: 'quiet' }));
 	if (later.length) quiet.push(btn(ui.showLater ? 'Hide the rest' : `Later tonight (${later.length})`, () => { ui.showLater = !ui.showLater; render(); }, { style: ui.showLater ? 'on' : 'quiet' }));
 	rows.push(blank(), ...buttonRows(quiet));
 	if (later.length && ui.showLater) rows.push(...prose(`Then: ${later.join(', ')}.`, 'dim'));
@@ -1839,6 +1843,48 @@ function finishShow() {
 	ui.picks = [...sh.picks];
 	ui.draftInfo = null;
 	render();
+}
+
+// ---- Remind me ------------------------------------------------------------------------------
+//
+// A player asks again for what they were shown. The phone goes to them, they read an index of their pages
+// (who they are, their Demon or Minions, the Demon's bluffs, then each night) and open any one: the page as
+// it was shown, from what was kept, never looked up afresh. Then the plain page that hands the phone back.
+
+interface Recall {
+	seat: SeatId;
+	/** 0: the page naming who takes the phone; 1: their pages; 2: the page handing the phone back. */
+	turn: 0 | 1 | 2;
+	/** The page open (its key), or null for the index. */
+	open: string | null;
+}
+
+/** The Storyteller hands the phone to this seat to read their pages again. */
+function openRecall(seat: SeatId) {
+	ui.inspect = null;
+	ui.recall = { seat, turn: 0, open: null };
+	render();
+}
+
+function recallRows(): Row[] {
+	const r = ui.recall!;
+	const close = () => { ui.recall = null; render(); };
+	if (r.turn === 0) return handOverRows(name(r.seat), () => { r.turn = 1; render(); }, { line: 'Everyone else, look away.', cancel: close });
+	if (r.turn === 2) return handBackRows(close);
+	const items = H.recallIndex(saved.history ?? {}, r.seat);
+	const item = r.open === null ? undefined : items.find((i) => i.key === r.open);
+	if (!item) {
+		const role = items[0]?.entry.role;
+		return recallIndexRows(name(r.seat), role, items.map((i) => ({ label: i.label, night: i.night, open: () => { r.open = i.key; render(); } })), () => { r.turn = 2; r.open = null; render(); });
+	}
+	const e = item.entry;
+	const options = new Map((e.choice?.options ?? []).map((o) => [o.id, o]));
+	const index = () => { r.open = null; render(); };
+	return wakeRows(H.wakeOf(e, r.seat), e.page, e.choice?.chosen ?? [], {
+		go: index, toggle() {}, confirm: index, finish: index, ending: 'hand-back', recall: index,
+		name: (id) => options.get(id)?.name ?? name(id),
+		deadAtDusk: (id) => options.get(id)?.dead ?? false
+	});
 }
 
 // ---- day ------------------------------------------------------------------------------------
@@ -2353,6 +2399,8 @@ function inspectRows(): Row[] {
 				...[...G.charactersOfTeam(script(), 'townsfolk'), ...G.charactersOfTeam(script(), 'outsider')].map((c) => btn(c.name, () => edit({ type: 'cannibal-tell', seat: id, character: c.id }), { style: told === c.id ? 'on' : undefined }))
 			]));
 		}
+		// (a player with their own phone keeps their pages there; this is for the one phone handed round)
+		if (!peerOfSeat(id)) rows.push(...buttonRows([btn('Remind me', () => openRecall(id), { style: 'primary' })]));
 		rows.push(blank(), ...prose('By hand (logged):', 'dim'));
 		rows.push(...buttonRows([
 			btn(s.alive ? 'Kill' : 'Revive', () => edit({ type: 'adjust', seat: id, alive: !s.alive }), { style: s.alive ? 'danger' : undefined }),
@@ -3193,7 +3241,7 @@ function render() {
 	// In the town the page layer is empty until the drawer is pulled out.
 	paint(root, vg && !ui.drawer ? [] : paneled(vg ? drawerScreen() : screen()));
 	const voting = state.phase.kind === 'day' && !!flow().vote && !!openNomination() && (villageGame() ? ui.voteBig : !ui.voteSmall);
-	const pages = ui.banner ? bannerRows() : voting ? voteStage() : ui.show ? showRows() : [];
+	const pages = ui.banner ? bannerRows() : voting ? voteStage() : ui.show ? showRows() : ui.recall ? recallRows() : [];
 	paint(cardRoot, pages.length ? paneled(pages, CARD_COLS) : [], CARD_COLS);
 	updatePhones();
 	syncVillage();
@@ -3245,9 +3293,10 @@ if (villageDemo) {
 	// A demo screen (demo.ts): a fixed game, shown on the step it is about, and never saved.
 	demoOnly = true;
 	const d = demoGame(demo);
-	saved = { events: d.events, marks: [], settings: { ...DEFAULT_SETTINGS }, flow: freshFlow(DEFAULT_SETTINGS) };
+	saved = { events: d.events, marks: [], settings: { ...DEFAULT_SETTINGS }, flow: freshFlow(DEFAULT_SETTINGS), history: d.history };
 	state = d.state;
-	ui.show = { step: d.step, page: d.page, picks: [], turn: 1 };
+	if (d.recall) ui.recall = { seat: d.recall.seat, turn: 1, open: d.recall.open };
+	else ui.show = { step: d.step, page: d.page, picks: [], turn: 1 };
 	syncFlow();
 	render();
 } else if ((location.hash === '#host' && saved.net?.village) || location.hash === '#grimoire') {

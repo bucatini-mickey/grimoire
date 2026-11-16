@@ -41,3 +41,16 @@ test('#demo=scarlet-woman opens the Scarlet Woman’s "You are" page, whose name
 	assert.equal(you.style, 'big');
 	assert.deepEqual(nameLines(you.lines[0].replace(/^the /i, '')), ['Scarlet', 'Woman']);
 });
+
+test('#demo=recall and #demo=recall-page open the Demon’s "Remind me" index and its bluffs page, from kept pages only', async () => {
+	const { recallIndex } = await import('../src/net/history.ts');
+	assert.ok(isDemo('recall') && isDemo('recall-page'));
+	const idx = demoGame('recall');
+	assert.ok(idx.history && idx.recall);
+	assert.equal(idx.recall.open, null);
+	assert.deepEqual(recallIndex(idx.history, idx.recall.seat).map((i) => i.label), ['Who I am', 'My Minions', 'My bluffs']);
+	const page = demoGame('recall-page');
+	const bluffs = recallIndex(page.history!, page.recall!.seat).find((i) => i.label === 'My bluffs')!;
+	assert.equal(page.recall!.open, bluffs.key);
+	assert.deepEqual(G.replay(page.events).seats, page.state.seats);
+});

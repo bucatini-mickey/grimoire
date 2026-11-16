@@ -131,6 +131,65 @@ export function wakeOf(entry: ShownPage, seat: SeatId): Wake {
 	return wake;
 }
 
+/** One line of a seat's "Remind me" index: what it is called, which night it belongs to (null: about the player), and the page it opens. */
+export interface RecallItem {
+	/** Identifies this showing of the page (the same on every call, so a screen can say which is open). */
+	key: string;
+	label: string;
+	night: number | null;
+	entry: ShownPage;
+}
+
+export const recallKey = (e: ShownPage): string => `${e.id}@${e.showing}`;
+
+/** What a page of the evil team is called: who the player was shown. */
+function teamLabel(e: ShownPage): string {
+	const titles = new Set(e.sections.map((s) => s.title));
+	if (titles.has('Your Demon')) return titles.has('Fellow Minions') ? 'My Demon and fellow Minions' : 'My Demon';
+	return 'My Minions';
+}
+
+/** A later night's "You are" page that says nothing new (the same character, no extra words). */
+const plainRepeat = (e: ShownPage, firstRole: CharacterId): boolean =>
+	e.sections.length === 1 && e.sections[0].title === 'You are' && !/^now /i.test(e.sections[0].lines[0] ?? '') && e.role === firstRole;
+
+/**
+ * The index of a seat's "Remind me": each page the seat was shown, named so the player can find it. First
+ * what is about them (who they are; their Demon or Minions; the Demon's bluffs), then each night in the
+ * order shown. It lists only what is kept, so a seat shown nothing has an empty index, and it never reads
+ * the game: what a Drunk or poisoned player was told is what comes back. A page the player saw more than
+ * once (the Storyteller backed out and showed it again, differently) is listed once per showing, since
+ * they saw each.
+ */
+export function recallIndex(history: History, seat: SeatId): RecallItem[] {
+	const pages = history[seat] ?? [];
+	const firstWho = pages.find((p) => p.kind === 'role' || p.kind === 'evil-team');
+	const firstTeam = pages.find((p) => p.kind === 'evil-team');
+	const showings = (e: ShownPage) => pages.filter((p) => p.id === e.id).length;
+	const named = (e: ShownPage, label: string, night: number | null): RecallItem => ({
+		key: recallKey(e), night, entry: copy(e),
+		label: showings(e) > 1 ? `${label} (showing ${e.showing})` : label
+	});
+	const about: RecallItem[] = [];
+	const nights: RecallItem[] = [];
+	for (const p of pages) if (firstWho && p.id === firstWho.id) about.push(named(p, 'Who I am', null));
+	for (const p of pages) if (firstTeam && p.id === firstTeam.id) about.push(named(p, teamLabel(p), null));
+	// The Demon's bluffs stay here for the rest of the game, whatever night they were shown.
+	for (const p of pages) if (p.kind === 'bluffs') about.push(named(p, 'My bluffs', null));
+	for (const p of pages) {
+		if ((firstWho && p.id === firstWho.id) || (firstTeam && p.id === firstTeam.id) || p.kind === 'bluffs') continue;
+		if (p.kind === 'role') {
+			if (firstWho && plainRepeat(p, firstWho.role)) continue;
+			nights.push(named(p, /^now /i.test(p.sections[0]?.lines[0] ?? '') ? 'Who I am now' : 'Who I am tonight', p.night));
+		} else if (p.kind === 'evil-team') nights.push(named(p, teamLabel(p), p.night));
+		else if (p.kind === 'choice') nights.push(named(p, p.choice?.chosen.length ? 'Whom I chose' : 'My choice', p.night));
+		else if (p.kind === 'night-result') nights.push(named(p, 'What I learned', p.night));
+		else if (p.kind === 'grimoire') nights.push(named(p, 'The grimoire I saw', p.night));
+	}
+	nights.sort((a, b) => a.night! - b.night!);
+	return [...about, ...nights];
+}
+
 const KINDS = new Set<string>(['role', 'evil-team', 'bluffs', 'choice', 'night-result', 'grimoire']);
 const isPage = (p: unknown): p is ShownPage => {
 	const x = p as ShownPage;
