@@ -6,7 +6,8 @@
  * under it. (The faces once picked for the voting table are gone, 16 Nov: the avatar is the face now.)
  */
 import { FIGURES, defaultLook, filling, loadLook, saveLook } from '../town/avatar.ts';
-import { decodeStyle, drawRig, encodeStyle, NEUTRAL, STYLE_NAMES, STYLE_PARTS } from '../avatar/rig.ts';
+import { decodeStyle, drawRig, encodeStyle, NEUTRAL, PLAIN_STYLE, STYLE_NAMES, STYLE_PARTS } from '../avatar/rig.ts';
+import { PART_LABEL } from '../avatar/rigface.ts';
 import type { FaceStyle } from '../avatar/rig.ts';
 import type { Look } from '../town/avatar.ts';
 import { canDraw } from './glyphs.ts';
@@ -56,23 +57,43 @@ export function figureRows(name: string, k: number | null, changed: (l: Look) =>
 	const ink = bg || fg;
 	const set = (l: Look) => { saveLook(l); changed(l); };
 	const anyOf = (list: string[]) => { const ok = list.map((g, i) => ({ g, i })).filter((t) => canDraw(t.g)); return ok[Math.floor(Math.random() * ok.length)]?.i ?? 0; };
-	const rows: Row[] = [rubric('You')];
 	const style = decodeStyle(look.style);
 	const letter = (name || 'You')[0].toUpperCase();
-	rows.push(blockRow(7, (c) => {
-		c.g.text(c.x + 1, c.y, 'Walking:', 3);
-		c.g.setWide(c.x + 10, c.y, filling(FIGURES[look.figure]), ink, shade(ink, 0));
-		wrap(k === null ? 'Your colour comes with your seat.' : 'Your colour stays: it is how they know you.', 30).forEach((l, i) => c.g.text(c.x + 1, c.y + 2 + i, l, 3));
-		// The face as the camera window shows it: a 10 x 5 tile, your letter its nose, your name under it.
-		faceTile(c.g, c.x + 34, c.y, style, letter, name || 'You', fg, bg);
+	const setStyle = (st: FaceStyle) => set({ ...look, style: encodeStyle(st) });
+	const rows: Row[] = [rubric('You')];
+	// The face as the camera window shows it (your letter its nose, your name under it), your figure beside it.
+	rows.push(blockRow(6, (c) => {
+		faceTile(c.g, c.x + 1, c.y, style, letter, name || 'You', fg, bg);
+		c.g.text(c.x + 14, c.y, 'Walking as', 3);
+		c.g.setWide(c.x + 25, c.y, filling(FIGURES[look.figure]), ink, shade(ink, 0));
+		wrap(k === null ? 'Your colour comes with your seat.' : 'Your colour stays: it is how they know you.', Math.max(10, c.w - 15)).forEach((l, i) => c.g.text(c.x + 14, c.y + 2 + i, l, 3));
 	}));
+	// Each part on one line, two to a line: tap the left of a choice for the one before, the right for the next.
+	for (let i = 0; i < STYLE_PARTS.length; i += 2) rows.push(chooserRow(STYLE_PARTS.slice(i, i + 2), style, setStyle));
+	const anyStyle = () => { const st = {} as FaceStyle; for (const p of STYLE_PARTS) st[p] = Math.floor(Math.random() * STYLE_NAMES[p].length); return st; };
+	rows.push(buttonBlock([
+		btn('Surprise me', () => set({ ...look, figure: anyOf(FIGURES), style: encodeStyle(anyStyle()) })),
+		btn('Plain face', () => setStyle({ ...PLAIN_STYLE }), { style: 'quiet' })
+	]));
 	rows.push(endPanel(), rubric('Figure'), tiles(FIGURES, look.figure, ink, (figure) => set({ ...look, figure })), endPanel());
-	rows.push(rubric('Face'));
-	for (const part of STYLE_PARTS) {
-		rows.push(buttonBlock(STYLE_NAMES[part].map((label, i) => btn(label, () => set({ ...look, style: encodeStyle({ ...style, [part]: i } as FaceStyle) }), { style: style[part] === i ? 'on' : undefined }))));
-	}
-	rows.push(endPanel());
-	const any4 = () => Math.floor(Math.random() * 4);
-	rows.push(blank(), buttonBlock([btn('Surprise me', () => set({ ...look, figure: anyOf(FIGURES), style: encodeStyle({ brow: any4(), eye: any4(), nose: any4(), mouth: any4() }) }))]));
 	return rows;
+}
+
+/** Up to two parts of the face on one line: the part's name, then its choice between < and >. */
+function chooserRow(parts: (keyof FaceStyle)[], style: FaceStyle, set: (st: FaceStyle) => void): Row {
+	return blockRow(2, (c) => {
+		const half = Math.floor(c.w / 2);
+		parts.forEach((part, i) => {
+			const x = c.x + i * half, names = STYLE_NAMES[part], at = style[part];
+			const step = (d: number) => set({ ...style, [part]: (at + d + names.length) % names.length });
+			c.g.text(x, c.y, PART_LABEL[part], 3);
+			const bx = x + 10, bw = Math.max(12, half - 11);
+			c.g.text(bx, c.y, '<', 6);
+			const label = names[at].slice(0, bw - 4);
+			c.g.text(bx + 2 + Math.floor((bw - 4 - label.length) / 2), c.y, label, 5);
+			c.g.text(bx + bw - 1, c.y, '>', 6);
+			c.hit({ x: bx, y: c.y, w: Math.floor(bw / 2), h: 2 }, () => step(-1));
+			c.hit({ x: bx + Math.floor(bw / 2), y: c.y, w: bw - Math.floor(bw / 2), h: 2 }, () => step(1));
+		});
+	});
 }

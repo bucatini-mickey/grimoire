@@ -22,29 +22,53 @@
 import type { Rig, RigCell } from './rig.ts';
 
 /**
- * A face's style, chosen by its player (the village's "My figure and face" page): four digits, 0..3 each.
- *   brow   0 a line -----, 1 thick =====, 2 wavy ~~~~~, 3 none (only a raise or frown shows)
- *   eye    0 round ( o ), 1 square [ o ], 2 pointed < o >, 3 bare   o
- *   nose   0 the player's letter (where a game draws it; else v), 1 v, 2 L, 3 ^
- *   mouth  0 plain, 1 a moustache, 2 a beard, 3 both
+ * A face's style, chosen by its player ("My figure and face", in the lobby or the village): six digits, one a
+ * part, each a choice from that part's list (STYLE_NAMES). The plain face is all zeros.
+ *   brow     line, thick, wavy, bushy, thin, none (with none, only a raise or a frown shows)
+ *   eye      round ( ), square [ ], pointed < >, curly { }, bare
+ *   nose     the player's letter (where a game draws it), v, L, ^, J
+ *   tache    none, pencil, bushy, handlebar, walrus (beside the nose in the middle face, over the mouth in
+ *            the near one)
+ *   beard    none, goatee, chinstrap, full, stubble (under the mouth, and down the cheeks for the full one)
+ *   glasses  none, round, square, shades (no pupils to see), wire
  */
-export interface FaceStyle { brow: number; eye: number; nose: number; mouth: number; }
-export const PLAIN_STYLE: FaceStyle = { brow: 0, eye: 0, nose: 0, mouth: 0 };
-export const STYLE_PARTS: (keyof FaceStyle)[] = ['brow', 'eye', 'nose', 'mouth'];
-/** The names of each part's four choices, for the page that picks them. */
+export interface FaceStyle { brow: number; eye: number; nose: number; tache: number; beard: number; glasses: number; }
+export const PLAIN_STYLE: FaceStyle = { brow: 0, eye: 0, nose: 0, tache: 0, beard: 0, glasses: 0 };
+export const STYLE_PARTS: (keyof FaceStyle)[] = ['brow', 'eye', 'nose', 'tache', 'beard', 'glasses'];
+/** Each part's choices, by name, for the page that picks them (the order is the digit). */
 export const STYLE_NAMES: Record<keyof FaceStyle, string[]> = {
-	brow: ['Line', 'Thick', 'Wavy', 'None'], eye: ['Round', 'Square', 'Pointed', 'Bare'],
-	nose: ['My letter', 'v', 'L', '^'], mouth: ['Plain', 'Moustache', 'Beard', 'Both']
+	brow: ['Line', 'Thick', 'Wavy', 'Bushy', 'Thin', 'None'],
+	eye: ['Round', 'Square', 'Pointed', 'Curly', 'Bare'],
+	nose: ['Letter', 'v', 'L', '^', 'J'],
+	tache: ['None', 'Pencil', 'Bushy', 'Handlebar', 'Walrus'],
+	beard: ['None', 'Goatee', 'Chinstrap', 'Full', 'Stubble'],
+	glasses: ['None', 'Round', 'Square', 'Shades', 'Wire']
 };
-export const encodeStyle = (st: FaceStyle) => STYLE_PARTS.map((k) => String(Math.max(0, Math.min(3, Math.trunc(st[k]) || 0)))).join('');
-/** Four digits 0..3 as a style; anything else is the plain one. */
+/** The part names as the page shows them. */
+export const PART_LABEL: Record<keyof FaceStyle, string> = { brow: 'Brows', eye: 'Eyes', nose: 'Nose', tache: 'Moustache', beard: 'Beard', glasses: 'Glasses' };
+const pick = (k: keyof FaceStyle, v: number) => Math.max(0, Math.min(STYLE_NAMES[k].length - 1, Math.trunc(v) || 0));
+export const encodeStyle = (st: FaceStyle) => STYLE_PARTS.map((k) => pick(k, st[k]).toString(16)).join('');
+/**
+ * A style from its digits; anything else is the plain one. The first version's four digits (brow, eye, nose,
+ * then 1 moustache, 2 beard, 3 both) still read.
+ */
 export function decodeStyle(v: unknown): FaceStyle {
-	if (typeof v !== 'string' || !/^[0-3]{4}$/.test(v)) return { ...PLAIN_STYLE };
-	return { brow: +v[0], eye: +v[1], nose: +v[2], mouth: +v[3] };
+	if (typeof v === 'string' && /^[0-9a-f]{6}$/.test(v)) {
+		const st = {} as FaceStyle;
+		STYLE_PARTS.forEach((k, i) => { st[k] = pick(k, parseInt(v[i], 16)); });
+		return st;
+	}
+	if (typeof v === 'string' && /^[0-3]{4}$/.test(v)) {
+		const m = +v[3];
+		return { brow: [0, 1, 2, 5][+v[0]], eye: [0, 1, 2, 4][+v[1]], nose: +v[2], tache: m & 1 ? 2 : 0, beard: m & 2 ? 3 : 0, glasses: 0 };
+	}
+	return { ...PLAIN_STYLE };
 }
-const BROW_FILL = ['-', '=', '~', ' '];
-const EYE_SIDES: [string, string][] = [['(', ')'], ['[', ']'], ['<', '>'], [' ', ' ']];
-const NOSE = ['v', 'v', 'L', '^'];
+const BROW_FILL = ['-', '=', '~', '#', '.', ' '];
+const EYE_SIDES: [string, string][] = [['(', ')'], ['[', ']'], ['<', '>'], ['{', '}'], [' ', ' ']];
+const NOSE = ['v', 'v', 'L', '^', 'J'];
+/** Glasses' frames (left and right of each eye) and the bridge between the eyes. */
+const GLASSES: ([string, string] | null)[] = [null, ['(', ')'], ['[', ']'], ['[', ']'], ['|', '|']];
 
 /** a / b rounded to the nearest, halves away from zero (b > 0). */
 export function rdiv(a: number, b: number): number {
@@ -64,17 +88,20 @@ export function eyeGlyph(open: number): string {
 /**
  * An eye `wide` cells across (3 or 5): ( o ) with the pupil moved by the glance across (gx, -7..7) and shown
  * by its glyph up or down (gy); half shut, a lid over it; shut, a line. Its row of lid above (wide open only)
- * comes back as `lid`.
+ * comes back as `lid`. Glasses (1..4) put their frames in place of the eye's own sides; shades hide the
+ * pupil (a blink still shows).
  */
-export function eyeCells(open: number, gx: number, gy: number, wide: 3 | 5, style = 0): { row: string; lid: string | null } {
+export function eyeCells(open: number, gx: number, gy: number, wide: 3 | 5, style = 0, glasses = 0): { row: string; lid: string | null } {
 	const inner = wide - 2;
-	if (open <= 3) return { row: wide === 5 ? ' --- ' : '---', lid: null };
-	const [l, r] = EYE_SIDES[style] ?? EYE_SIDES[0];
+	const frame = GLASSES[glasses] ?? null;
+	if (open <= 3) return { row: frame ? frame[0] + '-'.repeat(inner) + frame[1] : wide === 5 ? ' --- ' : '---', lid: null };
+	const [l, r] = frame ?? EYE_SIDES[style] ?? EYE_SIDES[0];
 	const at = inner === 1 ? 0 : gx >= 3 ? 2 : gx <= -3 ? 0 : 1;
-	const pupil = open <= 7 ? '-' : open >= 13 ? 'O' : gy >= 4 ? "'" : gy <= -4 ? '.' : 'o';
+	const shades = glasses === 3;
+	const pupil = shades ? '#' : open <= 7 ? '-' : open >= 13 ? 'O' : gy >= 4 ? "'" : gy <= -4 ? '.' : 'o';
 	let mid = '';
-	for (let i = 0; i < inner; i++) mid += i === at ? pupil : open <= 7 ? '-' : ' ';
-	return { row: l + mid + r, lid: open >= 13 ? (wide === 5 ? ' .-. ' : '.-.') : null };
+	for (let i = 0; i < inner; i++) mid += shades ? '#' : i === at ? pupil : open <= 7 ? '-' : ' ';
+	return { row: l + mid + r, lid: open >= 13 && !frame ? (wide === 5 ? ' .-. ' : '.-.') : null };
 }
 
 /** A brow `wide` cells across, from its outer end to its inner: raised an arch, lowered sloping to the nose. */
@@ -175,7 +202,7 @@ export function drawFace(r: Rig, w: number, h: number, st: FaceStyle = PLAIN_STY
 		const brow = browCells(b, wide, st.brow);
 		const by = clamp(browY + (big ? dy : ty) + (b >= 3 && big ? -1 : 0) + (b <= -3 && big ? 1 : 0), 0, h - 1);
 		text(x0, by, side < 0 ? brow : mirror(brow), 2);
-		const e = eyeCells(open, gx, gy, wide, st.eye);
+		const e = eyeCells(open, gx, gy, wide, st.eye, st.glasses);
 		const ey = clamp(eyeY + dy, 0, h - 1);
 		if (e.lid && big && !(b <= -3)) text(x0, ey - 1, e.lid, 2);
 		text(x0, ey, e.row, 2);
@@ -203,13 +230,35 @@ export function drawFace(r: Rig, w: number, h: number, st: FaceStyle = PLAIN_STY
 			put(m0 + i, clamp(my + k, 0, h - 1), row[i], 2);
 		}
 	});
-	// A moustache on the row over the mouth, either side of the nose; a beard on the row under it.
-	if ((st.mouth === 1 || st.mouth === 3) && my - 1 >= 0) {
-		// Even either side of the nose: one cell each way in the middle face, three in the near one.
-		for (let d = 1; d <= (big ? 3 : 1); d++) { put(nx - d, my - 1, '/', 2); put(nx + d, my - 1, '\\', 2); }
+	// Glasses: a bridge between the frames, on the eyes' row.
+	if (st.glasses) {
+		const bx0 = cx[0] + (ew === 5 ? 3 : 2), bx1 = cx[1] - (ew === 5 ? 3 : 2), by = clamp(eyeY + ty + lean(-1), 0, h - 1);
+		for (let x = bx0; x <= bx1; x++) put(x, by, '-', 2);
 	}
-	if ((st.mouth === 2 || st.mouth === 3) && my + m.length <= h - 1) {
-		for (let i = 0; i < mw; i++) put(m0 + i, my + m.length, i === 0 ? '\\' : i === mw - 1 ? '/' : 'w', 2);
+	// A moustache on the row over the mouth: beside the nose in the middle face (it shares the row), across
+	// the lip in the near one. Each style its own glyph and reach; a handlebar curls at its ends.
+	const tacheRow = my - 1;
+	if (st.tache && tacheRow >= 0) {
+		const reach = [0, big ? 1 : 1, big ? 2 : 2, big ? 1 : 1, big ? 3 : 2][st.tache];
+		const ch = ['', '-', '~', '~', '"'][st.tache];
+		const c = big ? mid : nx;
+		for (let d = big ? 0 : 1; d <= reach; d++) {
+			for (const x of big ? [c - d, c + 1 + d] : [c - d, c + d]) if (out[tacheRow][x]?.ch === ' ') put(x, tacheRow, ch, 2);
+		}
+		if (st.tache === 3) { put(c - reach - 1, tacheRow, '(', 2); put(c + reach + (big ? 2 : 1), tacheRow, ')', 2); }
+	}
+	// A beard on the row under the mouth (when the mouth leaves it free): a goatee at the middle, a chinstrap
+	// along the jaw, a full beard with its sides up the cheeks, or stubble.
+	const beardRow = my + m.length;
+	if (st.beard && beardRow <= h - 1) {
+		const centre = m0 + Math.floor(mw / 2) - 1;
+		if (st.beard === 1) { put(centre, beardRow, 'v', 2); put(centre + 1, beardRow, 'v', 2); }
+		if (st.beard === 2) for (let i = -1; i <= mw; i++) put(m0 + i, beardRow, i === -1 ? '\\' : i === mw ? '/' : '_', 2);
+		if (st.beard === 3) {
+			for (let i = -1; i <= mw; i++) put(m0 + i, beardRow, i === -1 ? '\\' : i === mw ? '/' : 'w', 2);
+			for (let y = my; y < beardRow; y++) { put(m0 - 2, y, '(', 2); put(m0 + mw + 1, y, ')', 2); }
+		}
+		if (st.beard === 4) for (let i = 0; i < mw; i++) put(m0 + i, beardRow, i % 2 ? '.' : ':', 2);
 	}
 	return out;
 }

@@ -38,6 +38,8 @@ export const CORNER_NAME: Record<Corner, string> = { tr: 'top right', br: 'botto
 export type Place = 'auto' | 'side' | 'top' | 'bottom';
 export const PLACES: Place[] = ['auto', 'side', 'top', 'bottom'];
 export const PLACE_NAME: Record<Place, string> = { auto: 'auto (side on a wide screen, top on a phone)', side: 'down the side', top: 'bar at the top', bottom: 'bar at the bottom' };
+/** The place in a word, for a button. */
+export const PLACE_SHORT: Record<Place, string> = { auto: 'auto', side: 'side', top: 'top', bottom: 'bottom' };
 export const nextPlace = (p: Place): Place => PLACES[(PLACES.indexOf(p) + 1) % PLACES.length];
 /** Columns wide enough for a side column and still a good map (a desktop or a tablet held wide). */
 export const SIDE_FROM_COLS = 90;
@@ -193,6 +195,8 @@ export interface CamWindowDraw {
 	onMove: () => void;
 	onFold: () => void;
 	onClose: () => void;
+	/** Resync my face (the tracker learns it afresh, this moment's face its rest); none: no [~] shown. */
+	onSync?: () => void;
 	onTile: (id: string) => void;
 }
 
@@ -204,7 +208,7 @@ export function drawCamWindow(g: Grid, L: CamLayout, d: CamWindowDraw) {
 	const { x, y, w, h } = L.rect;
 	// The whole window catches taps first, so a tap on it never walks you somewhere under it.
 	g.hit(L.rect, () => {});
-	const ctl = d.folded ? '[+][x]' : '[-][x]';
+	const ctl = (d.onSync && !d.folded ? '[~]' : '') + (d.folded ? '[+][x]' : '[-][x]');
 	const room = Math.max(0, w - 2 - ctl.length - 1);
 	// A title that does not fit (a narrow side column) is left out rather than cut short.
 	const full = d.folded && d.tiles.length > 1 ? `${d.title} ${d.tiles.length}` : d.title;
@@ -220,7 +224,8 @@ export function drawCamWindow(g: Grid, L: CamLayout, d: CamWindowDraw) {
 	}
 	g.text(x + w - ctl.length, y, ctl, 5, 0);
 	g.hit({ x, y, w: Math.max(1, w - ctl.length), h: 1 }, () => d.onMove());
-	g.hit({ x: x + w - ctl.length, y, w: 3, h: 1 }, () => d.onFold());
+	if (d.onSync && !d.folded) g.hit({ x: x + w - 9, y, w: 3, h: 1 }, () => d.onSync!());
+	g.hit({ x: x + w - 6, y, w: 3, h: 1 }, () => d.onFold());
 	g.hit({ x: x + w - 3, y, w: 3, h: 1 }, () => d.onClose());
 	if (d.folded) return;
 	L.tiles.forEach((r, i) => {

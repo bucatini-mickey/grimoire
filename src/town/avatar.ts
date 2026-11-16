@@ -11,7 +11,7 @@ export interface Look {
 	figure: number;
 	/** The face once picked for the voting table: kept so old saves load, no longer drawn (16 Nov). */
 	face: number;
-	/** The webcam avatar's style (src/avatar/rigface.ts FaceStyle): four digits 0..3; none is the plain one. */
+	/** The webcam avatar's style (src/avatar/rigface.ts FaceStyle): six hex digits (or the first version's four); none is the plain one. */
 	style?: string;
 }
 
@@ -25,7 +25,7 @@ const inRange = (n: unknown, len: number) => (Number.isInteger(n) && (n as numbe
 export const cleanLook = (raw: unknown): Look => {
 	const r = (raw ?? {}) as Partial<Look>;
 	const out: Look = { figure: inRange(r.figure, FIGURES.length), face: inRange(r.face, FACES.length) };
-	if (typeof r.style === 'string' && /^[0-3]{4}$/.test(r.style)) out.style = r.style;
+	if (typeof r.style === 'string' && (/^[0-9a-f]{6}$/.test(r.style) || /^[0-3]{4}$/.test(r.style))) out.style = r.style;
 	return out;
 };
 

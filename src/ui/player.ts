@@ -23,7 +23,9 @@ import { CARD_COLS, CARD_INNER, big, cardButtons, characterRows, nextPage, note,
 import type { Page } from './wakepages.ts';
 import * as T from './timer.ts';
 import { villageOnPhone } from '../town/village.ts';
-import { figureRows } from './figure.ts';
+import { faceTile, figureRows } from './figure.ts';
+import { decodeStyle } from '../avatar/rig.ts';
+import { loadLook } from '../town/avatar.ts';
 import { LobbyVoice } from '../town/lobbyvoice.ts';
 import type { Extra } from '../town/village.ts';
 
@@ -305,18 +307,26 @@ function joinScreen(): Row[] {
 /** Waiting in the room: the code, everyone so far (you marked), and what happens next. */
 function lobbyScreen(): Row[] {
 	const dealing = P.seats.length > 0;
-	if (P.figure) return [...head('Your figure and face', ['Done', () => { P.figure = false; render(); }]), ...figureRows(P.lobbyYou === null ? '' : P.lobby[P.lobbyYou], P.lobbyYou, () => render())];
+	if (P.figure) return [...head('Your face and figure', ['Done', () => { P.figure = false; render(); }]), ...figureRows(P.lobbyYou === null ? '' : P.lobby[P.lobbyYou], P.lobbyYou, () => render())];
 	return [
 		...head('Lobby', ['Leave', leave]),
 		rubric('Room code'),
 		boxRow([P.code.split('').join(' ')], 'gold', 20),
 		...wrap(dealing ? 'The Storyteller is dealing the characters...' : 'Waiting for the Storyteller to start.', INNER).map((l) => row(txt(l, 'dim'))),
 		endPanel(),
+		// You, as the others will see you on their camera window: make your face while you wait.
+		rubric('You'),
+		blockRow(6, (c) => {
+			const k = P.lobbyYou ?? 0, [fg, bg] = personInk(k), you = P.lobbyYou === null ? '' : P.lobby[P.lobbyYou];
+			faceTile(c.g, c.x + 1, c.y, decodeStyle(loadLook()?.style), (you || 'You')[0].toUpperCase(), you || 'You', fg, bg);
+			wrap('Your face on the others’ camera windows: brows, eyes, nose, moustache, beard, glasses.',Math.max(10, c.w - 15)).forEach((l, i) => c.g.text(c.x + 14, c.y + i, l, 3));
+		}),
+		buttonBlock([btn('Make your face', () => { P.figure = true; render(); }, { style: 'primary' })]),
+		endPanel(),
 		rubric('Players - ' + P.lobby.length),
 		...(P.lobby.length ? P.lobby.map((n, i) => row(txt((i === P.lobbyYou ? '> ' : '  ') + n + (i === P.lobbyYou ? ' (you)' : ''), i === P.lobbyYou ? 'gold' : undefined))) : [row(txt('Just you so far...', 'dim'))]),
 		endPanel(),
 		rubric('Voice'), ...wrap(lobbyVoice.line(), INNER).map((l) => row(txt(l, 'dim'))), buttonBlock(lobbyVoice.buttons()), endPanel(),
-		buttonBlock([btn('Choose your figure and face', () => { P.figure = true; render(); })]),
 		buttonBlock([btn('Change my name', () => { lobbyVoice.stop(); P.link?.close(); P.status = 'closed'; render(); })])
 	];
 }

@@ -289,27 +289,35 @@ test('avatar tiles are the letter tile with a face: the middle face\'s size, the
 	assert.ok(c.rect.w <= 60 && c.rect.h <= 14, JSON.stringify(c.rect));
 });
 
-test('a face style: four digits both ways, each part changing the face; the plain style draws as before', async () => {
-	const { decodeStyle, encodeStyle, PLAIN_STYLE, STYLE_PARTS } = await import('../src/avatar/rig.ts');
-	assert.equal(encodeStyle(PLAIN_STYLE), '0000');
-	assert.deepEqual(decodeStyle('1203'), { brow: 1, eye: 2, nose: 0, mouth: 3 });
-	for (const bad of ['', '0004', '00000', 'abcd', null, 7]) assert.deepEqual(decodeStyle(bad), PLAIN_STYLE);
+test('a face style: six digits both ways, each choice of each part changing the face; the plain style draws as before', async () => {
+	const { decodeStyle, encodeStyle, PLAIN_STYLE, STYLE_PARTS, STYLE_NAMES } = await import('../src/avatar/rig.ts');
+	assert.equal(encodeStyle(PLAIN_STYLE), '000000');
+	assert.deepEqual(decodeStyle('120341'), { brow: 1, eye: 2, nose: 0, tache: 3, beard: 4, glasses: 1 });
+	// The first version's four digits still read: brow, eye, nose, then 1 moustache / 2 beard / 3 both.
+	assert.deepEqual(decodeStyle('3123'), { brow: 5, eye: 1, nose: 2, tache: 2, beard: 3, glasses: 0 });
+	for (const bad of ['', '00000g', '0000000', 'abcd', null, 7]) assert.deepEqual(decodeStyle(bad), PLAIN_STYLE);
+	// A digit past a part's choices is held to its last.
+	assert.equal(decodeStyle('f00000').brow, STYLE_NAMES.brow.length - 1);
 	assert.equal(rigText(drawRig(NEUTRAL, 10, 5, PLAIN_STYLE)), rigText(drawRig(NEUTRAL, 10, 5)));
-	for (const part of STYLE_PARTS) for (const v of [1, 2, 3]) {
+	const both = (c: ReturnType<typeof drawRig>) => rigText(c) + rigInks(c);
+	for (const part of STYLE_PARTS) for (let v = 1; v < STYLE_NAMES[part].length; v++) {
 		const st = { ...PLAIN_STYLE, [part]: v };
-		for (const [w, h] of [[10, 5], [16, 8]]) {
-			const both = (c: ReturnType<typeof drawRig>) => rigText(c) + rigInks(c);
-			assert.notEqual(both(drawRig(NEUTRAL, w, h, st)), both(drawRig(NEUTRAL, w, h)), `${part} ${v} at ${w}x${h}`);
-		}
+		for (const [w, h] of [[10, 5], [16, 8]]) assert.notEqual(both(drawRig(NEUTRAL, w, h, st)), both(drawRig(NEUTRAL, w, h)), `${part} ${STYLE_NAMES[part][v]} at ${w}x${h}`);
 	}
-	// The letter goes on the nose only when the nose is "my letter".
+	// The letter goes on the nose only when the nose is "Letter".
 	const ink3 = (st: object) => rigInks(drawRig(NEUTRAL, 10, 5, { ...PLAIN_STYLE, ...st })).includes('3');
 	assert.ok(ink3({}));
 	assert.ok(!ink3({ nose: 2 }));
 	// No brows still shows a raise and a frown.
-	const none = { ...PLAIN_STYLE, brow: 3 };
+	const none = { ...PLAIN_STYLE, brow: 5 };
 	assert.equal(rigText(drawRig(NEUTRAL, 16, 8, none)).split('\n')[1].trim(), '');
 	assert.ok(rigText(drawRig(rig({ browL: 15, browR: 15 }), 16, 8, none)).includes('^'));
+	// Glasses: frames and a bridge on the eyes' row; shades hide the pupils, but a blink still shows.
+	assert.equal(rigText(drawRig(NEUTRAL, 10, 5, { ...PLAIN_STYLE, glasses: 2 })).split('\n')[1].trim(), '[o]--[o]');
+	assert.equal(rigText(drawRig(NEUTRAL, 10, 5, { ...PLAIN_STYLE, glasses: 3 })).split('\n')[1].trim(), '[#]--[#]');
+	assert.equal(rigText(drawRig(rig({ eyeL: 0, eyeR: 0 }), 10, 5, { ...PLAIN_STYLE, glasses: 3 })).split('\n')[1].trim(), '[-]--[-]');
+	// A moustache sits beside the nose in the middle face, never over it.
+	assert.equal(rigText(drawRig(NEUTRAL, 10, 5, { ...PLAIN_STYLE, tache: 2 })).split('\n')[2].trim(), '~~v~~');
 });
 
 test('the camera window goes to the edge: down the side on a wide screen, a bar on a phone', async () => {
@@ -331,6 +339,7 @@ test('the camera window goes to the edge: down the side on a wide screen, a bar 
 test('a saved look keeps its face style, and drops a bad one', async () => {
 	const { cleanLook } = await import('../src/town/avatar.ts');
 	assert.equal(cleanLook({ figure: 0, face: 0, style: '1230' }).style, '1230');
+	assert.equal(cleanLook({ figure: 0, face: 0, style: '120341' }).style, '120341');
 	assert.equal(cleanLook({ figure: 0, face: 0, style: '9999' }).style, undefined);
 	assert.equal(cleanLook({ figure: 0, face: 0 }).style, undefined);
 });

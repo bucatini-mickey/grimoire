@@ -52,7 +52,7 @@ const FACES = false;
  * shows on your phone only; test villagers get drawn stand-ins; anyone else shows as their letter.
  */
 const CAMS = true;
-import { AVATAR_TILE, barHeight, camLayout, CamOverlay, drawCamWindow, nextPlace, paintCamera, paintStandIn, pickTiles, PLACE_NAME, PLACES, resolvePlace, sideWidth, standIn, tileSize } from './camwin.ts';
+import { AVATAR_TILE, barHeight, camLayout, CamOverlay, drawCamWindow, nextPlace, paintCamera, paintStandIn, pickTiles, PLACE_SHORT, PLACES, resolvePlace, sideWidth, standIn, tileSize } from './camwin.ts';
 import type { Corner, PictureTile, Place, TileView } from './camwin.ts';
 /**
  * The webcam avatar (src/avatar): your camera, on your phone only, read by a face tracker into nine hex
@@ -62,7 +62,7 @@ import type { Corner, PictureTile, Place, TileView } from './camwin.ts';
 import { decodeRig, decodeStyle, DETAIL_SIZE, detailThatFits, drawRig, encodeRig, idleRig, NEUTRAL, planRigs, withVoice } from '../avatar/rig.ts';
 import type { AvatarPlaces, Detail, RigFrom, RigSent } from '../avatar/rig.ts';
 import { GAINS, makeTracker, NO_FLIPS, NO_NEUTRAL, RigSmoother, rigOf, TRACKER_LABEL } from '../avatar/trackers.ts';
-import type { Tracker, TrackerName } from '../avatar/trackers.ts';
+import type { Neutral, Tracker, TrackerName } from '../avatar/trackers.ts';
 /** The village's trackers: BlazeFace was tried and dropped (Lavender, 14 Nov: "terrible"). */
 const TRACKER_NAMES: TrackerName[] = ['landmarker', 'pixel'];
 import type { Voice, VoiceMode } from './voice.ts';
@@ -1057,15 +1057,16 @@ function toolButtons(): Button[] {
 		if (v.mode === 'listen') { bs.push(btn('Talk', () => act('voice-talk'), { style: 'primary' })); later.push(btn('Stop listening', () => act('voice-stop'), { style: 'on' })); }
 		else bs.push(btn(v.muted ? 'Unmute' : 'Mute', () => act('mute'), { style: v.muted ? 'on' : 'primary' }));
 	} else if (S.voiceBusy) bs.push(btn('Starting...', () => {}, { disabled: true }));
-	else { bs.push(btn('Talk', () => act('voice-mic'), { style: 'primary' })); later.push(btn('Listen only', () => act('voice-listen'))); }
+	else { bs.push(btn('Talk', () => act('voice-mic'), { style: 'primary' })); later.push(btn('Listen only', () => act('voice-listen'), { style: 'quiet' })); }
 	for (const e of S.extra()) (e.primary || e.pin ? bs : later).push(btn(e.label, e.act, { style: e.primary || e.pin ? 'primary' : undefined }));
 	if (S.phase === 'dusk' && (!S.game || S.town?.council) && p && !p.st && S.town && gathering(S.town)) bs.push(btn('My seat', () => act('seat'), { style: 'primary' }));
 	if (S.host) bs.push(btn('Menu', () => act('st-toggle'), { style: S.stOpen ? 'on' : undefined }));
 	bs.push(btn('People', () => act('people')));
-	if (p && !p.st) later.push(btn('My figure and face', () => act('figure')));
-	if (!S.game && !S.host) later.push(btn('Leave the village', () => act('back')));
-	return [...bs, ...later, ...(FACES ? [btn('Faces', () => act('faces'), { style: S.sheet === 'faces' ? 'on' : undefined })] : []),
-		...(CAMS ? [btn('Cameras', () => act('cams'), { style: S.sheet === 'cams' ? 'on' : undefined })] : [])];
+	// Cameras stay on the bar; your face, listening only and leaving go to More.
+	if (CAMS) bs.push(btn('Cameras', () => act('cams'), { style: S.sheet === 'cams' ? 'on' : undefined }));
+	if (p && !p.st) later.push(btn('My face', () => act('figure'), { style: 'quiet' }));
+	if (!S.game && !S.host) later.push(btn('Leave', () => act('back'), { style: 'quiet' }));
+	return [...bs, ...later, ...(FACES ? [btn('Faces', () => act('faces'), { style: S.sheet === 'faces' ? 'on' : undefined })] : [])];
 }
 
 /** The bar: one row of the most wanted buttons that fit, the rest behind More. */
@@ -1585,8 +1586,16 @@ const avatar = {
 	rig: '',
 	sent: '',
 	sentAt: 0,
-	timer: null as ReturnType<typeof setInterval> | null
+	timer: null as ReturnType<typeof setInterval> | null,
+	/** My face at rest (Resync takes it), and a resync waiting for the next frame. */
+	neutral: { ...NO_NEUTRAL } as Neutral,
+	resync: false
 };
+/** Resync my face: the tracker learns it afresh and this moment's face becomes its rest. */
+function resyncFace() {
+	if (!myCam.on) { toast('Turn your camera on first (Cameras).'); return; }
+	avatar.resync = true;
+}
 
 /**
  * Start reading my camera into a rig: the chosen tracker, loaded the first time (MediaPipe's come from a
@@ -1628,7 +1637,14 @@ function avatarTick() {
 	let raw;
 	try { raw = t.track(v, v.videoWidth, v.videoHeight, performance.now()).raw; } catch { return; }
 	if (!raw) return;
-	const rig = encodeRig(avatar.smoother.push(rigOf(raw, GAINS, NO_NEUTRAL, NO_FLIPS)));
+	if (avatar.resync) {
+		avatar.resync = false;
+		t.relearn();
+		avatar.smoother.reset();
+		avatar.neutral = { yaw: raw.yaw, pitch: raw.pitch, roll: raw.roll, gazeX: raw.gazeX, gazeY: raw.gazeY, smile: raw.smile, browL: raw.browL, browR: raw.browR };
+		toast('Face resynced: this is your face at rest.');
+	}
+	const rig = encodeRig(avatar.smoother.push(rigOf(raw, GAINS, avatar.neutral, NO_FLIPS)));
 	if (rig !== avatar.rig) { avatar.rig = rig; S.dirty = true; }
 	const now = performance.now();
 	if (rig !== avatar.sent && now - avatar.sentAt >= 60) { avatar.sent = rig; avatar.sentAt = now; up({ t: 'rig', r: rig }); }
@@ -1710,6 +1726,7 @@ function camWindow(g: Grid, area: { x: number; y: number; w: number; h: number }
 		onMove: () => { S.cams.place = nextPlace(S.cams.place); store.set('grimoire.camsPlace', S.cams.place); S.dirty = true; redraw(); },
 		onFold: () => { S.cams.folded = !S.cams.folded; S.dirty = true; redraw(); },
 		onClose: () => act('cams-open'),
+		onSync: avatars && myCam.on ? resyncFace : undefined,
 		onTile: (id) => {
 			if (id === S.me) { S.sheet = 'cams'; S.stOpen = false; drawChrome(); return; }
 			S.named = { id, until: performance.now() + 2500 };
@@ -1854,7 +1871,7 @@ function sheetRows(): Row[] {
 	if (S.sheet === 'more') {
 		const more = barButtons(barCols()).more;
 		// Each choice closes the page as it is made.
-		return [close('sheet-close'), rubric('More'), ...more.map((b) => buttonBlock([btn(b.label, () => { S.sheet = null; b.act(); drawChrome(); }, { style: b.style, width: INNER })])), endPanel()];
+		return [close('sheet-close'), rubric('More'), buttonBlock(more.map((b) => btn(b.label, () => { S.sheet = null; b.act(); drawChrome(); }, { style: b.style === 'quiet' ? undefined : b.style }))), endPanel()];
 	}
 	if (S.sheet === 'faces') {
 		const rows: Row[] = [rubric('Faces'), ...wrap('Faces in ASCII, from each phone’s camera: you see those you can hear, and everyone in the circle. Only small frames of letters are sent, never video.', INNER).map((l) => row(txt(l, 'dim')))];
@@ -1863,19 +1880,23 @@ function sheetRows(): Row[] {
 		return [close('sheet-close'), ...rows, endPanel()];
 	}
 	if (S.sheet === 'cams') {
-		const rows: Row[] = [rubric('Cameras'), ...prose('An experiment. A small window over the map shows you and the people close to you: whoever you can hear. Tap its title to move it, [-] to fold it, [x] to close it.', 'dim'),
-			...prose('Your camera stays off until you turn it on here, and goes off when you close the window or leave the page. Nothing is sent: nobody sees your picture, and you see nobody else’s (their letter shows instead). The test villagers have drawn stand-ins.', 'dim')];
-		const b = (label: string, a: string, on: boolean) => buttonBlock([btn(label, () => act(a), { style: on ? 'on' : undefined, width: INNER })]);
-		rows.push(b(myCam.on ? 'My camera: on' : 'My camera: off', 'cams-cam', myCam.on));
-		rows.push(b(S.cams.open ? 'Window: shown' : 'Window: hidden', 'cams-open', S.cams.open));
-		rows.push(b(S.cams.look === 'avatar' ? 'Tiles: avatar' : S.cams.look === 'video' ? 'Tiles: picture' : 'Tiles: letters', 'cams-look', S.cams.look !== 'video'));
-		if (S.cams.look === 'avatar') {
-			rows.push(...prose('Avatar: your camera is read here into eleven numbers (eyes, brows, mouth, smile, head, gaze); only those are sent, and everyone draws you from them. Your mouth also moves with your voice. The nearest see you clearest.' + (avatar.note ? ' (' + avatar.note + ')' : ''), 'dim'));
-			rows.push(b('Tracker: ' + TRACKER_LABEL[S.cams.tracker], 'cams-tracker', false));
-			if (S.host) rows.push(b(S.cams.places === 'talk' ? 'Avatars show: where people talk' : 'Avatars show: whenever in earshot', 'cams-places', S.cams.places === 'talk'));
-		}
-		rows.push(b(S.cams.standIns ? 'Stand-ins for all: on' : 'Stand-ins for all: off', 'cams-standins', S.cams.standIns));
-		rows.push(b('Place: ' + PLACE_NAME[S.cams.place], 'cams-corner', false));
+		// Short and grouped: your camera, then the window. Only numbers about your face are ever sent.
+		const b = (label: string, a: string, on = false) => btn(label, () => act(a), { style: on ? 'on' : undefined });
+		const avatarMode = S.cams.look === 'avatar';
+		const rows: Row[] = [rubric('My camera'), ...prose(avatarMode ? 'Read here into numbers; only those are sent.' + (avatar.note ? ' (' + avatar.note + ')' : '') : 'Shown on this phone only.', 'dim')];
+		rows.push(buttonBlock([
+			b(myCam.on ? 'Camera: on' : 'Camera: off', 'cams-cam', myCam.on),
+			...(avatarMode && myCam.on ? [b('Resync', 'cams-resync')] : []),
+			...(avatarMode ? [b(TRACKER_LABEL[S.cams.tracker], 'cams-tracker')] : []),
+		]));
+		rows.push(endPanel(), rubric('Window'));
+		rows.push(buttonBlock([
+			b(S.cams.open ? 'Shown' : 'Hidden', 'cams-open', S.cams.open),
+			b('Place: ' + PLACE_SHORT[S.cams.place], 'cams-corner'),
+			b(avatarMode ? 'Faces' : S.cams.look === 'video' ? 'Pictures' : 'Letters', 'cams-look', avatarMode),
+			...(S.host && avatarMode ? [b(S.cams.places === 'talk' ? 'Show: talking' : 'Show: earshot', 'cams-places', S.cams.places === 'talk')] : []),
+			...(S.bots.size ? [b(S.cams.standIns ? 'Stand-ins: on' : 'Stand-ins: off', 'cams-standins', S.cams.standIns)] : [])
+		]));
 		return [close('sheet-close'), ...rows, endPanel()];
 	}
 	if (S.sheet === 'people') {
@@ -1899,8 +1920,11 @@ function sheetRows(): Row[] {
 		const ph = (k: Phase, label: string) => btn(label, () => act('phase-' + k), { style: S.phase === k ? 'on' : undefined });
 		const rows: Row[] = [rubric('Storyteller')];
 		if (!S.game) rows.push(buttonBlock([ph('day', 'Day'), ph('dusk', 'Dusk'), ph('circle', 'The circle'), ph('night', 'Night')]));
-		if (!S.game) rows.push(buttonBlock([btn('Leave the village', () => act('back'), { width: INNER })]));
-		rows.push(buttonBlock([btn('All ears: ' + (me()?.ears ? 'on' : 'off'), () => act('ears'), { style: me()?.ears ? 'on' : undefined }), btn('+ Test villager', () => act('bot'))]));
+		rows.push(buttonBlock([
+			btn('All ears: ' + (me()?.ears ? 'on' : 'off'), () => act('ears'), { style: me()?.ears ? 'on' : undefined }),
+			btn('+ Test villager', () => act('bot')),
+			...(S.game ? [] : [btn('Leave', () => act('back'), { style: 'quiet' })])
+		]));
 		if (S.game) rows.push(buttonBlock([btn('Open the grimoire', () => act('back-game'), { style: 'primary', width: INNER })]));
 		else rows.push(...prose('Players open ' + location.origin + location.pathname + '#village=' + S.room, 'dim'));
 		// Another town of the same look: the game moves there, everyone with it.
@@ -2068,6 +2092,7 @@ function act(a: string, id = '') {
 			store.set('grimoire.cams', S.cams.open ? 'on' : 'off');
 			S.dirty = true; drawChrome(); break;
 		case 'cams-cam': void myCamToggle(); break;
+		case 'cams-resync': resyncFace(); S.sheet = null; drawChrome(); break;
 		case 'cams-look':
 			S.cams.look = S.cams.look === 'avatar' ? 'video' : S.cams.look === 'video' ? 'letters' : 'avatar';
 			store.set('grimoire.camsLook', S.cams.look);
