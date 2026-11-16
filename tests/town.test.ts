@@ -128,21 +128,22 @@ test('sight: walls hide what is behind them; night shows only your lantern and l
 });
 
 test('light: rooms are dimmer than the street by day; at night only torches and lanterns light the way', async () => {
-	const { sky, sources, lightMap, level, daylight, HOUR, luma } = await import('../src/town/look.ts');
+	const { sky, sources, lightMap, lightAt } = await import('../src/town/look.ts');
+	const { GRADES, lum } = await import('../src/town/grade.ts');
 	const sk = sky(town);
 	const none = lightMap(town, []);
-	const day = daylight(HOUR.day), night = daylight(HOUR.night);
-	const bright = (l: number[]) => luma(l.map((v) => v * 255) as [number, number, number]);
-	const street = bright(level(town, sk, none, day, 25, 26));
-	const room = bright(level(town, sk, none, day, INSIDE.x, INSIDE.y));
+	const day = GRADES.day, night = GRADES.night;
+	const bright = (l: [number, number, number]) => lum(l);
+	const street = bright(lightAt(town, sk, none, day, 25, 26));
+	const room = bright(lightAt(town, sk, none, day, INSIDE.x, INSIDE.y));
 	assert.ok(room < street * 0.8, `room ${room} vs street ${street}`);
 	// Beside an outdoor torch, and in the open far from every light.
 	const torches = lightMap(town, sources(town, 0));
 	const torch = find(town, 'torch').find((q) => town.room[q.x + q.y * town.w] === town.outdoors && walkable(town, q.x + 1, q.y))!;
 	const far = { x: 22, y: 24 }; // the graveyard
 	assert.ok(town.lights.every((q) => Math.hypot(q.x - far.x, q.y - far.y) > 12));
-	const byTorch = bright(level(town, sk, torches, night, torch.x + 1, torch.y));
-	const dark = bright(level(town, sk, torches, night, far.x, far.y));
+	const byTorch = bright(lightAt(town, sk, torches, night, torch.x + 1, torch.y));
+	const dark = bright(lightAt(town, sk, torches, night, far.x, far.y));
 	assert.ok(byTorch > dark * 3, `torch ${byTorch} vs dark ${dark}`);
 });
 

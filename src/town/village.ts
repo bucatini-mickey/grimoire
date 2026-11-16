@@ -27,7 +27,7 @@ import { canDraw } from '../ui/glyphs.ts';
 import type { Look } from './avatar.ts';
 import { figureRows } from '../ui/figure.ts';
 import { faceOf, figureOf, bannerStrength, bannerStep } from './faceicon.ts';
-import { barCols, setTownBig, personInk, letterPlate, seatInk as seatInkOf, texturaPixels, setHover, INNER, onMap, btn, buttonBlock, buttonRows, drawButton, endPanel, field, isButton, listRow, paint, quant, redraw, shade, theTerm, paneled, setPalette, navRow, rubric, row, segWidth, setExtra, txt, wrap, center, pickBar } from '../ui/ascii.ts';
+import { barCols, setTownBig, personInk, letterPlate, seatInk as seatInkOf, texturaPixels, setHover, INNER, onMap, btn, buttonBlock, buttonRows, drawButton, endPanel, field, isButton, listRow, paint, quant, redraw, shade, theTerm, setMapColours, MAP_AT, MAP_ROOM, paneled, setPalette, navRow, rubric, row, segWidth, setExtra, txt, wrap, center, pickBar } from '../ui/ascii.ts';
 import type { Button, Row } from '../ui/ascii.ts';
 import type { Grid } from '../term/pterm.ts';
 import { hostRoom, joinRoom, newRoomCode } from '../net/link.ts';
@@ -36,7 +36,9 @@ import type { Peer } from 'peerjs';
 import { parseBlueprint } from './blueprint.ts';
 import { at, atSpeakingPlace, canWorkDoor, DOOR_REACH, doorLeaves, doorStepIn, doorsOf, inMeeting, isAir, loudness, makeWorld, path, perceives, roomsAt, sameRoom, stairGoes, visitedBy, visibleCells, walkable } from './map.ts';
 import type { P, Phase, Town } from './map.ts';
-import { css, FOG, fogAt, LANTERN, sunlight, lerp, level, lightMap, lookAt, luma, mul, noise, remembered, sky, sources } from './look.ts';
+import { cloudShade, css, fires, fogAt, LANTERN, MIST, lerp, lightAt, lightMap, lookAt, luma, mul, noise, sky, source, sources, townColours } from './look.ts';
+import { GRADES, Inks, fitPalette, hex, kelvin, lit, litInFog, memoryOf, thin } from './grade.ts';
+import type { Grade } from './grade.ts';
 import type { Rgb } from './look.ts';
 import { audio, startVoice } from './voice.ts';
 import { FACE_H, FACE_SAMPLES, FACE_W, FaceCam, cellOf, testFace } from './faces.ts';
@@ -55,7 +57,8 @@ import WHITECHAPEL from '../../town/whitechapel.tbp';
 import ASHCOMBE from '../../town/hamlet.tbp';
 import ABBEY from '../../town/abbey.tbp';
 import CARCOSA from '../../town/liner.tbp';
-import { animated, beamAt, fall, flash, grazer, weatherOf } from './weather.ts';
+import { animated, beamAt, fall, firefly, flash, GLOWS, grazer, sparks, weatherOf } from './weather.ts';
+import type { Weather } from './weather.ts';
 import { bookKey, THEMES, TOWN_LIST, themeOf } from '../ui/theme.ts';
 import type { Theme } from '../ui/theme.ts';
 
@@ -855,8 +858,8 @@ function doorBeside(): number | null {
 
 // ---- drawing: Tachyon's look (look.ts) --------------------------------------------------------------
 
-let dyn: Uint8ClampedArray | null = null;
-let lightAt = 0, lightTick = 0, drawnAt = 0, litFor = '';
+let dyn: Float32Array | null = null;
+let litAt = 0, drawnAt = 0, litFor = '';
 /** Where each person is drawn: gliding after where they are, so steps slide instead of jump. */
 const shownAt = new Map<string, { x: number; y: number }>();
 /** Something is still gliding: draw the next frame too. */
@@ -907,6 +910,62 @@ const fold = (ch: string) => {
 };
 const KEEP = new Set([...'≈π╥Θ■ö¡Ω‡♠♣¶⌐◙╫≡═▬†¬╤▒▓░▲♪☼☺☻∩¥⌠¤♦█ôÖ']);
 
+/** How far the eye opens indoors or in a cave, by phase (a room by day is a tenth of the street's light). */
+const ADAPT: Record<Phase, number> = { day: 2.4, dusk: 1.8, circle: 1.8, night: 1.15 };
+const eye = { v: 1, at: 0 };
+/** The light of the phase under this town's sky, seen by an eye that adjusts over half a second going in or out. */
+function gradeNow(phase: Phase, w: Weather, inside: boolean, now: number): Grade {
+	const base = GRADES[phase];
+	const aim = inside ? ADAPT[phase] : 1;
+	const dt = Math.min(200, Math.max(0, now - eye.at));
+	eye.at = now;
+	eye.v += (aim - eye.v) * (1 - Math.exp(-dt / 420));
+	if (Math.abs(aim - eye.v) > 0.01) animating = true;
+	else eye.v = aim;
+	return { ...base, sun: mul(base.sun, w.sky), exposure: base.exposure * eye.v };
+}
+
+/** A town's fires (where sparks rise), kept: lights never move. */
+const fireCache = new WeakMap<Town, ReturnType<typeof fires>>();
+const firesOf = (t: Town) => { let f = fireCache.get(t); if (!f) fireCache.set(t, (f = fires(t))); return f; };
+
+/** The weather's things (rain, snow, sheep, cattle) and the glowing ones (sparks, fireflies), for the palette. */
+const THINGS: Rgb[] = [[150, 170, 196], [236, 240, 246], [226, 222, 206], [128, 82, 52]];
+const inkCache = new Map<string, Inks>();
+let inksShown: Inks | null = null;
+/**
+ * The map's palette for this town, level and phase: fitted to every colour it can show (grade.ts), kept,
+ * and handed to the terminal after the look's own inks when it changes.
+ */
+function inksFor(t: Town, phase: Phase, w: Weather): Inks {
+	const key = `${t.name}|${t.z}|${phase}`;
+	let k = inkCache.get(key);
+	if (!k) {
+		k = fitInks(t, phase, w);
+		// The other hours of this town are fitted while nothing else is happening, so the dusk bell never stalls.
+		const later = (['day', 'dusk', 'night'] as Phase[]).filter((ph) => ph !== phase);
+		const idle = (globalThis as { requestIdleCallback?: (f: () => void) => void }).requestIdleCallback ?? ((f: () => void) => setTimeout(f, 400));
+		const next = () => {
+			const ph = later.shift();
+			if (!ph) return;
+			if (!inkCache.has(`${t.name}|${t.z}|${ph}`)) fitInks(t, ph, w);
+			idle(next);
+		};
+		idle(next);
+	}
+	if (k !== inksShown) { inksShown = k; setMapColours(k.colours.map(hex)); }
+	return k;
+}
+function fitInks(t: Town, phase: Phase, w: Weather): Inks {
+	const base = GRADES[phase];
+	const raw = townColours(t, { ...base, sun: mul(base.sun, w.sky) }, ADAPT[phase], w.fogTint ?? MIST, THINGS, GLOWS);
+	const { colours, weights } = thin(raw);
+	const k = new Inks(fitPalette(colours, MAP_ROOM, weights), MAP_AT);
+	if (inkCache.size >= 8) inkCache.delete(inkCache.keys().next().value!);
+	inkCache.set(`${t.name}|${t.z}|${phase}`, k);
+	return k;
+}
+
 /** The map's frame: move people and the camera, light the town, and ask for a redraw only when something changed. */
 function tickMap() {
 	const t = S.town, p = me();
@@ -915,7 +974,7 @@ function tickMap() {
 	// Relight when someone carrying a lantern moved, else only now and then for the flicker of the flames.
 	const lt = lvl(p);
 	const lamps = (p.z ?? 0) + '|' + (S.phase === 'day' ? '' : seen(p).map((q) => q.x + ',' + q.y + ',' + (q.z ?? 0)).join(';'));
-	const relight = !dyn || lamps !== litFor || now - lightAt > 260;
+	const relight = !dyn || lamps !== litFor || now - litAt > 160;
 	litFor = lamps;
 	if (!cam.ready) Object.assign(cam, { x: p.x, y: p.y, ready: true });
 	const aim = S.phase === 'circle' && t.council ? t.council.at : p;
@@ -933,10 +992,10 @@ function tickMap() {
 	S.dirty = false;
 	drawnAt = now;
 	if (relight) {
-		lightAt = now;
+		litAt = now;
 		// The light of the level you are on: its own lamps, and the lanterns of those on it.
-		const srcs = sources(lt, ++lightTick);
-		if (S.phase !== 'day') for (const q of seen(p)) if ((q.z ?? 0) === (p.z ?? 0)) srcs.push({ x: q.x, y: q.y, c: q.id === S.me ? LANTERN : (LANTERN.map((v) => v * 0.75) as Rgb) });
+		const srcs = sources(lt, now);
+		if (S.phase !== 'day') for (const q of seen(p)) if ((q.z ?? 0) === (p.z ?? 0)) srcs.push(source(LANTERN, q.x, q.y, now, q.id === S.me ? 1 : 0.75));
 		dyn = lightMap(lt, srcs);
 	}
 	redraw();
@@ -1190,7 +1249,6 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 	const inside = mine.length > 0 && !mine.includes(t.outdoors);
 	const here = at(t, p.x, p.y);
 	const inCave = !p.st && !inside && here?.tile !== 'wall' && here?.mat === 'granite';
-	const fogBase = weatherOf(t.name).fogTint && S.phase === 'day' ? weatherOf(t.name).fogTint! : FOG[S.phase];
 	// What you can see changes only when you move or a door does: keep it till then.
 	const lockKey = [...t.locked].join(',');
 	const visKey = `${p.st}|${p.x},${p.y}|${lockKey}`;
@@ -1208,14 +1266,30 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 	// The mist rolls slowly: move it on in steps, so a still screen stays still.
 	const fogMs = Math.floor(now / 250) * 250;
 	const sk = sky(t), w = weatherOf(t.name);
+	const mist = w.fogTint ?? MIST;
+	// The eye: indoors (or in a cave) it opens up over a moment, and the daylight through the door blazes.
+	const gr = gradeNow(S.phase, w, inside || inCave, now);
+	const inks = inksFor(t, S.phase, w);
+	const ink = (c: Rgb) => inks.of(c);
 	// Lightning lights the whole sky white for a moment.
 	const fl = w.storm ? flash(now) : 0;
-	const day: Rgb = fl ? lerp(sunlight(S.phase), [1.5, 1.55, 1.7], fl) : sunlight(S.phase);
+	const flashSun: Rgb = [gr.sun[0] + 2.2 * fl, gr.sun[1] + 2.3 * fl, gr.sun[2] + 2.7 * fl];
+	const clouds = S.phase === 'night' ? 0 : w.clouds * (S.phase === 'day' ? 0.42 : 0.25);
 	const lamp = w.beam ? beaconOf(t) : null;
+	const BEAM = kelvin(3400, 0.5);
 	const seatSet = new Set((gathering(t)?.seats ?? []).map((q) => q.x + q.y * t.w));
 	const mySeat = !p.st && S.phase === 'dusk' ? seatCell(t, p.seat) : null;
-	const lit = new Map<number, Rgb>();
+	const litMap = new Map<number, Rgb>();
 	const ground = new Map<number, number>();
+	/** The light on (x, y) now: clouds' shadows and lightning on the sky's part, the beam over the open ground. */
+	const lightHere = (x: number, y: number, i: number): Rgb => {
+		const sun = clouds ? mul(flashSun, [1, 1, 1].map(() => 1 - clouds * cloudShade(x, y, now)) as Rgb) : flashSun;
+		const l = lightAt(t, sk, dyn!, gr, x, y, sun);
+		if (lamp && t.room[i] === t.outdoors) { const b = beamAt(lamp, x, y, now) * 1.6; if (b) { l[0] += BEAM[0] * b; l[1] += BEAM[1] * b; l[2] += BEAM[2] * b; } }
+		return l;
+	};
+	// The edges of the screen fall a little into shadow, so the eye goes to the middle.
+	const vig = (sx: number, sy: number) => { const dx = sx / Math.max(1, cols) - 0.5, dy = sy / Math.max(1, mapH) - 0.5; return 1 - 0.32 * Math.min(1, Math.max(0, (Math.hypot(dx * 1.1, dy * 1.25) - 0.32) / 0.42)) ** 1.6; };
 	for (let sy = 0; sy < mapH; sy++) {
 		for (let cx = 0; cx * CW < cols; cx++) {
 			const x = x0 + cx, y = y0 + sy, sx = cx * CW;
@@ -1235,7 +1309,7 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 			if (below && memoBelow && isAir(t.cells[i])) {
 				const lb = memoBelow[i] ?? (memoBelow[i] = lookAt(below, x, y, 0));
 				const ch = lb.wall ? (lb.wall.style === 'double' ? WALL_DOUBLE : WALL_SINGLE)[lb.wall.mask] : fold(lb.ch);
-				const dim = quant(mul(lb.fg, [0.32, 0.32, 0.38]));
+				const dim = ink(mul(memoryOf(lb.fg, gr), [0.7, 0.7, 0.78]));
 				if (lb.wall) { g.set(sx, mapY + sy, ch, dim, 0); g.set(sx + 1, mapY + sy, filler(ch, lb.wall, x, y), dim, 0); }
 				else g.setWide(sx, mapY + sy, ch === ' ' ? '.' : ch, dim, 0);
 				continue;
@@ -1246,27 +1320,30 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 				if (t.cells[i].mat !== 'water' && !t.cells[i].things.includes('waterfall')) memo[i] = look;
 			}
 			let fg: Rgb, bg: Rgb;
-			if (shown) {
-				let l = level(t, sk, dyn!, day, x, y);
-				// The lighthouse's beam sweeps the open ground and the water.
-				if (lamp && t.room[i] === t.outdoors) { const b = beamAt(lamp, x, y, now); if (b) l = [l[0] + b * 1.1, l[1] + b * 1.05, l[2] + b * 0.8]; }
-				lit.set(i, l);
-				fg = look.emissive ? look.fg : mul(look.fg, l);
-				bg = mul(look.bg, l);
-			} else {
-				[fg, bg] = S.seen![i] ? remembered(look.fg, look.bg) : [[0, 0, 0], [0, 0, 0]];
-				if (S.phase === 'night') [fg, bg] = [mul(fg, [0.5, 0.5, 0.6]), mul(bg, [0.5, 0.5, 0.6])];
-				if (t.locked.has(i)) [fg, bg] = [look.fg, mul(look.bg, [0.6, 0.6, 0.6])];
-				if (edge) {
-					const l = level(t, sk, dyn!, day, x, y);
-					fg = lerp(fg, look.emissive ? look.fg : mul(look.fg, l), edge);
-					bg = lerp(bg, mul(look.bg, l), edge);
-				}
-			}
-			const f = indoors ? 0.2 * (1 - edge)
+			const f = Math.min(1, indoors ? 0.2 * (1 - edge)
 				: inCave && rock ? fogAt(t, x, y, cam, S.phase, fogMs) * 0.25 * (0.6 + 0.4 * edge) + 0.35 * (1 - edge)
-				: fogAt(t, x, y, cam, S.phase, fogMs) * w.fog * (p.st ? 0.6 : 1) * (0.6 + 0.4 * edge) + 0.35 * (1 - edge) + (inCave ? 0.25 : 0);
-			if (f > 0.01) fg = lerp(fg, fogBase, Math.min(1, f * 1.05));
+				: fogAt(t, x, y, cam, S.phase, fogMs) * w.fog * (p.st ? 0.6 : 1) * (0.6 + 0.4 * edge) + 0.35 * (1 - edge) + (inCave ? 0.25 : 0));
+			const v = vig(sx, sy);
+			if (shown || edge) {
+				// The mist is lit by the same light as the ground it hangs over: it glows round a lamp.
+				const l0 = lightHere(x, y, i);
+				const l: Rgb = [l0[0] * v, l0[1] * v, l0[2] * v];
+				if (shown) litMap.set(i, l);
+				const lf = indoors ? 0 : f;
+				fg = look.emissive ? look.fg : litInFog(look.fg, mist, Math.min(1, lf * 1.05), l, gr);
+				// The ground takes only a veil of it (a full one turned the far cells into grey squares).
+				bg = litInFog(look.bg, mist, lf * 0.06, l, gr);
+			} else [fg, bg] = [[0, 0, 0], [0, 0, 0]];
+			if (!shown) {
+				// Seen before: as it is remembered, faded and cooled; the mist over it too. A locked door stays plain.
+				// The remembered ground lies low and dark, so the glyphs sketch the place and what is in sight stands out.
+				let mf = mul(memoryOf(look.fg, gr), [0.86, 0.86, 0.88]), mb = mul(memoryOf(look.bg, gr), [0.38, 0.38, 0.41]);
+				if (f > 0.01) { const m = memoryOf(mist, gr); mf = lerp(mf, m, Math.min(1, f * 0.5)); }
+				if (t.locked.has(i)) [mf, mb] = [look.fg, mul(look.bg, [0.6, 0.6, 0.6])];
+				const k = 0.75 + 0.25 * v;
+				[mf, mb] = [mul(mf, [k, k, k]), mul(mb, [k, k, k])];
+				[fg, bg] = edge ? [lerp(mf, fg, edge), lerp(mb, bg, edge)] : [mf, mb];
+			}
 			let ch = fold(look.ch);
 			if (look.wall) {
 				const m = look.wall.mask;
@@ -1284,21 +1361,44 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 			}
 			if (shown && !indoors && !look.wall && (w.rain || w.snow)) {
 				const f2 = fall(w, x, y, now);
-				if (f2 && !t.cells[i].things.length) { ch = f2.ch; fg = mul(f2.c, lit.get(i)!.map((v) => Math.min(1, v + 0.35)) as Rgb); }
+				// A drop or a flake catches whatever light there is, a little more than the ground does.
+				if (f2 && !t.cells[i].things.length) { ch = f2.ch; fg = lit(f2.c, litMap.get(i)!.map((v, k) => v * 1.2 + gr.fill[k] * 2) as Rgb, gr); }
 			}
 			if (shown && w.graze && t.cells[i].mat === 'pasture' && !t.cells[i].things.length) {
 				const b = grazer(x, y, now);
-				if (b) { ch = b.ch; fg = mul(b.c, lit.get(i)!.map((v) => Math.min(1, v + 0.2)) as Rgb); }
+				if (b) { ch = b.ch; fg = lit(b.c, litMap.get(i)!, gr); }
 			}
-			const fgi = quant(fg);
-			// The ground keeps its own colour, in the shades of its ink, so a lit square glows and the dark falls away.
+			const cell = t.cells[i];
+			if (shown && !cell.things.length && cell.tile !== 'wall') {
+				// Water, ice and snow glint: the sun by day, a lamp or the moon by night; the brighter the light, the more often.
+				if (cell.mat === 'water' || cell.mat === 'ice' || cell.mat === 'snow') {
+					const l = litMap.get(i)!, e = luma(l) * gr.exposure;
+					const h = hash2(x + Math.floor(now / 260) * 31, y);
+					if ((h & 1023) < Math.min(40, e * (cell.mat === 'water' ? 26 : 12))) { ch = cell.mat === 'water' ? '*' : '.'; fg = lit([255, 252, 240], l.map((v) => v * 1.6) as Rgb, gr); }
+				}
+				// Fireflies over the grass at dusk and by night: they make their own light.
+				else if (w.fireflies && S.phase !== 'day' && !indoors && (cell.mat === 'grass' || cell.mat === 'pasture' || cell.mat === 'reeds' || cell.mat === 'leaves')) {
+					const ff = firefly(x, y, now);
+					if (ff) { ch = '.'; fg = ff; }
+				}
+			}
+			const fgi = ink(fg);
+			// The ground keeps its own colour, so a lit square glows and the dark falls away.
 			// At dusk the seats are picked out in gold.
-			const bgi = mySeat && mySeat.x === x && mySeat.y === y ? 8 : S.phase === 'dusk' && seatSet.has(i) ? shade(6, 1) : shown && luma(bg) > 9 ? quant(bg) : 0;
+			const bgi = mySeat && mySeat.x === x && mySeat.y === y ? 8 : S.phase === 'dusk' && seatSet.has(i) ? shade(6, 1) : luma(bg) > 3 ? ink(bg) : 0;
 			ground.set(i, bgi);
 			// A wall's line runs on through both columns; anything else sits in the middle of its square.
 			if (look.wall || look.glass) { g.set(sx, mapY + sy, ch, fgi, bgi); g.set(sx + 1, mapY + sy, look.glass ? '▒' : filler(ch, look.wall, x, y), fgi, bgi); }
 			else g.setWide(sx, mapY + sy, ch, fgi, bgi);
 		}
+	}
+	// Sparks rise from the fires after the day, over open ground in sight.
+	if (S.phase !== 'day') for (const s of sparks(firesOf(t), now)) {
+		const cx = s.x - x0, sy = s.y - y0;
+		if (cx < 0 || sy < 0 || sy >= mapH || cx * CW >= cols) continue;
+		const i = s.x + s.y * t.w, c = at(t, s.x, s.y);
+		if (!c || !vis.has(i) || c.tile === 'wall' || c.things.length) continue;
+		g.setWide(cx * CW, mapY + sy, s.ch, ink(s.c), ground.get(i) ?? 0);
 	}
 	for (const l of t.labels) {
 		const i = l.x + l.y * t.w;
@@ -1316,8 +1416,8 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 		if (q.id === S.me) return true;
 		if ((q.z ?? 0) !== (p.z ?? 0)) return false;
 		if (!perceives(lvl(p), p, q, S.phase)) return false;
-		const l = lit.get(q.x + q.y * t.w);
-		return !!l && (luma(l.map((v) => v * 255) as Rgb) > 30 || Math.hypot(q.x - p.x, q.y - p.y) < 2);
+		const l = litMap.get(q.x + q.y * t.w);
+		return !!l && (luma(l) * gr.exposure > 0.02 || Math.hypot(q.x - p.x, q.y - p.y) < 2);
 	});
 	for (const q of people) {
 		const d = shownAt.get(q.id) ?? q;

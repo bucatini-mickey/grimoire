@@ -19,26 +19,42 @@ export interface Weather {
 	rain: boolean;
 	storm: boolean;
 	snow: boolean;
-	/** How much thicker than usual the fog is (1 as usual), and its colour by day if not the usual. */
+	/**
+	 * How much thicker than usual the fog is (1 as usual), and what the mist is made of if not the usual
+	 * grey-white (its colour as it would look in full daylight; the scene's light colours it, so the same
+	 * mist is rose at dusk and blue at night).
+	 */
 	fog: number;
 	fogTint: Rgb | null;
 	/** Turning light: the cell of the lamp, if the town has one. */
 	beam: boolean;
 	/** Sheep and cattle wandering the pasture. */
 	graze: boolean;
+	/** A fair sky with clouds whose shadows drift over the town by day (0 overcast, none; 1 strong). */
+	clouds: number;
+	/** Fireflies over the grass at dusk and by night (fair weather only). */
+	fireflies: boolean;
+	/** How the sky's light is coloured (multiplies the sun: overcast greys it, smog yellows it). */
+	sky: Rgb;
 }
 
-const CALM: Weather = { rain: false, storm: false, snow: false, fog: 1, fogTint: null, beam: false, graze: false };
+const CALM: Weather = { rain: false, storm: false, snow: false, fog: 1, fogTint: null, beam: false, graze: false, clouds: 1, sky: [1, 1, 1], fireflies: true };
+const OVERCAST: Rgb = [0.78, 0.82, 0.88];
 const BY_TOWN: Record<string, Weather> = {
-	victorian: { ...CALM, rain: true, storm: true, beam: true, fog: 1.15 },
-	grimm: { ...CALM, snow: true, fog: 1.1, fogTint: [150, 160, 172] },
-	whitechapel: { ...CALM, fog: 1.7, fogTint: [86, 82, 58] },
+	victorian: { ...CALM, rain: true, storm: true, beam: true, fog: 1.15, fogTint: [150, 162, 168], clouds: 0, fireflies: false, sky: [0.7, 0.76, 0.82] },
+	grimm: { ...CALM, snow: true, fog: 1.1, fogTint: [200, 208, 220], clouds: 0, fireflies: false, sky: OVERCAST },
+	whitechapel: { ...CALM, fog: 1.7, fogTint: [176, 164, 112], clouds: 0, fireflies: false, sky: [0.86, 0.8, 0.62] },
 	castle: CALM,
-	hamlet: { ...CALM, graze: true, fog: 1.2, fogTint: [120, 128, 116] },
-	abbey: { ...CALM, fog: 1.25, fogTint: [128, 128, 122] },
-	liner: { ...CALM, rain: true, storm: true, fog: 1.3, fogTint: [70, 82, 84] }
+	hamlet: { ...CALM, graze: true, fog: 1.2, fogTint: [184, 190, 178] },
+	abbey: { ...CALM, fog: 1.25, fogTint: [186, 186, 178], clouds: 0.6 },
+	liner: { ...CALM, rain: true, storm: true, fog: 1.3, fogTint: [128, 142, 146], clouds: 0, fireflies: false, sky: [0.66, 0.72, 0.78] }
 };
 export const weatherOf = (town: string): Weather => BY_TOWN[town] ?? CALM;
+
+/** The colours of things that give their own light over the town: sparks from fires, fireflies. */
+export const EMBER: Rgb[] = [[255, 214, 140], [250, 150, 60], [190, 80, 34]];
+export const FIREFLY: Rgb[] = [[214, 240, 120], [150, 190, 70]];
+export const GLOWS: Rgb[] = [...EMBER, ...FIREFLY];
 export const animated = (w: Weather) => w.rain || w.snow || w.beam || w.storm || w.graze;
 
 const hash = (x: number, y: number, k: number) => {
@@ -105,4 +121,42 @@ export function fall(w: Weather, x: number, y: number, ms: number): { ch: string
 		return null;
 	}
 	return null;
+}
+
+/**
+ * Sparks over the fires: each fire sends up a few at a time (a brazier more), each rising two to four
+ * cells over a second and a half, swaying, from a white-gold spark to a dull red speck. What is drawn
+ * where at this moment; the same on every phone.
+ */
+export function sparks(fires: { x: number; y: number; big: boolean }[], ms: number): { x: number; y: number; ch: string; c: Rgb }[] {
+	const out: { x: number; y: number; ch: string; c: Rgb }[] = [];
+	const P = 1500;
+	for (const f of fires) {
+		const n = f.big ? 3 : 1;
+		for (let k = 0; k < n; k++) {
+			const off = hash(f.x * 7 + k, f.y, 51) % P;
+			const slot = Math.floor((ms + off) / P), t = ((ms + off) % P) / P;
+			const h = hash(f.x + slot, f.y + k, 53);
+			if (!f.big && h % 3 === 0) continue; // a torch spits now and then, not always
+			const rise = 2 + (h % 3);
+			const sway = Math.sin(t * 5 + (h & 31)) * (0.6 + ((h >> 5) & 3) * 0.3);
+			const y = f.y - 1 - Math.floor(t * rise), x = f.x + Math.round(sway);
+			const age = Math.min(2, Math.floor(t * 3));
+			out.push({ x, y, ch: age === 0 ? '*' : '.', c: EMBER[age] });
+		}
+	}
+	return out;
+}
+
+/**
+ * A firefly at (x, y) now, or null: one wanders slowly in some of the five-cell squares of the grass,
+ * glowing for a moment, dark again for a few, so the field winks.
+ */
+export function firefly(x: number, y: number, ms: number): Rgb | null {
+	const bx = Math.floor(x / 5), by = Math.floor(y / 5), h = hash(bx, by, 57);
+	if (h % 4) return null;
+	const px = bx * 5 + 2 + Math.round(Math.sin(ms / 2300 + (h & 255)) * 2), py = by * 5 + 2 + Math.round(Math.sin(ms / 3100 + ((h >> 8) & 255)) * 2);
+	if (px !== x || py !== y) return null;
+	const glow = Math.sin(ms / 700 + ((h >> 16) & 63));
+	return glow > 0.55 ? FIREFLY[0] : glow > 0.2 ? FIREFLY[1] : null;
 }

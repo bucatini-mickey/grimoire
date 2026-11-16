@@ -466,6 +466,18 @@ function bookPalette(key: string): Palette {
 	}
 	return withArt.get(key)!;
 }
+/**
+ * The town's own colours (src/town/grade.ts fits them to the town and the hour): after the look's 16 inks
+ * and their shades (which the labels, bars and people keep), at palette index MAP_AT on. Up to MAP_ROOM.
+ */
+export const MAP_AT = INKS, MAP_ROOM = 256 - INKS - 4;
+let mapColours: string[] = [];
+let mapCached: { key: string; cols: string[]; pal: Palette } | null = null;
+export const setMapColours = (cols: string[]) => { mapColours = cols.slice(0, MAP_ROOM); };
+function mapPalette(key: string): Palette {
+	if (!mapCached || mapCached.key !== key || mapCached.cols !== mapColours) mapCached = { key, cols: mapColours, pal: [...expand(PALETTES[key]), ...mapColours] };
+	return mapCached.pal;
+}
 /** The palette entry of a picture's colour on a book's page (its own, else the nearest ink). */
 const artInk = (hex: string) => ART_AT.get(hex.toLowerCase()) ?? quant([1, 3, 5].map((k) => parseInt(hex.slice(k, k + 2), 16)));
 
@@ -2066,7 +2078,7 @@ export function townScale(w: number, h: number, ratio: number, wide: boolean): {
 function frame(g: Grid) {
 	// The town is lit for the dark: over it, the pages take their night inks.
 	const key = extra && extraShown() ? (paletteKey().startsWith('folio') ? 'map-' + themeOfKey(paletteKey()) : paletteKey().replace('-day', '-night')) : paletteKey();
-	term!.palette = key.startsWith('folio') ? bookPalette(key) : PALETTES[key] ?? PALETTES['manuscript-night'];
+	term!.palette = key.startsWith('folio') ? bookPalette(key) : key.startsWith('map-') && mapColours.length ? mapPalette(key) : PALETTES[key] ?? PALETTES['manuscript-night'];
 	// The cover wants a margin of leather round its page: a few more columns (a touch smaller type).
 	// The cover is a picture, drawn fine: many more columns (small cells, two pixels each).
 	// A book on a wide screen lies open: room for two leaves.
