@@ -367,54 +367,24 @@ function visionRuntime() {
 	})().catch((e) => { vision = null; throw e; }));
 }
 
-/** Whether this browser can make a WebGL2 context (MediaPipe's GPU path needs one). */
-function hasWebGL2(): boolean {
-	try { return !!document.createElement('canvas').getContext('webgl2'); } catch { return false; }
-}
-
 /**
- * A MediaPipe task (Face Landmarker or Face Detector) on the GPU if it works, else the CPU. The GPU can
- * also fail later, on a frame, not at start (17 Nov, Rosemary: "Cannot read properties of undefined
- * (reading 'activeTexture')", then "memory access out of bounds" as its broken wasm was used again): then
- * the task is dropped, a CPU one is made in the background, and frames meanwhile find nothing.
+ * A MediaPipe task (Face Landmarker or Face Detector), on the CPU on every device (17 Nov). The GPU is a
+ * little faster where it works, but where it does not it can fail mid-run, not at start (Rosemary: "reading
+ * 'activeTexture'", then "memory access out of bounds" and nonsense after), and the CPU gives the same
+ * answers: about 33 ms a frame for the Landmarker on Rosemary, enough for the village's 15 a second.
  */
 class MpTask {
 	private task: any = null;
-	private make: ((d: 'GPU' | 'CPU') => Promise<any>) | null = null;
-	delegate: 'GPU' | 'CPU' = 'GPU';
-	/** Set while the CPU task is being made; why it could not be, if it failed. */
-	moving = false;
-	failed = '';
-
-	async start(make: (d: 'GPU' | 'CPU') => Promise<any>): Promise<string> {
-		this.make = make;
-		if (hasWebGL2()) {
-			try { this.task = await make('GPU'); this.delegate = 'GPU'; return 'GPU'; } catch { /* the CPU below */ }
-		}
+	async start(make: (d: 'CPU') => Promise<any>): Promise<string> {
 		this.task = await make('CPU');
-		this.delegate = 'CPU';
-		return 'CPU (no GPU)';
+		return 'CPU';
 	}
-
-	/** One frame's result, or null while moving to the CPU. Throws only if the CPU fails too. */
+	/** One frame's result. Throws if MediaPipe fails: the caller says so (never a quiet "no face"). */
 	detect(src: HTMLVideoElement | HTMLCanvasElement, t: number): any | null {
-		if (this.failed) throw new Error(this.failed);
-		if (!this.task) return null;
-		try { return this.task.detectForVideo(src, t); } catch (e) {
-			if (this.delegate === 'CPU' || !this.make) throw e;
-			const old = this.task;
-			this.task = null;
-			try { old.close?.(); } catch { /* broken already */ }
-			this.delegate = 'CPU';
-			this.moving = true;
-			this.make('CPU').then((task) => { this.task = task; }, (err) => { this.failed = 'GPU failed, then CPU: ' + ((err as Error)?.message ?? String(err)); })
-				.finally(() => { this.moving = false; });
-			return null;
-		}
+		return this.task ? this.task.detectForVideo(src, t) : null;
 	}
-
-	get note(): string | undefined { return this.moving ? 'moving to CPU' : undefined; }
-	close() { try { this.task?.close?.(); } catch { /* gone */ } this.task = null; this.make = null; }
+	readonly note: string | undefined = undefined;
+	close() { try { this.task?.close?.(); } catch { /* gone */ } this.task = null; }
 }
 
 /** A model's bytes, fetched here so its size is known exactly. */
@@ -509,7 +479,7 @@ export class LandmarkerTracker implements Tracker {
 		const t0 = performance.now();
 		const { mod, fileset } = await visionRuntime();
 		const model = await fetchModel(MODEL_URL.landmarker);
-		const opts = (delegate: 'GPU' | 'CPU') => ({
+		const opts = (delegate: 'CPU') => ({
 			baseOptions: { modelAssetBuffer: model, delegate }, runningMode: 'VIDEO', numFaces: 1,
 			outputFaceBlendshapes: true, outputFacialTransformationMatrixes: true
 		});
@@ -547,7 +517,7 @@ export class BlazeTracker implements Tracker {
 		const t0 = performance.now();
 		const { mod, fileset } = await visionRuntime();
 		const model = await fetchModel(MODEL_URL.blazeface);
-		const opts = (delegate: 'GPU' | 'CPU') => ({ baseOptions: { modelAssetBuffer: model, delegate }, runningMode: 'VIDEO', minDetectionConfidence: 0.4 });
+		const opts = (delegate: 'CPU') => ({ baseOptions: { modelAssetBuffer: model, delegate }, runningMode: 'VIDEO', minDetectionConfidence: 0.4 });
 		const note = await this.fd.start((d) => mod.FaceDetector.createFromOptions(fileset, opts(d)));
 		const files = withModel(downloaded(fromMediaPipe).filter((f) => !f.url.includes('face_landmarker')), MODEL_URL.blazeface, model.byteLength);
 		return { bytes: files.reduce((a, f) => a + f.bytes, 0), ms: performance.now() - t0, files, note };

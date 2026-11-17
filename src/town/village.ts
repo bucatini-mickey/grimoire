@@ -39,7 +39,7 @@ import type { P, Phase, Town } from './map.ts';
 import { css, FOG, fogAt, LANTERN, sunlight, lerp, level, lightMap, lookAt, luma, mul, noise, remembered, sky, sources } from './look.ts';
 import type { Rgb } from './look.ts';
 import { audio, startVoice } from './voice.ts';
-import { FACE_H, FACE_SAMPLES, FACE_W, FaceCam, cellOf, testFace, toFrame } from './faces.ts';
+import { FACE_H, FACE_SAMPLES, FACE_W, FaceCam, cellOf, faceOver, testFace, toFrame } from './faces.ts';
 
 /**
  * Faces in the village (faces.ts) are parked: twelve columns do not make a face anyone would know.
@@ -265,7 +265,8 @@ S.cams.open = store.get('grimoire.cams') !== 'off';
 S.cams.place = PLACES.find((c) => c === store.get('grimoire.camsPlace')) ?? 'auto';
 S.cams.look = (['avatar', 'video', 'letters'] as const).find((l) => l === store.get('grimoire.camsLook')) ?? 'avatar';
 S.cams.places = store.get('grimoire.avatarPlaces') === 'earshot' ? 'earshot' : 'talk';
-S.cams.tracker = TRACKER_NAMES.find((n) => n === store.get('grimoire.avatarTracker')) ?? 'landmarker';
+// Always the Face Landmarker (17 Nov): the test page compares trackers, the village does not.
+S.cams.tracker = 'landmarker';
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 const me = () => S.people.get(S.me);
 /** The level someone is on, as a town of its own (the ground holds them all). */
@@ -1593,7 +1594,7 @@ async function myCamToggle() {
 		if (!(await myCam.start())) { toast('No camera (or it was refused).'); drawChrome(); return; }
 		if (!S.cams.open) { S.cams.open = true; store.set('grimoire.cams', 'on'); }
 		S.cams.folded = false;
-		if (S.cams.look === 'avatar') void avatarOn();
+		if (tracked()) void avatarOn();
 	}
 	S.dirty = true;
 	drawChrome();
@@ -1609,8 +1610,13 @@ function myCamOff() {
 
 const avatar = {
 	tracker: null as Tracker | null,
-	/** Why the chosen tracker is not running (loading, or failed and fallen back to pixels). */
+	/** Why the tracker is not running: loading, or what went wrong (said, never hidden as "no face"). */
 	note: '',
+	/** How long a frame takes to track (ms, averaged), and when the next one is due: a slow phone tracks less often. */
+	cost: 0,
+	nextAt: 0,
+	/** Where my face is in the camera's picture (0..1, unmirrored, smoothed), for the face over Letters. */
+	box: null as { x: number; y: number; w: number; h: number } | null,
 	smoother: new RigSmoother(),
 	/** My rig as last drawn and as last sent. */
 	rig: '',
@@ -1632,59 +1638,69 @@ function resyncFace() {
  * CDN); if it cannot load, the pixel tracker, which needs nothing. Fifteen times a second; the rig goes
  * to the host when it changes, at most fifteen times a second.
  */
+/** Whether the look in use needs my face tracked: Faces, and Letters (my face goes over the picture). */
+const tracked = () => S.cams.look === 'avatar' || S.cams.look === 'letters';
 async function avatarOn() {
 	if (avatar.timer) return;
 	avatar.timer = setInterval(avatarTick, 66);
-	if (avatar.tracker?.name === S.cams.tracker) return;
-	avatar.tracker?.close();
-	avatar.tracker = null;
+	if (avatar.tracker) return;
 	const name = S.cams.tracker;
 	avatar.note = 'loading ' + TRACKER_LABEL[name];
 	drawChrome();
 	const t = makeTracker(name);
 	try { await t.load(); avatar.tracker = t; avatar.note = ''; }
-	catch {
-		const px = makeTracker('pixel');
-		await px.load();
-		avatar.tracker = px;
-		avatar.note = TRACKER_LABEL[name] + ' could not load: pixels instead';
-		toast(avatar.note + '.');
+	catch (e) {
+		// No quiet fall to Pixels (a poor face, 17 Nov): said, and the tile stays your letter.
+		avatar.note = 'error';
+		toast(`Faces could not start here (${String((e as Error)?.message ?? e).slice(0, 60)}).`);
 	}
 	avatar.smoother.reset();
 	S.dirty = true;
 	drawChrome();
 }
-/** The tracker failed on a frame and could not mend itself: say so, and use pixels instead. */
+/** The tracker failed on a frame: say so; the tile shows "error" and your letter (turn the camera off and on to retry). */
 function trackerFailed(t: Tracker, why: string) {
-	if (avatar.tracker !== t || t.name === 'pixel') return;
+	if (avatar.tracker !== t) return;
 	t.close();
-	const px = makeTracker('pixel');
 	avatar.tracker = null;
 	avatar.note = 'error';
-	toast(`${TRACKER_LABEL[t.name]} failed (${why.slice(0, 80)}): pixels instead.`);
+	toast(`Faces stopped (${why.slice(0, 80)}).`);
 	S.dirty = true;
-	void px.load().then(() => { if (!avatar.tracker && avatar.timer) { avatar.tracker = px; avatar.note = ''; avatar.smoother.reset(); S.dirty = true; } });
 }
 function avatarOff() {
 	if (avatar.timer) clearInterval(avatar.timer);
 	avatar.timer = null;
 	avatar.rig = '';
+	avatar.box = null;
 	if (avatar.sent) up({ t: 'rig', r: null });
 	avatar.sent = '';
 }
 function avatarTick() {
 	const v = myCam.picture, t = avatar.tracker;
-	if (!v || !t || S.cams.look !== 'avatar') return;
+	if (!v || !t || !tracked()) return;
+	// A slow phone tracks less often: the tracker takes at most about 40% of the time (Rosemary's CPU, 33 ms
+	// a frame: every 82 ms; a phone at 80 ms: every 200 ms). The smoother covers the gaps.
+	const t0 = performance.now();
+	if (t0 < avatar.nextAt) return;
 	let tr;
-	try { tr = t.track(v, v.videoWidth, v.videoHeight, performance.now()); } catch (e) {
+	try { tr = t.track(v, v.videoWidth, v.videoHeight, t0); } catch (e) {
 		// Said, not hidden (17 Nov: a broken GPU read as "no face" on Rosemary): pixels from here on.
 		trackerFailed(t, (e as Error)?.message ?? String(e));
 		return;
 	}
+	const spent = performance.now() - t0;
+	avatar.cost = avatar.cost ? avatar.cost * 0.8 + spent * 0.2 : spent;
+	avatar.nextAt = t0 + Math.max(0, avatar.cost / 0.4 - 66);
 	const note = tr.note ?? '';
 	if (note !== avatar.note) { avatar.note = note; S.dirty = true; }
 	const raw = tr.raw;
 	if (!raw) return;
+	if (tr.box) {
+		// Smoothed, so the face over Letters glides rather than shakes.
+		const b = avatar.box, k = 0.45;
+		avatar.box = b ? { x: b.x + (tr.box.x - b.x) * k, y: b.y + (tr.box.y - b.y) * k, w: b.w + (tr.box.w - b.w) * k, h: b.h + (tr.box.h - b.h) * k } : { ...tr.box };
+		if (S.cams.look === 'letters') S.dirty = true;
+	}
 	if (avatar.resync) {
 		avatar.resync = false;
 		t.relearn();
@@ -1695,7 +1711,7 @@ function avatarTick() {
 	const rig = encodeRig(avatar.smoother.push(rigOf(raw, GAINS, avatar.neutral, NO_FLIPS)));
 	if (rig !== avatar.rig) { avatar.rig = rig; S.dirty = true; }
 	const now = performance.now();
-	if (rig !== avatar.sent && now - avatar.sentAt >= 60) { avatar.sent = rig; avatar.sentAt = now; up({ t: 'rig', r: rig }); }
+	if (S.cams.look === 'avatar' && rig !== avatar.sent && now - avatar.sentAt >= 60) { avatar.sent = rig; avatar.sentAt = now; up({ t: 'rig', r: rig }); }
 }
 // A page put out of sight (another app, the phone locked) turns the camera off; it stays off until turned on.
 document.addEventListener('visibilitychange', () => { if (document.hidden && myCam.on) { myCamOff(); drawChrome(); } });
@@ -1769,7 +1785,11 @@ function camWindow(g: Grid, area: { x: number; y: number; w: number; h: number }
 		}
 		camLetters = true;
 		const lum = self ? myCam.lum(tw, th * 2) : standIn(standInOf(id), now, talk, tw, th * 2);
-		return lum ? { ...base, kind: 'letters' as const, frame: toFrame(lum, tw, th * 2) } : { ...base, kind: 'blank' as const, note: 'starting' };
+		if (!lum) return { ...base, kind: 'blank' as const, note: 'starting' };
+		const rig = self ? decodeRig(avatar.rig) : null;
+		const v = self ? myCam.picture : null;
+		const over = rig && v && avatar.box ? faceOver(avatar.box, v.videoWidth, v.videoHeight, tw, th, drawRig(withVoice(rig, talking(q)), 5, 2, decodeStyle(q.look?.style))) : undefined;
+		return { ...base, kind: 'letters' as const, frame: toFrame(lum, tw, th * 2), over };
 	});
 	const title = S.phase === 'circle' ? 'The circle' : S.phase === 'night' ? 'Night' : p.with ? 'Private' : 'Near you';
 	drawCamWindow(g, L, {
@@ -1777,7 +1797,7 @@ function camWindow(g: Grid, area: { x: number; y: number; w: number; h: number }
 		onMove: () => { S.cams.place = nextPlace(S.cams.place); store.set('grimoire.camsPlace', S.cams.place); S.dirty = true; redraw(); },
 		onFold: () => { S.cams.folded = !S.cams.folded; S.dirty = true; redraw(); },
 		onClose: () => act('cams-open'),
-		onSync: avatars && myCam.on ? resyncFace : undefined,
+		onSync: S.cams.look !== 'video' && myCam.on ? resyncFace : undefined,
 		onTile: (id) => {
 			if (id === S.me) { S.sheet = 'cams'; S.stOpen = false; drawChrome(); return; }
 			S.named = { id, until: performance.now() + 2500 };
@@ -1956,8 +1976,7 @@ function sheetRows(): Row[] {
 		const rows: Row[] = [rubric('My camera'), ...prose(avatarMode ? 'Read here into numbers; only those are sent.' + (avatar.note ? ' (' + avatar.note + ')' : '') : 'Shown on this phone only.', 'dim')];
 		rows.push(buttonBlock([
 			b(myCam.on ? 'Camera: on' : 'Camera: off', 'cams-cam', myCam.on),
-			...(avatarMode && myCam.on ? [b('Resync', 'cams-resync')] : []),
-			...(avatarMode ? [b(TRACKER_LABEL[S.cams.tracker], 'cams-tracker')] : []),
+			...(S.cams.look !== 'video' && myCam.on ? [b('Resync', 'cams-resync')] : []),
 		]));
 		rows.push(endPanel(), rubric('Window'));
 		rows.push(buttonBlock([
@@ -2166,12 +2185,7 @@ function act(a: string, id = '') {
 		case 'cams-look':
 			S.cams.look = S.cams.look === 'avatar' ? 'video' : S.cams.look === 'video' ? 'letters' : 'avatar';
 			store.set('grimoire.camsLook', S.cams.look);
-			if (S.cams.look === 'avatar' && myCam.on) void avatarOn(); else avatarOff();
-			S.dirty = true; drawChrome(); break;
-		case 'cams-tracker':
-			S.cams.tracker = TRACKER_NAMES[(TRACKER_NAMES.indexOf(S.cams.tracker) + 1) % TRACKER_NAMES.length];
-			store.set('grimoire.avatarTracker', S.cams.tracker);
-			if (avatar.timer) { avatarOff(); void avatarOn(); }
+			if (tracked() && myCam.on) void avatarOn(); else avatarOff();
 			S.dirty = true; drawChrome(); break;
 		case 'cams-places':
 			S.cams.places = S.cams.places === 'talk' ? 'earshot' : 'talk';

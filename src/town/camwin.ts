@@ -188,6 +188,8 @@ export interface TileView {
 	kind: 'letters' | 'video' | 'avatar' | 'blank';
 	frame?: string;
 	cells?: RigCell[][];
+	/** Letters only: a drawn face over yours (faces.ts faceOver): an oval of blank, the face at (x, y). */
+	over?: { cx: number; cy: number; rx: number; ry: number; x: number; y: number; cells: RigCell[][] };
 	/** Under the letter of a tile with no picture: why there is none. */
 	note?: string;
 	talking: boolean;
@@ -260,10 +262,17 @@ export function drawCamWindow(g: Grid, L: CamLayout, d: CamWindowDraw) {
 				else g.set(ox + xx, oy + yy, c.ch, c.ink === 2 ? feature : t.fade === undefined ? 3 : shade(3, Math.max(0, t.fade - 1)), 0);
 			}
 		} else if (t.kind === 'letters' && t.frame) {
+			const o = t.over;
 			for (let yy = 0; yy < r.h; yy++) for (let xx = 0; xx < r.w; xx++) {
+				// Inside the oval over your face: blank, so only your outline is yours.
+				if (o && ((xx + 0.5 - o.cx) / o.rx) ** 2 + ((yy + 0.5 - o.cy) / o.ry) ** 2 <= 1) { g.set(r.x + xx, r.y + yy, ' ', 3, 0); continue; }
 				const c = cellOf(t.frame, xx, yy, r.w);
 				g.set(r.x + xx, r.y + yy, c.ch, levelInk(c.level), 0);
 			}
+			if (o) o.cells.forEach((row, yy) => row.forEach((c, xx) => {
+				const px = o.x + xx, py = o.y + yy;
+				if (c.ch !== ' ' && px >= 0 && py >= 0 && px < r.w && py < r.h) g.set(r.x + px, r.y + py, c.ch, 6, 0);
+			}));
 		} else {
 			// No picture: a faint ground, their letter in the middle on its plate, why under it.
 			for (let yy = 0; yy < r.h; yy++) for (let xx = 0; xx < r.w; xx++) g.set(r.x + xx, r.y + yy, (xx + 2 * yy) % 4 ? ' ' : '.', shade(3, 1), 0);

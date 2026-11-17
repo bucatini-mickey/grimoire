@@ -7,7 +7,7 @@ import {
 	bestPatch, blend, boxDown, cellGlyph, DEFAULTS, DENSE, embedHtml, exposure, fixedCrop, follow, hexFrame, isSkin, luma,
 	outside, playerHtml, quantize, RAMP, rowsFor, SKIN_START, squareAround, toFrame, toHtml, toLevels
 } from '../src/avatar/asciiavatar.ts';
-import { cellOf, faceCell } from '../src/town/faces.ts';
+import { cellOf, faceCell, faceOver } from '../src/town/faces.ts';
 
 const root = new URL('..', import.meta.url);
 const read = (p: string) => readFileSync(new URL(p, root), 'utf8');
@@ -228,4 +228,16 @@ test('the tool is one self-contained file carrying a current copy of the module'
 	const mod = read('src/avatar/asciiavatar.ts');
 	assert.ok(mod.includes("facingMode: facing") && mod.includes('audio: false'));
 	assert.equal(DEFAULTS.facing, 'user');
+});
+
+test('Letters: the drawn face goes over yours, mirrored, and an oval hides your own', () => {
+	const cells = [[1, 2, 3, 4, 5], [1, 2, 3, 4, 5]];
+	// A face in the middle of a 640x480 picture: the middle of a 12 x 6 tile.
+	const mid = faceOver({ x: 0.4, y: 0.3, w: 0.2, h: 0.3 }, 640, 480, 12, 6, cells);
+	assert.ok(Math.abs(mid.cx - 6) < 1.5, JSON.stringify(mid));
+	assert.ok(mid.rx >= 2.5 && mid.ry >= 1.5);
+	assert.ok(mid.y >= 0 && mid.y + 2 <= 6, JSON.stringify(mid));
+	// The face on the picture's left is on the tile's right (the tile is a mirror).
+	const left = faceOver({ x: 0.15, y: 0.3, w: 0.2, h: 0.3 }, 640, 480, 12, 6, cells);
+	assert.ok(left.cx > mid.cx + 1, JSON.stringify(left));
 });

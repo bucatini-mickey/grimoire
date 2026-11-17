@@ -43,6 +43,22 @@ export function crop(vw: number, vh: number, aspect: number): { sx: number; sy: 
 	return { sx: (vw - sw) / 2, sy: Math.max(0, (vh - sh) / 2 - sh * 0.06), sw, sh };
 }
 
+/**
+ * Where a face found in the camera's picture (box: 0..1 across and down, unmirrored) sits in a letters tile
+ * of tw x th cells (cropped as crop() does, mirrored): the oval that hides your own face, and the drawn face
+ * (cells from drawRig) with its eyes at your eyes. Your face's real shape is hidden; your outline is not.
+ */
+export function faceOver<C>(box: { x: number; y: number; w: number; h: number }, vw: number, vh: number, tw: number, th: number, cells: C[][]) {
+	const c = crop(vw, vh, tw / (th * 2));
+	const cx = (1 - ((box.x + box.w / 2) * vw - c.sx) / c.sw) * tw;
+	const top = ((box.y * vh - c.sy) / c.sh) * th, hc = (box.h * vh / c.sh) * th;
+	const rx = Math.max(2.5, (box.w * vw / c.sw) * tw * 0.55), ry = Math.max(1.5, hc * 0.55);
+	const cy = top + hc / 2;
+	// Eyes about 40% down the face (the box runs brow to chin), the mouth under them.
+	const ah = cells.length, aw = cells[0]?.length ?? 0;
+	return { cx, cy, rx, ry, cells, x: Math.round(cx - aw / 2), y: Math.round(top + hc * 0.4 - 0.5) - (ah > 2 ? 1 : 0) };
+}
+
 /** Brightness samples (0..255) to a frame: stretched to the picture's own range, a little sharpened. */
 export function toFrame(lum: ArrayLike<number>, w: number, h: number): string {
 	const sorted = Array.from(lum).sort((a, b) => a - b);

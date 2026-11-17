@@ -994,64 +994,18 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
       throw e;
     }));
   }
-  function hasWebGL2() {
-    try {
-      return !!document.createElement("canvas").getContext("webgl2");
-    } catch {
-      return false;
-    }
-  }
   var MpTask = class {
     constructor() {
       __publicField(this, "task", null);
-      __publicField(this, "make", null);
-      __publicField(this, "delegate", "GPU");
-      /** Set while the CPU task is being made; why it could not be, if it failed. */
-      __publicField(this, "moving", false);
-      __publicField(this, "failed", "");
+      __publicField(this, "note");
     }
     async start(make) {
-      this.make = make;
-      if (hasWebGL2()) {
-        try {
-          this.task = await make("GPU");
-          this.delegate = "GPU";
-          return "GPU";
-        } catch {
-        }
-      }
       this.task = await make("CPU");
-      this.delegate = "CPU";
-      return "CPU (no GPU)";
+      return "CPU";
     }
-    /** One frame's result, or null while moving to the CPU. Throws only if the CPU fails too. */
+    /** One frame's result. Throws if MediaPipe fails: the caller says so (never a quiet "no face"). */
     detect(src, t) {
-      if (this.failed) throw new Error(this.failed);
-      if (!this.task) return null;
-      try {
-        return this.task.detectForVideo(src, t);
-      } catch (e) {
-        if (this.delegate === "CPU" || !this.make) throw e;
-        const old = this.task;
-        this.task = null;
-        try {
-          old.close?.();
-        } catch {
-        }
-        this.delegate = "CPU";
-        this.moving = true;
-        this.make("CPU").then((task) => {
-          this.task = task;
-        }, (err) => {
-          this.failed = "GPU failed, then CPU: " + (err?.message ?? String(err));
-        }).finally(() => {
-          this.moving = false;
-        });
-        return null;
-      }
-    }
-    get note() {
-      return this.moving ? "moving to CPU" : void 0;
+      return this.task ? this.task.detectForVideo(src, t) : null;
     }
     close() {
       try {
@@ -1059,7 +1013,6 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
       } catch {
       }
       this.task = null;
-      this.make = null;
     }
   };
   async function fetchModel(url) {
