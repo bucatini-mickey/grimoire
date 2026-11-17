@@ -188,9 +188,13 @@ export function rawFromBlendshapes(cats: Category[], matrix?: ArrayLike<number> 
 	// a little too. Sadness also lifts the brows' inner ends (17 Nov: sad was hard to show): that counts
 	// toward a frown, but not while the mouth is open or smiling (surprise and laughter lift them too).
 	const smileAvg = (v('mouthSmileLeft') + v('mouthSmileRight')) / 2;
-	const sadBrows = v('browInnerUp') * 0.45 * clamp(1 - v('jawOpen') * 2.5, 0, 1) * clamp(1 - smileAvg * 3, 0, 1);
+	// Surprise lifts the whole brow and widens the eyes; sadness lifts only the inner ends (17 Nov: a
+	// surprised face read as sad). So only the inner lift past the outer counts, and not with wide eyes.
+	const outerUp = (v('browOuterUpLeft') + v('browOuterUpRight')) / 2, wideEyes = (v('eyeWideLeft') + v('eyeWideRight')) / 2;
+	const sadBrows = Math.max(0, v('browInnerUp') - outerUp * 1.2) * 0.45 * clamp(1 - v('jawOpen') * 3, 0, 1)
+		* clamp(1 - smileAvg * 3, 0, 1) * clamp(1 - wideEyes * 3, 0, 1);
 	const frown = (v('mouthFrownLeft') + v('mouthFrownRight')) * 1.5 + (v('mouthPressLeft') + v('mouthPressRight')) * 0.25
-		+ v('mouthShrugLower') * 0.3 + sadBrows;
+		+ v('mouthShrugLower') * 0.3 * clamp(1 - wideEyes * 3, 0, 1) + sadBrows;
 	// Brows: raised by the outer and the inner lifts, lowered by the brow-down shapes.
 	const brow = (outer: number, down: number) => outer * 0.6 + v('browInnerUp') * 0.6 - down * 1.2;
 	return {

@@ -214,6 +214,9 @@ test('blendshapes to raw measures: blinks, jaw, smile, gaze by MediaPipe\'s name
 	assert.ok(sadBrows.smile <= -0.3, JSON.stringify(sadBrows));
 	const surprised = rawFromBlendshapes([{ categoryName: 'browInnerUp', score: 0.5 }, { categoryName: 'jawOpen', score: 0.5 }]);
 	assert.ok(surprised.smile > -0.05, JSON.stringify(surprised));
+	// A surprised face with the mouth shut (whole brows up, eyes wide) is not sad either.
+	const wow = rawFromBlendshapes(['browInnerUp', 'browOuterUpLeft', 'browOuterUpRight', 'eyeWideLeft', 'eyeWideRight'].map((n) => ({ categoryName: n, score: 0.6 })));
+	assert.ok(wow.smile > -0.05, JSON.stringify(wow));
 	assert.ok(r.gazeX > 0.5, 'looking to the player\'s right is to the drawing\'s right');
 });
 
@@ -351,6 +354,9 @@ test('a face style: six digits both ways, each choice of each part changing the 
 	// Sad eyes in the middle face too (not when the brows are down: that is cross).
 	assert.equal(rigText(drawRig(rig({ smile: 3 }), 10, 5)).split('\n')[1].trim(), 'ɷ    ɷ');
 	assert.equal(rigText(drawRig(rig({ smile: 3, browL: 3, browR: 3 }), 10, 5)).split('\n')[1].trim(), 'o    o');
+	// Wide eyes or brows right up (surprise) beat a frown: no sad eyes.
+	assert.equal(rigText(drawRig(rig({ smile: 3, eyeL: 15, eyeR: 15 }), 10, 5)).split('\n')[1].trim(), 'O    O');
+	assert.equal(rigText(drawRig(rig({ smile: 3, browL: 14, browR: 14 }), 5, 2)).split('\n')[0].trim(), 'O O');
 	assert.ok(!rigText(drawRig(rig({ mouth: 12, pitch: 1 }), 10, 5)).includes('OO'));
 });
 

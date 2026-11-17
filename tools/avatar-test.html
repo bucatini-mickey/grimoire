@@ -194,7 +194,7 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
     const sm = signed(r.smile), yw = signed(r.yaw), pt = signed(r.pitch), rl = signed(r.roll), gx = signed(r.gazeX), gy = signed(r.gazeY);
     const bL = signed(r.browL ?? 8), bR = signed(r.browR ?? 8);
     if (w < 8 || h < 4) {
-      const happy = sm >= 4, cross = bL + bR <= -6, sad = sm <= -4 && !cross;
+      const happy = sm >= 4, cross = bL + bR <= -6, sad = sm <= -4 && !cross && eL < 13 && eR < 13 && bL + bR < 6;
       const u = !farAscii;
       const eye = (open, side) => open <= 3 ? "-" : st.glasses === 3 ? "#" : happy ? u ? "◠" : "^" : cross ? side < 0 ? u ? "ò" : ">" : u ? "ó" : "<" : sad ? u ? "ɷ" : "T" : open >= 13 || bL + bR >= 6 ? "O" : open <= 7 ? "=" : "o";
       const m2 = u ? happy ? mo >= 6 ? " ᗜ " : " ◡ " : mo >= 8 ? " ㅇ " : mo >= 3 ? " ㅁ " : cross || sad ? " ◠ " : "---" : happy ? mo >= 11 ? "\\O/" : mo >= 6 ? "\\o/" : "\\_/" : mo >= 8 ? " O " : mo >= 3 ? " o " : cross ? "/-\\" : sad ? ".-." : "---";
@@ -220,7 +220,7 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
         let brow = f === " " ? b >= 3 ? " '" : b <= -3 ? " \\" : "  " : b >= 3 ? ".-" : b <= -3 ? "`." : f + f;
         if (side > 0) brow = mirror(brow);
         text(side < 0 ? c - 1 : c, clamp(ty2, 0, h - 1), brow, 2);
-        const g = open <= 3 ? "-" : st.glasses === 3 ? "#" : open <= 7 ? "=" : s1 > 0 && sm >= 4 ? "◠" : sm <= -4 && bL + bR > -6 ? "ɷ" : open >= 13 ? "O" : gy >= 4 ? "'" : gy <= -4 ? "." : "o";
+        const g = open <= 3 ? "-" : st.glasses === 3 ? "#" : open <= 7 ? "=" : s1 > 0 && sm >= 4 ? "◠" : sm <= -4 && bL + bR > -6 && bL + bR < 6 && open < 13 ? "ɷ" : open >= 13 ? "O" : gy >= 4 ? "'" : gy <= -4 ? "." : "o";
         const gx1 = frameOf ? 0 : gx >= 4 ? 1 : gx <= -4 ? -1 : 0;
         put(c + gx1, ey, g, 2);
         if (frameOf) {
@@ -859,8 +859,9 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
       gap = clamp2((Math.hypot(lm[13].x - lm[14].x, lm[13].y - lm[14].y) / faceH - 0.012) / 0.12, 0, 1);
     }
     const smileAvg = (v("mouthSmileLeft") + v("mouthSmileRight")) / 2;
-    const sadBrows = v("browInnerUp") * 0.45 * clamp2(1 - v("jawOpen") * 2.5, 0, 1) * clamp2(1 - smileAvg * 3, 0, 1);
-    const frown = (v("mouthFrownLeft") + v("mouthFrownRight")) * 1.5 + (v("mouthPressLeft") + v("mouthPressRight")) * 0.25 + v("mouthShrugLower") * 0.3 + sadBrows;
+    const outerUp = (v("browOuterUpLeft") + v("browOuterUpRight")) / 2, wideEyes = (v("eyeWideLeft") + v("eyeWideRight")) / 2;
+    const sadBrows = Math.max(0, v("browInnerUp") - outerUp * 1.2) * 0.45 * clamp2(1 - v("jawOpen") * 3, 0, 1) * clamp2(1 - smileAvg * 3, 0, 1) * clamp2(1 - wideEyes * 3, 0, 1);
+    const frown = (v("mouthFrownLeft") + v("mouthFrownRight")) * 1.5 + (v("mouthPressLeft") + v("mouthPressRight")) * 0.25 + v("mouthShrugLower") * 0.3 * clamp2(1 - wideEyes * 3, 0, 1) + sadBrows;
     const brow = (outer, down) => outer * 0.6 + v("browInnerUp") * 0.6 - down * 1.2;
     return {
       eyeL: open(v("eyeBlinkLeft"), v("eyeWideLeft")),
