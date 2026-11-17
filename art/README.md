@@ -42,3 +42,16 @@ The `2` halves the size (3 makes it a third), and `48` is how close two colours 
 **To edit them,** open `tools/margin-editor.html` in Chrome or Edge (double-click it), press **Open art folder** and pick this folder. Paint, tick **On the pages** for the ones to show, then **Save** (or Ctrl+S): it writes `margins.json` and the pictures. Restart `npm run dev` to see them in the app. The editor shows each figure on the page by day and by candlelight, in the colours the app will really draw it in. In other browsers, use **Load margins.json** and the download buttons, and put the files here yourself.
 
 From the command line, `node tools/draw-margins.mjs` writes the pictures from `margins.json`.
+
+## Drawing from another machine: Grimoire Icons
+
+[Grimoire Icons](https://claude.ai/artifact/3rFyJpWwduqMCF6P45NmFk) is a slim online version of the art editor (a private claude.ai page), for the portraits and the margin figures. It works on any machine you're signed in on, phones included. Everything saves by itself to the page's own store, not to this folder.
+
+To bring the drawings here, ask Claude to "sync Grimoire Icons". It reads the page's store into a folder (`portraits/<id>.json`, `margins/<name>.json`), then:
+
+```
+node tools/studio/sync.mjs <that folder>        # --dry to see what would change
+node tools/draw-margins.mjs
+```
+
+The store wins: a picture cleared or deleted on the page is removed from the art file. If you draw in `tools/margin-editor.html` here, ask Claude to push those drawings back up to the page before you draw online again. The page's source is `tools/studio/studio.html`; `node tools/studio/build.mjs [seed-dir]` fills in the characters list (from `art/portraits.json`, so run `node tools/art-index.mjs` first when characters change) and writes `tools/studio/out/grimoire-icons.html`, the file that gets published.

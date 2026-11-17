@@ -50,7 +50,6 @@ The constraint: free, no accounts, no odd apps, works on phones.
 - **Mode 1 needs none of this**: one HTML file on the Storyteller's phone.
 - **Static hosting is free and easy.** GitHub Pages can serve the HTML (`../BOTC` already deploys this way).
 - **A phone as host.** `../BOTC/docs/decisions.md` ruled out the host phone acting as a *server*, because a browser tab cannot accept incoming connections. **WebRTC** gets around that. The Storyteller's tab is the authoritative host, and each player's browser connects to it peer-to-peer over data channels. The catch is that WebRTC still needs a one-time handshake ("signalling"). The options are a free public broker (PeerJS's cloud), a tiny relay we host, or no server at all, by swapping the handshake as QR codes (clunky but genuinely serverless). The host tab must also stay open and awake.
-- **Fallback:** the self-hosted Supabase setup already built in `../BOTC`.
 
 Recommendation when we get there: WebRTC with the host on the Storyteller's phone and QR-code join, with PeerJS signalling as the convenience path. The engine needs no changes for any of these.
 
