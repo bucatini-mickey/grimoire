@@ -40,7 +40,7 @@ narrows the far eye; a tip moves it a row; a lean drops the lower side's brow an
   `let m = (2 * a.abs() + b) / (2 * b); if a < 0 { -m } else { m }` with i32. Other divisions are `Math.floor`
   on non-negative numbers (Rust `/` on non-negatives).
 - Glyphs are printable ASCII only, so any font or terminal draws them.
-- Inks: 0 ground, 1 nose and the far kaomoji's brackets, 2 eyes, brows and mouth. Each game maps them to its
+- Inks: 0 ground, 1 nose, 2 eyes, brows and mouth. Each game maps them to its
   palette; Grimoire uses dim grey for 1 and the player's colour for 2.
 - Under 8x4 it is a two-row emoticon `(o o)` over the mouth (brows tilt the brackets). From 8x4 up, three-cell
   eyes; from 14x7 up, five-cell eyes with pupils, lids and gaze, brows that rise and fall, and a nose.
@@ -51,7 +51,7 @@ narrows the far eye; a tip moves it a row; a lean drops the lower side's brow an
 it, and the nose's middle (ink 3) replaced by the player's letter on its plate: brows, eyes and mouth round
 their letter. Since 17 Nov the middle face is drawn "Soft" (old usenet ASCII art: __ brows, bare o eyes,
 a ---- or `-..-' mouth, no frames), keeping the original (==) talking and .--. over __/ laughing mouths,
-with ^ eyes when smiling or laughing. Near and middle players both get this tile; far ones the 5x2 kaomoji, (^_^) under their letter; the farthest their
+with ^ eyes when smiling or laughing. Near and middle players both get this tile; far ones the far face (17 Nov): 3x2 in its 5x2 box, eyes at the corners and the bottom row all mouth (o o over ---; smiling a curve; talking a single o, O when loud), no letter (Grimoire puts it before the name at the table); the farthest their
 letter. The 16x8 face is kept for the test page and the fixture only. Tried and dropped on the way: a head
 outline and hair from the camera (too fussy), and the camera's own picture in letters with the features laid
 on it (the "blend"; not wanted).

@@ -192,25 +192,14 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
     const sm = signed(r.smile), yw = signed(r.yaw), pt = signed(r.pitch), rl = signed(r.roll), gx = signed(r.gazeX), gy = signed(r.gazeY);
     const bL = signed(r.browL ?? 8), bR = signed(r.browR ?? 8);
     if (w < 8 || h < 4) {
-      const mid2 = Math.floor((w - 1) / 2);
-      const bb = bL + bR;
-      const s1 = sm >= 3 ? 1 : sm <= -3 ? -1 : 0;
-      const eye = (open, side) => open <= 3 ? "-" : st.glasses === 3 ? "#" : bb <= -6 ? side < 0 ? ">" : "<" : s1 > 0 && mo < 8 ? "^" : open >= 13 || bb >= 6 ? "O" : open <= 7 ? "=" : "o";
-      const mouth = mo >= 8 ? "O" : mo >= 3 ? "o" : s1 < 0 ? "." : "_";
-      const lb = yw <= -4 ? "<" : st.glasses && st.glasses !== 3 ? "[" : "(";
-      const rb = yw >= 4 ? ">" : st.glasses && st.glasses !== 3 ? "]" : ")";
-      text(mid2 - 2, 1, lb, 1);
-      put(mid2 - 1, 1, eye(eL, -1), 2);
-      put(mid2, 1, mouth, 2);
-      put(mid2 + 1, 1, eye(eR, 1), 2);
-      put(mid2 + 2, 1, rb, 1);
-      put(mid2, 0, ".", 3);
-      if (st.brow !== 5) {
-        const brow = (b, side) => b <= -3 ? side < 0 ? "\\" : "/" : b >= 3 ? "'" : null;
-        const l = brow(bL, -1), r2 = brow(bR, 1);
-        if (l) put(mid2 - 1, 0, l, 2);
-        if (r2) put(mid2 + 1, 0, r2, 2);
-      }
+      const happy = sm >= 4, cross = bL + bR <= -6, sad = sm <= -5 && !cross;
+      const eye = (open, side) => open <= 3 ? "-" : st.glasses === 3 ? "#" : happy ? "^" : cross ? side < 0 ? ">" : "<" : sad ? "T" : open >= 13 || bL + bR >= 6 ? "O" : open <= 7 ? "=" : "o";
+      const m2 = happy ? mo >= 11 ? "\\O/" : mo >= 6 ? "\\o/" : "\\_/" : mo >= 8 ? " O " : mo >= 3 ? " o " : cross ? "/-\\" : sad ? ".-." : "---";
+      const x0 = Math.floor((w - 3) / 2) + (yw >= 4 ? 1 : yw <= -4 ? -1 : 0);
+      const top = Math.floor((h - 2) / 2);
+      put(x0, top, eye(eL, -1), 2);
+      put(x0 + 2, top, eye(eR, 1), 2);
+      text(x0, top + 1, m2, 2);
       return out;
     }
     if (!(w >= 14 && h >= 7)) {

@@ -159,32 +159,26 @@ export function drawFace(r: Rig, w: number, h: number, st: FaceStyle = PLAIN_STY
 	const bL = signed(r.browL ?? 8), bR = signed(r.browR ?? 8);
 
 	if (w < 8 || h < 4) {
-		// Far (remade 17 Nov): a kaomoji, the best-known small face in ASCII, under their letter (ink 3), with
-		// the brows beside the letter:
-		//     J        \J/       'J'       J
-		//   (^_^)     (o_o)     (O_O)     (-_-)
-		// Eyes: shut -, half shut =, open o, wide or brows up O, smiling ^, frowning > <, shades #; a wink is one
-		// shut. Mouth: _ at rest, o talking, O wide, . sad. A strong turn swaps the far bracket for the
-		// side of the face: (^_^> looks right.
-		const mid = Math.floor((w - 1) / 2);
-		const bb = bL + bR;
-		const s1 = sm >= 3 ? 1 : sm <= -3 ? -1 : 0;
-		const eye = (open: number, side: -1 | 1) => open <= 3 ? '-' : st.glasses === 3 ? '#' : bb <= -6 ? (side < 0 ? '>' : '<') : s1 > 0 && mo < 8 ? '^' : open >= 13 || bb >= 6 ? 'O' : open <= 7 ? '=' : 'o';
-		const mouth = mo >= 8 ? 'O' : mo >= 3 ? 'o' : s1 < 0 ? '.' : '_';
-		const lb = yw <= -4 ? '<' : st.glasses && st.glasses !== 3 ? '[' : '(';
-		const rb = yw >= 4 ? '>' : st.glasses && st.glasses !== 3 ? ']' : ')';
-		text(mid - 2, 1, lb, 1);
-		put(mid - 1, 1, eye(eL, -1), 2);
-		put(mid, 1, mouth, 2);
-		put(mid + 1, 1, eye(eR, 1), 2);
-		put(mid + 2, 1, rb, 1);
-		put(mid, 0, '.', 3);
-		if (st.brow !== 5) {
-			const brow = (b: number, side: -1 | 1) => b <= -3 ? (side < 0 ? '\\' : '/') : b >= 3 ? "'" : null;
-			const l = brow(bL, -1), r2 = brow(bR, 1);
-			if (l) put(mid - 1, 0, l, 2);
-			if (r2) put(mid + 1, 0, r2, 2);
-		}
+		// Far (chosen 17 Nov, "all mouth, 3x2"): a near-square face three cells wide, centred in the box,
+		// eyes at its corners and the whole bottom row its mouth; no letter (a game puts the player's letter
+		// in their name instead):
+		//   o o    ^ ^    o o    ^ ^    > <    T T    - ^
+		//   ---    \_/     O     \O/    /-\    .-.    \_/
+		//  at rest smiling talking laughing cross  sad  wink
+		// Eyes in kaomoji's words: - shut, = half, o open, O wide or brows up, ^ happy, > < cross, T sad,
+		// # shades. Talking is a single o, O when loud (happy talking opens the smile instead). A strong turn
+		// slides the face a cell.
+		const happy = sm >= 4, cross = bL + bR <= -6, sad = sm <= -5 && !cross;
+		const eye = (open: number, side: -1 | 1) => open <= 3 ? '-' : st.glasses === 3 ? '#' : happy ? '^' : cross ? (side < 0 ? '>' : '<')
+			: sad ? 'T' : open >= 13 || bL + bR >= 6 ? 'O' : open <= 7 ? '=' : 'o';
+		const m = happy ? (mo >= 11 ? '\\O/' : mo >= 6 ? '\\o/' : '\\_/')
+			: mo >= 8 ? ' O ' : mo >= 3 ? ' o '
+			: cross ? '/-\\' : sad ? '.-.' : '---';
+		const x0 = Math.floor((w - 3) / 2) + (yw >= 4 ? 1 : yw <= -4 ? -1 : 0);
+		const top = Math.floor((h - 2) / 2);
+		put(x0, top, eye(eL, -1), 2);
+		put(x0 + 2, top, eye(eR, 1), 2);
+		text(x0, top + 1, m, 2);
 		return out;
 	}
 

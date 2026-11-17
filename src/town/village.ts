@@ -1839,17 +1839,15 @@ function councilRoom(g: Grid, y0: number, h: number, now: number) {
 		// A bright face on a dark plate: of what is happening to them (nominated, hand up, counted), else of their colour.
 		const hue = r.dead ? 3 : plate >= 0 ? plate : pb || pf;
 		const mark = r.dead ? '†' : (r.name[0] ?? '?').toUpperCase();
-		// Their small live face (the far avatar, 5 x 2, mouth moving with their voice), their letter between
-		// the eyes; else just the letter on its plate.
+		// Their small live face (the far avatar, 3 x 2 in its 5 x 2 box, mouth moving with their voice), their
+		// letter on its plate in front of their name; else just the letter on its plate.
 		const rig = !person || r.dead ? null : person.id === S.me ? (myCam.on ? decodeRig(avatar.rig) : null) : decodeRig(S.rigs.get(person.id)?.rig);
 		const face = rig ? drawRig(withVoice(rig, talking(person!)), 5, 2, decodeStyle(person!.look?.style)) : null;
 		if (face) {
 			const x0 = sx - 3;
 			for (let yy = 0; yy < 2; yy++) for (let xx = 0; xx < 5; xx++) {
 				const c = face[yy][xx];
-				// The letter's cell (ink 3): their letter on its plate, over the kaomoji.
-				if (c.ink === 3) g.set(x0 + xx, sy - 1 + yy, mark, 5, shade(hue, plate >= 0 ? 2 : 1));
-				else if (c.ch !== ' ') g.set(x0 + xx, sy - 1 + yy, c.ch, c.ink === 2 ? (talking(person!) > 0.15 ? 6 : pb || pf) : 3, 0);
+				if (c.ch !== ' ') g.set(x0 + xx, sy - 1 + yy, c.ch, c.ink === 2 ? (talking(person!) > 0.15 ? 6 : pb || pf) : 3, 0);
 			}
 		} else {
 			g.set(sx - 1, sy, mark, r.dead ? 3 : 5, shade(hue, plate >= 0 ? 2 : 1));
@@ -1860,9 +1858,12 @@ function councilRoom(g: Grid, y0: number, h: number, now: number) {
 		const s = Math.sin(a), up = Math.cos(a);
 		const label = (person?.voice && talking(person) > 0.15 ? '~' : '') + r.name.slice(0, 10);
 		// Names outward from the table, clear of the face when there is one.
-		const lx = Math.abs(s) < 0.3 ? sx - Math.floor(label.length / 2) : s > 0 ? sx + 3 : sx - (face ? 4 : 2) - label.length;
+		// With a face, the letter on its plate leads the name.
+		const tag = face ? 2 : 0, len = label.length + tag;
+		const lx = Math.max(0, Math.abs(s) < 0.3 ? sx - 1 - Math.floor(len / 2) : s > 0 ? sx + 2 : sx - (face ? 4 : 2) - len);
 		const ly = Math.abs(s) < 0.3 ? sy + (up > 0 ? (face ? -2 : -1) : 1) : sy;
-		g.text(Math.max(0, lx), ly, label, r.dead ? 3 : v?.nominee === r.seat ? 8 : pb || pf, 0);
+		if (face) g.set(lx, ly, mark, 5, shade(hue, plate >= 0 ? 2 : 1));
+		g.text(lx + tag, ly, label, r.dead ? 3 : v?.nominee === r.seat ? 8 : pb || pf, 0);
 	});
 	// The nominee, lettered large over the table in the textura (in their colour), or plainly if it will not fit.
 	if (named) {
