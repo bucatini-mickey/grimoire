@@ -49,7 +49,9 @@ narrows the far eye; a tip moves it a row; a lean drops the lower side's brow an
 **The design (Jason, 16 Nov):** the letter tile with a face, in the middle style. Each avatar is a 10x5 tile
 (`AVATAR_TILE` in Grimoire's camwin.ts) on the letter tile's faint dotted ground, the middle face drawn on
 it, and the nose's middle (ink 3) replaced by the player's letter on its plate: brows, eyes and mouth round
-their letter. Near and middle players both get this tile; far ones the 5x2 kaomoji, (^_^) under their letter; the farthest their
+their letter. Since 17 Nov the middle face is drawn "Soft" (old usenet ASCII art: __ brows, bare o eyes,
+a ---- or `-..-' mouth, no frames), keeping the original (==) talking and .--. over __/ laughing mouths,
+with ^ eyes when smiling or laughing. Near and middle players both get this tile; far ones the 5x2 kaomoji, (^_^) under their letter; the farthest their
 letter. The 16x8 face is kept for the test page and the fixture only. Tried and dropped on the way: a head
 outline and hair from the camera (too fussy), and the camera's own picture in letters with the features laid
 on it (the "blend"; not wanted).

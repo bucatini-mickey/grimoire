@@ -25,7 +25,7 @@ import type { Rig, RigCell } from './rig.ts';
  * A face's style, chosen by its player ("My figure and face", in the lobby or the village): six digits, one a
  * part, each a choice from that part's list (STYLE_NAMES). The plain face is all zeros.
  *   brow     line, thick, wavy, bushy, thin, none (with none, only a raise or a frown shows)
- *   eye      round ( ), square [ ], pointed < >, curly { }, bare
+ *   eye      dot, square [ ], pointed < >, curly { }, round ( )
  *   nose     the player's letter (where a game draws it), v, L, ^, J
  *   tache    none, pencil, bushy, handlebar, walrus (beside the nose in the middle face, over the mouth in
  *            the near one)
@@ -38,7 +38,7 @@ export const STYLE_PARTS: (keyof FaceStyle)[] = ['brow', 'eye', 'nose', 'tache',
 /** Each part's choices, by name, for the page that picks them (the order is the digit). */
 export const STYLE_NAMES: Record<keyof FaceStyle, string[]> = {
 	brow: ['Line', 'Thick', 'Wavy', 'Bushy', 'Thin', 'None'],
-	eye: ['Round', 'Square', 'Pointed', 'Curly', 'Bare'],
+	eye: ['Dot', 'Square', 'Pointed', 'Curly', 'Round'],
 	nose: ['Letter', 'v', 'L', '^', 'J'],
 	tache: ['None', 'Pencil', 'Bushy', 'Handlebar', 'Walrus'],
 	beard: ['None', 'Goatee', 'Chinstrap', 'Full', 'Stubble'],
@@ -60,12 +60,14 @@ export function decodeStyle(v: unknown): FaceStyle {
 	}
 	if (typeof v === 'string' && /^[0-3]{4}$/.test(v)) {
 		const m = +v[3];
-		return { brow: [0, 1, 2, 5][+v[0]], eye: [0, 1, 2, 4][+v[1]], nose: +v[2], tache: m & 1 ? 2 : 0, beard: m & 2 ? 3 : 0, glasses: 0 };
+		return { brow: [0, 1, 2, 5][+v[0]], eye: [4, 1, 2, 0][+v[1]], nose: +v[2], tache: m & 1 ? 2 : 0, beard: m & 2 ? 3 : 0, glasses: 0 };
 	}
 	return { ...PLAIN_STYLE };
 }
 const BROW_FILL = ['-', '=', '~', '#', '.', ' '];
-const EYE_SIDES: [string, string][] = [['(', ')'], ['[', ']'], ['<', '>'], ['{', '}'], [' ', ' ']];
+const EYE_SIDES: [string, string][] = [['(', ')'], ['[', ']'], ['<', '>'], ['{', '}'], ['(', ')']];
+/** The middle face's eye frames by style: a bare glyph, then [o] <o> {o} (o). */
+const SOFT_SIDES: ([string, string] | null)[] = [null, ['[', ']'], ['<', '>'], ['{', '}'], ['(', ')']];
 const NOSE = ['v', 'v', 'L', '^', 'J'];
 /** Glasses' frames (left and right of each eye) and the bridge between the eyes. */
 const GLASSES: ([string, string] | null)[] = [null, ['(', ')'], ['[', ']'], ['[', ']'], ['|', '|']];
@@ -182,6 +184,69 @@ export function drawFace(r: Rig, w: number, h: number, st: FaceStyle = PLAIN_STY
 			const l = brow(bL, -1), r2 = brow(bR, 1);
 			if (l) put(mid - 1, 0, l, 2);
 			if (r2) put(mid + 1, 0, r2, 2);
+		}
+		return out;
+	}
+
+	if (!(w >= 14 && h >= 7)) {
+		// Middle (Soft, chosen 17 Nov): old usenet ASCII art, dots and curves and no frames:
+		//    __    __       .-    -.       `.    .'
+		//     o    o         O    O         o    o
+		//       J              J              J
+		//      ----          .--.           .--.
+		//                    `--'
+		// Brows two cells over each eye (raised .- -., frowning `. .'), the eyes one glyph each that glance
+		// a cell aside, their letter (ink 3) under and between them, the mouth shut a Soft line
+		// (---- `-..-' .--.), talking and laughing the original's (==) and .--. over \__/ (17 Nov).
+		// A chosen eye style puts its frame round the glyph; glasses do the same and add a bridge.
+		const ty = pt >= 4 ? -1 : pt <= -4 ? 1 : 0;
+		const tx = rdiv(yw, 7);
+		const half = Math.floor((w - 1) / 2), off = Math.floor((3 * w) / 10);
+		const cx = [half - off + 1 + tx, (w % 2 === 0 ? w - 1 - (half - off + 1) : w - 1 - half + off - 1) + tx];
+		const lean = (side: -1 | 1) => (Math.abs(rl) >= 3 && (side > 0) === (rl > 0) ? 1 : 0);
+		const frameOf = st.glasses ? GLASSES[st.glasses] : SOFT_SIDES[st.eye] ?? null;
+		const s1 = sm >= 3 ? 1 : sm <= -3 ? -1 : 0;
+		for (const side of [-1, 1] as const) {
+			const i = side < 0 ? 0 : 1, open = side < 0 ? eL : eR, b = side < 0 ? bL : bR;
+			const c = cx[i], ey = clamp(1 + ty + lean(side), 0, h - 1);
+			// Brow: two cells, the outer one and the one over the eye.
+			const f = st.brow === 0 ? '_' : BROW_FILL[st.brow] ?? '_';
+			let brow = f === ' ' ? (b >= 3 ? " '" : b <= -3 ? ' \\' : '  ') : b >= 3 ? '.-' : b <= -3 ? '`.' : f + f;
+			if (side > 0) brow = mirror(brow);
+			text(side < 0 ? c - 1 : c, clamp(ty, 0, h - 1), brow, 2);
+			// The eye: shut a line, half shut =, smiling ^, wide O, else o (or ' . for a glance up or down).
+			const g = open <= 3 ? '-' : st.glasses === 3 ? '#' : open <= 7 ? '=' : s1 > 0 && sm >= 4 ? '^' : open >= 13 ? 'O' : gy >= 4 ? "'" : gy <= -4 ? '.' : 'o';
+			const gx1 = frameOf ? 0 : gx >= 4 ? 1 : gx <= -4 ? -1 : 0;
+			put(c + gx1, ey, g, 2);
+			if (frameOf) { put(c - 1, ey, frameOf[0], 2); put(c + 1, ey, frameOf[1], 2); }
+		}
+		if (st.glasses) for (let x = cx[0] + 2; x <= cx[1] - 2; x++) put(x, clamp(1 + ty, 0, h - 1), '-', 2);
+		const mid = Math.floor((cx[0] + cx[1]) / 2);
+		const ny = clamp(2 + ty, 0, h - 1);
+		const nx = mid + (yw >= 3 ? 1 : yw <= -3 ? -1 : 0);
+		if (st.nose) put(nx, ny, yw >= 3 ? '>' : yw <= -3 ? '<' : NOSE[st.nose], 1);
+		else put(nx, ny, yw >= 3 ? '>' : yw <= -3 ? '<' : 'v', 3);
+		// The mouth.
+		const my = clamp(3 + ty, 0, h - 1), rows = h - my;
+		const broad = w >= 10;
+		const m: string[] = mo >= 3 ? mouthRows(mo, sm, 4, Math.max(1, rows))
+			: s1 > 0 ? [sm >= 6 && broad ? "`-..-'" : "`--'"]
+			: s1 < 0 ? [sm <= -6 && broad ? ".-''-." : '.--.']
+			: ['----'];
+		const mw = m[0].length, m0 = mid - Math.floor((mw - 2) / 2);
+		m.forEach((row, k) => text(m0, clamp(my + k, 0, h - 1), row, 2));
+		// A moustache beside the letter; a beard on the row under the mouth.
+		if (st.tache) {
+			const reach = [0, 1, 2, 1, 2][st.tache], ch = ['', '-', '~', '~', '"'][st.tache];
+			for (let d = 1; d <= reach; d++) for (const x of [nx - d, nx + d]) if (out[ny][x]?.ch === ' ') put(x, ny, ch, 2);
+			if (st.tache === 3) { put(nx - reach - 1, ny, '(', 2); put(nx + reach + 1, ny, ')', 2); }
+		}
+		const beardRow = my + m.length;
+		if (st.beard && beardRow <= h - 1) {
+			if (st.beard === 1) text(mid, beardRow, 'vv', 2);
+			if (st.beard === 2) text(m0 - 1, beardRow, '\\' + '_'.repeat(mw) + '/', 2);
+			if (st.beard === 3) { text(m0 - 1, beardRow, '\\' + 'w'.repeat(mw) + '/', 2); for (let y = my; y < beardRow; y++) { put(m0 - 2, y, '(', 2); put(m0 + mw + 1, y, ')', 2); } }
+			if (st.beard === 4) for (let i = 0; i < mw; i += 2) put(m0 + i, beardRow, '.', 2);
 		}
 		return out;
 	}

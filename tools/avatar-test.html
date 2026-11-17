@@ -128,7 +128,8 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
   // src/avatar/rigface.ts
   var PLAIN_STYLE = { brow: 0, eye: 0, nose: 0, tache: 0, beard: 0, glasses: 0 };
   var BROW_FILL = ["-", "=", "~", "#", ".", " "];
-  var EYE_SIDES = [["(", ")"], ["[", "]"], ["<", ">"], ["{", "}"], [" ", " "]];
+  var EYE_SIDES = [["(", ")"], ["[", "]"], ["<", ">"], ["{", "}"], ["(", ")"]];
+  var SOFT_SIDES = [null, ["[", "]"], ["<", ">"], ["{", "}"], ["(", ")"]];
   var NOSE = ["v", "v", "L", "^", "J"];
   var GLASSES = [null, ["(", ")"], ["[", "]"], ["[", "]"], ["|", "|"]];
   function rdiv(a, b) {
@@ -209,6 +210,63 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
         const l = brow(bL, -1), r2 = brow(bR, 1);
         if (l) put(mid2 - 1, 0, l, 2);
         if (r2) put(mid2 + 1, 0, r2, 2);
+      }
+      return out;
+    }
+    if (!(w >= 14 && h >= 7)) {
+      const ty2 = pt >= 4 ? -1 : pt <= -4 ? 1 : 0;
+      const tx2 = rdiv(yw, 7);
+      const half2 = Math.floor((w - 1) / 2), off2 = Math.floor(3 * w / 10);
+      const cx2 = [half2 - off2 + 1 + tx2, (w % 2 === 0 ? w - 1 - (half2 - off2 + 1) : w - 1 - half2 + off2 - 1) + tx2];
+      const lean2 = (side) => Math.abs(rl) >= 3 && side > 0 === rl > 0 ? 1 : 0;
+      const frameOf = st.glasses ? GLASSES[st.glasses] : SOFT_SIDES[st.eye] ?? null;
+      const s1 = sm >= 3 ? 1 : sm <= -3 ? -1 : 0;
+      for (const side of [-1, 1]) {
+        const i = side < 0 ? 0 : 1, open = side < 0 ? eL : eR, b = side < 0 ? bL : bR;
+        const c = cx2[i], ey = clamp(1 + ty2 + lean2(side), 0, h - 1);
+        const f = st.brow === 0 ? "_" : BROW_FILL[st.brow] ?? "_";
+        let brow = f === " " ? b >= 3 ? " '" : b <= -3 ? " \\" : "  " : b >= 3 ? ".-" : b <= -3 ? "`." : f + f;
+        if (side > 0) brow = mirror(brow);
+        text(side < 0 ? c - 1 : c, clamp(ty2, 0, h - 1), brow, 2);
+        const g = open <= 3 ? "-" : st.glasses === 3 ? "#" : open <= 7 ? "=" : s1 > 0 && sm >= 4 ? "^" : open >= 13 ? "O" : gy >= 4 ? "'" : gy <= -4 ? "." : "o";
+        const gx1 = frameOf ? 0 : gx >= 4 ? 1 : gx <= -4 ? -1 : 0;
+        put(c + gx1, ey, g, 2);
+        if (frameOf) {
+          put(c - 1, ey, frameOf[0], 2);
+          put(c + 1, ey, frameOf[1], 2);
+        }
+      }
+      if (st.glasses) for (let x = cx2[0] + 2; x <= cx2[1] - 2; x++) put(x, clamp(1 + ty2, 0, h - 1), "-", 2);
+      const mid2 = Math.floor((cx2[0] + cx2[1]) / 2);
+      const ny2 = clamp(2 + ty2, 0, h - 1);
+      const nx2 = mid2 + (yw >= 3 ? 1 : yw <= -3 ? -1 : 0);
+      if (st.nose) put(nx2, ny2, yw >= 3 ? ">" : yw <= -3 ? "<" : NOSE[st.nose], 1);
+      else put(nx2, ny2, yw >= 3 ? ">" : yw <= -3 ? "<" : "v", 3);
+      const my2 = clamp(3 + ty2, 0, h - 1), rows2 = h - my2;
+      const broad = w >= 10;
+      const m2 = mo >= 3 ? mouthRows(mo, sm, 4, Math.max(1, rows2)) : s1 > 0 ? [sm >= 6 && broad ? "`-..-'" : "`--'"] : s1 < 0 ? [sm <= -6 && broad ? ".-''-." : ".--."] : ["----"];
+      const mw2 = m2[0].length, m02 = mid2 - Math.floor((mw2 - 2) / 2);
+      m2.forEach((row, k) => text(m02, clamp(my2 + k, 0, h - 1), row, 2));
+      if (st.tache) {
+        const reach = [0, 1, 2, 1, 2][st.tache], ch = ["", "-", "~", "~", '"'][st.tache];
+        for (let d = 1; d <= reach; d++) for (const x of [nx2 - d, nx2 + d]) if (out[ny2][x]?.ch === " ") put(x, ny2, ch, 2);
+        if (st.tache === 3) {
+          put(nx2 - reach - 1, ny2, "(", 2);
+          put(nx2 + reach + 1, ny2, ")", 2);
+        }
+      }
+      const beardRow2 = my2 + m2.length;
+      if (st.beard && beardRow2 <= h - 1) {
+        if (st.beard === 1) text(mid2, beardRow2, "vv", 2);
+        if (st.beard === 2) text(m02 - 1, beardRow2, "\\" + "_".repeat(mw2) + "/", 2);
+        if (st.beard === 3) {
+          text(m02 - 1, beardRow2, "\\" + "w".repeat(mw2) + "/", 2);
+          for (let y = my2; y < beardRow2; y++) {
+            put(m02 - 2, y, "(", 2);
+            put(m02 + mw2 + 1, y, ")", 2);
+          }
+        }
+        if (st.beard === 4) for (let i = 0; i < mw2; i += 2) put(m02 + i, beardRow2, ".", 2);
       }
       return out;
     }

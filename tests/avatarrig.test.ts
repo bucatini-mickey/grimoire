@@ -305,7 +305,8 @@ test('a face style: six digits both ways, each choice of each part changing the 
 	const both = (c: ReturnType<typeof drawRig>) => rigText(c) + rigInks(c);
 	for (const part of STYLE_PARTS) for (let v = 1; v < STYLE_NAMES[part].length; v++) {
 		const st = { ...PLAIN_STYLE, [part]: v };
-		for (const [w, h] of [[10, 5], [16, 8]]) assert.notEqual(both(drawRig(NEUTRAL, w, h, st)), both(drawRig(NEUTRAL, w, h)), `${part} ${STYLE_NAMES[part][v]} at ${w}x${h}`);
+		// The near face's eyes are framed ( ) already, so Round changes only the middle (Soft) face.
+		for (const [w, h] of part === 'eye' && v === 4 ? [[10, 5]] : [[10, 5], [16, 8]]) assert.notEqual(both(drawRig(NEUTRAL, w, h, st)), both(drawRig(NEUTRAL, w, h)), `${part} ${STYLE_NAMES[part][v]} at ${w}x${h}`);
 	}
 	// The letter goes on the nose only when the nose is "Letter".
 	const ink3 = (st: object) => rigInks(drawRig(NEUTRAL, 10, 5, { ...PLAIN_STYLE, ...st })).includes('3');
