@@ -4,3 +4,4 @@ tests/sim/failures/
 tools/.cert/
 tools/reports/
 tools/village.html
+tools/face-*options.*
