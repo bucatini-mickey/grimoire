@@ -106,23 +106,33 @@ export function nameLines(name: string): string[] {
 	return best;
 }
 
+/** The slots of the standard taskbar, in the order they are always drawn, left to right. */
+export const TASKBAR_SLOTS = ['menu', 'voice', 'action', 'people', 'more'] as const;
+export type TaskbarSlot = (typeof TASKBAR_SLOTS)[number];
+export type TaskbarSlots = Partial<Record<Exclude<TaskbarSlot, 'more'>, Button>>;
+
 /**
- * The village's bottom bar: one row of the buttons that fit `cols`, in order, the rest behind `more`.
- * A pinned button (the way out: the menu) is always on the bar, however narrow the phone; the others give way to it.
+ * The standard taskbar (the village's bottom row), the same on every screen: Menu first and always on the bar,
+ * then voice, the one action of the moment, People, and More. A slot with nothing to offer is left out; the others
+ * keep their order. If the row is too narrow, People, then the action, then voice give way to More (Menu and More never do).
+ * `rest` is whatever else could be offered; it waits behind More, which is drawn only when it has something to hold.
  */
-export function pickBar(all: Button[], cols: number, pinned: (b: Button) => boolean, more: Button): { bar: Button[]; more: Button[] } {
+export function taskbar(slots: TaskbarSlots, rest: Button[], cols: number, more: Button): { bar: Button[]; more: Button[] } {
 	const width = (bs: Button[]) => bs.reduce((k, b) => k + segWidth(b), 0);
-	if (width(all) <= cols) return { bar: all, more: [] };
-	const keep = new Set(all.filter(pinned));
-	let room = cols - segWidth(more) - width([...keep]);
-	const bar = new Set(keep);
-	for (const b of all) {
-		if (keep.has(b)) continue;
-		const w = segWidth(b);
-		if (w > room) break;
-		room -= w; bar.add(b);
+	const order = ['menu', 'voice', 'action', 'people'] as const;
+	const menu = slots.menu ? { ...slots.menu, style: slots.menu.style === 'on' ? ('on' as const) : ('primary' as const) } : undefined;
+	const dropped = new Set<string>();
+	const spill = () => order.filter((k) => dropped.has(k)).map((k) => slots[k]!);
+	const full = () => [...spill(), ...rest];
+	const build = () => {
+		const bar = order.filter((k) => !dropped.has(k)).map((k) => (k === 'menu' ? menu : slots[k])).filter((b): b is Button => !!b);
+		return full().length ? [...bar, more] : bar;
+	};
+	for (const k of ['people', 'action', 'voice'] as const) {
+		if (width(build()) <= cols) break;
+		if (slots[k]) dropped.add(k);
 	}
-	return { bar: [...all.filter((b) => bar.has(b)), more], more: all.filter((b) => !bar.has(b)) };
+	return { bar: build(), more: full() };
 }
 
 export function center(text: string, width = COLS): string {

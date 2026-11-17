@@ -27,8 +27,8 @@ import { canDraw } from '../ui/glyphs.ts';
 import type { Look } from './avatar.ts';
 import { figureRows } from '../ui/figure.ts';
 import { faceOf, figureOf, bannerStrength, bannerStep } from './faceicon.ts';
-import { barCols, setTownBig, personInk, letterPlate, seatInk as seatInkOf, texturaPixels, setHover, INNER, onMap, btn, buttonBlock, buttonRows, drawButton, endPanel, field, isButton, listRow, paint, quant, redraw, shade, theTerm, theOverlay, setMapColours, MAP_AT, MAP_ROOM, paneled, setPalette, navRow, rubric, row, segWidth, setExtra, txt, wrap, center, pickBar } from '../ui/ascii.ts';
-import type { Button, Row } from '../ui/ascii.ts';
+import { barCols, setTownBig, personInk, letterPlate, seatInk as seatInkOf, texturaPixels, setHover, INNER, onMap, btn, buttonBlock, buttonRows, drawButton, endPanel, field, isButton, listRow, paint, quant, redraw, shade, theTerm, theOverlay, setMapColours, MAP_AT, MAP_ROOM, paneled, setPalette, navRow, rubric, row, segWidth, setExtra, txt, wrap, center, taskbar } from '../ui/ascii.ts';
+import type { Button, Row, TaskbarSlots } from '../ui/ascii.ts';
 import type { Grid } from '../term/pterm.ts';
 import { hostRoom, joinRoom, newRoomCode } from '../net/link.ts';
 import type { LinkStatus } from '../net/link.ts';
@@ -105,7 +105,7 @@ export interface Person {
 }
 
 /** A button a game puts in the village. */
-export interface Extra { label: string; act: () => void; primary?: boolean; pin?: boolean; }
+export interface Extra { label: string; act: () => void; primary?: boolean; }
 
 /** A clock the village shows: time left of how long, whether it runs; the Storyteller may start or pause it. */
 export interface ClockSource {
@@ -1001,39 +1001,57 @@ function tickMap() {
 	redraw();
 }
 
-/** Everything the bottom bar could offer, most wanted first. */
-function toolButtons(): Button[] {
+/**
+ * What the bottom bar could offer, sorted into the standard taskbar's slots (see taskbar in ascii.ts):
+ * Menu, voice, the one action of the moment, People; everything else waits behind More.
+ */
+function toolButtons(): { slots: TaskbarSlots; rest: Button[] } {
 	const p = me();
+	const slots: TaskbarSlots = {};
+	const rest: Button[] = [];
+	// The Menu is the game's own (a player's menu) or the Storyteller's; a plain village's opens More, which holds the way out.
+	const own = S.extra().find((e) => e.label === 'Menu');
+	slots.menu = S.host ? btn('Menu', () => act('st-toggle'), { style: S.stOpen ? 'on' : undefined })
+		: own ? btn('Menu', own.act)
+		: btn('Menu', () => act('more'), { style: S.sheet === 'more' ? 'on' : undefined });
+	slots.people = btn('People', () => act('people'));
 	const asker = S.asks.map((id) => S.people.get(id)).find(Boolean);
-	if (asker) return [btn(asker.st || p?.st ? 'Talk' : 'Meet', () => act('accept'), { style: 'primary' }), btn('Not now', () => act('decline'))];
-	const bs: Button[] = [];
-	if (p?.with) bs.push(btn(p.secret ? 'End' : 'Call off', () => act('end')));
-	// Meeting another player: the way to them.
-	const mate = p?.with ? S.people.get(p.with) : null;
-	if (mate && !mate.st && !p?.st) bs.push(btn('Find ' + mate.name.slice(0, 8), () => act('find'), { style: 'primary' }));
+	if (asker) {
+		slots.voice = btn(asker.st || p?.st ? 'Talk' : 'Meet', () => act('accept'), { style: 'primary' });
+		slots.action = btn('Not now', () => act('decline'));
+		return { slots, rest };
+	}
 	const v = S.voice;
-	const later: Button[] = [];
 	if (v) {
-		if (v.mode === 'listen') { bs.push(btn('Talk', () => act('voice-talk'), { style: 'primary' })); later.push(btn('Stop listening', () => act('voice-stop'), { style: 'on' })); }
-		else bs.push(btn(v.muted ? 'Unmute' : 'Mute', () => act('mute'), { style: v.muted ? 'on' : 'primary' }));
-	} else if (S.voiceBusy) bs.push(btn('Starting...', () => {}, { disabled: true }));
-	else { bs.push(btn('Talk', () => act('voice-mic'), { style: 'primary' })); later.push(btn('Listen only', () => act('voice-listen'))); }
-	for (const e of S.extra()) (e.primary || e.pin ? bs : later).push(btn(e.label, e.act, { style: e.primary || e.pin ? 'primary' : undefined }));
-	if (S.phase === 'dusk' && (!S.game || S.town?.council) && p && !p.st && S.town && gathering(S.town)) bs.push(btn('My seat', () => act('seat'), { style: 'primary' }));
+		if (v.mode === 'listen') { slots.voice = btn('Talk', () => act('voice-talk'), { style: 'primary' }); rest.push(btn('Stop listening', () => act('voice-stop'), { style: 'on' })); }
+		else slots.voice = btn(v.muted ? 'Unmute' : 'Mute', () => act('mute'), { style: v.muted ? 'on' : 'primary' });
+	} else if (S.voiceBusy) slots.voice = btn('Starting...', () => {}, { disabled: true });
+	else { slots.voice = btn('Talk', () => act('voice-mic'), { style: 'primary' }); rest.push(btn('Listen only', () => act('voice-listen'))); }
+	// The action slot takes the most pressing action; any others wait behind More.
+	const acts: Button[] = [];
+	if (p?.with) acts.push(btn(p.secret ? 'End' : 'Call off', () => act('end')));
+	const mate = p?.with ? S.people.get(p.with) : null;
+	if (mate && !mate.st && !p?.st) acts.push(btn('Find ' + mate.name.slice(0, 8), () => act('find'), { style: 'primary' }));
+	for (const e of S.extra()) {
+		if (e.label === 'Menu') continue;
+		if (e.primary) acts.push(btn(e.label, e.act, { style: 'primary' })); else rest.push(btn(e.label, e.act));
+	}
+	if (S.phase === 'dusk' && (!S.game || S.town?.council) && p && !p.st && S.town && gathering(S.town)) acts.push(btn('My seat', () => act('seat'), { style: 'primary' }));
 	const door = doorBeside();
-	if (door !== null) bs.push(btn(S.town!.locked.has(door) ? 'Unlock' : 'Lock', () => act('door')));
-	if (S.host) bs.push(btn('Menu', () => act('st-toggle'), { style: S.stOpen ? 'on' : undefined }));
-	bs.push(btn('People', () => act('people')));
-	if (p && !p.st) later.push(btn('My figure and face', () => act('figure')));
-	if (!S.game && !S.host) later.push(btn('Leave the village', () => act('back')));
-	return [...bs, ...later, ...(FACES ? [btn('Faces', () => act('faces'), { style: S.sheet === 'faces' ? 'on' : undefined })] : [])];
+	if (door !== null) acts.push(btn(S.town!.locked.has(door) ? 'Unlock' : 'Lock', () => act('door')));
+	slots.action = acts.shift();
+	rest.unshift(...acts);
+	if (p && !p.st) rest.push(btn('My figure and face', () => act('figure')));
+	if (!S.game && !S.host) rest.push(btn('Leave the village', () => act('back')));
+	if (FACES) rest.push(btn('Faces', () => act('faces'), { style: S.sheet === 'faces' ? 'on' : undefined }));
+	return { slots, rest };
 }
 
-/** The bar: one row of the most wanted buttons that fit, the rest behind More. */
+/** The bar: the standard taskbar fitted to `cols`; what does not fit is behind More. */
 function barButtons(cols: number): { bar: Button[]; more: Button[] } {
 	const more = btn('More', () => act('more'), { style: S.sheet === 'more' ? 'on' : 'quiet' });
-	// The Menu (the way out of the walk) never falls behind More, however narrow the phone.
-	return pickBar(toolButtons(), cols, (b) => b.label === 'Menu', more);
+	const { slots, rest } = toolButtons();
+	return taskbar(slots, rest, cols, more);
 }
 
 /** Stamp wrapped buttons at (x, y) in `w` columns; returns the height used. */
