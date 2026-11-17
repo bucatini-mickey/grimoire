@@ -36,7 +36,10 @@ pre { margin: 0; line-height: 1.15; overflow-x: auto; }
 .avatars pre { font-size: 20px; background: var(--bg); padding: 6px 8px; border-radius: 4px; }
 .avatars .mid { font-size: 16px; }
 .avatars .far { font-size: 14px; }
-.g { color: var(--bg); } .o { color: #8a8f9c; } .f { color: var(--bright); }
+.tile { font-size: 15px; line-height: 1.2; background: var(--bg); padding: 4px 6px; border-radius: 4px; }
+.plate { background: #86a9de; color: var(--bg); }
+.d { color: #2a3040; }
+.g { color: var(--bg); } .o { color: #8a8f9c; } .f { color: var(--bright); } .h { color: #b08a5a; }
 #hex { color: var(--gold); font-size: 18px; letter-spacing: 0.1em; }
 #numbers { font-size: 13px; }
 #chart { width: 100%; height: 120px; }
@@ -50,10 +53,11 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
 <body>
 <main>
 <h1>Webcam avatar: tracker test</h1>
-<p class="dim">Each tracker reads your camera and gives nine numbers (eyes, mouth, smile, head turn, tip and lean, gaze). The avatar is drawn from those numbers alone, as other players would see it. Only the numbers would ever be sent; your picture stays on this page.</p>
+<p class="dim">Each tracker reads your camera and gives eleven numbers (eyes, brows, mouth, smile, head turn, tip and lean, gaze). The avatar is drawn from those numbers alone, as other players would see it. Only the numbers would ever be sent; your picture stays on this page.</p>
 
 <div class="bar">
 	<button id="cam">Camera: off</button>
+	<button id="mic" title="Open the mouth with your voice too (the sound stays on this page)">Microphone: off</button>
 	<button id="demo" title="Animate the avatar without a camera">Demo</button>
 	<label>Tracker <select id="tracker"></select></label>
 	<label>Picture <select id="bad" title="Make the picture worse on purpose: a bad webcam, a dark room"></select></label>
@@ -72,6 +76,9 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
 		<p class="dim">Box and dots: where the tracker thinks your face, eyes, nose and mouth are.</p>
 	</div>
 	<div class="box">
+		<h2>In the village: your letter tile, with a face</h2>
+		<div class="avatars"><pre id="tile" class="tile"></pre></div>
+		<p class="dim">What others see near you: the middle face round your letter. The bigger ones below are for checking the numbers.</p>
 		<h2>The avatar, from the numbers: near, middle, far</h2>
 		<div class="avatars">
 			<pre id="av3"></pre>
@@ -118,11 +125,234 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
   var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
   var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 
+  // src/avatar/rigface.ts
+  var PLAIN_STYLE = { brow: 0, eye: 0, nose: 0, tache: 0, beard: 0, glasses: 0 };
+  var BROW_FILL = ["-", "=", "~", "#", ".", " "];
+  var EYE_SIDES = [["(", ")"], ["[", "]"], ["<", ">"], ["{", "}"], ["(", ")"]];
+  var SOFT_SIDES = [null, ["[", "]"], ["<", ">"], ["{", "}"], ["(", ")"]];
+  var NOSE = ["v", "v", "L", "^", "J"];
+  var GLASSES = [null, ["(", ")"], ["[", "]"], ["[", "]"], ["|", "|"]];
+  function rdiv(a, b) {
+    const m = Math.floor((2 * Math.abs(a) + b) / (2 * b));
+    return a < 0 ? -m : m;
+  }
+  var clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
+  var signed = (v) => clamp(clamp(Math.trunc(Number.isFinite(v) ? v : 8), 0, 15) - 8, -7, 7);
+  var level = (v) => clamp(Math.trunc(Number.isFinite(v) ? v : 0), 0, 15);
+  function eyeCells(open, gx, gy, wide, style = 0, glasses = 0) {
+    const inner = wide - 2;
+    const frame = GLASSES[glasses] ?? null;
+    if (open <= 3) return { row: frame ? frame[0] + "-".repeat(inner) + frame[1] : wide === 5 ? " --- " : "---", lid: null };
+    const [l, r] = frame ?? EYE_SIDES[style] ?? EYE_SIDES[0];
+    const at = inner === 1 ? 0 : gx >= 3 ? 2 : gx <= -3 ? 0 : 1;
+    const shades = glasses === 3;
+    const pupil = shades ? "#" : open <= 7 ? "-" : open >= 13 ? "O" : gy >= 4 ? "'" : gy <= -4 ? "." : "o";
+    let mid = "";
+    for (let i = 0; i < inner; i++) mid += shades ? "#" : i === at ? pupil : open <= 7 ? "-" : " ";
+    return { row: l + mid + r, lid: open >= 13 && !frame ? wide === 5 ? " .-. " : ".-." : null };
+  }
+  function browCells(b, wide, style = 0) {
+    const f = BROW_FILL[style] ?? "-";
+    if (f === " ") return b >= 3 ? wide === 5 ? "  ^  " : " ^ " : b <= -3 ? wide === 5 ? "   \\ " : "  \\" : " ".repeat(wide);
+    if (b >= 3) return wide === 5 ? "/" + f + f + f + "\\" : "/" + f + "\\";
+    if (b <= -3) return wide === 5 ? "`" + f + "._ " : "`" + f + ".";
+    return f.repeat(wide);
+  }
+  var mirror = (s) => [...s].reverse().map((c) => ({ "/": "\\", "\\": "/", "`": "'", "'": "`", "(": ")", ")": "(" })[c] ?? c).join("");
+  function mouthRows(open, smile, wide, rows) {
+    const s = smile >= 3 ? 1 : smile <= -3 ? -1 : 0;
+    const mid = (c) => c.repeat(Math.max(0, wide - 2));
+    if (open <= 2 || rows < 1) {
+      if (s > 0) return smile >= 6 && rows >= 2 && wide >= 6 ? ["\\" + mid(" ") + "/", " \\" + mid("_").slice(2) + "/ "] : ["\\" + mid("_") + "/"];
+      if (s < 0) return smile <= -6 && rows >= 2 && wide >= 6 ? [" ." + mid("-").slice(2) + ". ", "/" + mid(" ") + "\\"] : ["/" + mid("-") + "\\"];
+      return [mid("-") + "--"];
+    }
+    if (open <= 7 || rows < 2) {
+      const m = open <= 7 ? "=" : "O";
+      return [s > 0 ? "\\" + mid(m) + "/" : s < 0 ? "/" + mid(m) + "\\" : "(" + mid(m) + ")"];
+    }
+    const top = s < 0 ? "/" + mid("-") + "\\" : "." + mid("-") + ".";
+    const bottom = s > 0 ? "\\" + mid("_") + "/" : "'" + mid("-") + "'";
+    if (open <= 11 || rows < 3) return [top, bottom];
+    return [top, "|" + mid(" ") + "|", bottom];
+  }
+  function noseCells(yw) {
+    return yw >= 3 ? " \\>" : yw <= -3 ? "</ " : "/_\\";
+  }
+  var farAscii = false;
+  function drawFace(r, w, h, style = PLAIN_STYLE) {
+    const st = { ...style, tache: 0, beard: 0 };
+    const out = Array.from({ length: h }, () => Array.from({ length: w }, () => ({ ch: " ", ink: 0 })));
+    if (w < 5 || h < 2) return out;
+    const put = (x, y, ch, ink) => {
+      if (x >= 0 && y >= 0 && x < w && y < h && ch !== " ") out[y][x] = { ch, ink };
+    };
+    const text = (x, y, s, ink) => {
+      for (let i = 0; i < s.length; i++) put(x + i, y, s[i], ink);
+    };
+    const eL = level(r.eyeL), eR = level(r.eyeR), mo = level(r.mouth);
+    const sm = signed(r.smile), yw = signed(r.yaw), pt = signed(r.pitch), rl = signed(r.roll), gx = signed(r.gazeX), gy = signed(r.gazeY);
+    const bL = signed(r.browL ?? 8), bR = signed(r.browR ?? 8);
+    if (w < 8 || h < 4) {
+      const happy = sm >= 4, cross = bL + bR <= -6, sad = sm <= -4 && !cross && eL < 13 && eR < 13 && bL + bR < 6;
+      const u = !farAscii;
+      const eye = (open, side) => open <= 3 ? "-" : st.glasses === 3 ? "#" : happy ? u ? "◠" : "^" : cross ? side < 0 ? u ? "ò" : ">" : u ? "ó" : "<" : sad ? u ? "ɷ" : "T" : open >= 13 || bL + bR >= 6 ? "O" : open <= 7 ? "=" : "o";
+      const m2 = u ? happy ? mo >= 6 ? " ᗜ " : " ◡ " : mo >= 8 ? " ㅇ " : mo >= 3 ? " ㅁ " : cross || sad ? " ◠ " : "---" : happy ? mo >= 11 ? "\\O/" : mo >= 6 ? "\\o/" : "\\_/" : mo >= 8 ? " O " : mo >= 3 ? " o " : cross ? "/-\\" : sad ? ".-." : "---";
+      const x0 = Math.floor((w - 3) / 2) + (yw >= 4 ? 1 : yw <= -4 ? -1 : 0);
+      const top = Math.floor((h - 2) / 2);
+      put(x0, top, eye(eL, -1), 2);
+      put(x0 + 2, top, eye(eR, 1), 2);
+      text(x0, top + 1, m2, 2);
+      return out;
+    }
+    if (!(w >= 14 && h >= 7)) {
+      const ty2 = pt >= 4 ? -1 : pt <= -4 ? 1 : 0;
+      const tx2 = rdiv(yw, 7);
+      const half2 = Math.floor((w - 1) / 2), off2 = Math.floor(3 * w / 10);
+      const cx2 = [half2 - off2 + 1 + tx2, (w % 2 === 0 ? w - 1 - (half2 - off2 + 1) : w - 1 - half2 + off2 - 1) + tx2];
+      const lean2 = (side) => Math.abs(rl) >= 3 && side > 0 === rl > 0 ? 1 : 0;
+      const frameOf = st.glasses ? GLASSES[st.glasses] : SOFT_SIDES[st.eye] ?? null;
+      const s1 = sm >= 3 ? 1 : sm <= -3 ? -1 : 0;
+      for (const side of [-1, 1]) {
+        const i = side < 0 ? 0 : 1, open = side < 0 ? eL : eR, b = side < 0 ? bL : bR;
+        const c = cx2[i], ey = clamp(1 + ty2 + lean2(side), 0, h - 1);
+        const f = st.brow === 0 ? "_" : BROW_FILL[st.brow] ?? "_";
+        let brow = f === " " ? b >= 3 ? " '" : b <= -3 ? " \\" : "  " : b >= 3 ? ".-" : b <= -3 ? "`." : f + f;
+        if (side > 0) brow = mirror(brow);
+        text(side < 0 ? c - 1 : c, clamp(ty2, 0, h - 1), brow, 2);
+        const g = open <= 3 ? "-" : st.glasses === 3 ? "#" : open <= 7 ? "=" : s1 > 0 && sm >= 4 ? "◠" : sm <= -4 && bL + bR > -6 && bL + bR < 6 && open < 13 ? "ɷ" : open >= 13 ? "O" : gy >= 4 ? "'" : gy <= -4 ? "." : "o";
+        const gx1 = frameOf ? 0 : gx >= 4 ? 1 : gx <= -4 ? -1 : 0;
+        put(c + gx1, ey, g, 2);
+        if (frameOf) {
+          put(c - 1, ey, frameOf[0], 2);
+          put(c + 1, ey, frameOf[1], 2);
+        }
+      }
+      if (st.glasses) for (let x = cx2[0] + 2; x <= cx2[1] - 2; x++) put(x, clamp(1 + ty2, 0, h - 1), "-", 2);
+      const mid2 = Math.floor((cx2[0] + cx2[1]) / 2);
+      const ny2 = clamp(2 + ty2, 0, h - 1);
+      const nx2 = mid2 + (yw >= 3 ? 1 : yw <= -3 ? -1 : 0);
+      if (st.nose) put(nx2, ny2, yw >= 3 ? ">" : yw <= -3 ? "<" : NOSE[st.nose], 1);
+      else put(nx2, ny2, yw >= 3 ? ">" : yw <= -3 ? "<" : "v", 3);
+      const my2 = clamp(3 + ty2, 0, h - 1), rows2 = h - my2;
+      const broad = w >= 10;
+      const m2 = mo >= 8 && rows2 < 2 ? ["(  )"] : mo >= 3 ? mouthRows(mo, sm, 4, Math.max(1, rows2)) : s1 > 0 ? [sm >= 6 && broad ? "`-..-'" : "`--'"] : s1 < 0 ? [sm <= -6 && broad ? ".-''-." : ".--."] : ["----"];
+      const mw2 = m2[0].length, m02 = mid2 - Math.floor((mw2 - 2) / 2);
+      m2.forEach((row, k) => text(m02, clamp(my2 + k, 0, h - 1), row, 2));
+      if (st.tache) {
+        const reach = [0, 1, 2, 1, 2][st.tache], ch = ["", "-", "~", "~", '"'][st.tache];
+        for (let d = 1; d <= reach; d++) for (const x of [nx2 - d, nx2 + d]) if (out[ny2][x]?.ch === " ") put(x, ny2, ch, 2);
+        if (st.tache === 3) {
+          put(nx2 - reach - 1, ny2, "(", 2);
+          put(nx2 + reach + 1, ny2, ")", 2);
+        }
+      }
+      const beardRow2 = my2 + m2.length;
+      if (st.beard && beardRow2 <= h - 1) {
+        if (st.beard === 1) text(mid2, beardRow2, "vv", 2);
+        if (st.beard === 2) text(m02 - 1, beardRow2, "\\" + "_".repeat(mw2) + "/", 2);
+        if (st.beard === 3) {
+          text(m02 - 1, beardRow2, "\\" + "w".repeat(mw2) + "/", 2);
+          for (let y = my2; y < beardRow2; y++) {
+            put(m02 - 2, y, "(", 2);
+            put(m02 + mw2 + 1, y, ")", 2);
+          }
+        }
+        if (st.beard === 4) for (let i = 0; i < mw2; i += 2) put(m02 + i, beardRow2, ".", 2);
+      }
+      return out;
+    }
+    const big = w >= 14 && h >= 7;
+    const browY = big ? 1 : 0, eyeY = big ? 3 : 1, noseY = big ? 4 : 2, mouthY = big ? 5 : 3;
+    const ty = pt >= 4 ? -1 : pt <= -4 ? 1 : 0;
+    const tx = big ? rdiv(yw * 2, 7) : rdiv(yw, 7);
+    const lean = (side) => {
+      if (Math.abs(rl) < 3) return 0;
+      const low = side > 0 === rl > 0;
+      return big ? low ? 1 : Math.abs(rl) >= 6 ? -1 : 0 : low ? 1 : 0;
+    };
+    const ew = big ? 5 : 3;
+    const half = Math.floor((w - 1) / 2);
+    const off = big ? Math.floor(w / 4) : Math.floor(3 * w / 10);
+    const cx = [half - off + 1 + tx, w - 1 - half + off - 1 + tx];
+    if (w % 2 === 0) cx[1] = w - 1 - (half - off + 1) + tx;
+    for (const side of [-1, 1]) {
+      const i = side < 0 ? 0 : 1;
+      const open = side < 0 ? eL : eR;
+      const b = side < 0 ? bL : bR;
+      const far = side > 0 === yw > 0 && Math.abs(yw) >= 5;
+      const wide = far ? 3 : ew;
+      const x0 = cx[i] - (wide === 5 ? 2 : 1);
+      const dy = lean(side) + ty;
+      const brow = browCells(b, wide, st.brow);
+      const by = clamp(browY + (big ? dy : ty) + (b >= 3 && big ? -1 : 0) + (b <= -3 && big ? 1 : 0), 0, h - 1);
+      text(x0, by, side < 0 ? brow : mirror(brow), 2);
+      const e = eyeCells(open, gx, gy, wide, st.eye, st.glasses);
+      const ey = clamp(eyeY + dy, 0, h - 1);
+      if (e.lid && big && !(b <= -3)) text(x0, ey - 1, e.lid, 2);
+      text(x0, ey, e.row, 2);
+    }
+    const mid = Math.floor((cx[0] + cx[1]) / 2);
+    const ny = clamp(noseY + ty, 0, h - 1);
+    const nx = mid + (yw >= 3 ? 1 : yw <= -3 ? -1 : 0);
+    if (st.nose) put(nx, ny, yw >= 3 ? ">" : yw <= -3 ? "<" : NOSE[st.nose], 1);
+    else if (big) {
+      const n = noseCells(yw);
+      text(mid - 1, ny, n, 1);
+      put(mid, ny, n[1] === " " ? "_" : n[1], 3);
+    } else put(nx, ny, yw >= 3 ? ">" : yw <= -3 ? "<" : "v", 3);
+    const mw = big ? 8 : 4;
+    const rows = h - mouthY - Math.max(0, ty);
+    const m = mouthRows(mo, sm, mw, Math.max(1, rows));
+    const my = clamp(mouthY + ty + (big && m.length === 1 ? 1 : 0), 0, h - 1);
+    const m0 = mid - Math.floor(mw / 2) + 1;
+    m.forEach((row, k) => {
+      for (let i = 0; i < row.length; i++) {
+        put(m0 + i, clamp(my + k, 0, h - 1), row[i], 2);
+      }
+    });
+    if (st.glasses) {
+      const bx0 = cx[0] + (ew === 5 ? 3 : 2), bx1 = cx[1] - (ew === 5 ? 3 : 2), by = clamp(eyeY + ty + lean(-1), 0, h - 1);
+      for (let x = bx0; x <= bx1; x++) put(x, by, "-", 2);
+    }
+    const tacheRow = my - 1;
+    if (st.tache && tacheRow >= 0) {
+      const reach = [0, big ? 1 : 1, big ? 2 : 2, big ? 1 : 1, big ? 3 : 2][st.tache];
+      const ch = ["", "-", "~", "~", '"'][st.tache];
+      const c = big ? mid : nx;
+      for (let d = big ? 0 : 1; d <= reach; d++) {
+        for (const x of big ? [c - d, c + 1 + d] : [c - d, c + d]) if (out[tacheRow][x]?.ch === " ") put(x, tacheRow, ch, 2);
+      }
+      if (st.tache === 3) {
+        put(c - reach - 1, tacheRow, "(", 2);
+        put(c + reach + (big ? 2 : 1), tacheRow, ")", 2);
+      }
+    }
+    const beardRow = my + m.length;
+    if (st.beard && beardRow <= h - 1) {
+      const centre = m0 + Math.floor(mw / 2) - 1;
+      if (st.beard === 1) {
+        put(centre, beardRow, "v", 2);
+        put(centre + 1, beardRow, "v", 2);
+      }
+      if (st.beard === 2) for (let i = -1; i <= mw; i++) put(m0 + i, beardRow, i === -1 ? "\\" : i === mw ? "/" : "_", 2);
+      if (st.beard === 3) {
+        for (let i = -1; i <= mw; i++) put(m0 + i, beardRow, i === -1 ? "\\" : i === mw ? "/" : "w", 2);
+        for (let y = my; y < beardRow; y++) {
+          put(m0 - 2, y, "(", 2);
+          put(m0 + mw + 1, y, ")", 2);
+        }
+      }
+      if (st.beard === 4) for (let i = 0; i < mw; i++) put(m0 + i, beardRow, i % 2 ? "." : ":", 2);
+    }
+    return out;
+  }
+
   // src/avatar/rig.ts
-  var RIG_KEYS = ["eyeL", "eyeR", "mouth", "smile", "yaw", "pitch", "roll", "gazeX", "gazeY"];
+  var RIG_KEYS = ["eyeL", "eyeR", "mouth", "smile", "yaw", "pitch", "roll", "gazeX", "gazeY", "browL", "browR"];
   var RIG_LEN = RIG_KEYS.length;
-  var NEUTRAL = { eyeL: 11, eyeR: 11, mouth: 0, smile: 8, yaw: 8, pitch: 8, roll: 8, gazeX: 8, gazeY: 8 };
-  var digit = (v) => Math.max(0, Math.min(15, Math.round(v)));
+  var NEUTRAL = { eyeL: 11, eyeR: 11, mouth: 0, smile: 8, yaw: 8, pitch: 8, roll: 8, gazeX: 8, gazeY: 8, browL: 8, browR: 8 };
+  var digit = (v) => Math.max(0, Math.min(15, Math.round(Number.isFinite(v) ? v : 8)));
   var encodeRig = (r) => RIG_KEYS.map((k) => digit(r[k]).toString(16)).join("");
   function decodeRig(s) {
     if (typeof s !== "string" || s.length !== RIG_LEN || !/^[0-9a-f]+$/.test(s)) return null;
@@ -132,139 +362,12 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
     });
     return r;
   }
+  function withVoice(r, level2) {
+    const m = Math.round(Math.max(0, Math.min(1, (level2 - 0.06) / 0.45)) * 13);
+    return m > r.mouth ? { ...r, mouth: m } : r;
+  }
   var DETAIL_SIZE = { 0: { w: 0, h: 0 }, 1: { w: 5, h: 2 }, 2: { w: 10, h: 5 }, 3: { w: 16, h: 8 } };
-  function rdiv(a, b) {
-    const m = Math.floor((2 * Math.abs(a) + b) / (2 * b));
-    return a < 0 ? -m : m;
-  }
-  var clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
-  var signed = (v) => clamp(clamp(Math.trunc(v), 0, 15) - 8, -7, 7);
-  var level = (v) => clamp(Math.trunc(v), 0, 15);
-  function eyeGlyph(open) {
-    return open <= 3 ? "-" : open <= 7 ? "=" : open <= 12 ? "o" : "O";
-  }
-  function mouthGlyphs(open, smile, twoRows) {
-    const s = smile >= 3 ? 1 : smile <= -3 ? -1 : 0;
-    if (open <= 3) return { top: s > 0 ? ["\\", "_", "/"] : s < 0 ? ["/", "-", "\\"] : ["-", "-", "-"], under: null };
-    if (open <= 9 || !twoRows) {
-      const mid = open <= 9 ? "=" : "O";
-      return { top: s > 0 ? ["\\", mid, "/"] : s < 0 ? ["/", mid, "\\"] : ["(", mid, ")"], under: null };
-    }
-    if (s < 0) return { top: ["/", "-", "\\"], under: ["'", "-", "'"] };
-    return { top: [".", "-", "."], under: s > 0 ? ["\\", "_", "/"] : ["'", "-", "'"] };
-  }
-  function drawRig(r, w, h) {
-    const out = Array.from({ length: h }, () => Array.from({ length: w }, () => ({ ch: " ", ink: 0 })));
-    if (w < 5 || h < 2) return out;
-    const put = (x, y, ch, ink) => {
-      if (x >= 0 && y >= 0 && x < w && y < h) out[y][x] = { ch, ink };
-    };
-    const eL = level(r.eyeL), eR = level(r.eyeR), mo = level(r.mouth);
-    const sm = signed(r.smile), yw = signed(r.yaw), pt = signed(r.pitch), rl = signed(r.roll), gx = signed(r.gazeX), gy = signed(r.gazeY);
-    const tiny = w < 8 || h < 4;
-    if (tiny) {
-      const sx2 = yw >= 4 ? 1 : yw <= -4 ? -1 : 0;
-      const gs = gx >= 5 ? 1 : gx <= -5 ? -1 : 0;
-      const mid = Math.floor((w - 1) / 2);
-      const ex = Math.max(1, Math.floor((w - 1) / 4));
-      put(0, 0, "(", 1);
-      put(w - 1, 0, ")", 1);
-      put(clamp(mid - ex + sx2 + gs, 1, w - 2), 0, eyeGlyph(eL), 2);
-      put(clamp(mid + ex + sx2 + gs, 1, w - 2), 0, eyeGlyph(eR), 2);
-      const m2 = mouthGlyphs(mo, sm, false).top;
-      const mw2 = w >= 5 ? 3 : 1;
-      const m02 = clamp(mid - Math.floor(mw2 / 2) + sx2, 0, w - mw2);
-      for (let i = 0; i < mw2; i++) put(m02 + i, 1, i === 0 ? m2[0] : i === mw2 - 1 ? m2[2] : m2[1], 2);
-      return out;
-    }
-    const inside = (x, y) => {
-      if (x < 0 || y < 0 || x >= w || y >= h) return false;
-      const X = 2 * x + 1 - w, Y = 2 * y + 1 - h;
-      return X * X * h * h + Y * Y * w * w <= w * w * h * h;
-    };
-    const span = (y) => {
-      let a = -1, b = -1;
-      for (let x = 0; x < w; x++) if (inside(x, y)) {
-        if (a < 0) a = x;
-        b = x;
-      }
-      return a < 0 ? null : [a, b];
-    };
-    let top = -1, bottom = -1;
-    for (let y = 0; y < h; y++) if (span(y)) {
-      if (top < 0) top = y;
-      bottom = y;
-    }
-    for (let y = top; y <= bottom; y++) {
-      const s = span(y);
-      if (y === top) {
-        for (let x = s[0]; x <= s[1]; x++) put(x, y, "_", 1);
-        continue;
-      }
-      if (y === bottom) {
-        for (let x = s[0]; x <= s[1]; x++) put(x, y, x === s[0] ? "\\" : x === s[1] ? "/" : "-", 1);
-        continue;
-      }
-      const a = span(y - 1)[0], b = span(y + 1)[0];
-      const brow = a > s[0] && b < s[0], jaw = a < s[0] && b > s[0];
-      put(s[0], y, brow ? "/" : jaw ? "\\" : "|", 1);
-      put(s[1], y, brow ? "\\" : jaw ? "/" : "|", 1);
-    }
-    const big = w >= 14 && h >= 7;
-    const C = w;
-    const E = 2 * rdiv(w, 5) + (w % 2 === 0 ? 1 : 0);
-    const sx = rdiv(yw * w, 7 * 8);
-    const sy = -rdiv(pt * h, 7 * 8);
-    const lean = (dx2) => {
-      if (dx2 === 0 || Math.abs(rl) < 3) return 0;
-      const low = dx2 > 0 === rl > 0;
-      if (!big) return low ? 0 : -1;
-      return low ? 1 : Math.abs(rl) >= 6 ? -1 : 0;
-    };
-    const ey = rdiv(3 * h, 8) + sy;
-    const my = Math.floor(5 * h / 7) + sy;
-    const lo = 1, hi = w - 2;
-    const eye = (dx2, open) => {
-      const x = clamp((C + dx2 - 1) / 2 + sx, big ? lo + 2 : lo, big ? hi - 2 : hi);
-      const y = clamp(ey + lean(dx2), 1, h - 2);
-      if (!big) {
-        put(clamp(x + (gx >= 4 ? 1 : gx <= -4 ? -1 : 0), lo, hi), y, eyeGlyph(open), 2);
-        return;
-      }
-      const g = gx >= 3 ? 1 : gx <= -3 ? -1 : 0;
-      const pupil = open >= 13 ? "O" : gy >= 4 ? "'" : gy <= -4 ? "." : "o";
-      for (let i = -2; i <= 2; i++) {
-        let ch;
-        if (open <= 3) ch = i === -2 || i === 2 ? " " : "-";
-        else if (i === -2) ch = "(";
-        else if (i === 2) ch = ")";
-        else if (i === g) ch = pupil;
-        else ch = open <= 7 ? "-" : " ";
-        put(clamp(x + i, lo, hi), y, ch, 2);
-      }
-    };
-    eye(-E, eL);
-    eye(E, eR);
-    const ny = ey + 1 + Math.max(lean(-E), lean(E));
-    if (big && ny < my && ny <= h - 2) {
-      const nx = clamp(Math.floor((C - 1) / 2) + sx + (yw >= 3 ? 1 : 0), lo, hi);
-      put(nx, ny, yw >= 3 ? ">" : yw <= -3 ? "<" : "|", 1);
-    }
-    const mw = w >= 14 ? 6 : w >= 8 ? 4 : 3;
-    const two = h >= 7 && my + 1 <= h - 2;
-    const m = mouthGlyphs(mo, sm, two);
-    const m0 = (C - mw) / 2 + sx;
-    const row = (y0, g) => {
-      for (let i = 0; i < mw; i++) {
-        const x = m0 + i;
-        const dx2 = 2 * x + 1 - C - 2 * sx;
-        put(clamp(x, lo, hi), clamp(y0, 1, h - 1), i === 0 ? g[0] : i === mw - 1 ? g[2] : g[1], 2);
-      }
-    };
-    row(clamp(my, 1, h - 2), m.top);
-    if (m.under) row(clamp(my + 1, 1, h - 2), m.under);
-    return out;
-  }
+  var drawRig = (r, w, h, style = PLAIN_STYLE) => drawFace(r, w, h, style);
 
   // src/avatar/asciiavatar.ts
   var DEFAULTS = {
@@ -667,14 +770,15 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
   };
 
   // src/avatar/trackers.ts
-  var GAINS = { yawDeg: 35, pitchDeg: 25, rollDeg: 30, gaze: 0.6, smile: 0.6, mouth: 0.8 };
+  var GAINS = { yawDeg: 35, pitchDeg: 25, rollDeg: 30, gaze: 0.6, smile: 0.5, mouth: 0.7, brow: 0.45 };
   var NO_FLIPS = { eyes: false, yaw: false, pitch: false, roll: false, gazeX: false, gazeY: false };
-  var NO_NEUTRAL = { yaw: 0, pitch: 0, roll: 0, gazeX: 0, gazeY: 0, smile: 0 };
+  var NO_NEUTRAL = { yaw: 0, pitch: 0, roll: 0, gazeX: 0, gazeY: 0, smile: 0, browL: 0, browR: 0 };
   var clamp2 = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
   var sgn = (v, ends) => 8 + clamp2(v / ends, -1, 1) * 7;
   function rigOf(raw, g = GAINS, n = NO_NEUTRAL, f = NO_FLIPS) {
     const flip = (on, v) => on ? -v : v;
     const [l, r] = f.eyes ? [raw.eyeR, raw.eyeL] : [raw.eyeL, raw.eyeR];
+    const [bl, br] = f.eyes ? [raw.browR, raw.browL] : [raw.browL, raw.browR];
     return {
       eyeL: clamp2(l * 11, 0, 15),
       eyeR: clamp2(r * 11, 0, 15),
@@ -682,9 +786,13 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
       smile: sgn(raw.smile - n.smile, g.smile),
       yaw: sgn(flip(f.yaw, raw.yaw - n.yaw), g.yawDeg),
       pitch: sgn(flip(f.pitch, raw.pitch - n.pitch), g.pitchDeg),
-      roll: sgn(flip(f.roll, raw.roll - n.roll), g.rollDeg),
+      // Head roll (a lean) is not sent (Jason, 17 Nov): always level. The drawing still knows a lean; turn it
+      // back on here with: sgn(flip(f.roll, raw.roll - n.roll), g.rollDeg).
+      roll: 8,
       gazeX: sgn(flip(f.gazeX, raw.gazeX - n.gazeX), g.gaze),
-      gazeY: sgn(flip(f.gazeY, raw.gazeY - n.gazeY), g.gaze)
+      gazeY: sgn(flip(f.gazeY, raw.gazeY - n.gazeY), g.gaze),
+      browL: sgn((bl ?? 0) - (n.browL ?? 0), g.brow),
+      browR: sgn((br ?? 0) - (n.browR ?? 0), g.brow)
     };
   }
   var _RigSmoother = class _RigSmoother {
@@ -715,7 +823,7 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
       this.d = null;
     }
   };
-  __publicField(_RigSmoother, "SPEED", { eyeL: 0.75, eyeR: 0.75, mouth: 0.6, smile: 0.35, yaw: 0.4, pitch: 0.4, roll: 0.4, gazeX: 0.35, gazeY: 0.35 });
+  __publicField(_RigSmoother, "SPEED", { eyeL: 0.75, eyeR: 0.75, mouth: 0.7, smile: 0.4, yaw: 0.4, pitch: 0.4, roll: 0.4, gazeX: 0.35, gazeY: 0.35, browL: 0.5, browR: 0.5 });
   var RigSmoother = _RigSmoother;
   var DEG = 180 / Math.PI;
   function poseFromMatrix(m) {
@@ -723,7 +831,7 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
     const yaw = Math.asin(clamp2(-R(2, 0), -1, 1)) * DEG;
     const pitch = Math.atan2(R(2, 1), R(2, 2)) * DEG;
     const roll = Math.atan2(R(1, 0), R(0, 0)) * DEG;
-    return { yaw: -yaw, pitch, roll: -roll };
+    return { yaw: -yaw, pitch: -pitch, roll };
   }
   function poseFromPoints(a, aspect = 4 / 3, rest = 0.5) {
     const P = (p) => ({ x: (1 - p.x) * aspect, y: p.y });
@@ -741,17 +849,29 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
     const pitch = (rest - share) * 160;
     return { yaw, pitch, roll };
   }
-  function rawFromBlendshapes(cats, matrix, shut = 0.55) {
+  function rawFromBlendshapes(cats, matrix, shut = 0.55, lm) {
     const s = {};
     for (const c of cats) s[c.categoryName] = c.score;
     const v = (k) => s[k] ?? 0;
     const open = (blink, wide) => clamp2((shut - blink) / (shut - 0.08), 0, 1) + wide * 0.4;
     const pose = matrix && matrix.length >= 16 ? poseFromMatrix(matrix) : { yaw: 0, pitch: 0, roll: 0 };
+    let gap = 0;
+    if (lm && lm.length > 152) {
+      const faceH = Math.hypot(lm[10].x - lm[152].x, lm[10].y - lm[152].y) || 1;
+      gap = clamp2((Math.hypot(lm[13].x - lm[14].x, lm[13].y - lm[14].y) / faceH - 0.012) / 0.12, 0, 1);
+    }
+    const smileAvg = (v("mouthSmileLeft") + v("mouthSmileRight")) / 2;
+    const outerUp = (v("browOuterUpLeft") + v("browOuterUpRight")) / 2, wideEyes = (v("eyeWideLeft") + v("eyeWideRight")) / 2;
+    const sadBrows = Math.max(0, v("browInnerUp") - outerUp * 1.2) * 0.45 * clamp2(1 - v("jawOpen") * 3, 0, 1) * clamp2(1 - smileAvg * 3, 0, 1) * clamp2(1 - wideEyes * 3, 0, 1);
+    const frown = (v("mouthFrownLeft") + v("mouthFrownRight")) * 1.5 + (v("mouthPressLeft") + v("mouthPressRight")) * 0.25 + v("mouthShrugLower") * 0.3 * clamp2(1 - wideEyes * 3, 0, 1) + sadBrows;
+    const brow = (outer, down) => outer * 0.6 + v("browInnerUp") * 0.6 - down * 1.2;
     return {
       eyeL: open(v("eyeBlinkLeft"), v("eyeWideLeft")),
       eyeR: open(v("eyeBlinkRight"), v("eyeWideRight")),
-      mouth: v("jawOpen"),
-      smile: (v("mouthSmileLeft") + v("mouthSmileRight")) / 2 - (v("mouthFrownLeft") + v("mouthFrownRight")) / 2,
+      mouth: Math.max(v("jawOpen") * 1.4, gap),
+      smile: smileAvg - frown,
+      browL: brow(v("browOuterUpLeft"), v("browDownLeft")),
+      browR: brow(v("browOuterUpRight"), v("browDownRight")),
       ...pose,
       // The player's left eye looking out looks to their left (the drawing's left); looking in, to the right.
       gazeX: (v("eyeLookInLeft") + v("eyeLookOutRight") - v("eyeLookOutLeft") - v("eyeLookInRight")) / 2,
@@ -824,6 +944,31 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
     reset() {
       this.lo = Infinity;
       this.hi = -Infinity;
+    }
+  };
+  var Recentre = class {
+    constructor() {
+      __publicField(this, "rest", null);
+      __publicField(this, "n", 0);
+      /** How far the resting level may drift from zero (it is a correction, not a reading). */
+      __publicField(this, "limit", 0.5);
+    }
+    push(raw) {
+      const keys = ["browL", "browR", "smile"];
+      if (!this.rest) this.rest = { browL: raw.browL, browR: raw.browR, smile: raw.smile };
+      this.n++;
+      const out = { ...raw };
+      for (const k of keys) {
+        const v = raw[k], r = this.rest[k];
+        const rate = this.n < 15 ? 0.2 : Math.abs(v - r) < 0.2 && !(k === "smile" && v < r - 0.04) ? 0.01 : 0;
+        this.rest[k] = clamp2(r + (v - r) * rate, -this.limit, this.limit);
+        out[k] = v - this.rest[k];
+      }
+      return out;
+    }
+    reset() {
+      this.rest = null;
+      this.n = 0;
     }
   };
   var MP_VERSION = "0.10.35";
@@ -922,6 +1067,8 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
       __publicField(this, "name", "landmarker");
       __publicField(this, "fl", null);
       __publicField(this, "shut", 0.55);
+      /** Brows and smile against their resting levels (glasses, resting faces). */
+      __publicField(this, "centre", new Recentre());
     }
     async load() {
       const t0 = performance.now();
@@ -960,9 +1107,10 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
         x1 = Math.max(x1, p.x);
         y1 = Math.max(y1, p.y);
       }
-      return { raw: rawFromBlendshapes(cats, m, this.shut), points, box: { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }, ms };
+      return { raw: this.centre.push(rawFromBlendshapes(cats, m, this.shut, lm)), points, box: { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }, ms };
     }
     relearn() {
+      this.centre.reset();
     }
     close() {
       this.fl?.close?.();
@@ -1003,7 +1151,7 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
       const f = this.px.measure(src, [px(k[0]), px(k[1])], px(k[3]), span);
       const b = det.boundingBox;
       const box = b ? { x: b.originX / sw, y: b.originY / sh, w: b.width / sw, h: b.height / sh } : null;
-      return { raw: { ...f, ...pose }, points: k, box, ms: performance.now() - t0 };
+      return { raw: { ...f, ...pose, browL: 0, browR: 0 }, points: k, box, ms: performance.now() - t0 };
     }
     relearn() {
       this.px.relearn();
@@ -1032,7 +1180,7 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
       const f = this.px.measure(src, eyes, mouth, b.s * 0.36);
       const norm = (p) => ({ x: p.x / sw, y: p.y / sh });
       return {
-        raw: { ...f, yaw: 0, pitch: 0, roll: 0 },
+        raw: { ...f, yaw: 0, pitch: 0, roll: 0, browL: 0, browR: 0 },
         points: [...eyes, mouth].map(norm),
         box: { x: b.x / sw, y: b.y / sh, w: b.s / sw, h: b.s / sh },
         ms: performance.now() - t0
@@ -1076,7 +1224,7 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
     loaded: /* @__PURE__ */ new Map(),
     failed: /* @__PURE__ */ new Map(),
     bad: "none",
-    flips: { ...NO_FLIPS, ...JSON.parse(store.get("flips") ?? "{}") },
+    flips: { ...NO_FLIPS, ...JSON.parse(store.get("flips2") ?? "{}") },
     neutral: { ...NO_NEUTRAL },
     smoother: new RigSmoother(),
     lastRaw: null,
@@ -1089,7 +1237,9 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
     history: [],
     fallback: false,
     bench: null,
-    t0: performance.now()
+    t0: performance.now(),
+    /** The microphone's level 0..1, while on (it never leaves the page either). */
+    mic: null
   };
   S.video.muted = true;
   S.video.playsInline = true;
@@ -1187,6 +1337,8 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
     return {
       eyeL: blink ? 0 : 11,
       eyeR: blink || wink ? 0 : 11,
+      browL: 8 + Math.round(tri(5) * 7),
+      browR: 8 + Math.round(tri(5) * 7),
       mouth: Math.round(Math.max(0, Math.sin(s * 5) * 12) * (s % 8 < 4 ? 1 : 0)),
       smile: 8 + Math.round(tri(9) * 7),
       yaw: 8 + Math.round(Math.sin(s * 0.7) * 7),
@@ -1228,6 +1380,7 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
       } else if (S.failed.has(S.trackerName) && !S.trackers.has("pixel")) void ensureTracker("pixel");
       if (f && (S.fallback || S.failed.has(S.trackerName))) $("picture").innerHTML = picture.frame(f.src, f.w, f.h).html;
     }
+    if (rig && S.mic) rig = withVoice(rig, micLevel());
     if (rig) {
       S.rig = rig;
       S.history.push({ t: now, rig });
@@ -1248,11 +1401,40 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
     numbers();
     chart(now);
   }
-  var INK_CLASS = ["g", "o", "f"];
-  function cellsHtml(cells) {
-    return cells.map((row) => row.map((c) => c.ch === " " ? " " : `<span class="${INK_CLASS[c.ink]}">${c.ch.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")}</span>`).join("")).join("\n");
+  var INK_CLASS = ["g", "o", "f", "o"];
+  async function micToggle() {
+    if (S.mic) {
+      for (const t of S.mic.stream.getTracks()) t.stop();
+      S.mic = null;
+      ui();
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      const ctx = new AudioContext();
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 512;
+      ctx.createMediaStreamSource(stream).connect(analyser);
+      S.mic = { stream, analyser, buf: new Float32Array(analyser.fftSize), level: 0 };
+    } catch (e) {
+      status("No microphone (" + e.name + ").");
+    }
+    ui();
+  }
+  function micLevel() {
+    const m = S.mic;
+    m.analyser.getFloatTimeDomainData(m.buf);
+    let sum = 0;
+    for (const v of m.buf) sum += v * v;
+    const rms = Math.sqrt(sum / m.buf.length);
+    m.level = Math.min(1, rms * 6);
+    return m.level;
+  }
+  function cellsHtml(cells, mark = "", dots = false) {
+    return cells.map((row, y) => row.map((c, x) => c.ch === " " ? dots && (x + 2 * y) % 4 === 0 ? '<span class="d">.</span>' : " " : c.ink === 3 && mark ? `<span class="plate">${mark}</span>` : `<span class="${INK_CLASS[c.ink]}">${c.ch.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")}</span>`).join("")).join("\n");
   }
   function drawAvatars() {
+    $("tile").innerHTML = cellsHtml(drawRig(S.rig, DETAIL_SIZE[2].w, DETAIL_SIZE[2].h), "J", true);
     for (const d of [3, 2, 1]) {
       const { w, h } = DETAIL_SIZE[d];
       $("av" + d).innerHTML = cellsHtml(drawRig(S.rig, w, h));
@@ -1277,7 +1459,7 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
     for (const p of tr.points) g.fillRect(p.x * W - 2, p.y * H - 2, 4, 4);
     g.restore();
   }
-  var SIGNED = /* @__PURE__ */ new Set(["smile", "yaw", "pitch", "roll", "gazeX", "gazeY"]);
+  var SIGNED = /* @__PURE__ */ new Set(["smile", "yaw", "pitch", "roll", "gazeX", "gazeY", "browL", "browR"]);
   var UNIT = { yaw: "°", pitch: "°", roll: "°" };
   function numbers() {
     const raw = S.source === "demo" ? null : S.lastRaw;
@@ -1294,7 +1476,7 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
     const W = c.width, H = c.height;
     g.fillStyle = "#0b0d12";
     g.fillRect(0, 0, W, H);
-    const lines = [["eyeL", "#86a9de"], ["eyeR", "#6ccfd2"], ["mouth", "#e86050"], ["smile", "#e8c460"], ["yaw", "#8fd06a"], ["gazeX", "#d09ad8"]];
+    const lines = [["eyeL", "#86a9de"], ["eyeR", "#6ccfd2"], ["mouth", "#e86050"], ["smile", "#e8c460"], ["yaw", "#8fd06a"], ["browL", "#d09ad8"]];
     g.font = "10px monospace";
     lines.forEach(([k, col], i) => {
       g.strokeStyle = col;
@@ -1439,6 +1621,8 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
   function ui() {
     $("cam").textContent = S.stream ? "Camera: on" : "Camera: off";
     $("cam").classList.toggle("on", !!S.stream);
+    $("mic").textContent = S.mic ? "Microphone: on" : "Microphone: off";
+    $("mic").classList.toggle("on", !!S.mic);
     $("demo").classList.toggle("on", S.source === "demo");
     const sel = $("tracker");
     for (const o of Array.from(sel.options)) {
@@ -1461,6 +1645,9 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
     $("cam").onclick = () => {
       if (S.stream) cameraOff();
       else void cameraOn();
+    };
+    $("mic").onclick = () => {
+      void micToggle();
     };
     $("demo").onclick = () => {
       demoHold = null;
@@ -1485,7 +1672,7 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
         status("No face yet: turn the camera on and look at it.");
         return;
       }
-      S.neutral = { yaw: r.yaw, pitch: r.pitch, roll: r.roll, gazeX: r.gazeX, gazeY: r.gazeY, smile: r.smile };
+      S.neutral = { yaw: r.yaw, pitch: r.pitch, roll: r.roll, gazeX: r.gazeX, gazeY: r.gazeY, smile: r.smile, browL: r.browL, browR: r.browR };
       status("Neutral taken: your face as it is now draws as the middle.");
     };
     $("relearn").onclick = () => {
@@ -1504,7 +1691,7 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
     };
     for (const k of Object.keys(NO_FLIPS)) $("flip-" + k).onchange = (e) => {
       S.flips[k] = e.target.checked;
-      store.set("flips", JSON.stringify(S.flips));
+      store.set("flips2", JSON.stringify(S.flips));
     };
     $("fallback").onclick = () => {
       S.fallback = !S.fallback;
@@ -1541,7 +1728,7 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
         S.rig = r;
         status("Showing the typed rig. Demo off to go back.");
         demoHold = r;
-      } else status("A rig is nine hex digits, e.g. bb0888888.");
+      } else status("A rig is eleven hex digits, e.g. bb088888888.");
     };
     const last = store.get("lastReport");
     if (last) $("report").textContent = "Last time:\n" + (() => {

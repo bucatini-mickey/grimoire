@@ -2,101 +2,818 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ASCII Face Tuner</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>ASCII Avatar</title>
 <!--
-	ascii-face.html - the webcam as moving ASCII in character cells, the way Grimoire's village shows faces,
-	with sliders to tune the drawing. One file, no libraries, nothing sent anywhere: open it in Chrome or
-	Edge (double-click the file is fine) and allow the camera. No camera? Open a video file, or use the
-	moving test picture.
+	ascii-face.html - your face as a moving ASCII avatar, live from the camera, with the tuner's sliders, and
+	ways to use it elsewhere. One file, no libraries, no network: nothing is fetched and nothing is sent. The
+	camera's picture stays in this page.
 
-	Finding the face (so the few cells go on the face, not the room):
-	  - the browser's own face detector where it has one (Chrome's FaceDetector, often behind a flag);
-	  - with tracking off, a click on your face pins the crop there (the Crop slider sets its size): most
-	    people sit still at a webcam, and a backlit face often has too little colour to track;
-	  - otherwise skin tone: every pixel of a small copy of the picture is tested in YCbCr (skin sits in a
-	    narrow band of Cb and Cr whatever its brightness), the largest patch of skin near where the face was
-	    last is taken as the face, and the crop follows it smoothly. "Margin" widens it to take in the head.
-	    Click your face on the camera view: that teaches it your skin's colour under this light and puts the
-	    crop there; after that it looks only near where the face was, so a skin-coloured wall cannot win.
-	Exposing for the face: the black and white points are read from the face's oval only, so a bright
-	window behind you no longer sets them. Fading the background: cells outside the oval fade to the ground.
+	Opening it:
+	  - a laptop (Lavender, Basil, Rosemary): double-click the file; Chrome or Edge (Firefox works too). Allow
+	    the camera. A file opened this way may use the camera; so may http://localhost.
+	  - a phone: the browser offers the camera only to https pages (or localhost). Serve this folder over
+	    https from a computer on the same wifi (node tools/serve.mjs --https, see that file) and open the
+	    address it prints, or put the file on any https host. Over plain http from another machine the
+	    camera is refused and the test picture shows instead.
+	  - #view=avatar at the end of the address opens the avatar alone (for a window capture or an iframe);
+	    &bg=green puts it on a green screen.
 
-	The drawing, as in the game (src/town/faces.ts): the crop is mirrored and shrunk to a grid of samples,
-	two per cell (a cell is twice as tall as wide, so its top and bottom halves are sampled apart), stretched
-	between the black and white points, bent by gamma, sharpened, and squeezed to 16 levels (one hex digit
-	each: what the game sends). A cell's glyph comes from its two halves: ink high (` ' ") or low (. , o)
-	when one half is much brighter (the shape threshold), otherwise from the density ramp.
+	Using it elsewhere ("Use it elsewhere" in the panel):
+	  - Avatar only: the avatar fills the window (share that window in a call, or capture it in OBS).
+	  - Float on top: a small always-on-top window (Chrome and Edge on a computer; elsewhere a video
+	    picture-in-picture where the browser has one).
+	  - Record video (.webm, or .mp4 on Safari), Record ASCII clip (a standalone .html page that plays it),
+	    Save picture (.png), Copy text.
+	  - Copy embed code / Save embed page: the module and one line that runs a live avatar in any page.
+
+	Finding the face (so the cells go on the face, not the room): the browser's FaceDetector where it has
+	one; else skin tone (YCbCr), the largest patch near where the face was; with tracking off, a click (or
+	tap) on your face in the camera view pins the crop there. With tracking on, the click teaches it your
+	skin's colour under this light.
+
+	The drawing is the module between the "ascii-avatar module" markers below: a compiled copy of
+	src/avatar/asciiavatar.ts, where it is documented (and tested: tests/asciiavatar.test.ts). Refresh the
+	copy with `npm run avatar`. The rest of this file is the page round it.
 
 	"Copy settings" gives the numbers to paste back to Claude, to make them the game's.
 -->
 <style>
-	:root { --bg: #15110d; --panel: #1f1812; --ink: #e9dcc0; --rule: #8a6a3a; --dim: #8d7f68; --accent: #c9a25a; --track: #6fcf8f; }
+	:root { --bg: #15110d; --panel: #1f1812; --ink: #e9dcc0; --rule: #8a6a3a; --dim: #9a8b72; --accent: #c9a25a; --well: #0d0a08; --avatar-bg: #15110d; }
 	* { box-sizing: border-box; }
-	html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: 'Cascadia Mono', Consolas, 'DejaVu Sans Mono', monospace; }
-	body { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 12px; padding: 12px 16px; }
-	@media (max-width: 760px) { body { grid-template-columns: 1fr; height: auto; } }
-	#stage { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-width: 0; min-height: 0; overflow: hidden; }
-	#row { display: flex; gap: 16px; align-items: center; justify-content: center; flex-wrap: wrap; }
-	pre { margin: 0; line-height: 1.2; white-space: pre; user-select: none; }
-	#game { font-size: 16px; padding: 6px 8px; border: 1px solid var(--rule); background: #0d0a08; }
-	.cap { color: var(--dim); font-size: 11px; text-align: center; }
-	#peek { width: 240px; border: 1px solid var(--rule); cursor: crosshair; }
+	html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: 'Cascadia Mono', Consolas, 'DejaVu Sans Mono', Menlo, monospace; }
+	body { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 12px; padding: 12px 16px; height: 100vh; height: 100dvh; }
+	#stage { display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 8px; min-width: 0; min-height: 0; }
+	#view { display: flex; gap: 14px; min-height: 0; min-width: 0; }
+	#avatarBox { flex: 1; min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; background: var(--avatar-bg); border: 1px solid var(--rule); }
+	pre { margin: 0; line-height: 1.2; white-space: pre; user-select: none; -webkit-user-select: none; }
+	#face { color: var(--ink); }
+	#side { display: flex; flex-direction: column; gap: 10px; align-items: center; justify-content: center; width: 250px; flex: none; }
+	#game { font-size: 14px; padding: 6px 8px; border: 1px solid var(--rule); background: var(--well); }
+	.cap { color: var(--dim); font-size: 11px; text-align: center; max-width: 250px; }
+	#peek { width: 240px; max-width: 100%; border: 1px solid var(--rule); cursor: crosshair; touch-action: manipulation; display: block; }
 	#peek[hidden] { display: none; }
-	#cv, #an { display: none; }
-	#panel { background: var(--panel); border: 1px solid var(--rule); padding: 10px 12px; overflow-y: auto; font-size: 12px; display: flex; flex-direction: column; gap: 8px; }
-	#panel h2 { margin: 0; font-size: 13px; color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase; }
+	#note { color: var(--dim); font-size: 11px; text-align: center; min-height: 1.4em; }
+	#panel { background: var(--panel); border: 1px solid var(--rule); padding: 10px 12px; overflow-y: auto; font-size: 12px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+	.quick { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+	details { border-top: 1px solid #3a2c1c; padding-top: 6px; }
+	summary { cursor: pointer; font-size: 13px; color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase; padding: 4px 0; list-style-position: inside; }
+	details > div { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
 	label.s { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; align-items: center; }
-	label.s input { grid-column: 1 / -1; width: 100%; accent-color: var(--accent); }
+	label.s input { grid-column: 1 / -1; width: 100%; accent-color: var(--accent); margin: 2px 0; }
 	label.s output { color: var(--accent); font-variant-numeric: tabular-nums; }
 	.toggles { display: flex; flex-wrap: wrap; gap: 6px; }
-	button { font: inherit; font-size: 12px; background: #241b12; color: var(--ink); border: 1px solid var(--rule); padding: 4px 8px; cursor: pointer; }
+	button { font: inherit; font-size: 12px; background: #241b12; color: var(--ink); border: 1px solid var(--rule); padding: 5px 9px; cursor: pointer; touch-action: manipulation; border-radius: 2px; }
 	button.on { background: var(--rule); color: var(--bg); }
-	button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-	#note { color: var(--dim); font-size: 11px; text-align: center; }
-	textarea { width: 100%; height: 80px; background: #0d0a08; color: var(--ink); border: 1px solid var(--rule); font: inherit; font-size: 11px; }
+	button.rec { background: #8c2a1e; border-color: #c8412f; color: #fbf4e4; }
+	button:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+	.help { color: var(--dim); font-size: 11px; line-height: 1.45; margin: 0; }
+	textarea { width: 100%; height: 80px; background: var(--well); color: var(--ink); border: 1px solid var(--rule); font: inherit; font-size: 11px; }
+	#back { display: none; }
+	#cv { display: none; }
+
+	/* Avatar only: the avatar fills the window; Back shows when the pointer moves. */
+	body.solo { display: block; padding: 0; background: var(--avatar-bg); }
+	body.solo #panel, body.solo #side, body.solo #note { display: none; }
+	body.solo #stage { height: 100vh; height: 100dvh; display: block; }
+	body.solo #view, body.solo #avatarBox { height: 100%; border: 0; }
+	body.solo #back { display: block; position: fixed; top: max(10px, env(safe-area-inset-top)); left: max(10px, env(safe-area-inset-left)); opacity: 0.85; transition: opacity 0.4s; z-index: 2; }
+	body.solo.idle #back { opacity: 0; }
+	body.solo.idle { cursor: none; }
+
+	/* Phones and narrow windows: the avatar on top, full width; the panel below it, in folds. */
+	@media (max-width: 760px) {
+		body { grid-template-columns: 1fr; height: auto; min-height: 100dvh; padding: max(8px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)); gap: 10px; }
+		#stage { grid-template-rows: auto auto; }
+		#view { flex-direction: column; }
+		#avatarBox { height: min(94vw, 58dvh); flex: none; }
+		#side { width: auto; flex-direction: row; align-items: flex-start; justify-content: center; }
+		#peek { width: 46vw; }
+		#game { font-size: 10px; }
+		#panel { overflow: visible; }
+	}
+	/* Fingers: bigger targets. */
+	@media (pointer: coarse) {
+		button { min-height: 42px; font-size: 13px; padding: 8px 10px; }
+		summary { padding: 10px 0; }
+		label.s input { height: 30px; }
+		label.s { font-size: 13px; }
+	}
 </style>
 </head>
 <body>
 <div id="stage">
-	<div id="row">
-		<div><pre id="face" aria-label="Your face drawn in ASCII, large"></pre></div>
-		<div><canvas id="peek" width="320" height="240" aria-label="The camera, with the face found marked"></canvas><div class="cap" id="peekcap"></div></div>
+	<div id="view">
+		<div id="avatarBox"><pre id="face" aria-label="Your face drawn in ASCII"></pre></div>
+		<div id="side">
+			<div><canvas id="peek" width="320" height="240" aria-label="The camera, with the crop marked: tap your face to pin or teach"></canvas><div class="cap" id="peekcap"></div></div>
+			<div><pre id="game" aria-label="The same face at the game's size"></pre><div class="cap">as the village shows it (12x6)</div></div>
+		</div>
 	</div>
-	<div><pre id="game" aria-label="The same face at the game's size"></pre><div class="cap">as the village shows it (12x6 cells)</div></div>
 	<div id="note">Starting the camera...</div>
 </div>
+<button id="back" type="button">Back</button>
 <div id="panel">
-	<h2>Find the face</h2>
-	<div class="toggles" id="toggles0"></div>
-	<div id="sliders0"></div>
-	<h2>Picture</h2>
-	<div id="sliders1"></div>
-	<h2>Drawing</h2>
-	<div id="sliders2"></div>
-	<div class="toggles" id="toggles"></div>
-	<h2>Source</h2>
-	<div class="toggles">
+	<div class="quick">
+		<button id="camBtn" type="button">Camera</button>
+		<button id="flip" type="button">Flip camera</button>
+		<button id="solo" type="button">Avatar only</button>
+		<button id="float" type="button">Float on top</button>
+	</div>
+	<details data-fold="find"><summary>Find the face</summary><div><div class="toggles" id="toggles0"></div><div id="sliders0"></div></div></details>
+	<details data-fold="picture"><summary>Picture</summary><div id="sliders1"></div></details>
+	<details data-fold="drawing"><summary>Drawing</summary><div><div id="sliders2"></div><div class="toggles" id="toggles"></div></div></details>
+	<details data-fold="smooth"><summary>Smoothness</summary><div><div id="sliders3"></div>
+		<p class="help">Smoothing keeps part of each cell's last value, so camera noise does not sparkle; a change bigger than the movement threshold shows at once, so a blink or a turn is not smeared. Steadiness holds a cell's glyph until it clearly changes.</p></div></details>
+	<details data-fold="export"><summary>Use it elsewhere</summary><div>
+		<div class="toggles">
+			<button id="recVid" type="button">Record video</button>
+			<button id="recClip" type="button">Record ASCII clip</button>
+			<button id="png" type="button">Save picture</button>
+			<button id="copyText" type="button">Copy text</button>
+			<button id="embed" type="button">Copy embed code</button>
+			<button id="embedPage" type="button">Save embed page</button>
+			<button id="bg" type="button">Ground: dark</button>
+		</div>
+		<p class="help">Avatar only fills the window: share that window in a call, or capture it in OBS. Float on top keeps a small avatar over other windows. Ground: green gives a green screen to key out. The embed code runs a live avatar in any page served over https (or localhost, or opened as a file). Recordings and pages are saved by this browser to your downloads; nothing is uploaded.</p>
+	</div></details>
+	<details data-fold="source"><summary>Source</summary><div><div class="toggles">
 		<button id="useCam" type="button">Camera</button>
 		<button id="useTest" type="button">Test picture</button>
 		<button id="pickFile" type="button">Video or photo...</button>
 		<input id="file" type="file" accept="video/*,image/*" hidden>
-	</div>
-	<h2>Settings</h2>
-	<div class="toggles"><button id="copy" type="button">Copy settings</button><button id="reset" type="button">Reset</button></div>
-	<textarea id="out" readonly aria-label="Settings to paste back"></textarea>
+	</div></div></details>
+	<details data-fold="settings"><summary>Settings</summary><div>
+		<div class="toggles"><button id="copy" type="button">Copy settings</button><button id="reset" type="button">Reset</button></div>
+		<textarea id="out" readonly aria-label="Settings to paste back, or embed code"></textarea>
+	</div></details>
 </div>
-<video id="cam" playsinline muted hidden></video>
 <video id="clip" playsinline muted loop hidden></video>
 <canvas id="cv"></canvas>
-<canvas id="an"></canvas>
+<script id="ascii-avatar-module">
+/* ==== ascii-avatar module: BEGIN. Compiled from src/avatar/asciiavatar.ts (read that for the documented interface); refresh with `npm run avatar`, do not edit here. ==== */
+"use strict";
+var asciiAvatar = (() => {
+  var __defProp = Object.defineProperty;
+  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+  var __getOwnPropNames = Object.getOwnPropertyNames;
+  var __hasOwnProp = Object.prototype.hasOwnProperty;
+  var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+  var __export = (target, all) => {
+    for (var name in all)
+      __defProp(target, name, { get: all[name], enumerable: true });
+  };
+  var __copyProps = (to, from, except, desc) => {
+    if (from && typeof from === "object" || typeof from === "function") {
+      for (let key of __getOwnPropNames(from))
+        if (!__hasOwnProp.call(to, key) && key !== except)
+          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+    }
+    return to;
+  };
+  var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+  var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
+
+  // src/avatar/asciiavatar.ts
+  var asciiavatar_exports = {};
+  __export(asciiavatar_exports, {
+    AsciiAvatar: () => AsciiAvatar,
+    AvatarCamera: () => AvatarCamera,
+    DEFAULTS: () => DEFAULTS,
+    DENSE: () => DENSE,
+    FIND_H: () => FIND_H,
+    FIND_W: () => FIND_W,
+    FaceFinder: () => FaceFinder,
+    GROUND: () => GROUND,
+    INK: () => INK,
+    INKS: () => INKS,
+    RAMP: () => RAMP,
+    SKIN_START: () => SKIN_START,
+    bestPatch: () => bestPatch,
+    blend: () => blend,
+    boxDown: () => boxDown,
+    cellGlyph: () => cellGlyph,
+    clipFrame: () => clipFrame,
+    drawToCanvas: () => drawToCanvas,
+    embedHtml: () => embedHtml,
+    embedPage: () => embedPage,
+    exposure: () => exposure,
+    fixedCrop: () => fixedCrop,
+    follow: () => follow,
+    hexFrame: () => hexFrame,
+    isSkin: () => isSkin,
+    luma: () => luma,
+    mount: () => mount,
+    outside: () => outside,
+    playerHtml: () => playerHtml,
+    quantize: () => quantize,
+    rowsFor: () => rowsFor,
+    skinMask: () => skinMask,
+    squareAround: () => squareAround,
+    toFrame: () => toFrame,
+    toHtml: () => toHtml,
+    toLevels: () => toLevels,
+    ycc: () => ycc
+  });
+  var DEFAULTS = {
+    cols: 40,
+    fps: 20,
+    zoom: 0.5,
+    lift: 0.1,
+    black: 2,
+    white: 98,
+    gamma: 0.8,
+    sharpen: 0.8,
+    shape: 5,
+    shaped: true,
+    colour: true,
+    invert: false,
+    mirror: true,
+    track: false,
+    margin: 1.5,
+    skin: 1,
+    follow: 0.25,
+    faceExpose: true,
+    fade: 0.8,
+    oval: 1,
+    smooth: 0.5,
+    snap: 40,
+    steady: 0.25,
+    facing: "user"
+  };
+  var rowsFor = (cols) => Math.max(1, Math.round(cols / 2));
+  var DENSE = " .:-=+*#%@";
+  var RAMP = " .,:;-=+*oa#%@";
+  var INKS = ["#15110d", "#2a2017", "#3d2e20", "#503c29", "#634a32", "#76593c", "#8a6a47", "#9d7b53", "#ae8c60", "#bd9c6f", "#cbad80", "#d7bd92", "#e2cda6", "#ecdcba", "#f4e9cf", "#fbf4e4"];
+  var GROUND = "#15110d";
+  var INK = "#e9dcc0";
+  var luma = (r, g, b) => 0.3 * r + 0.59 * g + 0.11 * b;
+  function boxDown(rgba, W, H, k) {
+    const w = Math.floor(W / k), h = Math.floor(H / k);
+    const out = new Float32Array(w * h);
+    const kk = k * k;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      let s = 0;
+      for (let dy = 0; dy < k; dy++) {
+        let i = ((y * k + dy) * W + x * k) * 4;
+        for (let dx = 0; dx < k; dx++, i += 4) s += luma(rgba[i], rgba[i + 1], rgba[i + 2]);
+      }
+      out[x + y * w] = s / kk;
+    }
+    return out;
+  }
+  function blend(prev, next, keep, snap) {
+    const k = Math.min(0.95, Math.max(0, keep));
+    for (let i = 0; i < prev.length; i++) {
+      const d = next[i] - prev[i];
+      prev[i] = Math.abs(d) > snap ? next[i] : prev[i] + d * (1 - k);
+    }
+    return prev;
+  }
+  function outside(x, y, w, h, oval = 1) {
+    const r = Math.hypot((x + 0.5 - w / 2) / (w * 0.36 * oval), (y + 0.5 - h * 0.48) / (h * 0.46 * oval));
+    return Math.min(1, Math.max(0, (r - 0.9) / 0.35));
+  }
+  function exposure(v, w, h, s) {
+    const inFace = [];
+    if (s.faceExpose) {
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (outside(x, y, w, h, s.oval) < 0.5) inFace.push(v[x + y * w]);
+    }
+    const sorted = Float32Array.from(inFace.length > 8 ? inFace : Array.from(v)).sort();
+    const at = (p) => sorted[Math.floor((sorted.length - 1) * Math.min(100, Math.max(0, p)) / 100)];
+    return { lo: at(s.black), hi: at(s.white) };
+  }
+  function quantize(b, prev, steady) {
+    const x = Math.min(15, Math.max(0, b * 15));
+    if (prev >= 0 && Math.abs(x - prev) <= 0.5 + steady) return prev;
+    return Math.round(x);
+  }
+  function toLevels(v, w, h, s, lo, hi, prev = null) {
+    const span = Math.max(12, hi - lo);
+    const n = new Float32Array(w * h);
+    for (let i = 0; i < n.length; i++) n[i] = Math.pow(Math.min(1, Math.max(0, (v[i] - lo) / span)), s.gamma);
+    const out = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = x + y * w;
+      let sum = 0, k = 0;
+      if (x > 0) {
+        sum += n[i - 1];
+        k++;
+      }
+      if (x < w - 1) {
+        sum += n[i + 1];
+        k++;
+      }
+      if (y > 0) {
+        sum += n[i - w];
+        k++;
+      }
+      if (y < h - 1) {
+        sum += n[i + w];
+        k++;
+      }
+      let b = Math.min(1, Math.max(0, n[i] + (k ? n[i] - sum / k : 0) * s.sharpen));
+      if (s.invert) b = 1 - b;
+      b *= 1 - s.fade * outside(x, y, w, h, s.oval);
+      const q = quantize(b, prev ? prev[i] : -1, s.steady);
+      out[i] = q;
+      if (prev) prev[i] = q;
+    }
+    return out;
+  }
+  function cellGlyph(t, b, shape = 5, shaped = true) {
+    if (!shaped) {
+      const k = Math.round((t + b) / 2);
+      return [RAMP[Math.round(k * (RAMP.length - 1) / 15)], k];
+    }
+    const level = Math.max(t, b);
+    if (level < 2) return [" ", level];
+    const d = t - b;
+    if (d >= shape) return [t >= 11 ? '"' : t >= 7 ? "'" : "`", level];
+    if (d <= -shape) return [b >= 11 ? "o" : b >= 7 ? "," : ".", level];
+    return [DENSE[Math.round((t + b) / 30 * (DENSE.length - 1))], level];
+  }
+  var esc = (c) => c === "<" ? "&lt;" : c === ">" ? "&gt;" : c === "&" ? "&amp;" : c;
+  function toHtml(lines, inks, colour, palette = INKS) {
+    var _a, _b;
+    const cols = (_b = (_a = lines[0]) == null ? void 0 : _a.length) != null ? _b : 0;
+    return lines.map((line, y) => {
+      if (!colour) return Array.from(line, esc).join("");
+      let out = "", run = "", ink = -1;
+      for (let x = 0; x < cols; x++) {
+        const k = inks[x + y * cols];
+        if (k !== ink) {
+          if (run) out += `<span style="color:${palette[ink]}">${run}</span>`;
+          run = "";
+          ink = k;
+        }
+        run += esc(line[x]);
+      }
+      if (run) out += `<span style="color:${palette[ink]}">${run}</span>`;
+      return out;
+    }).join("\n");
+  }
+  function toFrame(levels, cols, rows, s) {
+    const lines = [];
+    const inks = new Uint8Array(cols * rows);
+    for (let y = 0; y < rows; y++) {
+      let line = "";
+      for (let x = 0; x < cols; x++) {
+        const [ch, k] = cellGlyph(levels[x + 2 * y * cols], levels[x + (2 * y + 1) * cols], s.shape, s.shaped);
+        line += ch;
+        inks[x + y * cols] = k;
+      }
+      lines.push(line);
+    }
+    return { cols, rows, levels, lines, inks, text: lines.join("\n"), html: toHtml(lines, inks, s.colour) };
+  }
+  var hexFrame = (levels) => Array.from(levels, (k) => k.toString(16)).join("");
+  var SKIN_START = { cb: 106, cr: 152, taught: false };
+  var ycc = (r, g, b) => ({
+    y: 0.299 * r + 0.587 * g + 0.114 * b,
+    cb: 128 - 0.168736 * r - 0.331264 * g + 0.5 * b,
+    cr: 128 + 0.5 * r - 0.418688 * g - 0.081312 * b
+  });
+  function isSkin(r, g, b, ref, tolerance) {
+    const c = ycc(r, g, b);
+    const d = Math.hypot((c.cb - ref.cb) / (ref.taught ? 9 : 20), (c.cr - ref.cr) / (ref.taught ? 7 : 16));
+    return c.y > 20 && c.y < 248 && d < tolerance;
+  }
+  function skinMask(rgba, w, h, ref, tolerance, win = null) {
+    const m = new Uint8Array(w * h);
+    for (let i = 0; i < w * h; i++) {
+      const x = i % w, y = (i - x) / w;
+      if (win && (x < win.x0 || x > win.x1 || y < win.y0 || y > win.y1)) continue;
+      m[i] = isSkin(rgba[i * 4], rgba[i * 4 + 1], rgba[i * 4 + 2], ref, tolerance) ? 1 : 0;
+    }
+    return m;
+  }
+  function bestPatch(mask, w, h, near, min) {
+    const seen = new Uint8Array(w * h);
+    let best = null, bestScore = 0;
+    const stack = [];
+    for (let i = 0; i < w * h; i++) {
+      if (!mask[i] || seen[i]) continue;
+      stack.push(i);
+      seen[i] = 1;
+      let n = 0, x0 = w, x1 = 0, y0 = h, y1 = 0, sx = 0, sy = 0;
+      while (stack.length) {
+        const k = stack.pop(), x = k % w, y = (k - x) / w;
+        n++;
+        sx += x;
+        sy += y;
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+        if (y < y0) y0 = y;
+        if (y > y1) y1 = y;
+        if (x > 0 && mask[k - 1] && !seen[k - 1]) {
+          seen[k - 1] = 1;
+          stack.push(k - 1);
+        }
+        if (x < w - 1 && mask[k + 1] && !seen[k + 1]) {
+          seen[k + 1] = 1;
+          stack.push(k + 1);
+        }
+        if (y > 0 && mask[k - w] && !seen[k - w]) {
+          seen[k - w] = 1;
+          stack.push(k - w);
+        }
+        if (y < h - 1 && mask[k + w] && !seen[k + w]) {
+          seen[k + w] = 1;
+          stack.push(k + w);
+        }
+      }
+      if (n < min) continue;
+      const score = n / (1 + Math.hypot(sx / n - near.x, sy / n - near.y) / 12);
+      if (score > bestScore) {
+        bestScore = score;
+        best = { x0, x1, y0, y1, cx: sx / n, cy: sy / n, n };
+      }
+    }
+    return best;
+  }
+  function squareAround(cx, cy, size, sw, sh) {
+    const s = Math.min(sw, sh, Math.max(1, size));
+    return { x: Math.max(0, Math.min(sw - s, cx - s / 2)), y: Math.max(0, Math.min(sh - s, cy - s / 2)), s };
+  }
+  function follow(box, want, k, dead = 0.02) {
+    const step = (a, b) => Math.abs(b - a) < dead * box.s ? a : a + (b - a) * k;
+    return { x: step(box.x, want.x), y: step(box.y, want.y), s: step(box.s, want.s) };
+  }
+  function fixedCrop(sw, sh, zoom, lift, pin = null) {
+    const s = Math.min(sw, sh) * zoom;
+    const at = pin != null ? pin : { x: sw / 2, y: sh / 2 - s * lift };
+    return squareAround(at.x, at.y, s, sw, sh);
+  }
+  var clipFrame = (f) => ({ text: f.text, inks: hexFrame(f.inks) });
+  var scriptSafe = (s) => s.replace(/</g, "\\u003c");
+  function playerHtml(frames, fps, o = {}) {
+    var _a, _b, _c;
+    const colour = (_a = o.colour) != null ? _a : true, bg = (_b = o.bg) != null ? _b : GROUND, title = ((_c = o.title) != null ? _c : "ASCII avatar").replace(/[<&>]/g, "");
+    const data = scriptSafe(JSON.stringify({ frames, fps: Math.max(1, Math.min(60, fps)), inks: INKS, ink: INK, colour }));
+    return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${title}</title>
+<style>html,body{margin:0;height:100%;background:${bg}}body{display:grid;place-items:center}pre{margin:0;line-height:1.2;font-family:'Cascadia Mono',Consolas,'DejaVu Sans Mono',Menlo,monospace;user-select:none}</style>
+</head>
+<body>
+<pre id="avatar" aria-label="An ASCII avatar, recorded"></pre>
+<script>
+(function () {
+	var D = ${data};
+	var el = document.getElementById('avatar'), i = 0;
+	var esc = function (c) { return c === '<' ? '&lt;' : c === '>' ? '&gt;' : c === '&' ? '&amp;' : c; };
+	function html(f) {
+		var lines = f.text.split('\\n'), cols = lines[0].length;
+		return lines.map(function (line, y) {
+			if (!D.colour) return line.split('').map(esc).join('');
+			var out = '', run = '', ink = -1;
+			for (var x = 0; x < cols; x++) {
+				var k = parseInt(f.inks[x + y * cols], 16);
+				if (k !== ink) { if (run) out += '<span style="color:' + D.inks[ink] + '">' + run + '</span>'; run = ''; ink = k; }
+				run += esc(line[x]);
+			}
+			return run ? out + '<span style="color:' + D.inks[ink] + '">' + run + '</span>' : out;
+		}).join('\\n');
+	}
+	function fit() {
+		var lines = D.frames[0].text.split('\\n');
+		el.style.fontSize = Math.max(4, Math.min(innerWidth / (lines[0].length * 0.62), innerHeight / (lines.length * 1.2)) * 0.95) + 'px';
+	}
+	el.style.color = D.ink;
+	addEventListener('resize', fit);
+	fit();
+	function show() { el.innerHTML = html(D.frames[i]); i = (i + 1) % D.frames.length; }
+	show();
+	setInterval(show, 1000 / D.fps);
+})();
+<\/script>
+</body>
+</html>
+`;
+  }
+  function embedHtml(moduleJs, settings, id = "ascii-avatar") {
+    const js = moduleJs.replace(/<\/script/gi, "<\\/script");
+    return `<!-- ASCII avatar: drawn live from this device's camera, in the page; nothing is sent anywhere. -->
+<pre id="${id}" style="margin:0;display:inline-block;padding:6px 8px;background:${GROUND};color:${INK};font:12px/1.2 'Cascadia Mono',Consolas,Menlo,monospace"></pre>
+<script>${js}<\/script>
+<script>asciiAvatar.mount(document.getElementById(${JSON.stringify(id)}), ${scriptSafe(JSON.stringify(settings))});<\/script>
+`;
+  }
+  function embedPage(moduleJs, settings) {
+    return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ASCII avatar</title>
+<style>html,body{margin:0;height:100%;background:${GROUND}}body{display:grid;place-items:center}</style>
+</head>
+<body>
+${embedHtml(moduleJs, { ...settings, fit: true })}</body>
+</html>
+`;
+  }
+  var FIND_W = 80;
+  var FIND_H = 60;
+  var FaceFinder = class {
+    constructor() {
+      __publicField(this, "ref", { ...SKIN_START });
+      __publicField(this, "box", null);
+      /** How the face was found this frame, in words. */
+      __publicField(this, "how", "");
+      /** This frame's skin, FIND_W x FIND_H (for showing). */
+      __publicField(this, "mask", new Uint8Array(FIND_W * FIND_H));
+      __publicField(this, "cv", null);
+      __publicField(this, "g", null);
+      __publicField(this, "detector");
+      __publicField(this, "detected", null);
+      __publicField(this, "busy", false);
+    }
+    /** The picture shrunk to FIND_W x FIND_H, RGBA. */
+    small(src, sw, sh) {
+      if (!this.cv) {
+        this.cv = document.createElement("canvas");
+        this.cv.width = FIND_W;
+        this.cv.height = FIND_H;
+        this.g = this.cv.getContext("2d", { willReadFrequently: true });
+      }
+      this.g.drawImage(src, 0, 0, sw, sh, 0, 0, FIND_W, FIND_H);
+      return this.g.getImageData(0, 0, FIND_W, FIND_H).data;
+    }
+    faceDetector() {
+      if (this.detector === void 0) {
+        const FD = globalThis.FaceDetector;
+        try {
+          this.detector = FD ? new FD({ fastMode: true, maxDetectedFaces: 1 }) : null;
+        } catch {
+          this.detector = null;
+        }
+      }
+      return this.detector;
+    }
+    /** Look for the face in this frame and move the box toward it; the box (unchanged if none is found). */
+    update(src, sw, sh, s, useDetector = true) {
+      let target = null;
+      const fd = useDetector ? this.faceDetector() : null;
+      if (fd) {
+        if (!this.busy) {
+          this.busy = true;
+          fd.detect(src).then((fs) => {
+            var _a, _b;
+            this.detected = (_b = (_a = fs[0]) == null ? void 0 : _a.boundingBox) != null ? _b : null;
+          }, () => {
+            this.detected = null;
+          }).finally(() => {
+            this.busy = false;
+          });
+        }
+        const d = this.detected;
+        if (d) {
+          target = { cx: d.x + d.width / 2, cy: d.y + d.height / 2, size: Math.max(d.width, d.height) };
+          this.how = "browser face detector";
+        }
+      }
+      const fx = FIND_W / sw, fy = FIND_H / sh;
+      const win = this.box ? (() => {
+        const m = this.box.s * 0.9;
+        return { x0: (this.box.x - m) * fx, x1: (this.box.x + this.box.s + m) * fx, y0: (this.box.y - m) * fy, y1: (this.box.y + this.box.s + m) * fy };
+      })() : null;
+      this.mask = skinMask(this.small(src, sw, sh), FIND_W, FIND_H, this.ref, s.skin, win);
+      if (!target) {
+        const near = this.box ? { x: (this.box.x + this.box.s / 2) * fx, y: (this.box.y + this.box.s / 2) * fy } : { x: FIND_W / 2, y: FIND_H / 2 };
+        const p = bestPatch(this.mask, FIND_W, FIND_H, near, FIND_W * FIND_H * 6e-3);
+        if (p) {
+          const w = (p.x1 - p.x0 + 1) / fx, h = (p.y1 - p.y0 + 1) / fy;
+          target = { cx: p.cx / fx, cy: p.cy / fy - h * 0.08, size: Math.max(w, h * 0.85) };
+          this.how = "skin tone";
+        }
+      }
+      if (!target) {
+        this.how = "no face found: holding";
+        return this.box;
+      }
+      const want = squareAround(target.cx, target.cy, target.size * s.margin, sw, sh);
+      this.box = this.box ? follow(this.box, want, s.follow) : want;
+      return this.box;
+    }
+    /** Learn skin's colour from the 5 x 5 patch round (fx, fy) (0..1 across the unmirrored picture) and put the box there. */
+    teach(src, sw, sh, fx, fy) {
+      const d = this.small(src, sw, sh);
+      const x0 = Math.round(fx * FIND_W), y0 = Math.round(fy * FIND_H);
+      let cb = 0, cr = 0, n = 0;
+      for (let y = y0 - 2; y <= y0 + 2; y++) for (let x = x0 - 2; x <= x0 + 2; x++) {
+        if (x < 0 || y < 0 || x >= FIND_W || y >= FIND_H) continue;
+        const i = (x + y * FIND_W) * 4, c = ycc(d[i], d[i + 1], d[i + 2]);
+        cb += c.cb;
+        cr += c.cr;
+        n++;
+      }
+      if (!n) return false;
+      this.ref = { cb: cb / n, cr: cr / n, taught: true };
+      this.box = squareAround(fx * sw, fy * sh, Math.min(sw, sh) * 0.35, sw, sh);
+      return true;
+    }
+    reset() {
+      this.ref = { ...SKIN_START };
+      this.box = null;
+      this.detected = null;
+    }
+  };
+  var AsciiAvatar = class {
+    constructor(settings = {}) {
+      __publicField(this, "s");
+      __publicField(this, "finder", new FaceFinder());
+      /** Where a click pinned the crop (source picture), used when not tracking. */
+      __publicField(this, "pin", null);
+      __publicField(this, "mem", /* @__PURE__ */ new Map());
+      __publicField(this, "cv", null);
+      __publicField(this, "g", null);
+      this.s = { ...DEFAULTS, ...settings };
+    }
+    /** Change settings (any of them, any time). */
+    set(p) {
+      Object.assign(this.s, p);
+    }
+    /** Forget the last frames and the face (after a new source, say). */
+    forget() {
+      this.mem.clear();
+      this.finder.box = null;
+    }
+    /** Where to crop this frame: the followed face if tracking, else the pinned or fixed square. */
+    locate(src, sw, sh) {
+      if (this.s.track) {
+        const b = this.finder.update(src, sw, sh, this.s, !(src instanceof HTMLCanvasElement));
+        if (b) return { ...b };
+      }
+      return fixedCrop(sw, sh, this.s.zoom, this.s.lift, this.pin);
+    }
+    /** Draw the crop `c` of a picture `cols` cells wide (each size keeps its own memory of past frames). */
+    draw(src, c, cols = this.s.cols) {
+      const s = this.s, rows = rowsFor(cols), w = cols, h = rows * 2;
+      const k = Math.max(1, Math.min(4, Math.floor(192 / Math.max(w, h))));
+      const W = w * k, H = h * k;
+      if (!this.cv) {
+        this.cv = document.createElement("canvas");
+        this.g = this.cv.getContext("2d", { willReadFrequently: true });
+      }
+      const cv = this.cv, g = this.g;
+      if (cv.width !== W) cv.width = W;
+      if (cv.height !== H) cv.height = H;
+      g.save();
+      if (s.mirror) {
+        g.translate(W, 0);
+        g.scale(-1, 1);
+      }
+      g.imageSmoothingEnabled = true;
+      g.imageSmoothingQuality = "high";
+      g.drawImage(src, c.x, c.y, c.s, c.s, 0, 0, W, H);
+      g.restore();
+      const lum = boxDown(g.getImageData(0, 0, W, H).data, W, H, k);
+      const key = w + "x" + h;
+      let m = this.mem.get(key);
+      const e = exposure(m ? blend(m.v, lum, s.smooth, s.snap) : lum, w, h, s);
+      if (!m) {
+        m = { v: lum, lo: e.lo, hi: e.hi, levels: new Int8Array(w * h).fill(-1) };
+        this.mem.set(key, m);
+      } else {
+        m.lo += (e.lo - m.lo) * 0.3;
+        m.hi += (e.hi - m.hi) * 0.3;
+      }
+      return toFrame(toLevels(m.v, w, h, s, m.lo, m.hi, m.levels), cols, rows, s);
+    }
+    /** One frame from a picture sw x sh: find the face, crop, draw. */
+    frame(src, sw, sh, cols = this.s.cols) {
+      return this.draw(src, this.locate(src, sw, sh), cols);
+    }
+  };
+  var AvatarCamera = class _AvatarCamera {
+    constructor(video) {
+      __publicField(this, "video");
+      __publicField(this, "stream", null);
+      __publicField(this, "facing", "user");
+      this.video = video != null ? video : document.createElement("video");
+      this.video.muted = true;
+      this.video.playsInline = true;
+    }
+    /** Whether this page may ask for a camera at all (https, localhost or a file; and a browser that has one). */
+    static get possible() {
+      return !!(globalThis.navigator && navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+    }
+    /** Ask for the camera (laptop-sized, at most 640 x 480, 30 a second). Throws if refused or missing. */
+    async start(facing = this.facing) {
+      if (this.stream && facing === this.facing) return;
+      this.stop();
+      if (!_AvatarCamera.possible) throw Object.assign(new Error("The camera needs https or localhost"), { name: "InsecureContext" });
+      this.facing = facing;
+      this.stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: facing, width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 } },
+        audio: false
+      });
+      this.video.srcObject = this.stream;
+      await this.video.play().catch(() => {
+      });
+    }
+    /** Turn the camera off (its light goes out). */
+    stop() {
+      var _a, _b;
+      for (const t of (_b = (_a = this.stream) == null ? void 0 : _a.getTracks()) != null ? _b : []) t.stop();
+      this.stream = null;
+      this.video.srcObject = null;
+    }
+    /** True while there is a picture to draw. */
+    get ready() {
+      return !!this.stream && this.video.readyState >= 2 && this.video.videoWidth > 0;
+    }
+  };
+  function drawToCanvas(canvas, f, o = {}) {
+    var _a, _b, _c, _d;
+    const size = (_a = o.size) != null ? _a : 16, cw = Math.ceil(size * 0.6), lh = Math.ceil(size * 1.2), pad = Math.ceil(size / 2);
+    const W = f.cols * cw + 2 * pad, H = f.rows * lh + 2 * pad;
+    if (canvas.width !== W) canvas.width = W;
+    if (canvas.height !== H) canvas.height = H;
+    const g = canvas.getContext("2d");
+    g.fillStyle = (_b = o.bg) != null ? _b : GROUND;
+    g.fillRect(0, 0, W, H);
+    g.font = `${size}px ${(_c = o.font) != null ? _c : "'Cascadia Mono', Consolas, 'DejaVu Sans Mono', Menlo, monospace"}`;
+    g.textBaseline = "top";
+    g.textAlign = "center";
+    const colour = (_d = o.colour) != null ? _d : true;
+    for (let y = 0; y < f.rows; y++) for (let x = 0; x < f.cols; x++) {
+      const ch = f.lines[y][x];
+      if (ch === " ") continue;
+      g.fillStyle = colour ? INKS[f.inks[x + y * f.cols]] : INK;
+      g.fillText(ch, pad + x * cw + cw / 2, pad + y * lh + (lh - size) / 2);
+    }
+  }
+  function mount(el, settings = {}) {
+    const { fit, ...rest } = settings;
+    const avatar = new AsciiAvatar(rest);
+    const camera = new AvatarCamera();
+    let raf = 0, last = 0, stopped = false;
+    const show = (msg) => {
+      el.textContent = msg;
+    };
+    const begin = () => camera.start(avatar.s.facing).catch((e) => show("No camera (" + (e && e.name || "refused") + "). It needs https or localhost, and your permission."));
+    const loop = (t) => {
+      raf = requestAnimationFrame(loop);
+      if (t - last < 1e3 / avatar.s.fps || !camera.ready) return;
+      last = t;
+      const f = avatar.frame(camera.video, camera.video.videoWidth, camera.video.videoHeight);
+      if (fit && el.parentElement) {
+        const p = el.parentElement;
+        el.style.fontSize = Math.max(4, Math.min(p.clientWidth / (f.cols * 0.62), p.clientHeight / (f.rows * 1.2)) * 0.95).toFixed(1) + "px";
+      }
+      el.innerHTML = f.html;
+    };
+    const vis = () => {
+      if (stopped) return;
+      if (document.hidden) camera.stop();
+      else begin();
+    };
+    document.addEventListener("visibilitychange", vis);
+    show("Starting the camera...");
+    begin();
+    raf = requestAnimationFrame(loop);
+    return {
+      avatar,
+      camera,
+      stop() {
+        stopped = true;
+        cancelAnimationFrame(raf);
+        document.removeEventListener("visibilitychange", vis);
+        camera.stop();
+      }
+    };
+  }
+  return __toCommonJS(asciiavatar_exports);
+})();
+/* ==== ascii-avatar module: END ==== */
+</script>
 <script>
 'use strict';
-const DEFAULTS = {
-	cols: 32, fps: 12, zoom: 0.5, lift: 0.1, black: 2, white: 98, gamma: 0.8, sharpen: 1, shape: 5,
-	colour: true, invert: false, shaped: true, real: true,
-	track: false, margin: 1.5, skin: 1, follow: 0.25, faceExpose: true, fade: 0.8, oval: 1, mask: false
-};
+// ---- the page round the module: controls, sources, the camera view, and the ways out -------------------
+const A = asciiAvatar;
+const avatar = new A.AsciiAvatar();
+const camera = new A.AvatarCamera();
+const S = avatar.s;
+/** Page-only settings: the camera view, showing skin, the avatar's ground. */
+const PAGE = { real: true, mask: false, bg: 'dark' };
+const P = { ...PAGE };
+const GROUNDS = { dark: A.GROUND, black: '#000000', green: '#00b140' };
+const KEY = 'asciiFace3';
+(function load() {
+	try {
+		const kept = JSON.parse(localStorage.getItem(KEY) || localStorage.getItem('asciiFace2') || '{}');
+		for (const k of Object.keys(kept)) { if (k in A.DEFAULTS) S[k] = kept[k]; else if (k in PAGE) P[k] = kept[k]; }
+	} catch (e) { /* nothing kept */ }
+})();
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify({ ...S, ...P })); } catch (e) { /* private mode */ } };
+
 const SLIDERS = [
 	['sliders0', 'margin', 'Margin round the face', 1, 3, 0.05],
 	['sliders0', 'skin', 'Skin tolerance', 0.4, 2, 0.05],
@@ -108,226 +825,41 @@ const SLIDERS = [
 	['sliders1', 'black', 'Black point (percentile)', 0, 30, 1],
 	['sliders1', 'white', 'White point (percentile)', 70, 100, 1],
 	['sliders1', 'gamma', 'Gamma (higher: darker mids)', 0.2, 2.5, 0.05],
-	['sliders2', 'cols', 'Columns (game: 12)', 6, 96, 1],
+	['sliders2', 'cols', 'Columns (game: 12)', 8, 96, 1],
 	['sliders2', 'sharpen', 'Sharpen', 0, 2, 0.05],
 	['sliders2', 'shape', 'Shape threshold (levels)', 1, 15, 1],
-	['sliders2', 'fps', 'Frames a second', 2, 30, 1]
+	['sliders3', 'smooth', 'Smoothing', 0, 0.9, 0.05],
+	['sliders3', 'snap', 'Movement threshold', 5, 120, 5],
+	['sliders3', 'steady', 'Steadiness', 0, 0.5, 0.05],
+	['sliders3', 'fps', 'Frames a second', 4, 30, 1]
 ];
-const TOGGLES0 = [['track', 'Track the face'], ['faceExpose', 'Expose for the face'], ['mask', 'Show what is skin']];
-const TOGGLES = [['shaped', 'Shape glyphs'], ['colour', 'Ink'], ['invert', 'Invert'], ['real', 'Camera view']];
-let S = { ...DEFAULTS };
-try { Object.assign(S, JSON.parse(localStorage.getItem('asciiFace2') || '{}')); } catch (e) { /* none kept */ }
-const save = () => { try { localStorage.setItem('asciiFace2', JSON.stringify(S)); } catch (e) { /* private mode */ } };
-
-const RAMP = ' .,:;-=+*oa#%@';
-const DENSE = ' .:-=+*#%@';
-/** Inks from dark to bright (candlelit vellum), by level 0..15. */
-const INKS = ['#15110d', '#2a2017', '#3d2e20', '#503c29', '#634a32', '#76593c', '#8a6a47', '#9d7b53', '#ae8c60', '#bd9c6f', '#cbad80', '#d7bd92', '#e2cda6', '#ecdcba', '#f4e9cf', '#fbf4e4'];
+const TOGGLES0 = [['track', 'Track the face', S], ['faceExpose', 'Expose for the face', S], ['mask', 'Show what is skin', P]];
+const TOGGLES = [['shaped', 'Shape glyphs', S], ['colour', 'Ink', S], ['invert', 'Invert', S], ['mirror', 'Mirror', S], ['real', 'Camera view', P]];
 
 const $ = (id) => document.getElementById(id);
-const pre = $('face'), game = $('game'), note = $('note'), cam = $('cam'), clip = $('clip'), cv = $('cv'), an = $('an'), peek = $('peek');
-const cx = cv.getContext('2d', { willReadFrequently: true }), ax = an.getContext('2d', { willReadFrequently: true }), px2 = peek.getContext('2d');
+const face = $('face'), game = $('game'), note = $('note'), clip = $('clip'), peek = $('peek'), box = $('avatarBox');
+const pv = peek.getContext('2d');
+const photo = new Image();
 let source = 'cam';
+let lastSrc = null, lastFrame = null, cost = 0;
 
-// ---- finding the face ----------------------------------------------------------------------------
+// ---- fitting the letters to the space -----------------------------------------------------------------
 
-/** The face's square in the source picture (unmirrored), smoothed; null until one is found. */
-let box = null;
-let how = '';
-const AW = 80, AH = 60;
-let skinMask = new Uint8Array(AW * AH);
-const detector = 'FaceDetector' in window ? (() => { try { return new window.FaceDetector({ fastMode: true, maxDetectedFaces: 1 }); } catch (e) { return null; } })() : null;
-let detected = null, detecting = false;
-
-/** Skin's colour (Cb, Cr): a typical skin to start with; a click on the face teaches it this face's. */
-let skinRef = { cb: 106, cr: 152, taught: false };
-const ycc = (r, g, b) => ({ y: 0.299 * r + 0.587 * g + 0.114 * b, cb: 128 - 0.168736 * r - 0.331264 * g + 0.5 * b, cr: 128 + 0.5 * r - 0.418688 * g - 0.081312 * b });
-/** Skin in YCbCr: near skin's colour in Cb and Cr (brightness hardly matters); not blown out or black. */
-function isSkin(r, g, b) {
-	const c = ycc(r, g, b);
-	const d = Math.hypot((c.cb - skinRef.cb) / (skinRef.taught ? 9 : 20), (c.cr - skinRef.cr) / (skinRef.taught ? 7 : 16));
-	return c.y > 20 && c.y < 248 && d < S.skin;
-}
-/** The window the face is looked for in (analysis cells), round where it was; all of the picture until then. */
-function searchWindow(sw, sh) {
-	if (!box) return null;
-	const fx = AW / sw, fy = AH / sh, m = box.s * 0.9;
-	return { x0: (box.x - m) * fx, x1: (box.x + box.s + m) * fx, y0: (box.y - m) * fy, y1: (box.y + box.s + m) * fy };
+/** A character's width over the font size, measured once in this browser's monospace. */
+const CHAR_W = (() => {
+	const s = document.createElement('span');
+	s.style.cssText = 'position:absolute;visibility:hidden;font-size:100px;white-space:pre;font-family:' + getComputedStyle(face).fontFamily;
+	s.textContent = 'MMMMMMMMMM';
+	document.body.appendChild(s);
+	const w = s.getBoundingClientRect().width / 1000;
+	s.remove();
+	return w > 0.3 && w < 1 ? w : 0.6;
+})();
+function fit(el, cols, rows, W, H) {
+	el.style.fontSize = Math.max(3, Math.min((W - 8) / (cols * CHAR_W), (H - 8) / (rows * 1.2))).toFixed(2) + 'px';
 }
 
-/** Where the face is now: the largest patch of skin, favouring the one nearest the last face. */
-function skinBox(src, sw, sh) {
-	an.width = AW; an.height = AH;
-	ax.drawImage(src, 0, 0, sw, sh, 0, 0, AW, AH);
-	const d = ax.getImageData(0, 0, AW, AH).data;
-	const win = searchWindow(sw, sh);
-	for (let i = 0; i < AW * AH; i++) {
-		const x = i % AW, y = (i - x) / AW;
-		const near = !win || (x >= win.x0 && x <= win.x1 && y >= win.y0 && y <= win.y1);
-		skinMask[i] = near && isSkin(d[i * 4], d[i * 4 + 1], d[i * 4 + 2]) ? 1 : 0;
-	}
-	// Patches of skin, joined edge to edge.
-	const lab = new Int32Array(AW * AH).fill(-1);
-	let best = null, bestScore = 0;
-	const prev = box ? { x: (box.x + box.s / 2) * AW / sw, y: (box.y + box.s / 2) * AH / sh } : { x: AW / 2, y: AH / 2 };
-	for (let i = 0; i < AW * AH; i++) {
-		if (!skinMask[i] || lab[i] >= 0) continue;
-		const stack = [i];
-		lab[i] = i;
-		let n = 0, x0 = AW, x1 = 0, y0 = AH, y1 = 0, sx = 0, sy = 0;
-		while (stack.length) {
-			const k = stack.pop(), x = k % AW, y = (k - x) / AW;
-			n++; sx += x; sy += y;
-			if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
-			for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-				const nx = x + dx, ny = y + dy, j = nx + ny * AW;
-				if (nx < 0 || ny < 0 || nx >= AW || ny >= AH || !skinMask[j] || lab[j] >= 0) continue;
-				lab[j] = i;
-				stack.push(j);
-			}
-		}
-		if (n < AW * AH * 0.006) continue;
-		const dist = Math.hypot(sx / n - prev.x, sy / n - prev.y);
-		const score = n / (1 + dist / 12);
-		if (score > bestScore) { bestScore = score; best = { x0, x1, y0, y1, cx: sx / n, cy: sy / n }; }
-	}
-	if (!best) return null;
-	// Back to the source picture: a square round the patch, a little above its middle (the patch misses hair).
-	const fx = sw / AW, fy = sh / AH;
-	const w = (best.x1 - best.x0 + 1) * fx, h = (best.y1 - best.y0 + 1) * fy;
-	return { cx: best.cx * fx, cy: best.cy * fy - h * 0.08, size: Math.max(w, h * 0.85) };
-}
-
-/** Move the crop toward the face found now (or keep it, if none is found this frame). */
-function track(src, sw, sh) {
-	let target = null;
-	if (detector && src !== testCanvas) {
-		if (!detecting) {
-			detecting = true;
-			detector.detect(src).then((fs) => { detected = fs[0]?.boundingBox ?? null; }).catch(() => { detected = null; }).finally(() => { detecting = false; });
-		}
-		if (detected) { target = { cx: detected.x + detected.width / 2, cy: detected.y + detected.height / 2, size: Math.max(detected.width, detected.height) }; how = 'browser face detector'; }
-	}
-	if (!target) { target = skinBox(src, sw, sh); if (target) how = 'skin tone'; }
-	else skinBox(src, sw, sh);
-	if (!target) { how = 'no face found: holding'; return; }
-	const s = Math.min(Math.min(sw, sh), target.size * S.margin);
-	const want = { x: Math.max(0, Math.min(sw - s, target.cx - s / 2)), y: Math.max(0, Math.min(sh - s, target.cy - s / 2)), s };
-	if (!box) box = want;
-	else for (const k of ['x', 'y', 's']) box[k] += (want[k] - box[k]) * S.follow;
-}
-
-/** Where a click on the camera view pinned the crop (used when not tracking), in the source picture. */
-let pin = null;
-/** The square to draw: the tracked face; else the pinned spot, sized by the crop slider; else the middle. */
-function crop(sw, sh) {
-	if (S.track && box) return box;
-	const s = Math.min(sw, sh) * S.zoom;
-	const at = pin ?? { x: sw / 2, y: sh / 2 - s * S.lift };
-	return { x: Math.max(0, Math.min(sw - s, at.x - s / 2)), y: Math.max(0, Math.min(sh - s, at.y - s / 2)), s };
-}
-
-// ---- the drawing -----------------------------------------------------------------------------------
-
-/** The crop, mirrored, as w x h brightness samples (0..255). */
-function sample(src, c, w, h) {
-	cv.width = w; cv.height = h;
-	cx.save(); cx.translate(w, 0); cx.scale(-1, 1);
-	cx.drawImage(src, c.x, c.y, c.s, c.s, 0, 0, w, h);
-	cx.restore();
-	const px = cx.getImageData(0, 0, w, h).data;
-	const v = new Float32Array(w * h);
-	for (let i = 0; i < v.length; i++) v[i] = 0.3 * px[i * 4] + 0.59 * px[i * 4 + 1] + 0.11 * px[i * 4 + 2];
-	return v;
-}
-
-/** How far outside the face's oval a sample is (0 inside, rising to 1 a little beyond its edge). */
-function outside(x, y, w, h) {
-	const r = Math.hypot((x + 0.5 - w / 2) / (w * 0.36 * S.oval), (y + 0.5 - h * 0.48) / (h * 0.46 * S.oval));
-	return Math.min(1, Math.max(0, (r - 0.9) / 0.35));
-}
-
-/** Samples to levels 0..15: stretched black to white point (read from the face's oval if asked), gamma, sharpened, background faded. */
-function levels(v, w, h) {
-	const inFace = [];
-	for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (!S.faceExpose || outside(x, y, w, h) < 0.5) inFace.push(v[x + y * w]);
-	const sorted = Float32Array.from(inFace.length > 8 ? inFace : v).sort();
-	const lo = sorted[Math.floor((sorted.length - 1) * S.black / 100)], hi = sorted[Math.floor((sorted.length - 1) * S.white / 100)];
-	const span = Math.max(12, hi - lo);
-	const n = (i) => Math.pow(Math.min(1, Math.max(0, (v[i] - lo) / span)), S.gamma);
-	const out = new Uint8Array(v.length);
-	for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-		const i = x + y * w;
-		let s = 0, k = 0;
-		for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-			const xx = x + dx, yy = y + dy;
-			if (xx >= 0 && yy >= 0 && xx < w && yy < h) { s += n(xx + yy * w); k++; }
-		}
-		let b = Math.min(1, Math.max(0, n(i) + (n(i) - s / k) * S.sharpen));
-		if (S.invert) b = 1 - b;
-		b *= 1 - S.fade * outside(x, y, w, h);
-		out[i] = Math.round(b * 15);
-	}
-	return out;
-}
-
-/** A cell from its two halves: [glyph, ink level]. */
-function cell(t, b) {
-	const level = Math.max(t, b);
-	if (level < 2) return [' ', level];
-	const d = t - b;
-	if (d >= S.shape) return [t >= 11 ? '"' : t >= 7 ? "'" : '`', level];
-	if (d <= -S.shape) return [b >= 11 ? 'o' : b >= 7 ? ',' : '.', level];
-	return [DENSE[Math.round(((t + b) / 30) * (DENSE.length - 1))], level];
-}
-
-const esc = (c) => (c === '<' ? '&lt;' : c === '>' ? '&gt;' : c === '&' ? '&amp;' : c);
-/** Draw cols x rows cells into a <pre>, runs of one ink in one span (as pterm draws). */
-function draw(el, src, c, cols) {
-	const rows = Math.max(1, Math.round(cols / 2));
-	let grid;
-	if (S.shaped) {
-		const lv = levels(sample(src, c, cols, rows * 2), cols, rows * 2);
-		grid = (x, y) => cell(lv[x + 2 * y * cols], lv[x + (2 * y + 1) * cols]);
-	} else {
-		const lv = levels(sample(src, c, cols, rows), cols, rows);
-		grid = (x, y) => { const k = lv[x + y * cols]; return [RAMP[Math.round((k * (RAMP.length - 1)) / 15)], k]; };
-	}
-	const out = [];
-	for (let y = 0; y < rows; y++) {
-		let line = '', run = '', ink = -1;
-		const flush = () => { if (run) line += S.colour ? `<span style="color:${INKS[ink]}">${run}</span>` : run; run = ''; };
-		for (let x = 0; x < cols; x++) {
-			const [ch, k] = grid(x, y);
-			const want = S.colour ? k : 0;
-			if (want !== ink) { flush(); ink = want; }
-			run += esc(ch);
-		}
-		flush();
-		out.push(line);
-	}
-	el.innerHTML = out.join('\n');
-	return rows;
-}
-
-/** The camera beside the letters: mirrored, the face's square marked, skin tinted if asked. */
-function drawPeek(src, sw, sh, c) {
-	peek.hidden = !S.real;
-	if (!S.real) return;
-	peek.height = Math.round(peek.width * sh / sw);
-	const W = peek.width, H = peek.height;
-	px2.save(); px2.translate(W, 0); px2.scale(-1, 1);
-	px2.drawImage(src, 0, 0, sw, sh, 0, 0, W, H);
-	if (S.mask) {
-		px2.fillStyle = 'rgba(111,207,143,0.45)';
-		for (let y = 0; y < AH; y++) for (let x = 0; x < AW; x++) if (skinMask[x + y * AW]) px2.fillRect(x * W / AW, y * H / AH, W / AW + 0.5, H / AH + 0.5);
-	}
-	px2.strokeStyle = S.track ? '#6fcf8f' : '#c9a25a';
-	px2.lineWidth = 2;
-	px2.strokeRect(c.x * W / sw, c.y * H / sh, c.s * W / sw, c.s * H / sh);
-	px2.restore();
-	$('peekcap').textContent = S.track ? 'tracking by ' + how + (skinRef.taught ? '' : ' · click your face to teach it') : pin ? 'pinned where you clicked · Crop sets the size' : 'click your face to pin the crop there';
-}
+// ---- sources ------------------------------------------------------------------------------------------
 
 /** No camera: a face-like test picture, drifting about, so the tracking and drawing can be seen anyway. */
 const testCanvas = document.createElement('canvas');
@@ -346,29 +878,276 @@ function testFrame(t) {
 	return testCanvas;
 }
 
-let last = 0;
-function frame(t) {
-	requestAnimationFrame(frame);
-	if (t - last < 1000 / S.fps) return;
-	last = t;
-	const live = source === 'cam' && cam.readyState >= 2, file = source === 'file' && clip.readyState >= 2;
-	const pic = source === 'photo' && photo.complete && photo.naturalWidth > 0;
-	const [src, sw, sh] = live ? [cam, cam.videoWidth, cam.videoHeight] : file ? [clip, clip.videoWidth, clip.videoHeight]
-		: pic ? [photo, photo.naturalWidth, photo.naturalHeight] : [testFrame(t), 320, 240];
-	lastSrc = [src, sw, sh];
-	if (S.track || S.mask) track(src, sw, sh);
-	const c = crop(sw, sh);
-	const rows = draw(pre, src, c, S.cols);
-	draw(game, src, c, 12);
-	drawPeek(src, sw, sh, c);
-	const w = innerWidth > 760 ? innerWidth - 360 : innerWidth - 40;
-	const h = innerHeight - 220;
-	pre.style.fontSize = Math.max(4, Math.min((w - (S.real ? 260 : 0)) / (S.cols * 0.6), h / (rows * 1.2))).toFixed(1) + 'px';
-	note.textContent = `${live ? 'Camera' : file ? 'Video file' : pic ? 'Photo' : 'Test picture'} · ${S.cols}x${rows} cells · ${S.cols * rows * (S.shaped ? 2 : 1)} bytes a frame as the game would send it · nothing leaves this page`;
+/** The picture now: [drawable, width, height, what], or null when there is none (camera off or starting). */
+function current(t) {
+	if (source === 'cam') return camera.ready ? [camera.video, camera.video.videoWidth, camera.video.videoHeight, 'Camera'] : null;
+	if (source === 'file') return clip.readyState >= 2 ? [clip, clip.videoWidth, clip.videoHeight, 'Video file'] : null;
+	if (source === 'photo') return photo.complete && photo.naturalWidth > 0 ? [photo, photo.naturalWidth, photo.naturalHeight, 'Photo'] : null;
+	return [testFrame(t), 320, 240, 'Test picture'];
 }
 
+let camWanted = true, camBusy = false, camWasOn = false;
+async function startCam() {
+	source = 'cam'; avatar.forget(); camWanted = true; controls();
+	if (!A.AvatarCamera.possible) {
+		source = 'test'; controls();
+		note.textContent = location.protocol === 'http:' && !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)
+			? 'The browser offers the camera only over https or on localhost, not plain http from another machine: showing the test picture. See tools/serve.mjs --https.'
+			: 'This browser offers no camera here: showing the test picture.';
+		return;
+	}
+	if (camBusy) return;
+	camBusy = true;
+	try { await camera.start(S.facing); }
+	catch (e) {
+		source = 'test';
+		note.textContent = 'No camera (' + (e && e.name || 'refused') + '): showing the test picture. Open a video file to try a real face.';
+	}
+	camBusy = false;
+	controls();
+}
+function stopCam() { camera.stop(); camWanted = false; controls(); face.textContent = 'camera off'; }
+
+// ---- the camera view beside the letters -----------------------------------------------------------------
+
+/** The camera beside the letters: mirrored as the avatar is, the crop marked, skin tinted if asked. */
+function drawPeek(src, sw, sh, c) {
+	peek.hidden = !P.real;
+	if (!P.real) return;
+	const H = Math.round(peek.width * sh / sw);
+	if (peek.height !== H) peek.height = H;
+	const W = peek.width;
+	pv.save();
+	if (S.mirror) { pv.translate(W, 0); pv.scale(-1, 1); }
+	pv.drawImage(src, 0, 0, sw, sh, 0, 0, W, H);
+	if (P.mask) {
+		const m = avatar.finder.mask;
+		pv.fillStyle = 'rgba(111,207,143,0.45)';
+		for (let y = 0; y < A.FIND_H; y++) for (let x = 0; x < A.FIND_W; x++) if (m[x + y * A.FIND_W]) pv.fillRect(x * W / A.FIND_W, y * H / A.FIND_H, W / A.FIND_W + 0.5, H / A.FIND_H + 0.5);
+	}
+	pv.strokeStyle = S.track ? '#6fcf8f' : '#c9a25a';
+	pv.lineWidth = 2;
+	pv.strokeRect(c.x * W / sw, c.y * H / sh, c.s * W / sw, c.s * H / sh);
+	pv.restore();
+	$('peekcap').textContent = S.track ? 'tracking by ' + (avatar.finder.how || '...') + (avatar.finder.ref.taught ? '' : ' · tap your face to teach it')
+		: avatar.pin ? 'pinned where you tapped · Crop sets the size' : 'tap your face to pin the crop there';
+}
+/** A click or tap on your face in the camera view: pin the crop there; with tracking, learn its colour too. */
+peek.addEventListener('click', (ev) => {
+	if (!lastSrc) return;
+	const [src, sw, sh] = lastSrc;
+	const r = peek.getBoundingClientRect();
+	const rx = (ev.clientX - r.left) / r.width, fy = (ev.clientY - r.top) / r.height;
+	const fx = S.mirror ? 1 - rx : rx;
+	avatar.pin = { x: fx * sw, y: fy * sh };
+	if (S.track) avatar.finder.teach(src, sw, sh, fx, fy);
+});
+
+// ---- the frame ------------------------------------------------------------------------------------------
+
+let last = 0;
+function frame(t) {
+	if (t - last < 1000 / S.fps - 2) return;
+	last = t;
+	const cur = current(t);
+	if (!cur) return;
+	const t0 = performance.now();
+	const [src, sw, sh, what] = cur;
+	lastSrc = cur;
+	if (P.mask && !S.track) avatar.finder.update(src, sw, sh, S, false);
+	const c = avatar.locate(src, sw, sh);
+	const f = lastFrame = avatar.draw(src, c, S.cols);
+	fit(face, f.cols, f.rows, box.clientWidth, box.clientHeight);
+	face.innerHTML = f.html;
+	if (!document.body.classList.contains('solo')) {
+		game.innerHTML = avatar.draw(src, c, 12).html;
+		drawPeek(src, sw, sh, c);
+	}
+	if (pipPre) { fit(pipPre, f.cols, f.rows, pipWin.innerWidth, pipWin.innerHeight); pipPre.innerHTML = f.html; }
+	if (recorder || videoPip) A.drawToCanvas(recCanvas, f, { size: 18, bg: GROUNDS[P.bg], colour: S.colour });
+	if (clipFrames) {
+		clipFrames.push(A.clipFrame(f));
+		if (clipFrames.length >= CLIP_MAX * S.fps) recordClip();
+	}
+	cost += (performance.now() - t0 - cost) * 0.1;
+	const busy = recorder ? ` · recording video ${Math.round((performance.now() - recStart) / 1000)}s` : clipFrames ? ` · recording clip ${(clipFrames.length / S.fps).toFixed(0)}s` : '';
+	note.textContent = `${what} · ${f.cols}x${f.rows} cells · ${cost.toFixed(1)} ms a frame${busy} · nothing leaves this page`;
+}
+function loop(t) { requestAnimationFrame(loop); frame(t); }
+
+/**
+ * While floating or recording, frames must keep coming when this tab is hidden (requestAnimationFrame
+ * stops there): a worker's timer ticks instead. Otherwise the camera goes off while the page is hidden.
+ */
+let ticker = null;
+function keepTicking() {
+	const need = !!(pipWin || videoPip || recorder);
+	if (need && !ticker) {
+		const tick = () => { if (document.hidden) frame(performance.now()); };
+		try {
+			const w = new Worker(URL.createObjectURL(new Blob(['setInterval(function () { postMessage(0); }, 33);'], { type: 'text/javascript' })));
+			w.onmessage = tick;
+			ticker = { stop: () => w.terminate() };
+		} catch (e) {
+			const id = setInterval(tick, 33);
+			ticker = { stop: () => clearInterval(id) };
+		}
+	} else if (!need && ticker) { ticker.stop(); ticker = null; }
+}
+document.addEventListener('visibilitychange', () => {
+	if (document.hidden) {
+		if (!pipWin && !videoPip && !recorder && camera.stream) { camWasOn = true; camera.stop(); }
+	} else if (camWasOn) { camWasOn = false; if (source === 'cam' && camWanted) startCam(); }
+});
+
+// ---- the ways out ---------------------------------------------------------------------------------------
+
+const recCanvas = document.createElement('canvas');
+const stamp = () => new Date().toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '-');
+function download(blob, name) {
+	const a = document.createElement('a');
+	a.href = URL.createObjectURL(blob);
+	a.download = name;
+	document.body.appendChild(a);
+	a.click();
+	a.remove();
+	setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
+async function copy(text, what) {
+	try { await navigator.clipboard.writeText(text); note.textContent = what + ' copied.'; }
+	catch (e) { $('out').value = text; $('out').select(); $('settingsFold').open = true; note.textContent = what + ' is in the box under Settings: select it and copy.'; }
+}
+/** The module's own source, as this page carries it (for the embed code). */
+const moduleJs = () => $('ascii-avatar-module').textContent.trim();
+/** Settings for an embed: the drawing's own, without the tool's crop pin. */
+const embedSettings = () => ({ ...S });
+
+/** Avatar only: the avatar fills the window. Back (or Esc) returns. On a phone, full screen and awake. */
+let wake = null, idleTimer = 0;
+async function solo(on) {
+	document.body.classList.toggle('solo', on);
+	if (on) {
+		poke();
+		try { if (matchMedia('(pointer: coarse)').matches && document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen(); } catch (e) { /* not allowed */ }
+		try { wake = await navigator.wakeLock?.request('screen'); } catch (e) { wake = null; }
+	} else {
+		try { if (document.fullscreenElement) await document.exitFullscreen(); } catch (e) { /* fine */ }
+		try { await wake?.release(); } catch (e) { /* fine */ }
+		wake = null;
+		if (location.hash.includes('view=avatar')) history.replaceState(null, '', location.pathname + location.search);
+	}
+}
+function poke() {
+	document.body.classList.remove('idle');
+	clearTimeout(idleTimer);
+	idleTimer = setTimeout(() => document.body.classList.add('idle'), 2500);
+}
+addEventListener('pointermove', poke);
+addEventListener('pointerdown', poke);
+addEventListener('keydown', (e) => { if (e.key === 'Escape' && document.body.classList.contains('solo')) solo(false); });
+
+/** Float on top: Document Picture-in-Picture (Chrome, Edge), else a video picture-in-picture of the drawing. */
+let pipWin = null, pipPre = null, videoPip = null;
+async function float() {
+	if (pipWin) { pipWin.close(); return; }
+	if (videoPip) { try { await (document.exitPictureInPicture ? document.exitPictureInPicture() : null); } catch (e) { /* closed */ } return; }
+	if (window.documentPictureInPicture) {
+		try {
+			const w = await window.documentPictureInPicture.requestWindow({ width: 360, height: 380 });
+			const st = w.document.createElement('style');
+			st.textContent = `html,body{margin:0;height:100%;background:${GROUNDS[P.bg]};overflow:hidden}body{display:flex;align-items:center;justify-content:center}pre{margin:0;line-height:1.2;white-space:pre;color:${A.INK};font-family:${getComputedStyle(face).fontFamily}}`;
+			w.document.head.appendChild(st);
+			w.document.title = 'ASCII avatar';
+			pipPre = w.document.createElement('pre');
+			w.document.body.appendChild(pipPre);
+			w.addEventListener('pagehide', () => { pipWin = pipPre = null; keepTicking(); controls(); });
+			pipWin = w;
+			keepTicking(); controls();
+			return;
+		} catch (e) { /* fall through to the video */ }
+	}
+	const v = document.createElement('video');
+	v.muted = true; v.playsInline = true;
+	if (!recCanvas.captureStream || !(document.pictureInPictureEnabled || v.webkitSupportsPresentationMode)) {
+		note.textContent = 'This browser cannot float a window: use Avatar only, and put that window where you want it.';
+		return;
+	}
+	if (lastFrame) A.drawToCanvas(recCanvas, lastFrame, { size: 18, bg: GROUNDS[P.bg], colour: S.colour });
+	v.srcObject = recCanvas.captureStream(S.fps);
+	videoPip = v;
+	keepTicking();
+	const done = () => { if (videoPip !== v) return; videoPip = null; v.srcObject = null; keepTicking(); controls(); };
+	v.addEventListener('leavepictureinpicture', done);
+	v.addEventListener('webkitpresentationmodechanged', () => { if (v.webkitPresentationMode !== 'picture-in-picture') done(); });
+	try {
+		await v.play();
+		if (v.requestPictureInPicture) await v.requestPictureInPicture();
+		else v.webkitSetPresentationMode('picture-in-picture');
+	} catch (e) { done(); note.textContent = 'Could not float (' + (e && e.name || 'refused') + '): use Avatar only.'; }
+	controls();
+}
+
+/** Record video: the drawing as a .webm (or .mp4 where that is what the browser makes). */
+let recorder = null, recStart = 0;
+function recordVideo() {
+	if (recorder) { recorder.stop(); return; }
+	if (!window.MediaRecorder || !recCanvas.captureStream) { note.textContent = 'This browser cannot record video here: try Record ASCII clip.'; return; }
+	if (lastFrame) A.drawToCanvas(recCanvas, lastFrame, { size: 18, bg: GROUNDS[P.bg], colour: S.colour });
+	const type = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm', 'video/mp4'].find((t) => MediaRecorder.isTypeSupported(t)) || '';
+	const r = new MediaRecorder(recCanvas.captureStream(S.fps), type ? { mimeType: type, videoBitsPerSecond: 1500000 } : undefined);
+	const chunks = [];
+	r.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+	r.onstop = () => {
+		const mime = r.mimeType || type || 'video/webm';
+		download(new Blob(chunks, { type: mime }), 'ascii-avatar-' + stamp() + (mime.includes('mp4') ? '.mp4' : '.webm'));
+		recorder = null; keepTicking(); controls();
+		note.textContent = 'Video saved to your downloads.';
+	};
+	r.start(1000);
+	recorder = r; recStart = performance.now();
+	keepTicking(); controls();
+}
+
+/** Record ASCII clip: the frames themselves, up to CLIP_MAX seconds, saved as a page that plays them. */
+const CLIP_MAX = 30;
+let clipFrames = null;
+function recordClip() {
+	if (clipFrames) {
+		const frames = clipFrames;
+		clipFrames = null;
+		if (frames.length) download(new Blob([A.playerHtml(frames, S.fps, { colour: S.colour, bg: GROUNDS[P.bg] })], { type: 'text/html' }), 'ascii-avatar-' + stamp() + '.html');
+		note.textContent = frames.length + ' frames saved as a page that plays them.';
+	} else clipFrames = [];
+	controls();
+}
+
+$('recVid').onclick = recordVideo;
+$('recClip').onclick = recordClip;
+$('png').onclick = () => {
+	if (!lastFrame) return;
+	const c = document.createElement('canvas');
+	A.drawToCanvas(c, lastFrame, { size: 24, bg: GROUNDS[P.bg], colour: S.colour });
+	c.toBlob((b) => b && download(b, 'ascii-avatar-' + stamp() + '.png'));
+};
+$('copyText').onclick = () => lastFrame && copy(lastFrame.text, 'The avatar as text');
+$('embed').onclick = () => copy(A.embedHtml(moduleJs(), embedSettings()), 'Embed code');
+$('embedPage').onclick = () => download(new Blob([A.embedPage(moduleJs(), embedSettings())], { type: 'text/html' }), 'ascii-avatar-live.html');
+$('bg').onclick = () => { const ks = Object.keys(GROUNDS); P.bg = ks[(ks.indexOf(P.bg) + 1) % ks.length]; save(); controls(); };
+$('solo').onclick = () => solo(true);
+$('back').onclick = () => solo(false);
+$('float').onclick = float;
+$('camBtn').onclick = () => (source === 'cam' && camera.stream ? stopCam() : startCam());
+$('flip').onclick = async () => {
+	S.facing = S.facing === 'user' ? 'environment' : 'user';
+	S.mirror = S.facing === 'user';
+	save();
+	await startCam();
+};
+
+// ---- controls -------------------------------------------------------------------------------------------
+
 function controls() {
-	for (const box of ['sliders0', 'sliders1', 'sliders2']) $(box).innerHTML = '';
+	for (const id of ['sliders0', 'sliders1', 'sliders2', 'sliders3']) $(id).innerHTML = '';
 	for (const [where, key, label, min, max, step] of SLIDERS) {
 		const l = document.createElement('label'); l.className = 's';
 		const id = 's-' + key;
@@ -379,77 +1158,55 @@ function controls() {
 	}
 	for (const [where, list] of [['toggles0', TOGGLES0], ['toggles', TOGGLES]]) {
 		const tg = $(where); tg.innerHTML = '';
-		for (const [key, label] of list) {
+		for (const [key, label, obj] of list) {
 			const b = document.createElement('button'); b.type = 'button'; b.textContent = label;
-			b.className = S[key] ? 'on' : '';
-			b.onclick = () => { S[key] = !S[key]; if (key === 'track' && !S[key]) box = null; save(); controls(); settings(); };
+			b.className = obj[key] ? 'on' : '';
+			b.setAttribute('aria-pressed', String(!!obj[key]));
+			b.onclick = () => { obj[key] = !obj[key]; if (key === 'track' && !obj[key]) avatar.finder.box = null; save(); controls(); settings(); };
 			tg.appendChild(b);
 		}
 	}
-	$('useCam').className = source === 'cam' ? 'on' : '';
-	$('useTest').className = source === 'test' ? 'on' : '';
-	$('pickFile').className = source === 'file' || source === 'photo' ? 'on' : '';
+	const set = (id, on, text) => { const b = $(id); b.className = on === 'rec' ? 'rec' : on ? 'on' : ''; if (text) b.textContent = text; };
+	set('camBtn', source === 'cam' && !!camera.stream, source === 'cam' && camera.stream ? 'Camera on' : 'Camera off');
+	set('flip', false, S.facing === 'user' ? 'Flip: front' : 'Flip: back');
+	set('float', !!(pipWin || videoPip), pipWin || videoPip ? 'Floating' : 'Float on top');
+	set('recVid', recorder ? 'rec' : false, recorder ? 'Stop and save video' : 'Record video');
+	set('recClip', clipFrames ? 'rec' : false, clipFrames ? 'Stop and save clip' : 'Record ASCII clip');
+	set('bg', false, 'Ground: ' + P.bg);
+	set('useCam', source === 'cam');
+	set('useTest', source === 'test');
+	set('pickFile', source === 'file' || source === 'photo');
+	document.documentElement.style.setProperty('--avatar-bg', GROUNDS[P.bg]);
 }
 const settings = () => { $('out').value = JSON.stringify(S); };
+$('panel').querySelector('[data-fold="settings"]').id = 'settingsFold';
 
-$('copy').onclick = async () => {
-	settings();
-	try { await navigator.clipboard.writeText($('out').value); note.textContent = 'Settings copied.'; }
-	catch (e) { $('out').select(); note.textContent = 'Select the settings below and copy them.'; }
-};
-$('reset').onclick = () => { S = { ...DEFAULTS }; box = null; skinRef = { cb: 106, cr: 152, taught: false }; save(); controls(); settings(); };
-$('useTest').onclick = () => { source = 'test'; box = null; controls(); };
+$('copy').onclick = () => { settings(); copy($('out').value, 'Settings'); };
+$('reset').onclick = () => { Object.assign(S, A.DEFAULTS); Object.assign(P, PAGE); avatar.forget(); avatar.pin = null; avatar.finder.reset(); save(); controls(); settings(); };
+$('useCam').onclick = startCam;
+$('useTest').onclick = () => { camera.stop(); source = 'test'; avatar.forget(); controls(); };
 $('pickFile').onclick = () => $('file').click();
 $('file').onchange = () => {
 	const f = $('file').files[0];
 	if (!f) return;
+	camera.stop();
 	if (f.type.startsWith('image/')) { photo.src = URL.createObjectURL(f); source = 'photo'; }
 	else { clip.src = URL.createObjectURL(f); clip.play().catch(() => {}); source = 'file'; }
-	box = null; controls();
+	avatar.forget(); controls();
 };
-const photo = new Image();
-$('useCam').onclick = startCam;
-/** A click on your face in the camera view: learn its colour there, and put the crop on it. */
-let lastSrc = null;
-peek.addEventListener('click', (ev) => {
-	if (!lastSrc) return;
-	const [src, sw, sh] = lastSrc;
-	const r = peek.getBoundingClientRect();
-	// The view is mirrored: back to the source picture's own side.
-	const fx = 1 - (ev.clientX - r.left) / r.width, fy = (ev.clientY - r.top) / r.height;
-	an.width = AW; an.height = AH;
-	ax.drawImage(src, 0, 0, sw, sh, 0, 0, AW, AH);
-	const d = ax.getImageData(0, 0, AW, AH).data;
-	const ax0 = Math.round(fx * AW), ay0 = Math.round(fy * AH);
-	let cb = 0, cr = 0, n = 0;
-	for (let y = ay0 - 2; y <= ay0 + 2; y++) for (let x = ax0 - 2; x <= ax0 + 2; x++) {
-		if (x < 0 || y < 0 || x >= AW || y >= AH) continue;
-		const i = (x + y * AW) * 4, c = ycc(d[i], d[i + 1], d[i + 2]);
-		cb += c.cb; cr += c.cr; n++;
-	}
-	if (!n) return;
-	pin = { x: fx * sw, y: fy * sh };
-	if (!S.track) return;
-	skinRef = { cb: cb / n, cr: cr / n, taught: true };
-	const s = Math.min(sw, sh) * 0.35;
-	box = { x: fx * sw - s / 2, y: fy * sh - s / 2, s };
-});
 
-async function startCam() {
-	source = 'cam'; box = null; controls();
-	if (cam.srcObject) return;
-	try {
-		cam.srcObject = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' }, audio: false });
-		await cam.play();
-	} catch (e) {
-		source = 'test'; controls();
-		note.textContent = 'No camera (' + (e && e.name || 'refused') + '): showing the test picture. Open a video file to try a real face.';
-	}
-}
+// Folds: open on a wide screen; on a phone only the first two, so the avatar is not far above the panel's end.
+const wide = matchMedia('(min-width: 761px)').matches;
+for (const d of document.querySelectorAll('details')) d.open = wide ? d.dataset.fold !== 'source' : ['export'].includes(d.dataset.fold);
+
+// #view=avatar opens the avatar alone; &bg=green (or black, dark) sets its ground.
+const hash = new URLSearchParams(location.hash.slice(1));
+if (hash.get('bg') && hash.get('bg') in GROUNDS) P.bg = hash.get('bg');
 
 controls();
 settings();
-requestAnimationFrame(frame);
+if (hash.get('view') === 'avatar') solo(true);
+requestAnimationFrame(loop);
 startCam();
 </script>
 </body>

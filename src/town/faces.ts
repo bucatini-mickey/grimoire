@@ -29,9 +29,18 @@ export function faceCell(t: number, b: number): { ch: string; level: number } {
 	return { ch: RAMP[Math.round(((t + b) / 30) * (RAMP.length - 1))], level };
 }
 
-/** The cell at (x, y) of a frame (hex levels, row by row of samples). */
-export function cellOf(f: string, x: number, y: number) {
-	return faceCell(parseInt(f[x + 2 * y * FACE_W], 16), parseInt(f[x + (2 * y + 1) * FACE_W], 16));
+/** The cell at (x, y) of a frame (hex levels, row by row of samples) `w` cells wide (a face's, unless said). */
+export function cellOf(f: string, x: number, y: number, w = FACE_W) {
+	return faceCell(parseInt(f[x + 2 * y * w], 16), parseInt(f[x + (2 * y + 1) * w], 16));
+}
+
+/**
+ * The part of a camera's picture (vw x vh) to show in a tile of the given shape (width / height): as
+ * large as fits in 80% of the picture, centred across, a little above the middle (where a face is).
+ */
+export function crop(vw: number, vh: number, aspect: number): { sx: number; sy: number; sw: number; sh: number } {
+	const sh = Math.min(vh, vw / aspect) * 0.8, sw = sh * aspect;
+	return { sx: (vw - sw) / 2, sy: Math.max(0, (vh - sh) / 2 - sh * 0.06), sw, sh };
 }
 
 /** Brightness samples (0..255) to a frame: stretched to the picture's own range, a little sharpened. */
@@ -78,6 +87,8 @@ export class FaceCam {
 	private cv: HTMLCanvasElement | null = null;
 
 	get on() { return !!this.stream; }
+	/** The camera's live picture, on this phone only (null while off or starting). */
+	get picture(): HTMLVideoElement | null { return this.video && this.video.readyState >= 2 ? this.video : null; }
 
 	/** Ask for the camera (video only); false if refused or missing. */
 	async start(): Promise<boolean> {
@@ -104,17 +115,24 @@ export class FaceCam {
 
 	/** The picture now: a square round the middle (a little high, where a face is), mirrored, as a frame. */
 	frame(): string | null {
-		const v = this.video;
-		if (!v || v.readyState < 2) return null;
-		const W = FACE_W, H = FACE_H * 2, cv = (this.cv ??= document.createElement('canvas'));
-		cv.width = W; cv.height = H;
+		const lum = this.lum(FACE_W, FACE_H * 2);
+		return lum && toFrame(lum, FACE_W, FACE_H * 2);
+	}
+
+	/** The picture now as w x h brightness samples (0..255), cropped to that shape, mirrored; null while off. */
+	lum(w: number, h: number): number[] | null {
+		const v = this.picture;
+		if (!v) return null;
+		const cv = (this.cv ??= document.createElement('canvas'));
+		if (cv.width !== w) cv.width = w;
+		if (cv.height !== h) cv.height = h;
 		const g = cv.getContext('2d', { willReadFrequently: true })!;
-		const side = Math.min(v.videoWidth, v.videoHeight) * 0.8;
+		const c = crop(v.videoWidth, v.videoHeight, w / h);
 		g.save();
-		g.translate(W, 0); g.scale(-1, 1);
-		g.drawImage(v, (v.videoWidth - side) / 2, Math.max(0, (v.videoHeight - side) / 2 - side * 0.06), side, side, 0, 0, W, H);
+		g.translate(w, 0); g.scale(-1, 1);
+		g.drawImage(v, c.sx, c.sy, c.sw, c.sh, 0, 0, w, h);
 		g.restore();
-		const px = g.getImageData(0, 0, W, H).data;
-		return toFrame(Array.from({ length: W * H }, (_, i) => 0.3 * px[i * 4] + 0.59 * px[i * 4 + 1] + 0.11 * px[i * 4 + 2]), W, H);
+		const px = g.getImageData(0, 0, w, h).data;
+		return Array.from({ length: w * h }, (_, i) => 0.3 * px[i * 4] + 0.59 * px[i * 4 + 1] + 0.11 * px[i * 4 + 2]);
 	}
 }

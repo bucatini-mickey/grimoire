@@ -241,6 +241,8 @@ test('going through Remind me changes nothing kept: no page recorded, no choice 
 test('the title of the window never carries a page, and undo, a new game and a finished game take Remind me away', () => {
 	for (const f of readdirSync('src', { recursive: true, encoding: 'utf8' }).filter((x) => /\.(ts|html)$/.test(x))) {
 		const code = src('src/' + f.replace(/\\/g, '/'));
+		// The avatar's standalone demo page (asciiavatar.ts writes its HTML) has a title of its own; it never sets the game window's.
+		if (/asciiavatar\.ts$/.test(f)) { assert.ok(!/document\.title\s*=|setTitle/.test(code), f + ' sets the window title'); continue; }
 		assert.ok(!/document\.title\s*=|setTitle|<title>[^<]*\$\{/.test(code), `${f} sets the window title`);
 	}
 	assert.match(src('src/ui/index.html'), /<title>Grimoire<\/title>/);

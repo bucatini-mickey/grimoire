@@ -9,9 +9,12 @@
 		"check": "tsc --noEmit",
 		"build": "node build.mjs",
 		"dev": "node build.mjs --serve",
+		"avatar": "node tools/avatar-inline.mjs",
+		"tools": "node tools/serve.mjs --https",
 		"sim": "node tests/sim/run.ts",
 		"mutants": "node tests/sim/mutants.ts",
-		"balance": "node tools/balance/run.ts"
+		"balance": "node tools/balance/run.ts",
+		"avatar-test": "node tools/avatar-test-inline.mjs"
 	},
 	"devDependencies": {
 		"@types/node": "^24.19.1",

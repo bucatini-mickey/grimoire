@@ -192,7 +192,12 @@ test('the history is Storyteller-side: no view, card, sheet or log carries it, a
 	assert.ok(!('history' in s), 'GameState has no history');
 	for (const out of [publicView(s), scriptSheet(s), cardFor(s, 0), logEntry(wakeFor(s, nextStep(s)!), 1)]) assert.ok(!/history|"showing"|night-result|evil-team/.test(JSON.stringify(out)));
 	// Only history.ts itself mentions it in net/; main.ts keeps it out of anything it sends to a phone.
-	for (const f of readdirSync('src/net').filter((x) => x !== 'history.ts')) assert.ok(!/history/i.test(readFileSync('src/net/' + f, 'utf8')), f + ' mentions the history');
+	// (notebook.ts keeps a history of its own, of a player's notebook: it must not reach for this one.)
+	for (const f of readdirSync('src/net').filter((x) => x !== 'history.ts')) {
+		const code = readFileSync('src/net/' + f, 'utf8');
+		if (f === 'notebook.ts') assert.ok(!/history\.ts|\bHistory\b|\bH\.|showPages|reviveHistory/.test(code), 'notebook.ts reaches for the history');
+		else assert.ok(!/history/i.test(code), f + ' mentions the history');
+	}
 	const main = readFileSync('src/ui/main.ts', 'utf8').split('\n');
 	main.forEach((line, i) => {
 		if (!/\bhistory\b|\bH\./.test(line)) return;

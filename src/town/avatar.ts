@@ -9,7 +9,10 @@ export { FACES, FIGURES };
 
 export interface Look {
 	figure: number;
+	/** The face once picked for the voting table: kept so old saves load, no longer drawn (16 Nov). */
 	face: number;
+	/** The webcam avatar's style (src/avatar/rigface.ts FaceStyle): six hex digits (or the first version's four); none is the plain one. */
+	style?: string;
 }
 
 /** What a phone that cannot draw someone's figure or face draws instead. */
@@ -21,7 +24,9 @@ const inRange = (n: unknown, len: number) => (Number.isInteger(n) && (n as numbe
 /** A look from anywhere (a phone, storage): always one that can be drawn. */
 export const cleanLook = (raw: unknown): Look => {
 	const r = (raw ?? {}) as Partial<Look>;
-	return { figure: inRange(r.figure, FIGURES.length), face: inRange(r.face, FACES.length) };
+	const out: Look = { figure: inRange(r.figure, FIGURES.length), face: inRange(r.face, FACES.length) };
+	if (typeof r.style === 'string' && (/^[0-9a-f]{6}$/.test(r.style) || /^[0-3]{4}$/.test(r.style))) out.style = r.style;
+	return out;
 };
 
 const mod = (k: number, n: number) => ((k % n) + n) % n;

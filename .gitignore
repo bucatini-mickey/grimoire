@@ -1,3 +1,6 @@
 node_modules/
 dist/
 tests/sim/failures/
+tools/.cert/
+tools/reports/
+tools/village.html
