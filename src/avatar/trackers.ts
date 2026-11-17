@@ -367,6 +367,15 @@ function visionRuntime() {
 	})().catch((e) => { vision = null; throw e; }));
 }
 
+/** Whether WebGL2 can be had on an OffscreenCanvas (MediaPipe's own choice) and on a page canvas. */
+export function webgl2(): { offscreen: boolean; page: boolean } {
+	const ok = (c: () => { getContext(k: string): unknown } | null) => { try { return !!c()?.getContext('webgl2'); } catch { return false; } };
+	return {
+		offscreen: ok(() => (typeof OffscreenCanvas === 'undefined' ? null : new OffscreenCanvas(1, 1))),
+		page: ok(() => (typeof document === 'undefined' ? null : document.createElement('canvas')))
+	};
+}
+
 /**
  * A MediaPipe task (Face Landmarker or Face Detector), on the CPU on every device (17 Nov). The GPU is a
  * little faster where it works, but where it does not it can fail mid-run, not at start (Rosemary: "reading
@@ -375,9 +384,16 @@ function visionRuntime() {
  */
 class MpTask {
 	private task: any = null;
-	async start(make: (d: 'CPU') => Promise<any>): Promise<string> {
-		this.task = await make('CPU');
-		return 'CPU';
+	/**
+	 * Even on the CPU, MediaPipe takes each frame in through WebGL (17 Nov, Rosemary: "reading
+	 * 'activeTexture'" on the CPU too: no WebGL context). It makes its own OffscreenCanvas; where that has
+	 * no WebGL2 but a page canvas does, it is given one; where neither has, it is said plainly.
+	 */
+	async start(make: (d: 'CPU', canvas?: HTMLCanvasElement) => Promise<any>): Promise<string> {
+		const gl = webgl2();
+		if (!gl.offscreen && !gl.page) throw new Error('WebGL is off in this browser (restart it, or turn on hardware acceleration)');
+		this.task = await make('CPU', gl.offscreen ? undefined : document.createElement('canvas'));
+		return gl.offscreen ? 'CPU' : 'CPU (page canvas)';
 	}
 	/** One frame's result. Throws if MediaPipe fails: the caller says so (never a quiet "no face"). */
 	detect(src: HTMLVideoElement | HTMLCanvasElement, t: number): any | null {
@@ -483,7 +499,7 @@ export class LandmarkerTracker implements Tracker {
 			baseOptions: { modelAssetBuffer: model, delegate }, runningMode: 'VIDEO', numFaces: 1,
 			outputFaceBlendshapes: true, outputFacialTransformationMatrixes: true
 		});
-		const note = await this.fl.start((d) => mod.FaceLandmarker.createFromOptions(fileset, opts(d)));
+		const note = await this.fl.start((d, canvas) => mod.FaceLandmarker.createFromOptions(fileset, { ...opts(d), canvas }));
 		const files = withModel(downloaded(fromMediaPipe).filter((f) => !f.url.includes('blaze_face')), MODEL_URL.landmarker, model.byteLength);
 		return { bytes: files.reduce((a, f) => a + f.bytes, 0), ms: performance.now() - t0, files, note };
 	}
@@ -518,7 +534,7 @@ export class BlazeTracker implements Tracker {
 		const { mod, fileset } = await visionRuntime();
 		const model = await fetchModel(MODEL_URL.blazeface);
 		const opts = (delegate: 'CPU') => ({ baseOptions: { modelAssetBuffer: model, delegate }, runningMode: 'VIDEO', minDetectionConfidence: 0.4 });
-		const note = await this.fd.start((d) => mod.FaceDetector.createFromOptions(fileset, opts(d)));
+		const note = await this.fd.start((d, canvas) => mod.FaceDetector.createFromOptions(fileset, { ...opts(d), canvas }));
 		const files = withModel(downloaded(fromMediaPipe).filter((f) => !f.url.includes('face_landmarker')), MODEL_URL.blazeface, model.byteLength);
 		return { bytes: files.reduce((a, f) => a + f.bytes, 0), ms: performance.now() - t0, files, note };
 	}

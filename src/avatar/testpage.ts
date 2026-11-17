@@ -7,7 +7,7 @@
  */
 import { decodeRig, drawRig, encodeRig, NEUTRAL, RIG_KEYS, DETAIL_SIZE, withVoice } from './rig.ts';
 import type { Rig, RigCell } from './rig.ts';
-import { GAINS, makeTracker, MP_VERSION, NO_FLIPS, NO_NEUTRAL, RigSmoother, rigOf, TRACKER_LABEL, TRACKER_NAMES } from './trackers.ts';
+import { GAINS, makeTracker, MP_VERSION, NO_FLIPS, NO_NEUTRAL, RigSmoother, rigOf, TRACKER_LABEL, TRACKER_NAMES, webgl2 } from './trackers.ts';
 import type { Flips, Loaded, Neutral, Raw, Track, Tracker, TrackerName } from './trackers.ts';
 import { AsciiAvatar } from './asciiavatar.ts';
 
@@ -376,7 +376,7 @@ function deviceInfo() {
 		const ext = gl?.getExtension('WEBGL_debug_renderer_info');
 		gpu = ext ? String(gl!.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : '';
 	} catch { /* none */ }
-	return { userAgent: navigator.userAgent, cores: navigator.hardwareConcurrency, memoryGB: (navigator as unknown as { deviceMemory?: number }).deviceMemory ?? null, gpu, camera: S.stream ? `${S.video.videoWidth}x${S.video.videoHeight}` : null };
+	return { webgl2: webgl2(), userAgent: navigator.userAgent, cores: navigator.hardwareConcurrency, memoryGB: (navigator as unknown as { deviceMemory?: number }).deviceMemory ?? null, gpu, camera: S.stream ? `${S.video.videoWidth}x${S.video.videoHeight}` : null };
 }
 
 function report() {
