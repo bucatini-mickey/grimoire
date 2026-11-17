@@ -6,7 +6,7 @@
  * under it. (The faces once picked for the voting table are gone, 16 Nov: the avatar is the face now.)
  */
 import { FIGURES, defaultLook, filling, loadLook, saveLook } from '../town/avatar.ts';
-import { decodeStyle, drawRig, encodeStyle, NEUTRAL, PLAIN_STYLE, STYLE_NAMES, STYLE_PARTS } from '../avatar/rig.ts';
+import { decodeStyle, drawRig, encodeStyle, NEUTRAL, PLAIN_STYLE, SHOWN_PARTS, STYLE_NAMES } from '../avatar/rig.ts';
 import { PART_LABEL } from '../avatar/rigface.ts';
 import type { FaceStyle } from '../avatar/rig.ts';
 import type { Look } from '../town/avatar.ts';
@@ -69,8 +69,8 @@ export function figureRows(name: string, k: number | null, changed: (l: Look) =>
 		wrap(k === null ? 'Your colour comes with your seat.' : 'Your colour stays: it is how they know you.', Math.max(10, c.w - 15)).forEach((l, i) => c.g.text(c.x + 14, c.y + 2 + i, l, 3));
 	}));
 	// Each part on one line, two to a line: tap the left of a choice for the one before, the right for the next.
-	for (let i = 0; i < STYLE_PARTS.length; i += 2) rows.push(chooserRow(STYLE_PARTS.slice(i, i + 2), style, setStyle));
-	const anyStyle = () => { const st = {} as FaceStyle; for (const p of STYLE_PARTS) st[p] = Math.floor(Math.random() * STYLE_NAMES[p].length); return st; };
+	for (let i = 0; i < SHOWN_PARTS.length; i += 2) rows.push(chooserRow(SHOWN_PARTS.slice(i, i + 2), style, setStyle));
+	const anyStyle = () => { const st = { ...PLAIN_STYLE }; for (const p of SHOWN_PARTS) st[p] = Math.floor(Math.random() * STYLE_NAMES[p].length); return st; };
 	rows.push(buttonBlock([
 		btn('Surprise me', () => set({ ...look, figure: anyOf(FIGURES), style: encodeStyle(anyStyle()) })),
 		btn('Plain face', () => setStyle({ ...PLAIN_STYLE }), { style: 'quiet' })

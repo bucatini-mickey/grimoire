@@ -319,7 +319,7 @@ function lobbyScreen(): Row[] {
 		blockRow(6, (c) => {
 			const k = P.lobbyYou ?? 0, [fg, bg] = personInk(k), you = P.lobbyYou === null ? '' : P.lobby[P.lobbyYou];
 			faceTile(c.g, c.x + 1, c.y, decodeStyle(loadLook()?.style), (you || 'You')[0].toUpperCase(), you || 'You', fg, bg);
-			wrap('Your face on the others’ camera windows: brows, eyes, nose, moustache, beard, glasses.',Math.max(10, c.w - 15)).forEach((l, i) => c.g.text(c.x + 14, c.y + i, l, 3));
+			wrap('Your face on the others’ camera windows: brows, eyes, nose, glasses.',Math.max(10, c.w - 15)).forEach((l, i) => c.g.text(c.x + 14, c.y + i, l, 3));
 		}),
 		buttonBlock([btn('Make your face', () => { P.figure = true; render(); }, { style: 'primary' })]),
 		endPanel(),

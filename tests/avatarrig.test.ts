@@ -308,7 +308,7 @@ test('avatar tiles are the letter tile with a face: the middle face\'s size, the
 });
 
 test('a face style: six digits both ways, each choice of each part changing the face; the plain style draws as before', async () => {
-	const { decodeStyle, encodeStyle, PLAIN_STYLE, STYLE_PARTS, STYLE_NAMES } = await import('../src/avatar/rig.ts');
+	const { decodeStyle, encodeStyle, PLAIN_STYLE, SHOWN_PARTS, STYLE_NAMES } = await import('../src/avatar/rig.ts');
 	assert.equal(encodeStyle(PLAIN_STYLE), '000000');
 	assert.deepEqual(decodeStyle('120341'), { brow: 1, eye: 2, nose: 0, tache: 3, beard: 4, glasses: 1 });
 	// The first version's four digits still read: brow, eye, nose, then 1 moustache / 2 beard / 3 both.
@@ -318,7 +318,9 @@ test('a face style: six digits both ways, each choice of each part changing the 
 	assert.equal(decodeStyle('f00000').brow, STYLE_NAMES.brow.length - 1);
 	assert.equal(rigText(drawRig(NEUTRAL, 10, 5, PLAIN_STYLE)), rigText(drawRig(NEUTRAL, 10, 5)));
 	const both = (c: ReturnType<typeof drawRig>) => rigText(c) + rigInks(c);
-	for (const part of STYLE_PARTS) for (let v = 1; v < STYLE_NAMES[part].length; v++) {
+	// A saved moustache or beard (dropped 17 Nov) is not drawn.
+	assert.equal(both(drawRig(NEUTRAL, 10, 5, { ...PLAIN_STYLE, tache: 3, beard: 3 })), both(drawRig(NEUTRAL, 10, 5)));
+	for (const part of SHOWN_PARTS) for (let v = 1; v < STYLE_NAMES[part].length; v++) {
 		const st = { ...PLAIN_STYLE, [part]: v };
 		// The near face's eyes are framed ( ) already, so Round changes only the middle (Soft) face.
 		for (const [w, h] of part === 'eye' && v === 4 ? [[10, 5]] : [[10, 5], [16, 8]]) assert.notEqual(both(drawRig(NEUTRAL, w, h, st)), both(drawRig(NEUTRAL, w, h)), `${part} ${STYLE_NAMES[part][v]} at ${w}x${h}`);
@@ -335,8 +337,9 @@ test('a face style: six digits both ways, each choice of each part changing the 
 	assert.equal(rigText(drawRig(NEUTRAL, 10, 5, { ...PLAIN_STYLE, glasses: 2 })).split('\n')[1].trim(), '[o]--[o]');
 	assert.equal(rigText(drawRig(NEUTRAL, 10, 5, { ...PLAIN_STYLE, glasses: 3 })).split('\n')[1].trim(), '[#]--[#]');
 	assert.equal(rigText(drawRig(rig({ eyeL: 0, eyeR: 0 }), 10, 5, { ...PLAIN_STYLE, glasses: 3 })).split('\n')[1].trim(), '[-]--[-]');
-	// A moustache sits beside the nose in the middle face, never over it.
-	assert.equal(rigText(drawRig(NEUTRAL, 10, 5, { ...PLAIN_STYLE, tache: 2 })).split('\n')[2].trim(), '~~v~~');
+	// Happy eyes are the far face's ◠; a mouth wide open with one row left (the head tipped down) is a hole, not (OO).
+	assert.equal(rigText(drawRig(rig({ smile: 14 }), 10, 5)).split('\n')[1].trim(), '◠    ◠');
+	assert.ok(!rigText(drawRig(rig({ mouth: 12, pitch: 1 }), 10, 5)).includes('OO'));
 });
 
 test('the camera window goes to the edge: down the side on a wide screen, a bar on a phone', async () => {

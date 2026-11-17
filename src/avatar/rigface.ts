@@ -36,6 +36,11 @@ import type { Rig, RigCell } from './rig.ts';
 export interface FaceStyle { brow: number; eye: number; nose: number; tache: number; beard: number; glasses: number; }
 export const PLAIN_STYLE: FaceStyle = { brow: 0, eye: 0, nose: 0, tache: 0, beard: 0, glasses: 0 };
 export const STYLE_PARTS: (keyof FaceStyle)[] = ['brow', 'eye', 'nose', 'tache', 'beard', 'glasses'];
+/**
+ * The parts a player chooses and the face draws (17 Nov: moustache and beard dropped, hair maybe later). The
+ * six digits stay as they are on the wire; a saved moustache or beard is simply not drawn.
+ */
+export const SHOWN_PARTS: (keyof FaceStyle)[] = ['brow', 'eye', 'nose', 'glasses'];
 /** Each part's choices, by name, for the page that picks them (the order is the digit). */
 export const STYLE_NAMES: Record<keyof FaceStyle, string[]> = {
 	brow: ['Line', 'Thick', 'Wavy', 'Bushy', 'Thin', 'None'],
@@ -155,7 +160,8 @@ export function setFarAscii(on: boolean) { farAscii = on; }
 export const FAR_GLYPHS = ['◠', 'ò', 'ó', 'ɷ', '◡', 'ㅁ', 'ㅇ', 'ᗜ'];
 
 /** The avatar for a rig in w x h cells (w >= 5, h >= 2): near (from 14 x 7), middle (from 8 x 4), else far. */
-export function drawFace(r: Rig, w: number, h: number, st: FaceStyle = PLAIN_STYLE): RigCell[][] {
+export function drawFace(r: Rig, w: number, h: number, style: FaceStyle = PLAIN_STYLE): RigCell[][] {
+	const st: FaceStyle = { ...style, tache: 0, beard: 0 };
 	const out: RigCell[][] = Array.from({ length: h }, () => Array.from({ length: w }, () => ({ ch: ' ', ink: 0 as const })));
 	if (w < 5 || h < 2) return out;
 	const put = (x: number, y: number, ch: string, ink: RigCell['ink']) => {
@@ -222,7 +228,7 @@ export function drawFace(r: Rig, w: number, h: number, st: FaceStyle = PLAIN_STY
 			if (side > 0) brow = mirror(brow);
 			text(side < 0 ? c - 1 : c, clamp(ty, 0, h - 1), brow, 2);
 			// The eye: shut a line, half shut =, smiling ^, wide O, else o (or ' . for a glance up or down).
-			const g = open <= 3 ? '-' : st.glasses === 3 ? '#' : open <= 7 ? '=' : s1 > 0 && sm >= 4 ? '^' : open >= 13 ? 'O' : gy >= 4 ? "'" : gy <= -4 ? '.' : 'o';
+			const g = open <= 3 ? '-' : st.glasses === 3 ? '#' : open <= 7 ? '=' : s1 > 0 && sm >= 4 ? '◠' : open >= 13 ? 'O' : gy >= 4 ? "'" : gy <= -4 ? '.' : 'o';
 			const gx1 = frameOf ? 0 : gx >= 4 ? 1 : gx <= -4 ? -1 : 0;
 			put(c + gx1, ey, g, 2);
 			if (frameOf) { put(c - 1, ey, frameOf[0], 2); put(c + 1, ey, frameOf[1], 2); }
@@ -236,7 +242,7 @@ export function drawFace(r: Rig, w: number, h: number, st: FaceStyle = PLAIN_STY
 		// The mouth.
 		const my = clamp(3 + ty, 0, h - 1), rows = h - my;
 		const broad = w >= 10;
-		const m: string[] = mo >= 3 ? mouthRows(mo, sm, 4, Math.max(1, rows))
+		const m: string[] = mo >= 8 && rows < 2 ? ['(  )'] : mo >= 3 ? mouthRows(mo, sm, 4, Math.max(1, rows))
 			: s1 > 0 ? [sm >= 6 && broad ? "`-..-'" : "`--'"]
 			: s1 < 0 ? [sm <= -6 && broad ? ".-''-." : '.--.']
 			: ['----'];
