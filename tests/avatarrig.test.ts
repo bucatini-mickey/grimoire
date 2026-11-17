@@ -151,6 +151,9 @@ test('raw measures to digits: the middle at rest, the ends at the gains, flips a
 	assert.equal(Math.round(r.eyeL), 11);
 	assert.equal(Math.round(rigOf({ ...RAW_ZERO, yaw: 35 }).yaw), 15);
 	assert.equal(Math.round(rigOf({ ...RAW_ZERO, yaw: -90 }).yaw), 1);
+	// Head roll is not sent (17 Nov); where you look still is.
+	assert.equal(rigOf({ ...RAW_ZERO, roll: 30 }).roll, 8);
+	assert.equal(Math.round(rigOf({ ...RAW_ZERO, gazeX: 0.6 }).gazeX), 15);
 	assert.equal(Math.round(rigOf({ ...RAW_ZERO, yaw: 35 }, undefined, undefined, { eyes: false, yaw: true, pitch: false, roll: false, gazeX: false, gazeY: false }).yaw), 1);
 	assert.equal(Math.round(rigOf({ ...RAW_ZERO, yaw: 10 }, undefined, { yaw: 10, pitch: 0, roll: 0, gazeX: 0, gazeY: 0, smile: 0 }).yaw), 8);
 	const sw = rigOf({ ...RAW_ZERO, eyeL: 0 }, undefined, undefined, { eyes: true, yaw: false, pitch: false, roll: false, gazeX: false, gazeY: false });

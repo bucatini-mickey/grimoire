@@ -786,7 +786,9 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
       smile: sgn(raw.smile - n.smile, g.smile),
       yaw: sgn(flip(f.yaw, raw.yaw - n.yaw), g.yawDeg),
       pitch: sgn(flip(f.pitch, raw.pitch - n.pitch), g.pitchDeg),
-      roll: sgn(flip(f.roll, raw.roll - n.roll), g.rollDeg),
+      // Head roll (a lean) is not sent (Jason, 17 Nov): always level. The drawing still knows a lean; turn it
+      // back on here with: sgn(flip(f.roll, raw.roll - n.roll), g.rollDeg).
+      roll: 8,
       gazeX: sgn(flip(f.gazeX, raw.gazeX - n.gazeX), g.gaze),
       gazeY: sgn(flip(f.gazeY, raw.gazeY - n.gazeY), g.gaze),
       browL: sgn((bl ?? 0) - (n.browL ?? 0), g.brow),
