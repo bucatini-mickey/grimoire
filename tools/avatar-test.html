@@ -138,9 +138,6 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
   var clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
   var signed = (v) => clamp(clamp(Math.trunc(Number.isFinite(v) ? v : 8), 0, 15) - 8, -7, 7);
   var level = (v) => clamp(Math.trunc(Number.isFinite(v) ? v : 0), 0, 15);
-  function eyeGlyph(open) {
-    return open <= 3 ? "-" : open <= 7 ? "=" : open <= 12 ? "o" : "O";
-  }
   function eyeCells(open, gx, gy, wide, style = 0, glasses = 0) {
     const inner = wide - 2;
     const frame = GLASSES[glasses] ?? null;
@@ -194,14 +191,25 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
     const sm = signed(r.smile), yw = signed(r.yaw), pt = signed(r.pitch), rl = signed(r.roll), gx = signed(r.gazeX), gy = signed(r.gazeY);
     const bL = signed(r.browL ?? 8), bR = signed(r.browR ?? 8);
     if (w < 8 || h < 4) {
-      const sx = yw >= 4 ? 1 : yw <= -4 ? -1 : 0, gs = gx >= 5 ? 1 : gx <= -5 ? -1 : 0;
-      const mid2 = Math.floor((w - 1) / 2), ex = Math.max(1, Math.floor((w - 1) / 4));
+      const mid2 = Math.floor((w - 1) / 2);
       const bb = bL + bR;
-      put(0, 0, bb <= -6 ? ">" : bb >= 6 ? "<" : "(", 1);
-      put(w - 1, 0, bb <= -6 ? "<" : bb >= 6 ? ">" : ")", 1);
-      put(clamp(mid2 - ex + sx + gs, 1, w - 2), 0, eyeGlyph(eL), 2);
-      put(clamp(mid2 + ex + sx + gs, 1, w - 2), 0, eyeGlyph(eR), 2);
-      text(clamp(mid2 - 1 + sx, 0, w - 3), 1, mouthRows(mo, sm, 3, 1)[0], 2);
+      const s1 = sm >= 3 ? 1 : sm <= -3 ? -1 : 0;
+      const eye = (open, side) => open <= 3 ? "-" : st.glasses === 3 ? "#" : bb <= -6 ? side < 0 ? ">" : "<" : s1 > 0 && mo < 8 ? "^" : open >= 13 || bb >= 6 ? "O" : open <= 7 ? "=" : "o";
+      const mouth = mo >= 8 ? "O" : mo >= 3 ? "o" : s1 < 0 ? "." : "_";
+      const lb = yw <= -4 ? "<" : st.glasses && st.glasses !== 3 ? "[" : "(";
+      const rb = yw >= 4 ? ">" : st.glasses && st.glasses !== 3 ? "]" : ")";
+      text(mid2 - 2, 1, lb, 1);
+      put(mid2 - 1, 1, eye(eL, -1), 2);
+      put(mid2, 1, mouth, 2);
+      put(mid2 + 1, 1, eye(eR, 1), 2);
+      put(mid2 + 2, 1, rb, 1);
+      put(mid2, 0, ".", 3);
+      if (st.brow !== 5) {
+        const brow = (b, side) => b <= -3 ? side < 0 ? "\\" : "/" : b >= 3 ? "'" : null;
+        const l = brow(bL, -1), r2 = brow(bR, 1);
+        if (l) put(mid2 - 1, 0, l, 2);
+        if (r2) put(mid2 + 1, 0, r2, 2);
+      }
       return out;
     }
     const big = w >= 14 && h >= 7;

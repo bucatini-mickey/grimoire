@@ -59,7 +59,10 @@ test('the near avatar at rest: brows, eyes, a nose and a mouth, nothing else; br
 	assert.deepEqual(mouth({ mouth: 10 }), ['.------.', "'------'"]);
 	assert.deepEqual(mouth({ mouth: 15 }), ['.------.', '|      |', "'------'"]);
 	assert.deepEqual(mouth({ smile: 15 }), ['\\      /', '\\____/']);
-	assert.equal(rigText(drawRig(rig({ smile: 15 }), 5, 2)), '(o o)\n \\_/ ');
+	// The far face is a kaomoji under the letter's cell: a smile, a wink, a wide-open mouth.
+	assert.equal(rigText(drawRig(rig({ smile: 15 }), 5, 2)), '  .  \n(^_^)');
+	assert.equal(rigText(drawRig(rig({ eyeL: 0 }), 5, 2)).split('\n')[1], '(-_o)');
+	assert.equal(rigText(drawRig(rig({ mouth: 15 }), 5, 2)).split('\n')[1], '(oOo)');
 });
 
 test('a wink shuts one eye only, on the side it is drawn', () => {
@@ -273,11 +276,11 @@ test('the camera window as a bar: the whole width, one row of tiles, centred; a 
 test('avatar tiles are the letter tile with a face: the middle face\'s size, the nose the player\'s mark', () => {
 	assert.deepEqual(AVATAR_TILE, { tw: DETAIL_SIZE[2].w, th: DETAIL_SIZE[2].h });
 	assert.equal(detailThatFits(AVATAR_TILE.tw, AVATAR_TILE.th), 2);
-	// The nose's middle is ink 3 (where the letter goes), once, in the middle face; the far face has none.
+	// The nose's middle is ink 3 (where the letter goes), once, in the middle face, over the far face's kaomoji.
 	const ink3 = (w: number, h: number) => rigInks(drawRig(NEUTRAL, w, h)).split('').filter((c) => c === '3').length;
 	assert.equal(ink3(10, 5), 1);
 	assert.equal(ink3(16, 8), 1);
-	assert.equal(ink3(5, 2), 0);
+	assert.equal(ink3(5, 2), 1);
 	// Smaller: a bar of them is 8 rows, not 11, and fits more people across.
 	assert.equal(barHeight(80, false, AVATAR_TILE), 8);
 	const area = { x: 0, y: 1, w: 80, h: 8 };

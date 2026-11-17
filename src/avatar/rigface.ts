@@ -157,15 +157,32 @@ export function drawFace(r: Rig, w: number, h: number, st: FaceStyle = PLAIN_STY
 	const bL = signed(r.browL ?? 8), bR = signed(r.browR ?? 8);
 
 	if (w < 8 || h < 4) {
-		// Far: (o o) over the mouth; a frown tilts the brackets in, raised brows out.
-		const sx = yw >= 4 ? 1 : yw <= -4 ? -1 : 0, gs = gx >= 5 ? 1 : gx <= -5 ? -1 : 0;
-		const mid = Math.floor((w - 1) / 2), ex = Math.max(1, Math.floor((w - 1) / 4));
+		// Far (remade 17 Nov): a kaomoji, the best-known small face in ASCII, under their letter (ink 3), with
+		// the brows beside the letter:
+		//     J        \J/       'J'       J
+		//   (^_^)     (o_o)     (O_O)     (-_-)
+		// Eyes: shut -, half shut =, open o, wide or brows up O, smiling ^, frowning > <, shades #; a wink is one
+		// shut. Mouth: _ at rest, o talking, O wide, . sad. A strong turn swaps the far bracket for the
+		// side of the face: (^_^> looks right.
+		const mid = Math.floor((w - 1) / 2);
 		const bb = bL + bR;
-		put(0, 0, bb <= -6 ? '>' : bb >= 6 ? '<' : '(', 1);
-		put(w - 1, 0, bb <= -6 ? '<' : bb >= 6 ? '>' : ')', 1);
-		put(clamp(mid - ex + sx + gs, 1, w - 2), 0, eyeGlyph(eL), 2);
-		put(clamp(mid + ex + sx + gs, 1, w - 2), 0, eyeGlyph(eR), 2);
-		text(clamp(mid - 1 + sx, 0, w - 3), 1, mouthRows(mo, sm, 3, 1)[0], 2);
+		const s1 = sm >= 3 ? 1 : sm <= -3 ? -1 : 0;
+		const eye = (open: number, side: -1 | 1) => open <= 3 ? '-' : st.glasses === 3 ? '#' : bb <= -6 ? (side < 0 ? '>' : '<') : s1 > 0 && mo < 8 ? '^' : open >= 13 || bb >= 6 ? 'O' : open <= 7 ? '=' : 'o';
+		const mouth = mo >= 8 ? 'O' : mo >= 3 ? 'o' : s1 < 0 ? '.' : '_';
+		const lb = yw <= -4 ? '<' : st.glasses && st.glasses !== 3 ? '[' : '(';
+		const rb = yw >= 4 ? '>' : st.glasses && st.glasses !== 3 ? ']' : ')';
+		text(mid - 2, 1, lb, 1);
+		put(mid - 1, 1, eye(eL, -1), 2);
+		put(mid, 1, mouth, 2);
+		put(mid + 1, 1, eye(eR, 1), 2);
+		put(mid + 2, 1, rb, 1);
+		put(mid, 0, '.', 3);
+		if (st.brow !== 5) {
+			const brow = (b: number, side: -1 | 1) => b <= -3 ? (side < 0 ? '\\' : '/') : b >= 3 ? "'" : null;
+			const l = brow(bL, -1), r2 = brow(bR, 1);
+			if (l) put(mid - 1, 0, l, 2);
+			if (r2) put(mid + 1, 0, r2, 2);
+		}
 		return out;
 	}
 

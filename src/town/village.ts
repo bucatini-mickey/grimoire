@@ -1713,7 +1713,7 @@ function camWindow(g: Grid, area: { x: number; y: number; w: number; h: number }
 		// Fainter the farther they are (you and anyone near at full strength); marked while they ask for a word.
 		const loud = self ? 1 : loudOf.get(id) ?? 0;
 		const fade = loud >= 0.66 ? undefined : loud >= 0.33 ? 3 : 2;
-		const base = { id, label: self ? 'You' : q.st ? 'Storyteller' : q.name, ink: markOf(q), glyph: glyphOf(q), talking: talk, fade, asking: id === asker };
+		const base = { id, label: self ? 'You' : q.st ? 'Storyteller' : q.name, ink: markOf(q), glyph: (q.name[0] ?? '?').toUpperCase(), talking: talk, fade, asking: id === asker };
 		if (avatars) {
 			const r = L.tiles[i];
 			const fit = r ? detailThatFits(r.w, r.h) : 0;
@@ -1847,9 +1847,10 @@ function councilRoom(g: Grid, y0: number, h: number, now: number) {
 			const x0 = sx - 3;
 			for (let yy = 0; yy < 2; yy++) for (let xx = 0; xx < 5; xx++) {
 				const c = face[yy][xx];
-				if (c.ch !== ' ') g.set(x0 + xx, sy - 1 + yy, c.ch, c.ink === 2 ? (talking(person!) > 0.15 ? 6 : pb || pf) : 3, 0);
+				// The letter's cell (ink 3): their letter on its plate, over the kaomoji.
+				if (c.ink === 3) g.set(x0 + xx, sy - 1 + yy, mark, 5, shade(hue, plate >= 0 ? 2 : 1));
+				else if (c.ch !== ' ') g.set(x0 + xx, sy - 1 + yy, c.ch, c.ink === 2 ? (talking(person!) > 0.15 ? 6 : pb || pf) : 3, 0);
 			}
-			g.set(x0 + 2, sy - 1, mark, 5, shade(hue, plate >= 0 ? 2 : 1));
 		} else {
 			g.set(sx - 1, sy, mark, r.dead ? 3 : 5, shade(hue, plate >= 0 ? 2 : 1));
 			g.set(sx, sy, ' ', 5, shade(hue, plate >= 0 ? 2 : 1));
