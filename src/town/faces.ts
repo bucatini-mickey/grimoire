@@ -61,6 +61,37 @@ export function faceOver<C>(box: { x: number; y: number; w: number; h: number },
 	return { cx: x + aw / 2, cy: y + ah / 2, rx, ry, cells, x, y };
 }
 
+/** Whether cell (x, y) is inside the blank behind a drawn face (faceOver's or overAt's oval). */
+export const inOval = (o: { cx: number; cy: number; rx: number; ry: number }, x: number, y: number) =>
+	((x + 0.5 - o.cx) / o.rx) ** 2 + ((y + 0.5 - o.cy) / o.ry) ** 2 <= 1;
+
+/**
+ * A frame (w x h cells, two samples a cell) with the cells inside the oval blanked: what a Letters phone
+ * sends, so your own face never leaves it (the drawn face goes there on every phone, from your numbers).
+ */
+export function hideFace(frame: string, w: number, h: number, o: { cx: number; cy: number; rx: number; ry: number }): string {
+	const a = frame.split('');
+	for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (inOval(o, x, y)) { a[x + 2 * y * w] = '0'; a[x + (2 * y + 1) * w] = '0'; }
+	return a.join('');
+}
+
+/** A frame w0 x h0 cells drawn at w x h cells (nearest sample): a sent Letters picture in a tile of any size. */
+export function resample(frame: string, w0: number, h0: number, w: number, h: number): string {
+	let out = '';
+	for (let y = 0; y < h * 2; y++) for (let x = 0; x < w; x++) {
+		const sx = Math.min(w0 - 1, Math.floor(((x + 0.5) * w0) / w)), sy = Math.min(h0 * 2 - 1, Math.floor(((y + 0.5) * h0 * 2) / (h * 2)));
+		out += frame[sx + sy * w0];
+	}
+	return out;
+}
+
+/** A sent face's place (`at`: its top left in a w0 x h0 frame) in a tile tw x th, with the blank behind it. */
+export function overAt<C>(at: [number, number], w0: number, h0: number, tw: number, th: number, cells: C[][]) {
+	const ah = cells.length, aw = cells[0]?.length ?? 0;
+	const x = Math.round(((at[0] + aw / 2) * tw) / w0 - aw / 2), y = Math.round(((at[1] + ah / 2) * th) / h0 - ah / 2);
+	return { cx: x + aw / 2, cy: y + ah / 2, rx: 1.9, ry: 1.3, cells, x, y };
+}
+
 /** Brightness samples (0..255) to a frame: stretched to the picture's own range, a little sharpened. */
 export function toFrame(lum: ArrayLike<number>, w: number, h: number): string {
 	const sorted = Array.from(lum).sort((a, b) => a - b);

@@ -18,7 +18,7 @@
  */
 import { shade } from '../term/pterm.ts';
 import type { Grid, Rect, Term } from '../term/pterm.ts';
-import { cellOf, crop } from './faces.ts';
+import { cellOf, crop, inOval } from './faces.ts';
 import type { RigCell } from '../avatar/rig.ts';
 
 /**
@@ -265,7 +265,7 @@ export function drawCamWindow(g: Grid, L: CamLayout, d: CamWindowDraw) {
 			const o = t.over;
 			for (let yy = 0; yy < r.h; yy++) for (let xx = 0; xx < r.w; xx++) {
 				// Inside the oval over your face: blank, so only your outline is yours.
-				if (o && ((xx + 0.5 - o.cx) / o.rx) ** 2 + ((yy + 0.5 - o.cy) / o.ry) ** 2 <= 1) { g.set(r.x + xx, r.y + yy, ' ', 3, 0); continue; }
+				if (o && inOval(o, xx, yy)) { g.set(r.x + xx, r.y + yy, ' ', 3, 0); continue; }
 				const c = cellOf(t.frame, xx, yy, r.w);
 				g.set(r.x + xx, r.y + yy, c.ch, levelInk(c.level), 0);
 			}

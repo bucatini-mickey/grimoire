@@ -39,7 +39,7 @@ import type { P, Phase, Town } from './map.ts';
 import { css, FOG, fogAt, LANTERN, sunlight, lerp, level, lightMap, lookAt, luma, mul, noise, remembered, sky, sources } from './look.ts';
 import type { Rgb } from './look.ts';
 import { audio, startVoice } from './voice.ts';
-import { FACE_H, FACE_SAMPLES, FACE_W, FaceCam, cellOf, faceOver, testFace, toFrame } from './faces.ts';
+import { FACE_H, FACE_SAMPLES, FACE_W, FaceCam, cellOf, faceOver, hideFace, overAt, resample, testFace, toFrame } from './faces.ts';
 
 /**
  * Faces in the village (faces.ts) are parked: twelve columns do not make a face anyone would know.
@@ -52,7 +52,7 @@ const FACES = false;
  * shows on your phone only; test villagers get drawn stand-ins; anyone else shows as their letter.
  */
 const CAMS = true;
-import { AVATAR_TILE, barHeight, camLayout, stripFor, CamOverlay, drawCamWindow, nextPlace, paintCamera, paintStandIn, pickTiles, PLACE_SHORT, PLACES, resolvePlace, sideWidth, standIn, tileSize } from './camwin.ts';
+import { AVATAR_TILE, barHeight, camLayout, stripFor, CamOverlay, drawCamWindow, nextPlace, pickTiles, PLACE_SHORT, PLACES, resolvePlace, sideWidth } from './camwin.ts';
 import type { Corner, PictureTile, Place, TileView } from './camwin.ts';
 /**
  * The webcam avatar (src/avatar): your camera, on your phone only, read by a face tracker into nine hex
@@ -116,6 +116,8 @@ export interface Person {
 	secret?: boolean;
 	/** The figure they made; none: one of their own by their colour. */
 	look?: Look;
+	/** How everyone sees them while their camera is on (they choose): their drawn face, or letters. */
+	cam?: CamLook;
 	/** Dead in the game: still walks and talks, faded. */
 	dead?: boolean;
 }
@@ -134,6 +136,10 @@ export interface ClockSource {
 export interface StActions { text: string; buttons: Extra[]; }
 /** A vote in the circle, by seat number round the circle: who is up, where the count is, whose hands are up. */
 export interface VoteDraw { nominee: number; at: number | null; raised: number[]; counted: number[]; }
+
+/** How a player is seen while their camera is on: a face drawn from their numbers, or their letters picture. */
+export type CamLook = 'avatar' | 'letters';
+const isCamLook = (c: unknown): c is CamLook => c === 'avatar' || c === 'letters';
 
 /** Every seat in the game, for the circle (some may have no phone). */
 export interface RingSeat { seat: number; name: string; dead: boolean; }
@@ -157,7 +163,7 @@ type Down =
 	| { t: 'asked'; from: string }
 	| { t: 'notice'; text: string }
 	/** The faces this phone may see now (faces.ts): those in earshot, or everyone in the circle. */
-	| { t: 'faces'; faces: [string, string][] }
+	| { t: 'faces'; faces: [string, string, [number, number] | null][] }
 	/** Avatars this phone may draw (rig.ts): [who, nine hex digits, detail]; detail 0 drops them. */
 	| { t: 'rigs'; rigs: [string, string, Detail][] };
 type Up =
@@ -170,8 +176,10 @@ type Up =
 	| { t: 'reply'; to: string; yes: boolean }
 	| { t: 'end' }
 	| { t: 'door'; cell: number; x?: number; y?: number }
-	/** My face now, as cells (faces.ts); null when my camera goes off. */
-	| { t: 'face'; f: string | null }
+	/** How everyone is to see me (null: camera off). */
+	| { t: 'cam'; cam: CamLook | null }
+	/** My letters picture now (faces.ts), my face already blanked, and where my drawn face goes; null: none. */
+	| { t: 'face'; f: string | null; at?: [number, number] | null }
 	/** My avatar's rig now (rig.ts); null when my camera goes off. */
 	| { t: 'rig'; r: string | null };
 
@@ -226,7 +234,7 @@ const S = {
 	 * stand-in faces for everyone (to try the window with nobody else's camera).
 	 */
 	cams: {
-		open: true, folded: false, place: 'auto' as Place, look: 'avatar' as 'avatar' | 'video' | 'letters', standIns: false,
+		open: true, folded: false, place: 'auto' as Place, look: 'avatar' as CamLook,
 		/** Where avatars show (the Storyteller's choice, as their phone passes rigs on): rig.ts AvatarPlaces. */
 		places: 'talk' as AvatarPlaces,
 		/** Which face tracker reads this phone's camera. */
@@ -241,6 +249,8 @@ const S = {
 	asks: [] as string[],
 	/** Faces as cell frames, by person (the host: everyone's; a phone: the ones it may see). */
 	faces: new Map<string, string>(),
+	/** Where each letters picture's drawn face goes (its top left, in FACE_W x FACE_H cells). */
+	faceAt: new Map<string, [number, number] | null>(),
 	/** Faces drawn over the map (the menu's Faces page turns them off). */
 	showFaces: true,
 	/** Whose full name shows as a banner over their letter (hovered, or tapped), and until when. */
@@ -263,7 +273,7 @@ const store = {
 S.showFaces = store.get('grimoire.faces') !== 'off';
 S.cams.open = store.get('grimoire.cams') !== 'off';
 S.cams.place = PLACES.find((c) => c === store.get('grimoire.camsPlace')) ?? 'auto';
-S.cams.look = (['avatar', 'video', 'letters'] as const).find((l) => l === store.get('grimoire.camsLook')) ?? 'avatar';
+S.cams.look = store.get('grimoire.camsLook') === 'letters' ? 'letters' : 'avatar';
 S.cams.places = store.get('grimoire.avatarPlaces') === 'earshot' ? 'earshot' : 'talk';
 // Always the Face Landmarker (17 Nov): the test page compares trackers, the village does not.
 S.cams.tracker = 'landmarker';
@@ -376,12 +386,21 @@ function onUp(from: string, msg: Up) {
 			sendTo(p.id, { t: 'notice', text: p.secret ? `Talking privately with ${q.name}.` : `Meeting ${q.name}. The gold marker shows the way.` });
 		} else if (!msg.yes) sendTo(q.id, { t: 'notice', text: `${p.name} would rather not.` });
 	} else if (msg.t === 'end') endPrivate(p);
+	else if (msg.t === 'cam') {
+		p.cam = isCamLook(msg.cam) ? msg.cam : undefined;
+		// Nothing of them is passed on that they did not choose.
+		if (p.cam !== 'letters') { S.faces.delete(from); S.faceAt.delete(from); }
+		if (!p.cam) S.hostRigs.delete(from);
+		S.dirty = true;
+	}
 	else if (msg.t === 'face') {
-		if (msg.f && msg.f.length === FACE_SAMPLES && /^[0-9a-f]+$/.test(msg.f)) S.faces.set(from, msg.f);
-		else S.faces.delete(from);
+		const at = msg.at;
+		const okAt = at == null || (Array.isArray(at) && at.length === 2 && at.every((v) => Number.isInteger(v) && v >= -4 && v <= FACE_W));
+		if (p.cam === 'letters' && msg.f && msg.f.length === FACE_SAMPLES && /^[0-9a-f]+$/.test(msg.f) && okAt) { S.faces.set(from, msg.f); S.faceAt.set(from, at ?? null); }
+		else { S.faces.delete(from); S.faceAt.delete(from); }
 	}
 	else if (msg.t === 'rig') {
-		const r = msg.r === null ? null : decodeRig(msg.r);
+		const r = msg.r === null || !p.cam ? null : decodeRig(msg.r);
 		if (r) S.hostRigs.set(from, msg.r!); else S.hostRigs.delete(from);
 	}
 	else if (msg.t === 'door') {
@@ -500,10 +519,16 @@ function startTicker() {
 	setInterval(relayRigs, 33);
 	// Faces, a few times a second, each phone only those it may see (and only when that changes).
 	const faceSent = new Map<string, string>();
-	if (FACES) setInterval(() => {
-		// Test villagers have drawn faces, so faces can be tried without a second phone.
+	if (CAMS) setInterval(() => {
+		// Test villagers who show letters have drawn ones, so a mixed window can be tried without a second phone.
 		let k = 0;
-		for (const id of S.bots.keys()) S.faces.set(id, testFace(k++, performance.now(), talking(S.people.get(id) ?? ({} as Person)) > 0.15));
+		for (const id of S.bots.keys()) {
+			const q = S.people.get(id);
+			if (q?.cam !== 'letters') { k++; continue; }
+			S.faces.set(id, testFace(k++, performance.now(), talking(q) > 0.15));
+			S.faceAt.set(id, [3, 2]);
+		}
+		for (const id of [...S.faces.keys()]) if (!S.people.has(id)) { S.faces.delete(id); S.faceAt.delete(id); }
 		for (const id of S.hostWire?.peers() ?? []) {
 			const r = S.people.get(id);
 			if (!r) continue;
@@ -553,13 +578,14 @@ function together(t: Town, a: Person, b: Person): boolean {
 }
 
 /** The faces someone may see: their own, and those of whoever they can hear (everyone, in the circle). Not at night. */
-function facesFor(r: Person): [string, string][] {
-	const out: [string, string][] = [];
-	if (S.phase === 'night' && !r.st) return S.faces.has(r.id) ? [[r.id, S.faces.get(r.id)!]] : [];
-	for (const [id, f] of S.faces) {
+function facesFor(r: Person): [string, string, [number, number] | null][] {
+	const out: [string, string, [number, number] | null][] = [];
+	const one = (id: string): [string, string, [number, number] | null] => [id, S.faces.get(id)!, S.faceAt.get(id) ?? null];
+	if (S.phase === 'night' && !r.st) return S.faces.has(r.id) ? [one(r.id)] : [];
+	for (const id of S.faces.keys()) {
 		const q = S.people.get(id);
-		if (!q) continue;
-		if (id === r.id || S.phase === 'circle' || loudness(lvl(r), r, q, S.phase) > 0) out.push([id, f]);
+		if (!q || q.cam !== 'letters') continue;
+		if (id === r.id || S.phase === 'circle' || loudness(lvl(r), r, q, S.phase) > 0) out.push(one(id));
 	}
 	return out;
 }
@@ -707,7 +733,7 @@ function addBot() {
 	const n = S.bots.size;
 	const id = `bot-${n}-${Math.random().toString(36).slice(2, 6)}`;
 	// In a game, test villagers sit after the real seats.
-	addPerson(id, BOT_NAMES[n % BOT_NAMES.length], { voice: true, hum: 150 + ((n * 67) % 250), ...(S.game ? { seat: 100 + n } : {}) });
+	addPerson(id, BOT_NAMES[n % BOT_NAMES.length], { voice: true, hum: 150 + ((n * 67) % 250), cam: n % 2 ? 'letters' : 'avatar', ...(S.game ? { seat: 100 + n } : {}) });
 	S.bots.set(id, { route: [], rest: 0 });
 	S.dirty = true;
 }
@@ -813,7 +839,10 @@ function onPlayerDown(msg: Down) {
 		S.phase = msg.phase;
 		announcePhase();
 	} else if (msg.t === 'off') hideVillage();
-	else if (msg.t === 'faces') S.faces = new Map(msg.faces);
+	else if (msg.t === 'faces') {
+		S.faces = new Map(msg.faces.map(([id, fr]) => [id, fr]));
+		S.faceAt = new Map(msg.faces.map(([id, , at]) => [id, at]));
+	}
 	else onDown(msg);
 	S.dirty = true;
 }
@@ -1112,7 +1141,7 @@ function villageCells(g: Grid, ui?: Grid): boolean {
 	// screen, whose columns the map gives up; a bar across the top or bottom, whose rows it gives up.
 	const place = resolvePlace(S.cams.place, u.cols, !!ui);
 	camPlace = place;
-	const tileSz = S.cams.look === 'avatar' ? AVATAR_TILE : tileSize(u.cols);
+	const tileSz = AVATAR_TILE;
 	// A strip of its own only when there are faces enough to fill most of it: with just yours (or a few) the
 	// window is a small one in the corner over the map, not a long empty band (Lavender, 16 Nov).
 	const nCams = CAMS && S.cams.open ? camTileCount(p) : 0;
@@ -1291,11 +1320,16 @@ function checkFarFont() { if (!farChecked) { farChecked = true; setFarAscii(!FAR
 
 /** How many tiles the camera window will show: you, those whose faces this phone has (or whom you can hear), an asker. */
 function camTileCount(p: Person): number {
-	const avatars = S.cams.look === 'avatar';
+	const faces = facesSeen(p);
 	let n = 1;
-	for (const q of S.people.values()) if (q.id !== S.me && (avatars ? S.rigs.has(q.id) : loudness(lvl(p), p, q, S.phase) > 0)) n++;
-	if (S.asks.some((id) => S.people.has(id) && id !== S.me && !(avatars ? S.rigs.has(id) : true))) n++;
+	for (const q of S.people.values()) if (q.id !== S.me && (S.rigs.has(q.id) || faces.has(q.id))) n++;
+	if (S.asks.some((id) => S.people.has(id) && id !== S.me && !S.rigs.has(id) && !faces.has(id))) n++;
 	return n;
+}
+/** The letters pictures this phone may show, and where each one's drawn face goes (the host works its own out). */
+function facesSeen(p: Person): Map<string, { f: string; at: [number, number] | null }> {
+	if (S.host) return new Map(facesFor(p).map(([id, fr, at]) => [id, { f: fr, at }]));
+	return new Map([...S.faces].map(([id, fr]) => [id, { f: fr, at: S.faceAt.get(id) ?? null }]));
 }
 
 /** Who is speaking now, held a moment after they stop so the top of the camera list does not flicker. */
@@ -1596,6 +1630,7 @@ async function myCamToggle() {
 		S.cams.folded = false;
 		if (tracked()) void avatarOn();
 	}
+	tellCam();
 	S.dirty = true;
 	drawChrome();
 }
@@ -1603,6 +1638,7 @@ function myCamOff() {
 	if (!myCam.on) return;
 	myCam.stop();
 	avatarOff();
+	tellCam();
 	S.dirty = true;
 }
 
@@ -1620,6 +1656,9 @@ const avatar = {
 	 * frame myCam.snap() copied, the one the letters are drawn from. Not smoothed: smoothing put it behind.
 	 */
 	box: null as { x: number; y: number; w: number; h: number } | null,
+	/** When my letters picture was last sent, and whether one has been (so its end is said). */
+	faceSentAt: 0,
+	faceSent: false,
 	/** When a face was last found, and whether "no face found" has been said since the camera came on. */
 	seenAt: 0,
 	onAt: 0,
@@ -1675,11 +1714,39 @@ function trackerFailed(t: Tracker, why: string) {
 	toast(`Faces stopped (${why.slice(0, 80)}).`);
 	S.dirty = true;
 }
+/** My letters picture is no longer shown: say so, so no phone keeps the last one. */
+function stopLetters() {
+	if (avatar.faceSent) up({ t: 'face', f: null });
+	avatar.faceSent = false;
+}
+/** Tell the host how I am to be seen (again, if what it has differs, a couple of seconds on: a reconnect). */
+let camTold: { cam: CamLook | null; at: number } = { cam: null, at: -1e9 };
+function tellCam() {
+	const p = me();
+	if (!p) return;
+	const want: CamLook | null = myCam.on ? S.cams.look : null;
+	if ((p.cam ?? null) === want && camTold.cam === want) return;
+	const now = performance.now();
+	if (camTold.cam === want && now - camTold.at < 2000) return;
+	camTold = { cam: want, at: now };
+	up({ t: 'cam', cam: want });
+}
+/**
+ * My letters picture to send (FACE_W x FACE_H): from the frame the face was found in, with the face
+ * blanked here, before it goes anywhere; and where the drawn face goes.
+ */
+function lettersOut(src: HTMLCanvasElement, box: { x: number; y: number; w: number; h: number }): { f: string; at: [number, number] } | null {
+	const lum = myCam.lum(FACE_W, FACE_H * 2, src);
+	if (!lum) return null;
+	const o = faceOver(box, src.width, src.height, FACE_W, FACE_H, [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]);
+	return { f: hideFace(toFrame(lum, FACE_W, FACE_H * 2), FACE_W, FACE_H, o), at: [o.x, o.y] };
+}
 function avatarOff() {
 	if (avatar.timer) clearInterval(avatar.timer);
 	avatar.timer = null;
 	avatar.rig = '';
 	avatar.box = null;
+	stopLetters();
 	avatar.seenAt = 0;
 	avatar.told = false;
 	if (avatar.sent) up({ t: 'rig', r: null });
@@ -1720,6 +1787,11 @@ function avatarTick() {
 	}
 	avatar.box = { ...tr.box };
 	avatar.seenAt = t0;
+	// Letters: my picture a few times a second, only ever with a face found (so it is always blanked).
+	if (S.cams.look === 'letters' && v instanceof HTMLCanvasElement && t0 - avatar.faceSentAt >= 300) {
+		const out = lettersOut(v, avatar.box);
+		if (out) { avatar.faceSentAt = t0; avatar.faceSent = true; up({ t: 'face', f: out.f, at: out.at }); }
+	}
 	if (avatar.resync) {
 		avatar.resync = false;
 		t.relearn();
@@ -1730,7 +1802,7 @@ function avatarTick() {
 	const rig = encodeRig(avatar.smoother.push(rigOf(raw, GAINS, avatar.neutral, NO_FLIPS)));
 	if (rig !== avatar.rig) { avatar.rig = rig; S.dirty = true; }
 	const now = performance.now();
-	if (S.cams.look === 'avatar' && rig !== avatar.sent && now - avatar.sentAt >= 60) { avatar.sent = rig; avatar.sentAt = now; up({ t: 'rig', r: rig }); }
+	if (rig !== avatar.sent && now - avatar.sentAt >= 60) { avatar.sent = rig; avatar.sentAt = now; up({ t: 'rig', r: rig }); }
 }
 // A page put out of sight (another app, the phone locked) turns the camera off; it stays off until turned on.
 document.addEventListener('visibilitychange', () => { if (document.hidden && myCam.on) { myCamOff(); drawChrome(); } });
@@ -1738,22 +1810,23 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && myC
 /**
  * The camera window over the map: you, then those close to you (whoever you can hear: voices' rule, so in
  * the circle everyone, at night only the Storyteller in the room they visit, in a private word the two of
- * you). Your tile is your camera once you turn it on; test villagers (and everyone, with stand-ins on) have
- * a drawn face made here; anyone else is their letter: no picture of them reaches this phone.
+ * you). Each is shown as they chose (17 Nov): a face drawn from their numbers, or their letters picture
+ * (their face blanked on their own phone) with a drawn face over it. Nothing else of anyone reaches here.
  */
 function camWindow(g: Grid, area: { x: number; y: number; w: number; h: number }, p: Person, now: number) {
 	camLetters = false;
-	if (!S.cams.open) { camOverlay.show([]); return; }
-	const avatars = S.cams.look === 'avatar';
-	// Avatars: only those whose rig the host passed on (it applies the distance and place rules).
-	const others = [...S.people.values()].filter((q) => q.id !== S.me && (!avatars || S.rigs.has(q.id)))
-		.map((q) => ({ id: q.id, name: q.st ? 'Storyteller' : q.name, loud: avatars ? Math.max(0.01, loudness(lvl(p), p, q, S.phase)) : loudness(lvl(p), p, q, S.phase) }));
-	const close = others.filter((q) => q.loud > 0).length;
-	const tile = avatars ? AVATAR_TILE : undefined;
+	camOverlay.show([]);
+	if (!S.cams.open) return;
+	// Only those whose numbers or picture the host passed on (it applies the distance, place and night rules).
+	const faces = facesSeen(p);
+	const others = [...S.people.values()].filter((q) => q.id !== S.me && (S.rigs.has(q.id) || faces.has(q.id)))
+		.map((q) => ({ id: q.id, name: q.st ? 'Storyteller' : q.name, loud: Math.max(0.01, loudness(lvl(p), p, q, S.phase)) }));
+	const close = others.length;
+	const tile = AVATAR_TILE;
 	// Someone asking you for a word comes right after you, wherever they are, until you answer.
 	const asker = S.asks.find((id) => S.people.has(id) && id !== S.me) ?? null;
 	const L0 = camLayout(area, 1 + close + (asker ? 1 : 0), camPlace, S.cams.folded, tile);
-	if (!L0) { camOverlay.show([]); return; }
+	if (!L0) return;
 	const pick = pickTiles(S.me, others, L0.cap);
 	if (asker) { pick.ids = [S.me, asker, ...pick.ids.filter((id) => id !== S.me && id !== asker)].slice(0, Math.max(2, L0.cap)); }
 	// Whoever is talking goes to the top of the list (you included), held there a moment after they stop.
@@ -1762,8 +1835,7 @@ function camWindow(g: Grid, area: { x: number; y: number; w: number; h: number }
 	const L = camLayout(area, pick.ids.length, camPlace, S.cams.folded, tile)!;
 	/** How loud each is to you: the window fades the farther ones. */
 	const loudOf = new Map(others.map((q) => [q.id, q.loud]));
-	const { tw, th } = L.tiles[0] ? { tw: L.tiles[0].w, th: L.tiles[0].h } : tileSize(area.w);
-	const pictures: PictureTile[] = [];
+	const { tw, th } = L.tiles[0] ? { tw: L.tiles[0].w, th: L.tiles[0].h } : { tw: tile.tw, th: tile.th };
 	const tiles: TileView[] = pick.ids.map((id, i) => {
 		const q = S.people.get(id)!;
 		const self = id === S.me;
@@ -1772,44 +1844,41 @@ function camWindow(g: Grid, area: { x: number; y: number; w: number; h: number }
 		const loud = self ? 1 : loudOf.get(id) ?? 0;
 		const fade = loud >= 0.66 ? undefined : loud >= 0.33 ? 3 : 2;
 		const base = { id, label: self ? 'You' : q.st ? 'Storyteller' : q.name, ink: markOf(q), glyph: (q.name[0] ?? '?').toUpperCase(), talking: talk, fade, asking: id === asker };
-		if (avatars) {
-			const r = L.tiles[i];
-			const fit = r ? detailThatFits(r.w, r.h) : 0;
-			const style = decodeStyle(q.look?.style);
-			if (self) {
-				// Your own tile is always there: your face at rest while the camera is off, so you see your style.
-				const rig = myCam.on ? decodeRig(avatar.rig) : NEUTRAL;
-				if (!rig) return { ...base, kind: 'blank' as const, glyph: '', note: avatar.note.startsWith('loading') ? 'loading' : avatar.note === 'moving to CPU' ? 'CPU...' : avatar.note === 'error' ? 'error' : 'no face' };
-				const { w, h } = DETAIL_SIZE[fit as Detail];
-				// My mouth opens with my voice too, as everyone else's phone opens it with the voice it hears.
-				return fit ? { ...base, label: myCam.on ? 'You' : 'You (off)', kind: 'avatar' as const, cells: drawRig(withVoice(rig, talking(q)), w, h, style) } : { ...base, kind: 'blank' as const };
+		const r = L.tiles[i];
+		const fit = r ? detailThatFits(r.w, r.h) : 0;
+		const style = decodeStyle(q.look?.style);
+		const small = (rig: ReturnType<typeof decodeRig>) => drawRig(withVoice(rig ?? NEUTRAL, talking(q)), 5, 2, style);
+		if (self) {
+			if (myCam.on && S.cams.look === 'letters') {
+				// Mine: from the copy the tracker read (so the face lands on the frame it was found in).
+				const still = avatar.tracker ? myCam.lastSnap : null;
+				const lum = myCam.lum(tw, th * 2, still);
+				if (!lum) return { ...base, kind: 'blank' as const, glyph: '', note: 'starting' };
+				const rig = decodeRig(avatar.rig);
+				const over = rig && still && avatar.box ? faceOver(avatar.box, still.width, still.height, tw, th, small(rig)) : undefined;
+				return { ...base, kind: 'letters' as const, frame: toFrame(lum, tw, th * 2), over };
 			}
-			const got = S.rigs.get(id);
-			// Someone asking from out of sight: their face at rest, so the mark shows.
-			const rig = got ? decodeRig(got.rig) : id === asker ? NEUTRAL : null;
-			const d = Math.min(fit, got?.detail ?? (id === asker ? 2 : 0)) as Detail;
-			if (!rig || !d) return { ...base, kind: 'blank' as const };
-			const { w, h } = DETAIL_SIZE[d];
-			// The mouth opens with the voice this phone hears from them: in step with the sound, nothing sent.
-			return { ...base, kind: 'avatar' as const, cells: drawRig(withVoice(rig, talking(q)), w, h, style) };
+			// Your own tile is always there: your face at rest while the camera is off, so you see your style.
+			const rig = myCam.on ? decodeRig(avatar.rig) : NEUTRAL;
+			if (!rig) return { ...base, kind: 'blank' as const, glyph: '', note: avatar.note.startsWith('loading') ? 'loading' : avatar.note === 'error' ? 'error' : 'no face' };
+			const { w, h } = DETAIL_SIZE[fit as Detail];
+			// My mouth opens with my voice too, as everyone else's phone opens it with the voice it hears.
+			return fit ? { ...base, label: myCam.on ? 'You' : 'You (off)', kind: 'avatar' as const, cells: drawRig(withVoice(rig, talking(q)), w, h, style) } : { ...base, kind: 'blank' as const };
 		}
-		const stand = !self && (S.bots.has(id) || S.cams.standIns);
-		if (self && !myCam.on) return { ...base, kind: 'blank' as const, glyph: '', note: 'camera off' };
-		if (!self && !stand) return { ...base, kind: 'blank' as const, note: 'no picture' };
-		if (self && !myCam.picture) return { ...base, kind: 'blank' as const, glyph: '', note: 'starting' };
-		if (S.cams.look === 'video') {
-			const r = L.tiles[i];
-			if (r) pictures.push({ key: id + (self ? ':cam' : ':stand'), rect: r, paint: self ? paintCamera(myCam.picture!) : paintStandIn(standInOf(id), () => talking(q) > 0.15) });
-			return { ...base, kind: 'video' as const };
+		const got = S.rigs.get(id);
+		const lf = q.cam === 'letters' ? faces.get(id) : undefined;
+		if (lf) {
+			// Their letters picture (their face already blanked on their phone), their drawn face over it.
+			const over = lf.at ? overAt(lf.at, FACE_W, FACE_H, tw, th, small(got ? decodeRig(got.rig) : null)) : undefined;
+			return { ...base, kind: 'letters' as const, frame: resample(lf.f, FACE_W, FACE_H, tw, th), over };
 		}
-		camLetters = true;
-		// Mine: from the copy the tracker read, while it runs (so the face lands on the frame it was found in).
-		const still = self && avatar.tracker ? myCam.lastSnap : null;
-		const lum = self ? myCam.lum(tw, th * 2, still) : standIn(standInOf(id), now, talk, tw, th * 2);
-		if (!lum) return { ...base, kind: 'blank' as const, note: 'starting' };
-		const rig = self ? decodeRig(avatar.rig) : null;
-		const over = rig && still && avatar.box ? faceOver(avatar.box, still.width, still.height, tw, th, drawRig(withVoice(rig, talking(q)), 5, 2, decodeStyle(q.look?.style))) : undefined;
-		return { ...base, kind: 'letters' as const, frame: toFrame(lum, tw, th * 2), over };
+		// Someone asking from out of sight: their face at rest, so the mark shows.
+		const rig = got ? decodeRig(got.rig) : id === asker ? NEUTRAL : null;
+		const d = Math.min(fit, got?.detail ?? (id === asker ? 2 : 0)) as Detail;
+		if (!rig || !d) return { ...base, kind: 'blank' as const };
+		const { w, h } = DETAIL_SIZE[d];
+		// The mouth opens with the voice this phone hears from them: in step with the sound, nothing sent.
+		return { ...base, kind: 'avatar' as const, cells: drawRig(withVoice(rig, talking(q)), w, h, style) };
 	});
 	const title = S.phase === 'circle' ? 'The circle' : S.phase === 'night' ? 'Night' : p.with ? 'Private' : 'Near you';
 	drawCamWindow(g, L, {
@@ -1817,7 +1886,7 @@ function camWindow(g: Grid, area: { x: number; y: number; w: number; h: number }
 		onMove: () => { S.cams.place = nextPlace(S.cams.place); store.set('grimoire.camsPlace', S.cams.place); S.dirty = true; redraw(); },
 		onFold: () => { S.cams.folded = !S.cams.folded; S.dirty = true; redraw(); },
 		onClose: () => act('cams-open'),
-		onSync: S.cams.look !== 'video' && myCam.on ? resyncFace : undefined,
+		onSync: myCam.on ? resyncFace : undefined,
 		onTile: (id) => {
 			if (id === S.me) { S.sheet = 'cams'; S.stOpen = false; drawChrome(); return; }
 			S.named = { id, until: performance.now() + 2500 };
@@ -1825,9 +1894,7 @@ function camWindow(g: Grid, area: { x: number; y: number; w: number; h: number }
 			S.dirty = true;
 		}
 	});
-	if (avatars && tiles.some((t) => t.kind === 'avatar')) camLetters = true;
-	if (S.cams.folded) camLetters = false;
-	camOverlay.show(S.cams.folded ? [] : pictures);
+	camLetters = !S.cams.folded && tiles.some((t) => t.kind === 'avatar' || t.kind === 'letters');
 }
 
 /** Wall joins by mask (1 up, 2 right, 4 down, 8 left) as CP437 line glyphs. */
@@ -1993,18 +2060,19 @@ function sheetRows(): Row[] {
 		// Short and grouped: your camera, then the window. Only numbers about your face are ever sent.
 		const b = (label: string, a: string, on = false) => btn(label, () => act(a), { style: on ? 'on' : undefined });
 		const avatarMode = S.cams.look === 'avatar';
-		const rows: Row[] = [rubric('My camera'), ...prose(avatarMode ? 'Read here into numbers; only those are sent.' + (avatar.note ? ' (' + avatar.note + ')' : '') : 'Shown on this phone only.', 'dim')];
+		const said = avatarMode ? 'Everyone near sees your drawn face; only numbers about your face are sent.'
+			: 'Everyone near sees you in letters, your face hidden behind a drawn one (hidden here, before anything is sent).';
+		const rows: Row[] = [rubric('My camera'), ...prose(said + (avatar.note ? ' (' + avatar.note + ')' : ''), 'dim')];
 		rows.push(buttonBlock([
 			b(myCam.on ? 'Camera: on' : 'Camera: off', 'cams-cam', myCam.on),
-			...(S.cams.look !== 'video' && myCam.on ? [b('Resync', 'cams-resync')] : []),
+			b(avatarMode ? 'Seen as: face' : 'Seen as: letters', 'cams-look', avatarMode),
+			...(myCam.on ? [b('Resync', 'cams-resync')] : []),
 		]));
 		rows.push(endPanel(), rubric('Window'));
 		rows.push(buttonBlock([
 			b(S.cams.open ? 'Shown' : 'Hidden', 'cams-open', S.cams.open),
 			b('Place: ' + PLACE_SHORT[S.cams.place], 'cams-corner'),
-			b(avatarMode ? 'Faces' : S.cams.look === 'video' ? 'Pictures' : 'Letters', 'cams-look', avatarMode),
-			...(S.host && avatarMode ? [b(S.cams.places === 'talk' ? 'Show: talking' : 'Show: earshot', 'cams-places', S.cams.places === 'talk')] : []),
-			...(S.bots.size ? [b(S.cams.standIns ? 'Stand-ins: on' : 'Stand-ins: off', 'cams-standins', S.cams.standIns)] : [])
+			...(S.host ? [b(S.cams.places === 'talk' ? 'Show: talking' : 'Show: earshot', 'cams-places', S.cams.places === 'talk')] : [])
 		]));
 		return [close('sheet-close'), ...rows, endPanel()];
 	}
@@ -2117,6 +2185,7 @@ setInterval(() => {
 	if (!S.town || !me()) return;
 	const hear = hearList();
 	if (S.voice) S.voice.update(hear.map(({ q, loud }) => ({ id: q.id, loud, hum: q.hum, cut: S.phase === 'night' && loud <= 0 })));
+	tellCam();
 	drawChromeIfChanged();
 	if (S.voice) S.dirty = true;
 }, 200);
@@ -2203,15 +2272,16 @@ function act(a: string, id = '') {
 		case 'cams-cam': void myCamToggle(); break;
 		case 'cams-resync': resyncFace(); S.sheet = null; drawChrome(); break;
 		case 'cams-look':
-			S.cams.look = S.cams.look === 'avatar' ? 'video' : S.cams.look === 'video' ? 'letters' : 'avatar';
+			S.cams.look = S.cams.look === 'avatar' ? 'letters' : 'avatar';
 			store.set('grimoire.camsLook', S.cams.look);
-			if (tracked() && myCam.on) void avatarOn(); else avatarOff();
+			if (S.cams.look === 'avatar') stopLetters();
+			if (myCam.on) void avatarOn();
+			tellCam();
 			S.dirty = true; drawChrome(); break;
 		case 'cams-places':
 			S.cams.places = S.cams.places === 'talk' ? 'earshot' : 'talk';
 			store.set('grimoire.avatarPlaces', S.cams.places);
 			S.dirty = true; drawChrome(); break;
-		case 'cams-standins': S.cams.standIns = !S.cams.standIns; S.dirty = true; drawChrome(); break;
 		case 'cams-corner': S.cams.place = nextPlace(S.cams.place); store.set('grimoire.camsPlace', S.cams.place); S.dirty = true; drawChrome(); break;
 		case 'more': S.sheet = S.sheet === 'more' ? null : 'more'; S.stOpen = false; drawChrome(); break;
 		case 'sheet-close': S.sheet = null; drawChrome(); break;

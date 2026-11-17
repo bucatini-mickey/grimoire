@@ -7,7 +7,7 @@ import {
 	bestPatch, blend, boxDown, cellGlyph, DEFAULTS, DENSE, embedHtml, exposure, fixedCrop, follow, hexFrame, isSkin, luma,
 	outside, playerHtml, quantize, RAMP, rowsFor, SKIN_START, squareAround, toFrame, toHtml, toLevels
 } from '../src/avatar/asciiavatar.ts';
-import { cellOf, faceCell, faceOver } from '../src/town/faces.ts';
+import { cellOf, faceCell, faceOver, hideFace, inOval, overAt, resample } from '../src/town/faces.ts';
 
 const root = new URL('..', import.meta.url);
 const read = (p: string) => readFileSync(new URL(p, root), 'utf8');
@@ -240,4 +240,24 @@ test('Letters: the drawn face goes over yours, mirrored, and an oval hides your 
 	// The face on the picture's left is on the tile's right (the tile is a mirror).
 	const left = faceOver({ x: 0.15, y: 0.3, w: 0.2, h: 0.3 }, 640, 480, 12, 6, cells);
 	assert.ok(left.cx > mid.cx + 1, JSON.stringify(left));
+});
+
+test('Letters sent to others: the face is blanked before it leaves, and lands where the sender put it', () => {
+	const W = 12, H = 6, full = 'f'.repeat(W * H * 2);
+	const o = faceOver({ x: 0.4, y: 0.3, w: 0.2, h: 0.3 }, 640, 480, W, H, [[1, 2, 3, 4, 5], [1, 2, 3, 4, 5]]);
+	const hid = hideFace(full, W, H, o);
+	let blanked = 0;
+	for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+		const both = hid[x + 2 * y * W] + hid[x + (2 * y + 1) * W];
+		if (inOval(o, x, y)) { assert.equal(both, '00'); blanked++; } else assert.equal(both, 'ff');
+	}
+	assert.ok(blanked >= 4, 'the face cells are blank');
+	// Any tile size: a 12 x 6 picture drawn at 10 x 5 keeps its blank where the face is.
+	const small = resample(hid, W, H, 10, 5);
+	assert.equal(small.length, 10 * 5 * 2);
+	const at = overAt([o.x, o.y], W, H, 10, 5, [[1, 2, 3, 4, 5], [1, 2, 3, 4, 5]]);
+	assert.equal(small[Math.floor(at.cx) + 2 * Math.floor(at.cy) * 10], '0', JSON.stringify(at));
+	// The same size: the face goes exactly where it was.
+	const same = overAt([o.x, o.y], W, H, W, H, [[1, 2, 3, 4, 5], [1, 2, 3, 4, 5]]);
+	assert.deepEqual([same.x, same.y], [o.x, o.y]);
 });
