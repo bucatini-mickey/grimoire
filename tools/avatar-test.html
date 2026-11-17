@@ -994,6 +994,74 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
       throw e;
     }));
   }
+  function hasWebGL2() {
+    try {
+      return !!document.createElement("canvas").getContext("webgl2");
+    } catch {
+      return false;
+    }
+  }
+  var MpTask = class {
+    constructor() {
+      __publicField(this, "task", null);
+      __publicField(this, "make", null);
+      __publicField(this, "delegate", "GPU");
+      /** Set while the CPU task is being made; why it could not be, if it failed. */
+      __publicField(this, "moving", false);
+      __publicField(this, "failed", "");
+    }
+    async start(make) {
+      this.make = make;
+      if (hasWebGL2()) {
+        try {
+          this.task = await make("GPU");
+          this.delegate = "GPU";
+          return "GPU";
+        } catch {
+        }
+      }
+      this.task = await make("CPU");
+      this.delegate = "CPU";
+      return "CPU (no GPU)";
+    }
+    /** One frame's result, or null while moving to the CPU. Throws only if the CPU fails too. */
+    detect(src, t) {
+      if (this.failed) throw new Error(this.failed);
+      if (!this.task) return null;
+      try {
+        return this.task.detectForVideo(src, t);
+      } catch (e) {
+        if (this.delegate === "CPU" || !this.make) throw e;
+        const old = this.task;
+        this.task = null;
+        try {
+          old.close?.();
+        } catch {
+        }
+        this.delegate = "CPU";
+        this.moving = true;
+        this.make("CPU").then((task) => {
+          this.task = task;
+        }, (err) => {
+          this.failed = "GPU failed, then CPU: " + (err?.message ?? String(err));
+        }).finally(() => {
+          this.moving = false;
+        });
+        return null;
+      }
+    }
+    get note() {
+      return this.moving ? "moving to CPU" : void 0;
+    }
+    close() {
+      try {
+        this.task?.close?.();
+      } catch {
+      }
+      this.task = null;
+      this.make = null;
+    }
+  };
   async function fetchModel(url) {
     const r = await fetch(url);
     if (!r.ok) throw new Error(`${url}: ${r.status}`);
@@ -1065,7 +1133,7 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
   var LandmarkerTracker = class {
     constructor() {
       __publicField(this, "name", "landmarker");
-      __publicField(this, "fl", null);
+      __publicField(this, "fl", new MpTask());
       __publicField(this, "shut", 0.55);
       /** Brows and smile against their resting levels (glasses, resting faces). */
       __publicField(this, "centre", new Recentre());
@@ -1081,22 +1149,16 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
         outputFaceBlendshapes: true,
         outputFacialTransformationMatrixes: true
       });
-      let note = "GPU";
-      try {
-        this.fl = await mod.FaceLandmarker.createFromOptions(fileset, opts("GPU"));
-      } catch {
-        this.fl = await mod.FaceLandmarker.createFromOptions(fileset, opts("CPU"));
-        note = "CPU (no GPU)";
-      }
+      const note = await this.fl.start((d) => mod.FaceLandmarker.createFromOptions(fileset, opts(d)));
       const files = withModel(downloaded(fromMediaPipe).filter((f) => !f.url.includes("blaze_face")), MODEL_URL.landmarker, model.byteLength);
       return { bytes: files.reduce((a, f) => a + f.bytes, 0), ms: performance.now() - t0, files, note };
     }
     track(src, sw, sh, t) {
       const t0 = performance.now();
-      const r = this.fl.detectForVideo(src, t);
+      const r = this.fl.detect(src, t);
       const ms = performance.now() - t0;
-      const lm = r.faceLandmarks?.[0];
-      if (!lm) return { raw: null, points: [], box: null, ms };
+      const lm = r?.faceLandmarks?.[0];
+      if (!lm) return { raw: null, points: [], box: null, ms, note: this.fl.note };
       const cats = r.faceBlendshapes?.[0]?.categories ?? [];
       const m = r.facialTransformationMatrixes?.[0]?.data ?? null;
       const points = [33, 133, 362, 263, 1, 61, 291, 152, 10].map((i) => lm[i]).filter(Boolean);
@@ -1113,14 +1175,13 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
       this.centre.reset();
     }
     close() {
-      this.fl?.close?.();
-      this.fl = null;
+      this.fl.close();
     }
   };
   var BlazeTracker = class {
     constructor() {
       __publicField(this, "name", "blazeface");
-      __publicField(this, "fd", null);
+      __publicField(this, "fd", new MpTask());
       __publicField(this, "px", new PixelFeatures());
       __publicField(this, "rest", 0.5);
     }
@@ -1129,21 +1190,15 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
       const { mod, fileset } = await visionRuntime();
       const model = await fetchModel(MODEL_URL.blazeface);
       const opts = (delegate) => ({ baseOptions: { modelAssetBuffer: model, delegate }, runningMode: "VIDEO", minDetectionConfidence: 0.4 });
-      let note = "GPU";
-      try {
-        this.fd = await mod.FaceDetector.createFromOptions(fileset, opts("GPU"));
-      } catch {
-        this.fd = await mod.FaceDetector.createFromOptions(fileset, opts("CPU"));
-        note = "CPU (no GPU)";
-      }
+      const note = await this.fd.start((d) => mod.FaceDetector.createFromOptions(fileset, opts(d)));
       const files = withModel(downloaded(fromMediaPipe).filter((f) => !f.url.includes("face_landmarker")), MODEL_URL.blazeface, model.byteLength);
       return { bytes: files.reduce((a, f) => a + f.bytes, 0), ms: performance.now() - t0, files, note };
     }
     track(src, sw, sh, t) {
       const t0 = performance.now();
-      const r = this.fd.detectForVideo(src, t);
-      const det = r.detections?.[0];
-      if (!det || (det.keypoints?.length ?? 0) < 4) return { raw: null, points: [], box: null, ms: performance.now() - t0 };
+      const r = this.fd.detect(src, t);
+      const det = r?.detections?.[0];
+      if (!det || (det.keypoints?.length ?? 0) < 4) return { raw: null, points: [], box: null, ms: performance.now() - t0, note: this.fd.note };
       const k = det.keypoints.map((p) => ({ x: p.x, y: p.y }));
       const pose = poseFromPoints({ eyeA: k[0], eyeB: k[1], nose: k[2], mouth: k[3] }, sw / sh, this.rest);
       const px = (p) => ({ x: p.x * sw, y: p.y * sh });
@@ -1157,8 +1212,7 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
       this.px.relearn();
     }
     close() {
-      this.fd?.close?.();
-      this.fd = null;
+      this.fd.close();
     }
   };
   var PixelTracker = class {

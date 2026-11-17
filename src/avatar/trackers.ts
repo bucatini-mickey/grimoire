@@ -338,7 +338,7 @@ export const TRACKER_NAMES: TrackerName[] = ['landmarker', 'blazeface', 'pixel']
 export const TRACKER_LABEL: Record<TrackerName, string> = { landmarker: 'Face Landmarker', blazeface: 'BlazeFace + pixels', pixel: 'Pixels only' };
 
 /** What one frame gave: the measures (null when no face was found) and, for showing, the points used. */
-export interface Track { raw: Raw | null; points: Pt[]; box: { x: number; y: number; w: number; h: number } | null; ms: number; }
+export interface Track { raw: Raw | null; points: Pt[]; box: { x: number; y: number; w: number; h: number } | null; ms: number; note?: string; }
 
 /** What loading a tracker cost. */
 export interface Loaded { bytes: number; ms: number; files: { url: string; bytes: number }[]; note: string; }
@@ -365,6 +365,56 @@ function visionRuntime() {
 		const fileset = await mod.FilesetResolver.forVisionTasks(`${MP_BASE}/wasm`);
 		return { mod, fileset };
 	})().catch((e) => { vision = null; throw e; }));
+}
+
+/** Whether this browser can make a WebGL2 context (MediaPipe's GPU path needs one). */
+function hasWebGL2(): boolean {
+	try { return !!document.createElement('canvas').getContext('webgl2'); } catch { return false; }
+}
+
+/**
+ * A MediaPipe task (Face Landmarker or Face Detector) on the GPU if it works, else the CPU. The GPU can
+ * also fail later, on a frame, not at start (17 Nov, Rosemary: "Cannot read properties of undefined
+ * (reading 'activeTexture')", then "memory access out of bounds" as its broken wasm was used again): then
+ * the task is dropped, a CPU one is made in the background, and frames meanwhile find nothing.
+ */
+class MpTask {
+	private task: any = null;
+	private make: ((d: 'GPU' | 'CPU') => Promise<any>) | null = null;
+	delegate: 'GPU' | 'CPU' = 'GPU';
+	/** Set while the CPU task is being made; why it could not be, if it failed. */
+	moving = false;
+	failed = '';
+
+	async start(make: (d: 'GPU' | 'CPU') => Promise<any>): Promise<string> {
+		this.make = make;
+		if (hasWebGL2()) {
+			try { this.task = await make('GPU'); this.delegate = 'GPU'; return 'GPU'; } catch { /* the CPU below */ }
+		}
+		this.task = await make('CPU');
+		this.delegate = 'CPU';
+		return 'CPU (no GPU)';
+	}
+
+	/** One frame's result, or null while moving to the CPU. Throws only if the CPU fails too. */
+	detect(src: HTMLVideoElement | HTMLCanvasElement, t: number): any | null {
+		if (this.failed) throw new Error(this.failed);
+		if (!this.task) return null;
+		try { return this.task.detectForVideo(src, t); } catch (e) {
+			if (this.delegate === 'CPU' || !this.make) throw e;
+			const old = this.task;
+			this.task = null;
+			try { old.close?.(); } catch { /* broken already */ }
+			this.delegate = 'CPU';
+			this.moving = true;
+			this.make('CPU').then((task) => { this.task = task; }, (err) => { this.failed = 'GPU failed, then CPU: ' + ((err as Error)?.message ?? String(err)); })
+				.finally(() => { this.moving = false; });
+			return null;
+		}
+	}
+
+	get note(): string | undefined { return this.moving ? 'moving to CPU' : undefined; }
+	close() { try { this.task?.close?.(); } catch { /* gone */ } this.task = null; this.make = null; }
 }
 
 /** A model's bytes, fetched here so its size is known exactly. */
@@ -450,7 +500,7 @@ class PixelFeatures {
 /** MediaPipe Face Landmarker: blendshapes and the head's transform. */
 export class LandmarkerTracker implements Tracker {
 	readonly name = 'landmarker' as const;
-	private fl: any = null;
+	private fl = new MpTask();
 	shut = 0.55;
 	/** Brows and smile against their resting levels (glasses, resting faces). */
 	centre = new Recentre();
@@ -463,18 +513,17 @@ export class LandmarkerTracker implements Tracker {
 			baseOptions: { modelAssetBuffer: model, delegate }, runningMode: 'VIDEO', numFaces: 1,
 			outputFaceBlendshapes: true, outputFacialTransformationMatrixes: true
 		});
-		let note = 'GPU';
-		try { this.fl = await mod.FaceLandmarker.createFromOptions(fileset, opts('GPU')); } catch { this.fl = await mod.FaceLandmarker.createFromOptions(fileset, opts('CPU')); note = 'CPU (no GPU)'; }
+		const note = await this.fl.start((d) => mod.FaceLandmarker.createFromOptions(fileset, opts(d)));
 		const files = withModel(downloaded(fromMediaPipe).filter((f) => !f.url.includes('blaze_face')), MODEL_URL.landmarker, model.byteLength);
 		return { bytes: files.reduce((a, f) => a + f.bytes, 0), ms: performance.now() - t0, files, note };
 	}
 
 	track(src: HTMLVideoElement | HTMLCanvasElement, sw: number, sh: number, t: number): Track {
 		const t0 = performance.now();
-		const r = this.fl.detectForVideo(src, t);
+		const r = this.fl.detect(src, t);
 		const ms = performance.now() - t0;
-		const lm: Pt[] | undefined = r.faceLandmarks?.[0];
-		if (!lm) return { raw: null, points: [], box: null, ms };
+		const lm: Pt[] | undefined = r?.faceLandmarks?.[0];
+		if (!lm) return { raw: null, points: [], box: null, ms, note: this.fl.note };
 		const cats: Category[] = r.faceBlendshapes?.[0]?.categories ?? [];
 		const m = r.facialTransformationMatrixes?.[0]?.data ?? null;
 		// A few points to show: eye corners, nose tip, mouth corners, chin, brow.
@@ -484,13 +533,13 @@ export class LandmarkerTracker implements Tracker {
 		return { raw: this.centre.push(rawFromBlendshapes(cats, m, this.shut, lm)), points, box: { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }, ms };
 	}
 	relearn() { this.centre.reset(); }
-	close() { this.fl?.close?.(); this.fl = null; }
+	close() { this.fl.close(); }
 }
 
 /** BlazeFace: a box and six points from MediaPipe; eyes and mouth from the pixels. */
 export class BlazeTracker implements Tracker {
 	readonly name = 'blazeface' as const;
-	private fd: any = null;
+	private fd = new MpTask();
 	private px = new PixelFeatures();
 	rest = 0.5;
 
@@ -499,17 +548,16 @@ export class BlazeTracker implements Tracker {
 		const { mod, fileset } = await visionRuntime();
 		const model = await fetchModel(MODEL_URL.blazeface);
 		const opts = (delegate: 'GPU' | 'CPU') => ({ baseOptions: { modelAssetBuffer: model, delegate }, runningMode: 'VIDEO', minDetectionConfidence: 0.4 });
-		let note = 'GPU';
-		try { this.fd = await mod.FaceDetector.createFromOptions(fileset, opts('GPU')); } catch { this.fd = await mod.FaceDetector.createFromOptions(fileset, opts('CPU')); note = 'CPU (no GPU)'; }
+		const note = await this.fd.start((d) => mod.FaceDetector.createFromOptions(fileset, opts(d)));
 		const files = withModel(downloaded(fromMediaPipe).filter((f) => !f.url.includes('face_landmarker')), MODEL_URL.blazeface, model.byteLength);
 		return { bytes: files.reduce((a, f) => a + f.bytes, 0), ms: performance.now() - t0, files, note };
 	}
 
 	track(src: HTMLVideoElement | HTMLCanvasElement, sw: number, sh: number, t: number): Track {
 		const t0 = performance.now();
-		const r = this.fd.detectForVideo(src, t);
-		const det = r.detections?.[0];
-		if (!det || (det.keypoints?.length ?? 0) < 4) return { raw: null, points: [], box: null, ms: performance.now() - t0 };
+		const r = this.fd.detect(src, t);
+		const det = r?.detections?.[0];
+		if (!det || (det.keypoints?.length ?? 0) < 4) return { raw: null, points: [], box: null, ms: performance.now() - t0, note: this.fd.note };
 		// MediaPipe's order: right eye, left eye, nose tip, mouth, right ear, left ear (0..1).
 		const k: Pt[] = det.keypoints.map((p: Pt) => ({ x: p.x, y: p.y }));
 		const pose = poseFromPoints({ eyeA: k[0], eyeB: k[1], nose: k[2], mouth: k[3] }, sw / sh, this.rest);
@@ -521,7 +569,7 @@ export class BlazeTracker implements Tracker {
 		return { raw: { ...f, ...pose, browL: 0, browR: 0 }, points: k, box, ms: performance.now() - t0 };
 	}
 	relearn() { this.px.relearn(); }
-	close() { this.fd?.close?.(); this.fd = null; }
+	close() { this.fd.close(); }
 }
 
 /**

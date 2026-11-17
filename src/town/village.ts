@@ -1654,6 +1654,17 @@ async function avatarOn() {
 	S.dirty = true;
 	drawChrome();
 }
+/** The tracker failed on a frame and could not mend itself: say so, and use pixels instead. */
+function trackerFailed(t: Tracker, why: string) {
+	if (avatar.tracker !== t || t.name === 'pixel') return;
+	t.close();
+	const px = makeTracker('pixel');
+	avatar.tracker = null;
+	avatar.note = 'error';
+	toast(`${TRACKER_LABEL[t.name]} failed (${why.slice(0, 80)}): pixels instead.`);
+	S.dirty = true;
+	void px.load().then(() => { if (!avatar.tracker && avatar.timer) { avatar.tracker = px; avatar.note = ''; avatar.smoother.reset(); S.dirty = true; } });
+}
 function avatarOff() {
 	if (avatar.timer) clearInterval(avatar.timer);
 	avatar.timer = null;
@@ -1664,8 +1675,15 @@ function avatarOff() {
 function avatarTick() {
 	const v = myCam.picture, t = avatar.tracker;
 	if (!v || !t || S.cams.look !== 'avatar') return;
-	let raw;
-	try { raw = t.track(v, v.videoWidth, v.videoHeight, performance.now()).raw; } catch { return; }
+	let tr;
+	try { tr = t.track(v, v.videoWidth, v.videoHeight, performance.now()); } catch (e) {
+		// Said, not hidden (17 Nov: a broken GPU read as "no face" on Rosemary): pixels from here on.
+		trackerFailed(t, (e as Error)?.message ?? String(e));
+		return;
+	}
+	const note = tr.note ?? '';
+	if (note !== avatar.note) { avatar.note = note; S.dirty = true; }
+	const raw = tr.raw;
 	if (!raw) return;
 	if (avatar.resync) {
 		avatar.resync = false;
@@ -1726,7 +1744,7 @@ function camWindow(g: Grid, area: { x: number; y: number; w: number; h: number }
 			if (self) {
 				// Your own tile is always there: your face at rest while the camera is off, so you see your style.
 				const rig = myCam.on ? decodeRig(avatar.rig) : NEUTRAL;
-				if (!rig) return { ...base, kind: 'blank' as const, glyph: '', note: avatar.note ? 'loading' : 'no face' };
+				if (!rig) return { ...base, kind: 'blank' as const, glyph: '', note: avatar.note.startsWith('loading') ? 'loading' : avatar.note === 'moving to CPU' ? 'CPU...' : avatar.note === 'error' ? 'error' : 'no face' };
 				const { w, h } = DETAIL_SIZE[fit as Detail];
 				// My mouth opens with my voice too, as everyone else's phone opens it with the voice it hears.
 				return fit ? { ...base, label: myCam.on ? 'You' : 'You (off)', kind: 'avatar' as const, cells: drawRig(withVoice(rig, talking(q)), w, h, style) } : { ...base, kind: 'blank' as const };

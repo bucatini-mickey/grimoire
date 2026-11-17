@@ -102,6 +102,10 @@ export class FaceCam {
 		v.muted = true;
 		v.playsInline = true;
 		v.srcObject = this.stream;
+		// On the page but out of sight: some phone browsers give no frames from a video that is not on it.
+		v.setAttribute('aria-hidden', 'true');
+		v.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:0.01;pointer-events:none;z-index:-1';
+		document.body.appendChild(v);
 		await v.play().catch(() => {});
 		this.video = v;
 		return true;
@@ -110,6 +114,7 @@ export class FaceCam {
 	stop() {
 		for (const t of this.stream?.getTracks() ?? []) t.stop();
 		this.stream = null;
+		this.video?.remove();
 		this.video = null;
 	}
 
