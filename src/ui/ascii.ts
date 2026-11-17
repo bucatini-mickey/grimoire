@@ -1261,8 +1261,12 @@ function scriptTitle(g: Grid, x0: number, w: number, y: number) {
 }
 
 
-/** A text field: tap it to type; the hidden input echoes into these cells. */
-export function field(id: string, label: string, value: string, set: (v: string) => void, max = 14, placeholder = ''): Row {
+/**
+ * A text field: tap it to type; the hidden input echoes into these cells. With `live`, every
+ * keystroke is handed on as it is typed (a search that narrows as you go), not only the last.
+ */
+export function field(id: string, label: string, value: string, set: (v: string) => void, max = 14, placeholder = '', live?: (v: string) => void): Row {
+	if (live) liveFields.set(id, live); else liveFields.delete(id);
 	return blockRow(3, (c) => {
 		const active = term?.editing && fieldId === id;
 		const shown = active ? term!.entry : value;
@@ -1280,6 +1284,11 @@ export function field(id: string, label: string, value: string, set: (v: string)
 	});
 }
 let fieldId = '';
+/** Fields that hear each keystroke. The grid's hidden input is its own; its input events bubble up to here. */
+const liveFields = new Map<string, (v: string) => void>();
+if (typeof document !== 'undefined') document.addEventListener('input', () => {
+	if (term?.editing) liveFields.get(fieldId)?.(term.entry);
+});
 
 /**
  * The corners of a panel: small gilt bosses, as on the corners of a bound book,
