@@ -42,7 +42,8 @@ pre { margin: 0; line-height: 1.15; overflow-x: auto; }
 .trials { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; margin: 6px 0; }
 .trials figure { margin: 0; }
 .trials figcaption { font-size: 12px; color: var(--dim); margin-top: 4px; }
-#trialStyle { display: flex; flex-wrap: wrap; gap: 6px; }
+.parts { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.parts button { min-height: 30px; padding: 3px 8px; font-size: 13px; text-align: left; }
 .d { color: #2a3040; }
 .g { color: var(--bg); } .o { color: #8a8f9c; } .f { color: var(--bright); } .h { color: #b08a5a; }
 #hex { color: var(--gold); font-size: 18px; letter-spacing: 0.1em; }
@@ -82,14 +83,8 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
 	</div>
 	<div class="box" style="grid-column: 1 / -1">
 		<h2>Trial: a smaller main face in the far face's letters</h2>
-		<p class="dim">Same size text as the village. Now: today's 10x5 face. A to C: smaller ones in the M4 letters (◠ ò ó ɷ ◡ ◠ ㅁ ㅇ ᗜ), eyes still glancing aside, ᵒ looking up and ₒ down. Tap a part to cycle it.</p>
-		<div class="trials">
-			<figure><pre id="trialNow" class="tile"></pre><figcaption>Now, 10x5</figcaption></figure>
-			<figure><pre id="trialA" class="tile"></pre><figcaption>A. 7x4, letter as nose</figcaption></figure>
-			<figure><pre id="trialB" class="tile"></pre><figcaption>B. 7x5, A with hair</figcaption></figure>
-			<figure><pre id="trialC" class="tile"></pre><figcaption>C. 7x3, letter in the name</figcaption></figure>
-		</div>
-		<div id="trialStyle"></div>
+		<p class="dim">Same size text as the village. Now: today's 10x5 face. Round 2: the 7x4 face, then taller ones that give a beard a row (7x5), hair a row (7x6), and long hair room to fall (7x7). Eyes still glance aside, ᵒ looking up and ₒ down. Tap a part under a face to cycle it.</p>
+		<div class="trials" id="trials"></div>
 	</div>
 	<div class="box">
 		<h2>In the village: your letter tile, with a face</h2>
@@ -386,22 +381,49 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
 
   // src/avatar/trialface.ts
   var TRIAL_PLAIN = { hair: 0, brow: 0, glasses: 0, tache: 0, beard: 0 };
-  var TRIAL_NAMES = {
-    hair: ["None", "Fringe", "Parted", "Spiky", "Curly", "Bob", "Bald"],
-    brow: ["Line", "Thick", "Wavy", "Bushy", "Thin", "None"],
-    glasses: ["None", "Round", "Square", "Shades", "Wire"],
-    tache: ["None", "Pencil", "Bushy", "Handlebar", "Walrus"],
-    beard: ["None", "Goatee", "Chinstrap", "Full", "Stubble"]
-  };
-  var HAIR = ["", " ~~~~~ ", "///.\\\\\\", "ʌʌʌʌʌʌʌ", "◠◡◠◡◠◡◠", "(‾‾‾‾‾)", "  .-.  "];
+  var BEARD4 = ["None", "Stubble", "Chinstrap", "Mutton chops", "Full", "Long sides"];
+  var BEARD = ["None", "Stubble", "Goatee", "Soul patch", "Chinstrap", "Short full", "Full", "Long", "Mutton chops"];
+  var HAIR6 = ["None", "Crop", "Side part", "Quiff", "Curly", "Spiky", "Mohawk", "Receding", "Bald"];
+  var HAIR7 = [...HAIR6, "Bob", "Long", "Long waves", "Plaits", "Bun"];
+  var TRIALS = [
+    { kind: "4", label: "7x4", w: 7, h: 4, names: { hair: ["None"], brow: BROW_NAMES(), glasses: GLASSES_NAMES(), tache: TACHE_NAMES(), beard: BEARD4 } },
+    { kind: "5", label: "7x5, beard row", w: 7, h: 5, names: { hair: ["None"], brow: BROW_NAMES(), glasses: GLASSES_NAMES(), tache: TACHE_NAMES(), beard: BEARD } },
+    { kind: "6", label: "7x6, hair and beard rows", w: 7, h: 6, names: { hair: HAIR6, brow: BROW_NAMES(), glasses: GLASSES_NAMES(), tache: TACHE_NAMES(), beard: BEARD } },
+    { kind: "7", label: "7x7, long hair", w: 7, h: 7, names: { hair: HAIR7, brow: BROW_NAMES(), glasses: GLASSES_NAMES(), tache: TACHE_NAMES(), beard: BEARD } }
+  ];
+  function BROW_NAMES() {
+    return ["Line", "Thick", "Wavy", "Bushy", "Thin", "None"];
+  }
+  function GLASSES_NAMES() {
+    return ["None", "Round", "Square", "Shades", "Wire"];
+  }
+  function TACHE_NAMES() {
+    return ["None", "Pencil", "Bushy", "Handlebar", "Walrus"];
+  }
   var FILL = ["_", "=", "~", "#", ".", " "];
   var FRAMES = [null, ["(", ")"], ["[", "]"], ["[", "]"], ["|", "|"]];
   var level2 = (v) => Math.max(0, Math.min(15, Math.trunc(Number.isFinite(v) ? v : 0)));
-  var TRIALS = [
-    { kind: "A", label: "A. 7x4, letter as nose", w: 7, h: 4 },
-    { kind: "B", label: "B. 7x5, A with hair", w: 7, h: 5 },
-    { kind: "C", label: "C. 7x3, letter in the name", w: 7, h: 3 }
-  ];
+  var HAIR_TOP = {
+    "Crop": " ▄▄▄▄▄ ",
+    "Side part": " ▄ ▄▄▄▄",
+    "Quiff": "  ▄██▄ ",
+    "Curly": " ∾∾∾∾∾ ",
+    "Spiky": " ʌʌʌʌʌ ",
+    "Mohawk": "   █   ",
+    "Receding": " ▖   ▗ ",
+    "Bald": "  .-.  ",
+    "Bob": "▗▄▄▄▄▄▖",
+    "Long": "▗▄▄▄▄▄▖",
+    "Long waves": "∾∾∾∾∾∾∾",
+    "Plaits": "▗▄▄▄▄▄▖",
+    "Bun": " ▄▄●▄▄ "
+  };
+  var HAIR_SIDES = {
+    "Bob": { rows: 3, l: "▌", r: "▐", endL: "▘", endR: "▝" },
+    "Long": { rows: 6, l: "▌", r: "▐", endL: "▌", endR: "▐" },
+    "Long waves": { rows: 6, l: "(", r: ")", endL: "∾", endR: "∾" },
+    "Plaits": { rows: 6, l: "§", r: "§", endL: "¥", endR: "¥" }
+  };
   function drawTrial(r, kind, st = TRIAL_PLAIN) {
     const t = TRIALS.find((x) => x.kind === kind);
     const { w, h } = t;
@@ -410,18 +432,18 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
       if (x >= 0 && y >= 0 && x < w && y < h && ch !== " ") out[y][x] = { ch, ink };
     };
     const text = (x, y, s, ink) => [...s].forEach((c, i) => put(x + i, y, c, ink));
+    const free = (x, y) => out[y]?.[x]?.ch === " ";
     const eL = level2(r.eyeL), eR = level2(r.eyeR), mo = level2(r.mouth);
     const sm = signed(r.smile), yw = signed(r.yaw), gx = signed(r.gazeX), gy = signed(r.gazeY);
     const bL = signed(r.browL ?? 8), bR = signed(r.browR ?? 8);
     const happy = sm >= 4, cross = bL + bR <= -6, sad = sm <= -5 && !cross;
-    const hairY = kind === "B" ? 0 : -1;
-    const browY = hairY + 1, eyeY = browY + 1, noseY = kind === "C" ? -1 : eyeY + 1, mouthY = kind === "C" ? eyeY + 1 : noseY + 1;
-    if (hairY >= 0 && st.hair) text(0, hairY, HAIR[st.hair], 1);
+    const name = (k) => t.names[k][Math.min(st[k], t.names[k].length - 1)] ?? "None";
+    const top = kind === "6" || kind === "7" ? 1 : 0;
+    const browY = top, eyeY = top + 1, noseY = top + 2, mouthY = top + 3, beardY = kind === "4" ? -1 : top + 4;
     const frame = FRAMES[st.glasses] ?? null;
     const tx = yw >= 4 ? 1 : yw <= -4 ? -1 : 0;
-    const cx = [1, 5];
     for (const side of [-1, 1]) {
-      const i = side < 0 ? 0 : 1, c = cx[i], open = side < 0 ? eL : eR, b = side < 0 ? bL : bR;
+      const c = side < 0 ? 1 : 5, open = side < 0 ? eL : eR, b = side < 0 ? bL : bR;
       const f = FILL[st.brow] ?? "_";
       let brow = f === " " ? b >= 3 ? " '" : b <= -3 ? " \\" : "  " : b >= 3 ? ".-" : b <= -3 ? "`." : f + f;
       if (side > 0) brow = [...brow].reverse().map((ch) => ({ "`": "'", "'": "`", "/": "\\", "\\": "/" })[ch] ?? ch).join("");
@@ -436,8 +458,8 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
     }
     if (frame) put(3, eyeY, "-", 2);
     const mid = 3 + tx;
-    if (noseY >= 0) {
-      put(mid, noseY, yw >= 3 ? ">" : yw <= -3 ? "<" : "v", 3);
+    put(mid, noseY, yw >= 3 ? ">" : yw <= -3 ? "<" : "v", 3);
+    {
       const ch = ["", "-", "~", "~", '"'][st.tache], reach = [0, 1, 2, 1, 2][st.tache];
       for (let d = 1; d <= reach; d++) {
         put(mid - d, noseY, ch, 2);
@@ -451,30 +473,92 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
     const m = happy ? mo >= 6 ? "ᗜ" : "◡" : mo >= 8 ? "ㅇ" : mo >= 3 ? "ㅁ" : cross || sad ? "◠" : null;
     if (m) put(mid, mouthY, m, 2);
     else text(mid - 1, mouthY, "---", 2);
-    if (noseY < 0 && st.tache) {
-      const ch = ["", "-", "~", "~", '"'][st.tache];
-      put(mid - 2, mouthY, ch, 2);
-      put(mid + 2, mouthY, ch, 2);
-    }
-    if (st.beard === 1) {
-      put(mid - 2, mouthY, ",", 2);
-      put(mid + 2, mouthY, ",", 2);
-    }
-    if (st.beard === 2) {
-      put(mid - 3, mouthY, "\\", 2);
-      put(mid + 3, mouthY, "/", 2);
-    }
-    if (st.beard === 3) {
-      for (let y = noseY < 0 ? mouthY : noseY; y <= mouthY; y++) {
-        put(0, y, "(", 2);
-        put(w - 1, y, ")", 2);
+    const beard = name("beard");
+    if (kind === "4") {
+      if (beard === "Stubble") {
+        put(mid - 2, mouthY, "⁚", 1);
+        put(mid + 2, mouthY, "⁚", 1);
       }
-      put(mid - 2, mouthY, "w", 2);
-      put(mid + 2, mouthY, "w", 2);
+      if (beard === "Chinstrap") {
+        put(mid - 2, mouthY, "\\", 2);
+        put(mid + 2, mouthY, "/", 2);
+      }
+      if (beard === "Mutton chops") {
+        for (const y of [noseY, mouthY]) {
+          put(0, y, "▌", 2);
+          put(6, y, "▐", 2);
+        }
+      }
+      if (beard === "Full") {
+        put(0, noseY, "▌", 2);
+        put(6, noseY, "▐", 2);
+        text(0, mouthY, "▙▄", 2);
+        text(5, mouthY, "▄▟", 2);
+      }
+      if (beard === "Long sides") {
+        put(0, noseY, "(", 2);
+        put(6, noseY, ")", 2);
+        text(0, mouthY, "\\▄", 2);
+        text(5, mouthY, "▄/", 2);
+      }
+    } else {
+      const by = beardY;
+      if (beard === "Stubble") {
+        text(1, by, "⁚⁘⁘⁘⁚", 1);
+        put(mid - 2, mouthY, "⁚", 1);
+        put(mid + 2, mouthY, "⁚", 1);
+      }
+      if (beard === "Goatee") {
+        text(mid - 1, by, "\\▼/", 2);
+      }
+      if (beard === "Soul patch") {
+        put(mid, by, "▾", 2);
+      }
+      if (beard === "Chinstrap") {
+        put(0, mouthY, "\\", 2);
+        put(6, mouthY, "/", 2);
+        text(1, by, "\\___/", 2);
+      }
+      if (beard === "Short full") {
+        put(mid - 2, mouthY, "▐", 2);
+        put(mid + 2, mouthY, "▌", 2);
+        text(1, by, "▝▀▀▀▘", 2);
+      }
+      if (beard === "Full") {
+        for (const y of [noseY, mouthY]) {
+          put(0, y, "▐", 2);
+          put(6, y, "▌", 2);
+        }
+        text(0, by, "▝▙▄▄▄▟▘", 2);
+      }
+      if (beard === "Long") {
+        for (const y of [noseY, mouthY]) {
+          put(0, y, "▐", 2);
+          put(6, y, "▌", 2);
+        }
+        text(0, by, " ▜███▛ ", 2);
+        if (by + 1 < h) text(2, by + 1, "▜█▛", 2);
+      }
+      if (beard === "Mutton chops") {
+        for (const y of [noseY, mouthY]) {
+          put(0, y, "▐", 2);
+          put(6, y, "▌", 2);
+        }
+        text(0, by, "▝▘   ▝▘", 2);
+      }
     }
-    if (st.beard === 4) {
-      put(mid - 2, mouthY, ":", 2);
-      put(mid + 2, mouthY, ":", 2);
+    const hair = name("hair");
+    if (top && hair !== "None") {
+      text(0, 0, HAIR_TOP[hair] ?? "", 1);
+      const sides = HAIR_SIDES[hair];
+      if (sides) {
+        const last = Math.min(h - 1, eyeY + sides.rows - 1);
+        for (let y = eyeY; y <= last; y++) {
+          const end = y === last;
+          if (free(0, y)) put(0, y, end && sides.endL ? sides.endL : sides.l, 1);
+          if (free(6, y)) put(6, y, end && sides.endR ? sides.endR : sides.r, 1);
+        }
+      }
     }
     return out;
   }
@@ -1547,19 +1631,26 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
       return `<span class="${INK_CLASS[c.ink]}">${inner}</span>`;
     }).join("")).join("\n");
   }
-  var trialStyle = { ...TRIAL_PLAIN };
-  function trialButtons() {
-    $("trialStyle").innerHTML = Object.keys(TRIAL_NAMES).map((k) => `<button data-k="${k}">${k[0].toUpperCase() + k.slice(1)}: ${TRIAL_NAMES[k][trialStyle[k]]}</button>`).join(" ");
-    for (const b of Array.from($("trialStyle").querySelectorAll("button"))) b.onclick = () => {
-      const k = b.dataset.k;
-      trialStyle = { ...trialStyle, [k]: (trialStyle[k] + 1) % TRIAL_NAMES[k].length };
-      trialButtons();
+  var trialStyle = new Map(TRIALS.map((t) => [t.kind, { ...TRIAL_PLAIN }]));
+  var PART_LABELS = { hair: "Hair", brow: "Brows", glasses: "Glasses", tache: "Moustache", beard: "Beard" };
+  function trialFigures() {
+    $("trials").innerHTML = '<figure><pre id="trialNow" class="tile"></pre><figcaption>Now, 10x5</figcaption></figure>' + TRIALS.map((t) => `<figure><pre id="trial${t.kind}" class="tile"></pre><figcaption>${t.label}</figcaption><div class="parts" id="parts${t.kind}"></div></figure>`).join("");
+    for (const t of TRIALS) trialButtons(t.kind);
+  }
+  function trialButtons(kind) {
+    const t = TRIALS.find((x) => x.kind === kind), st = trialStyle.get(kind);
+    const box = $("parts" + kind);
+    box.innerHTML = Object.keys(PART_LABELS).filter((k) => t.names[k].length > 1).map((k) => `<button data-k="${k}">${PART_LABELS[k]}: ${t.names[k][st[k]]}</button>`).join("");
+    for (const el of Array.from(box.querySelectorAll("button"))) el.onclick = () => {
+      const k = el.dataset.k;
+      st[k] = (st[k] + 1) % t.names[k].length;
+      trialButtons(kind);
       drawAvatars();
     };
   }
   function drawAvatars() {
     $("trialNow").innerHTML = cellsHtml(drawRig(S.rig, DETAIL_SIZE[2].w, DETAIL_SIZE[2].h), "J", true);
-    for (const t of TRIALS) $("trial" + t.kind).innerHTML = trialHtml(drawTrial(S.rig, t.kind, trialStyle));
+    for (const t of TRIALS) $("trial" + t.kind).innerHTML = trialHtml(drawTrial(S.rig, t.kind, trialStyle.get(t.kind)));
     $("tile").innerHTML = cellsHtml(drawRig(S.rig, DETAIL_SIZE[2].w, DETAIL_SIZE[2].h), "J", true);
     for (const d of [3, 2, 1]) {
       const { w, h } = DETAIL_SIZE[d];
@@ -1768,7 +1859,7 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
     sel.innerHTML = TRACKER_NAMES.map((n) => `<option value="${n}">${TRACKER_LABEL[n]}</option>`).join("");
     $("bad").innerHTML = Object.keys(BAD_LABEL).map((b) => `<option value="${b}">${BAD_LABEL[b]}</option>`).join("");
     $("flips").innerHTML = Object.keys(NO_FLIPS).map((k) => `<label><input type="checkbox" id="flip-${k}"> ${k}</label>`).join(" ");
-    trialButtons();
+    trialFigures();
     $("cam").onclick = () => {
       if (S.stream) cameraOff();
       else void cameraOn();

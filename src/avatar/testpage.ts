@@ -6,8 +6,8 @@
  * (tools/serve.mjs, "Send to Rosemary"): numbers about the trackers, never a picture.
  */
 import { decodeRig, drawRig, encodeRig, NEUTRAL, RIG_KEYS, DETAIL_SIZE, withVoice } from './rig.ts';
-import { drawTrial, TRIAL_NAMES, TRIAL_PLAIN, TRIALS } from './trialface.ts';
-import type { TrialStyle } from './trialface.ts';
+import { drawTrial, TRIAL_PLAIN, TRIALS } from './trialface.ts';
+import type { TrialKind, TrialStyle } from './trialface.ts';
 import type { Rig, RigCell } from './rig.ts';
 import { GAINS, makeTracker, MP_VERSION, NO_FLIPS, NO_NEUTRAL, RigSmoother, rigOf, TRACKER_LABEL, TRACKER_NAMES } from './trackers.ts';
 import type { Flips, Loaded, Neutral, Raw, Track, Tracker, TrackerName } from './trackers.ts';
@@ -244,14 +244,23 @@ function trialHtml(cells: RigCell[][]): string {
 		return `<span class="${INK_CLASS[c.ink]}">${inner}</span>`;
 	}).join('')).join('\n');
 }
-let trialStyle: TrialStyle = { ...TRIAL_PLAIN };
-function trialButtons() {
-	$('trialStyle').innerHTML = (Object.keys(TRIAL_NAMES) as (keyof TrialStyle)[]).map((k) =>
-		`<button data-k="${k}">${k[0].toUpperCase() + k.slice(1)}: ${TRIAL_NAMES[k][trialStyle[k]]}</button>`).join(' ');
-	for (const b of Array.from($('trialStyle').querySelectorAll('button'))) b.onclick = () => {
-		const k = (b as HTMLElement).dataset.k as keyof TrialStyle;
-		trialStyle = { ...trialStyle, [k]: (trialStyle[k] + 1) % TRIAL_NAMES[k].length };
-		trialButtons();
+/** Each trial's own choices: the sizes offer different hair and beards. */
+const trialStyle = new Map<TrialKind, TrialStyle>(TRIALS.map((t) => [t.kind, { ...TRIAL_PLAIN }]));
+const PART_LABELS: Record<keyof TrialStyle, string> = { hair: 'Hair', brow: 'Brows', glasses: 'Glasses', tache: 'Moustache', beard: 'Beard' };
+function trialFigures() {
+	$('trials').innerHTML = '<figure><pre id="trialNow" class="tile"></pre><figcaption>Now, 10x5</figcaption></figure>' + TRIALS.map((t) =>
+		`<figure><pre id="trial${t.kind}" class="tile"></pre><figcaption>${t.label}</figcaption><div class="parts" id="parts${t.kind}"></div></figure>`).join('');
+	for (const t of TRIALS) trialButtons(t.kind);
+}
+function trialButtons(kind: TrialKind) {
+	const t = TRIALS.find((x) => x.kind === kind)!, st = trialStyle.get(kind)!;
+	const box = $('parts' + kind);
+	box.innerHTML = (Object.keys(PART_LABELS) as (keyof TrialStyle)[]).filter((k) => t.names[k].length > 1).map((k) =>
+		`<button data-k="${k}">${PART_LABELS[k]}: ${t.names[k][st[k]]}</button>`).join('');
+	for (const el of Array.from(box.querySelectorAll('button'))) el.onclick = () => {
+		const k = (el as HTMLElement).dataset.k as keyof TrialStyle;
+		st[k] = (st[k] + 1) % t.names[k].length;
+		trialButtons(kind);
 		drawAvatars();
 	};
 }
@@ -259,7 +268,7 @@ function trialButtons() {
 function drawAvatars() {
 	// The trial: smaller main faces in the far face's letters, beside the current one.
 	$('trialNow').innerHTML = cellsHtml(drawRig(S.rig, DETAIL_SIZE[2].w, DETAIL_SIZE[2].h), 'J', true);
-	for (const t of TRIALS) $('trial' + t.kind).innerHTML = trialHtml(drawTrial(S.rig, t.kind, trialStyle));
+	for (const t of TRIALS) $('trial' + t.kind).innerHTML = trialHtml(drawTrial(S.rig, t.kind, trialStyle.get(t.kind)));
 	// The village's tile: the middle face round your letter, on the letter tile's faint ground.
 	$('tile').innerHTML = cellsHtml(drawRig(S.rig, DETAIL_SIZE[2].w, DETAIL_SIZE[2].h), 'J', true);
 	for (const d of [3, 2, 1] as const) {
@@ -462,7 +471,7 @@ function setup() {
 	sel.innerHTML = TRACKER_NAMES.map((n) => `<option value="${n}">${TRACKER_LABEL[n]}</option>`).join('');
 	$<HTMLSelectElement>('bad').innerHTML = (Object.keys(BAD_LABEL) as Bad[]).map((b) => `<option value="${b}">${BAD_LABEL[b]}</option>`).join('');
 	$('flips').innerHTML = (Object.keys(NO_FLIPS) as (keyof Flips)[]).map((k) => `<label><input type="checkbox" id="flip-${k}"> ${k}</label>`).join(' ');
-	trialButtons();
+	trialFigures();
 	$('cam').onclick = () => { if (S.stream) cameraOff(); else void cameraOn(); };
 	$('mic').onclick = () => { void micToggle(); };
 	$('demo').onclick = () => { demoHold = null; S.source = S.source === 'demo' ? 'camera' : 'demo'; ui(); };
