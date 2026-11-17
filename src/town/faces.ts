@@ -140,15 +140,38 @@ export class FaceCam {
 		return lum && toFrame(lum, FACE_W, FACE_H * 2);
 	}
 
-	/** The picture now as w x h brightness samples (0..255), cropped to that shape, mirrored; null while off. */
-	lum(w: number, h: number): number[] | null {
+	private still: HTMLCanvasElement | null = null;
+	/**
+	 * A copy of the picture now, kept until the next copy: the tracker reads it and the letters are drawn
+	 * from it, so the face drawn over the letters sits on the very frame it was found in (17 Nov: a live
+	 * picture under a face found a moment before left the face on your shoulder as you moved).
+	 */
+	snap(): HTMLCanvasElement | null {
 		const v = this.picture;
+		if (!v || !v.videoWidth) return null;
+		const c = (this.still ??= document.createElement('canvas'));
+		if (c.width !== v.videoWidth) c.width = v.videoWidth;
+		if (c.height !== v.videoHeight) c.height = v.videoHeight;
+		c.getContext('2d')!.drawImage(v, 0, 0);
+		return c;
+	}
+	/** The last copy snap() made (null before the first, or once the camera is off). */
+	get lastSnap(): HTMLCanvasElement | null { return this.stream ? this.still : null; }
+
+	/**
+	 * The picture now (or the copy `from`) as w x h brightness samples (0..255), cropped to that shape,
+	 * mirrored; null while off.
+	 */
+	lum(w: number, h: number, from?: HTMLCanvasElement | null): number[] | null {
+		const live = this.picture;
+		const v: HTMLCanvasElement | HTMLVideoElement | null = from ?? live;
 		if (!v) return null;
+		const vw = from ? from.width : live!.videoWidth, vh = from ? from.height : live!.videoHeight;
 		const cv = (this.cv ??= document.createElement('canvas'));
 		if (cv.width !== w) cv.width = w;
 		if (cv.height !== h) cv.height = h;
 		const g = cv.getContext('2d', { willReadFrequently: true })!;
-		const c = crop(v.videoWidth, v.videoHeight, w / h);
+		const c = crop(vw, vh, w / h);
 		g.save();
 		g.translate(w, 0); g.scale(-1, 1);
 		g.drawImage(v, c.sx, c.sy, c.sw, c.sh, 0, 0, w, h);

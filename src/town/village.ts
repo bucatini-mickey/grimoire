@@ -1615,8 +1615,15 @@ const avatar = {
 	/** How long a frame takes to track (ms, averaged), and when the next one is due: a slow phone tracks less often. */
 	cost: 0,
 	nextAt: 0,
-	/** Where my face is in the camera's picture (0..1, unmirrored, smoothed), for the face over Letters. */
+	/**
+	 * Where my face is in the camera's picture (0..1, unmirrored), for the face over Letters: found in the
+	 * frame myCam.snap() copied, the one the letters are drawn from. Not smoothed: smoothing put it behind.
+	 */
 	box: null as { x: number; y: number; w: number; h: number } | null,
+	/** When a face was last found, and whether "no face found" has been said since the camera came on. */
+	seenAt: 0,
+	onAt: 0,
+	told: false,
 	smoother: new RigSmoother(),
 	/** My rig as last drawn and as last sent. */
 	rig: '',
@@ -1642,6 +1649,7 @@ function resyncFace() {
 const tracked = () => S.cams.look === 'avatar' || S.cams.look === 'letters';
 async function avatarOn() {
 	if (avatar.timer) return;
+	avatar.onAt = performance.now();
 	avatar.timer = setInterval(avatarTick, 66);
 	if (avatar.tracker) return;
 	const name = S.cams.tracker;
@@ -1672,18 +1680,24 @@ function avatarOff() {
 	avatar.timer = null;
 	avatar.rig = '';
 	avatar.box = null;
+	avatar.seenAt = 0;
+	avatar.told = false;
 	if (avatar.sent) up({ t: 'rig', r: null });
 	avatar.sent = '';
 }
 function avatarTick() {
-	const v = myCam.picture, t = avatar.tracker;
-	if (!v || !t || !tracked()) return;
+	const t = avatar.tracker;
+	if (!t || !tracked()) return;
+	// Letters: the tracker reads a copy, and the letters are drawn from that same copy.
+	const v = S.cams.look === 'letters' ? myCam.snap() : myCam.picture;
+	if (!v) return;
+	const vw = v instanceof HTMLVideoElement ? v.videoWidth : v.width, vh = v instanceof HTMLVideoElement ? v.videoHeight : v.height;
 	// A slow phone tracks less often: the tracker takes at most about 40% of the time (Rosemary's CPU, 33 ms
 	// a frame: every 82 ms; a phone at 80 ms: every 200 ms). The smoother covers the gaps.
 	const t0 = performance.now();
 	if (t0 < avatar.nextAt) return;
 	let tr;
-	try { tr = t.track(v, v.videoWidth, v.videoHeight, t0); } catch (e) {
+	try { tr = t.track(v, vw, vh, t0); } catch (e) {
 		// Said, not hidden (17 Nov: a broken GPU read as "no face" on Rosemary): pixels from here on.
 		trackerFailed(t, (e as Error)?.message ?? String(e));
 		return;
@@ -1694,13 +1708,18 @@ function avatarTick() {
 	const note = tr.note ?? '';
 	if (note !== avatar.note) { avatar.note = note; S.dirty = true; }
 	const raw = tr.raw;
-	if (!raw) return;
-	if (tr.box) {
-		// Smoothed, so the face over Letters glides rather than shakes.
-		const b = avatar.box, k = 0.45;
-		avatar.box = b ? { x: b.x + (tr.box.x - b.x) * k, y: b.y + (tr.box.y - b.y) * k, w: b.w + (tr.box.w - b.w) * k, h: b.h + (tr.box.h - b.h) * k } : { ...tr.box };
-		if (S.cams.look === 'letters') S.dirty = true;
+	if (S.cams.look === 'letters') S.dirty = true;
+	if (!raw || !tr.box) {
+		// Lost a moment (a turn, a hand): the face stays where it was; lost longer, it goes (and is said, once).
+		if (avatar.box && t0 - avatar.seenAt > 600) { avatar.box = null; S.dirty = true; }
+		if (!avatar.told && t0 - Math.max(avatar.seenAt, avatar.onAt) > 4000) {
+			avatar.told = true;
+			toast('No face found: sit a little closer, face the camera, with some light on you.');
+		}
+		return;
 	}
+	avatar.box = { ...tr.box };
+	avatar.seenAt = t0;
 	if (avatar.resync) {
 		avatar.resync = false;
 		t.relearn();
@@ -1784,11 +1803,12 @@ function camWindow(g: Grid, area: { x: number; y: number; w: number; h: number }
 			return { ...base, kind: 'video' as const };
 		}
 		camLetters = true;
-		const lum = self ? myCam.lum(tw, th * 2) : standIn(standInOf(id), now, talk, tw, th * 2);
+		// Mine: from the copy the tracker read, while it runs (so the face lands on the frame it was found in).
+		const still = self && avatar.tracker ? myCam.lastSnap : null;
+		const lum = self ? myCam.lum(tw, th * 2, still) : standIn(standInOf(id), now, talk, tw, th * 2);
 		if (!lum) return { ...base, kind: 'blank' as const, note: 'starting' };
 		const rig = self ? decodeRig(avatar.rig) : null;
-		const v = self ? myCam.picture : null;
-		const over = rig && v && avatar.box ? faceOver(avatar.box, v.videoWidth, v.videoHeight, tw, th, drawRig(withVoice(rig, talking(q)), 5, 2, decodeStyle(q.look?.style))) : undefined;
+		const over = rig && still && avatar.box ? faceOver(avatar.box, still.width, still.height, tw, th, drawRig(withVoice(rig, talking(q)), 5, 2, decodeStyle(q.look?.style))) : undefined;
 		return { ...base, kind: 'letters' as const, frame: toFrame(lum, tw, th * 2), over };
 	});
 	const title = S.phase === 'circle' ? 'The circle' : S.phase === 'night' ? 'Night' : p.with ? 'Private' : 'Near you';
