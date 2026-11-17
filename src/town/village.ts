@@ -59,7 +59,7 @@ import type { Corner, PictureTile, Place, TileView } from './camwin.ts';
  * digits (a rig); only the rig goes to the Storyteller's phone, which passes it on to whoever may see it,
  * the nearest in most detail and most often (rig.ts planRigs). Every phone draws the avatar from the digits.
  */
-import { decodeRig, decodeStyle, DETAIL_SIZE, detailThatFits, drawRig, encodeRig, idleRig, NEUTRAL, planRigs, withVoice } from '../avatar/rig.ts';
+import { decodeRig, decodeStyle, DETAIL_SIZE, detailThatFits, drawRig, encodeRig, FAR_GLYPHS, idleRig, NEUTRAL, planRigs, setFarAscii, withVoice } from '../avatar/rig.ts';
 import type { AvatarPlaces, Detail, RigFrom, RigSent } from '../avatar/rig.ts';
 import { GAINS, makeTracker, NO_FLIPS, NO_NEUTRAL, RigSmoother, rigOf, TRACKER_LABEL } from '../avatar/trackers.ts';
 import type { Neutral, Tracker, TrackerName } from '../avatar/trackers.ts';
@@ -1093,6 +1093,7 @@ function stampButtons(g: Grid, x: number, y: number, w: number, bs: Button[]): n
 
 /** The village, drawn as cells under the grimoire's pages: map (or circle), status lines and the button bar. */
 function villageCells(g: Grid, ui?: Grid): boolean {
+	checkFarFont();
 	const t = S.town, p = me();
 	if (!shown || !t || !p) return false;
 	if (!dyn) tickMap();
@@ -1282,6 +1283,10 @@ function beaconOf(t: Town): { x: number; y: number } | null {
 	beacons.set(t, found);
 	return found;
 }
+
+/** Far faces use a few letters from other alphabets; a phone whose font lacks any gets the ASCII face. */
+let farChecked = false;
+function checkFarFont() { if (!farChecked) { farChecked = true; setFarAscii(!FAR_GLYPHS.every(canDraw)); } }
 
 /** How many tiles the camera window will show: you, those whose faces this phone has (or whom you can hear), an asker. */
 function camTileCount(p: Person): number {

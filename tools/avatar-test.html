@@ -179,6 +179,7 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
   function noseCells(yw) {
     return yw >= 3 ? " \\>" : yw <= -3 ? "</ " : "/_\\";
   }
+  var farAscii = false;
   function drawFace(r, w, h, st = PLAIN_STYLE) {
     const out = Array.from({ length: h }, () => Array.from({ length: w }, () => ({ ch: " ", ink: 0 })));
     if (w < 5 || h < 2) return out;
@@ -193,8 +194,9 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
     const bL = signed(r.browL ?? 8), bR = signed(r.browR ?? 8);
     if (w < 8 || h < 4) {
       const happy = sm >= 4, cross = bL + bR <= -6, sad = sm <= -5 && !cross;
-      const eye = (open, side) => open <= 3 ? "-" : st.glasses === 3 ? "#" : happy ? "^" : cross ? side < 0 ? ">" : "<" : sad ? "T" : open >= 13 || bL + bR >= 6 ? "O" : open <= 7 ? "=" : "o";
-      const m2 = happy ? mo >= 11 ? "\\O/" : mo >= 6 ? "\\o/" : "\\_/" : mo >= 8 ? " O " : mo >= 3 ? " o " : cross ? "/-\\" : sad ? ".-." : "---";
+      const u = !farAscii;
+      const eye = (open, side) => open <= 3 ? "-" : st.glasses === 3 ? "#" : happy ? u ? "◠" : "^" : cross ? side < 0 ? u ? "ò" : ">" : u ? "ó" : "<" : sad ? u ? "ɷ" : "T" : open >= 13 || bL + bR >= 6 ? "O" : open <= 7 ? "=" : "o";
+      const m2 = u ? happy ? mo >= 6 ? " ᗜ " : " ◡ " : mo >= 8 ? " ㅇ " : mo >= 3 ? " ㅁ " : cross || sad ? " ◠ " : "---" : happy ? mo >= 11 ? "\\O/" : mo >= 6 ? "\\o/" : "\\_/" : mo >= 8 ? " O " : mo >= 3 ? " o " : cross ? "/-\\" : sad ? ".-." : "---";
       const x0 = Math.floor((w - 3) / 2) + (yw >= 4 ? 1 : yw <= -4 ? -1 : 0);
       const top = Math.floor((h - 2) / 2);
       put(x0, top, eye(eL, -1), 2);

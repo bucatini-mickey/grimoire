@@ -48,6 +48,9 @@ export function expand(p: Palette): Palette {
  */
 export const CLEAR = -1;
 
+/** Glyphs wider than a cell that may spill into blank neighbours: Hangul jamo, and ᗜ. */
+const SPILL = /^[㄰-㆏ᗜ]$/;
+
 export interface Cell {
 	ch: string;
 	fg: number;
@@ -254,6 +257,9 @@ export class Term extends Grid {
 			// (a bold glyph keeps to its cell, so the row stays on the grid)
 			+ '.pt-row b{display:inline-block;width:var(--pt-cw);height:100%;text-align:center;font-weight:900;vertical-align:top}'
 			+ '.pt-row i.w{width:calc(2 * var(--pt-cw))}'
+			// (a few glyphs wider than a cell, the far face's Korean mouths and its laugh, spill evenly into the
+			// blank cells beside them rather than being cut)
+			+ '.pt-row i.s{display:inline-flex;justify-content:center;overflow:visible;white-space:nowrap}'
 			// (one outside ASCII, a face, fills the square its two columns make)
 			// (the figure is a whole-pixel size no taller than its line, set by fit() as --pt-fig; the box
 			// never clips, so a mark above or below the letter shows on every font)
@@ -435,7 +441,7 @@ export class Term extends Grid {
 					out.push(`<i style="background:linear-gradient(${hi} 50%,${lo} 50%)"> </i>`);
 				}
 				else if (c.bold) out.push(`<b>${esc(c.ch)}</b>`);
-				else if (c.ch.charCodeAt(0) > 126) out.push(`<i>${c.ch}</i>`);
+				else if (c.ch.charCodeAt(0) > 126) out.push(SPILL.test(c.ch) ? `<i class="s">${c.ch}</i>` : `<i>${c.ch}</i>`);
 				else out.push(esc(c.ch));
 			}
 			out.push('</span>');

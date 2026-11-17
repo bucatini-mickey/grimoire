@@ -26,7 +26,7 @@
  */
 import { drawFace, PLAIN_STYLE } from './rigface.ts';
 import type { FaceStyle } from './rigface.ts';
-export { decodeStyle, encodeStyle, PLAIN_STYLE, rdiv, STYLE_NAMES, STYLE_PARTS } from './rigface.ts';
+export { decodeStyle, encodeStyle, FAR_GLYPHS, PLAIN_STYLE, rdiv, setFarAscii, STYLE_NAMES, STYLE_PARTS } from './rigface.ts';
 export type { FaceStyle } from './rigface.ts';
 
 export interface Rig {

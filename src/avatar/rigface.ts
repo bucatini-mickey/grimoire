@@ -16,7 +16,8 @@
  * The head's turn slides the face across the box and narrows the far eye; a tip moves it up or down a row;
  * a lean drops the lower side's brow and eye a row.
  *
- * Whole numbers only and printable ASCII, so the Rust twin draws the very same cells
+ * Whole numbers only, and printable ASCII but for the far face's few letters from other alphabets
+ * (FAR_GLYPHS, with an ASCII fallback), so the Rust twin draws the very same cells
  * (tests/fixtures/rig-golden.json).
  */
 import type { Rig, RigCell } from './rig.ts';
@@ -146,6 +147,13 @@ export function noseCells(yw: number): string {
 	return yw >= 3 ? ' \\>' : yw <= -3 ? '</ ' : '/_\\';
 }
 
+/** The far face's letters from other alphabets (◠ ò ó ɷ ◡ ㅁ ㅇ ᗜ), or plain ASCII where a device lacks them. */
+let farAscii = false;
+/** Draw far faces in ASCII only (a game sets this once, from what the device can draw). */
+export function setFarAscii(on: boolean) { farAscii = on; }
+/** The far face's letters outside ASCII, for a game to test the device's font with. */
+export const FAR_GLYPHS = ['◠', 'ò', 'ó', 'ɷ', '◡', 'ㅁ', 'ㅇ', 'ᗜ'];
+
 /** The avatar for a rig in w x h cells (w >= 5, h >= 2): near (from 14 x 7), middle (from 8 x 4), else far. */
 export function drawFace(r: Rig, w: number, h: number, st: FaceStyle = PLAIN_STYLE): RigCell[][] {
 	const out: RigCell[][] = Array.from({ length: h }, () => Array.from({ length: w }, () => ({ ch: ' ', ink: 0 as const })));
@@ -159,21 +167,26 @@ export function drawFace(r: Rig, w: number, h: number, st: FaceStyle = PLAIN_STY
 	const bL = signed(r.browL ?? 8), bR = signed(r.browR ?? 8);
 
 	if (w < 8 || h < 4) {
-		// Far (chosen 17 Nov, "all mouth, 3x2"): a near-square face three cells wide, centred in the box,
-		// eyes at its corners and the whole bottom row its mouth; no letter (a game puts the player's letter
-		// in their name instead):
-		//   o o    ^ ^    o o    ^ ^    > <    T T    - ^
-		//   ---    \_/     O     \O/    /-\    .-.    \_/
+		// Far (chosen 17 Nov, "all mouth, 3x2", then M4 from other alphabets): a near-square face three cells
+		// wide, centred in the box, eyes at its corners and the bottom row its mouth; no letter (a game puts
+		// the player's letter in their name instead):
+		//   o o    ◠ ◠    o o    ◠ ◠    ò ó    ɷ ɷ    - ◠
+		//   ---     ◡      ㅁ     ᗜ      ◠      ◠      ◡
 		//  at rest smiling talking laughing cross  sad  wink
-		// Eyes in kaomoji's words: - shut, = half, o open, O wide or brows up, ^ happy, > < cross, T sad,
-		// # shades. Talking is a single o, O when loud (happy talking opens the smile instead). A strong turn
-		// slides the face a cell.
+		// Eyes: - shut, = half, o open, O wide or brows up, ◠ happy (Kannada's smile), ò ó cross (Cyrillic),
+		// ɷ sad (IPA), # shades. Mouths: --- at rest, ◡ smiling and ◠ frowning (round), ㅁ talking and ㅇ loud
+		// (Korean jamo), ᗜ laughing or talking happily. The jamo and ᗜ are wider than a cell: a game draws
+		// them spilling into the blank cells beside them. Where a device lacks these letters, FAR_ASCII says
+		// so and the face is drawn in ASCII instead (o o over ---, ^ ^ over \_/, > < over /-\, talking o O).
+		// A strong turn slides the face a cell.
 		const happy = sm >= 4, cross = bL + bR <= -6, sad = sm <= -5 && !cross;
-		const eye = (open: number, side: -1 | 1) => open <= 3 ? '-' : st.glasses === 3 ? '#' : happy ? '^' : cross ? (side < 0 ? '>' : '<')
-			: sad ? 'T' : open >= 13 || bL + bR >= 6 ? 'O' : open <= 7 ? '=' : 'o';
-		const m = happy ? (mo >= 11 ? '\\O/' : mo >= 6 ? '\\o/' : '\\_/')
-			: mo >= 8 ? ' O ' : mo >= 3 ? ' o '
-			: cross ? '/-\\' : sad ? '.-.' : '---';
+		const u = !farAscii;
+		const eye = (open: number, side: -1 | 1) => open <= 3 ? '-' : st.glasses === 3 ? '#'
+			: happy ? (u ? '◠' : '^') : cross ? (side < 0 ? (u ? 'ò' : '>') : (u ? 'ó' : '<'))
+			: sad ? (u ? 'ɷ' : 'T') : open >= 13 || bL + bR >= 6 ? 'O' : open <= 7 ? '=' : 'o';
+		const m = u
+			? (happy ? (mo >= 6 ? ' ᗜ ' : ' ◡ ') : mo >= 8 ? ' ㅇ ' : mo >= 3 ? ' ㅁ ' : cross || sad ? ' ◠ ' : '---')
+			: (happy ? (mo >= 11 ? '\\O/' : mo >= 6 ? '\\o/' : '\\_/') : mo >= 8 ? ' O ' : mo >= 3 ? ' o ' : cross ? '/-\\' : sad ? '.-.' : '---');
 		const x0 = Math.floor((w - 3) / 2) + (yw >= 4 ? 1 : yw <= -4 ? -1 : 0);
 		const top = Math.floor((h - 2) / 2);
 		put(x0, top, eye(eL, -1), 2);

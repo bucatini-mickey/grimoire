@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import {
-	avatarShows, decodeRig, DETAIL_SIZE, detailFor, detailThatFits, drawRig, encodeRig, NEUTRAL, planRigs, rdiv, RIG_KEYS, rigInks, rigText, withVoice
+	avatarShows, decodeRig, DETAIL_SIZE, detailFor, detailThatFits, drawRig, encodeRig, NEUTRAL, planRigs, rdiv, RIG_KEYS, rigInks, rigText, setFarAscii, withVoice
 } from '../src/avatar/rig.ts';
 import { AVATAR_TILE, barHeight, camLayout, CORNERS, isBar } from '../src/town/camwin.ts';
 import type { Detail, Rig, RigSent } from '../src/avatar/rig.ts';
@@ -59,13 +59,25 @@ test('the near avatar at rest: brows, eyes, a nose and a mouth, nothing else; br
 	assert.deepEqual(mouth({ mouth: 10 }), ['.------.', "'------'"]);
 	assert.deepEqual(mouth({ mouth: 15 }), ['.------.', '|      |', "'------'"]);
 	assert.deepEqual(mouth({ smile: 15 }), ['\\      /', '\\____/']);
-	// The far face: 3 x 2, eyes at the corners, the bottom row all mouth; talking a single o or O.
-	assert.equal(rigText(drawRig(rig({}), 5, 2)), ' o o \n --- ');
-	assert.equal(rigText(drawRig(rig({ smile: 15 }), 5, 2)), ' ^ ^ \n \\_/ ');
-	assert.equal(rigText(drawRig(rig({ eyeL: 0, smile: 13 }), 5, 2)).split('\n')[0], ' - ^ ');
-	assert.equal(rigText(drawRig(rig({ mouth: 5 }), 5, 2)).split('\n')[1], '  o  ');
-	assert.equal(rigText(drawRig(rig({ mouth: 15 }), 5, 2)).split('\n')[1], '  O  ');
-	assert.equal(rigText(drawRig(rig({ mouth: 15, smile: 15 }), 5, 2)).split('\n')[1], ' \\O/ ');
+	// The far face (M4): 3 x 2, eyes at the corners, the bottom row all mouth, a few letters from other
+	// alphabets; talking ㅁ, loud ㅇ, laughing ᗜ.
+	const far = (p: Partial<Rig>) => rigText(drawRig(rig(p), 5, 2));
+	assert.equal(far({}), ' o o \n --- ');
+	assert.equal(far({ smile: 15 }), ' ◠ ◠ \n  ◡  ');
+	assert.equal(far({ eyeL: 0, smile: 13 }).split('\n')[0], ' - ◠ ');
+	assert.equal(far({ mouth: 5 }).split('\n')[1], '  ㅁ  ');
+	assert.equal(far({ mouth: 15 }).split('\n')[1], '  ㅇ  ');
+	assert.equal(far({ mouth: 15, smile: 15 }).split('\n')[1], '  ᗜ  ');
+	assert.equal(far({ smile: 2, browL: 4, browR: 4 }), ' ò ó \n  ◠  ');
+	assert.equal(far({ smile: 1 }), ' ɷ ɷ \n  ◠  ');
+	// Without those letters (a phone's font lacks them): the ASCII face.
+	setFarAscii(true);
+	try {
+		assert.equal(far({ smile: 15 }), ' ^ ^ \n \\_/ ');
+		assert.equal(far({ mouth: 5 }).split('\n')[1], '  o  ');
+		assert.equal(far({ mouth: 15, smile: 15 }).split('\n')[1], ' \\O/ ');
+		assert.equal(far({ smile: 2, browL: 4, browR: 4 }), ' > < \n /-\\ ');
+	} finally { setFarAscii(false); }
 });
 
 test('a wink shuts one eye only, on the side it is drawn', () => {
