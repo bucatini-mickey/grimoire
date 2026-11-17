@@ -184,15 +184,20 @@ export function rawFromBlendshapes(cats: Category[], matrix?: ArrayLike<number> 
 		const faceH = Math.hypot(lm[10].x - lm[152].x, lm[10].y - lm[152].y) || 1;
 		gap = clamp((Math.hypot(lm[13].x - lm[14].x, lm[13].y - lm[14].y) / faceH - 0.012) / 0.12, 0, 1);
 	}
-	// Frowns score low in MediaPipe: counted two and a half times; a pressed mouth a little too.
-	const frown = (v('mouthFrownLeft') + v('mouthFrownRight')) * 1.25 + (v('mouthPressLeft') + v('mouthPressRight')) * 0.25;
+	// Frowns score low in MediaPipe: counted three times; a pressed mouth and a pushed-up lower lip (a pout)
+	// a little too. Sadness also lifts the brows' inner ends (17 Nov: sad was hard to show): that counts
+	// toward a frown, but not while the mouth is open or smiling (surprise and laughter lift them too).
+	const smileAvg = (v('mouthSmileLeft') + v('mouthSmileRight')) / 2;
+	const sadBrows = v('browInnerUp') * 0.45 * clamp(1 - v('jawOpen') * 2.5, 0, 1) * clamp(1 - smileAvg * 3, 0, 1);
+	const frown = (v('mouthFrownLeft') + v('mouthFrownRight')) * 1.5 + (v('mouthPressLeft') + v('mouthPressRight')) * 0.25
+		+ v('mouthShrugLower') * 0.3 + sadBrows;
 	// Brows: raised by the outer and the inner lifts, lowered by the brow-down shapes.
 	const brow = (outer: number, down: number) => outer * 0.6 + v('browInnerUp') * 0.6 - down * 1.2;
 	return {
 		eyeL: open(v('eyeBlinkLeft'), v('eyeWideLeft')),
 		eyeR: open(v('eyeBlinkRight'), v('eyeWideRight')),
 		mouth: Math.max(v('jawOpen') * 1.4, gap),
-		smile: (v('mouthSmileLeft') + v('mouthSmileRight')) / 2 - frown,
+		smile: smileAvg - frown,
 		browL: brow(v('browOuterUpLeft'), v('browDownLeft')),
 		browR: brow(v('browOuterUpRight'), v('browDownRight')),
 		...pose,
@@ -301,7 +306,9 @@ export class Recentre {
 		const out = { ...raw };
 		for (const k of keys) {
 			const v = raw[k], r = this.rest[k];
-			const rate = this.n < 15 ? 0.2 : Math.abs(v - r) < 0.2 ? 0.01 : 0;
+			// After the first moments, the resting smile is never learnt downward: a mild frown held a while
+			// stays a frown (17 Nov: sad was being learnt away).
+			const rate = this.n < 15 ? 0.2 : Math.abs(v - r) < 0.2 && !(k === 'smile' && v < r - 0.04) ? 0.01 : 0;
 			this.rest[k] = clamp(r + (v - r) * rate, -this.limit, this.limit);
 			out[k] = v - this.rest[k];
 		}

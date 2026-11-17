@@ -185,7 +185,7 @@ export function drawFace(r: Rig, w: number, h: number, style: FaceStyle = PLAIN_
 		// them spilling into the blank cells beside them. Where a device lacks these letters, FAR_ASCII says
 		// so and the face is drawn in ASCII instead (o o over ---, ^ ^ over \_/, > < over /-\, talking o O).
 		// A strong turn slides the face a cell.
-		const happy = sm >= 4, cross = bL + bR <= -6, sad = sm <= -5 && !cross;
+		const happy = sm >= 4, cross = bL + bR <= -6, sad = sm <= -4 && !cross;
 		const u = !farAscii;
 		const eye = (open: number, side: -1 | 1) => open <= 3 ? '-' : st.glasses === 3 ? '#'
 			: happy ? (u ? '◠' : '^') : cross ? (side < 0 ? (u ? 'ò' : '>') : (u ? 'ó' : '<'))
@@ -228,7 +228,7 @@ export function drawFace(r: Rig, w: number, h: number, style: FaceStyle = PLAIN_
 			if (side > 0) brow = mirror(brow);
 			text(side < 0 ? c - 1 : c, clamp(ty, 0, h - 1), brow, 2);
 			// The eye: shut a line, half shut =, smiling ^, wide O, else o (or ' . for a glance up or down).
-			const g = open <= 3 ? '-' : st.glasses === 3 ? '#' : open <= 7 ? '=' : s1 > 0 && sm >= 4 ? '◠' : open >= 13 ? 'O' : gy >= 4 ? "'" : gy <= -4 ? '.' : 'o';
+			const g = open <= 3 ? '-' : st.glasses === 3 ? '#' : open <= 7 ? '=' : s1 > 0 && sm >= 4 ? '◠' : sm <= -4 && bL + bR > -6 ? 'ɷ' : open >= 13 ? 'O' : gy >= 4 ? "'" : gy <= -4 ? '.' : 'o';
 			const gx1 = frameOf ? 0 : gx >= 4 ? 1 : gx <= -4 ? -1 : 0;
 			put(c + gx1, ey, g, 2);
 			if (frameOf) { put(c - 1, ey, frameOf[0], 2); put(c + 1, ey, frameOf[1], 2); }

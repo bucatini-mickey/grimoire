@@ -209,6 +209,11 @@ test('blendshapes to raw measures: blinks, jaw, smile, gaze by MediaPipe\'s name
 	assert.ok(Math.abs(r.smile - 0.5) < 1e-9);
 	const sad = rawFromBlendshapes([{ categoryName: 'mouthFrownLeft', score: 0.2 }, { categoryName: 'mouthFrownRight', score: 0.2 }]);
 	assert.ok(sad.smile <= -0.5, 'a small frown score still frowns');
+	// Sad brows (inner ends up) with a slight frown read as sad; the same brows with an open mouth do not.
+	const sadBrows = rawFromBlendshapes([{ categoryName: 'browInnerUp', score: 0.5 }, { categoryName: 'mouthFrownLeft', score: 0.05 }, { categoryName: 'mouthFrownRight', score: 0.05 }]);
+	assert.ok(sadBrows.smile <= -0.3, JSON.stringify(sadBrows));
+	const surprised = rawFromBlendshapes([{ categoryName: 'browInnerUp', score: 0.5 }, { categoryName: 'jawOpen', score: 0.5 }]);
+	assert.ok(surprised.smile > -0.05, JSON.stringify(surprised));
 	assert.ok(r.gazeX > 0.5, 'looking to the player\'s right is to the drawing\'s right');
 });
 
@@ -266,6 +271,10 @@ test('brows and smile read against their resting level: glasses or a resting fro
 	let held = up;
 	for (let i = 0; i < 100; i++) held = c.push({ ...RAW_ZERO, browL: -0.8, browR: -0.8, smile: -0.15 });
 	assert.ok(held.browL < -0.4, JSON.stringify(held));
+	// Nor is a mild frown (a sad mouth) learnt away.
+	let glum = held;
+	for (let i = 0; i < 300; i++) glum = c.push({ ...RAW_ZERO, browL: -0.3, browR: -0.3, smile: -0.3 });
+	assert.ok(glum.smile < -0.1, JSON.stringify(glum));
 	c.reset();
 	assert.equal(c.push({ ...RAW_ZERO, browL: 0.3 }).browL, 0);
 });
@@ -339,6 +348,9 @@ test('a face style: six digits both ways, each choice of each part changing the 
 	assert.equal(rigText(drawRig(rig({ eyeL: 0, eyeR: 0 }), 10, 5, { ...PLAIN_STYLE, glasses: 3 })).split('\n')[1].trim(), '[-]--[-]');
 	// Happy eyes are the far face's ◠; a mouth wide open with one row left (the head tipped down) is a hole, not (OO).
 	assert.equal(rigText(drawRig(rig({ smile: 14 }), 10, 5)).split('\n')[1].trim(), '◠    ◠');
+	// Sad eyes in the middle face too (not when the brows are down: that is cross).
+	assert.equal(rigText(drawRig(rig({ smile: 3 }), 10, 5)).split('\n')[1].trim(), 'ɷ    ɷ');
+	assert.equal(rigText(drawRig(rig({ smile: 3, browL: 3, browR: 3 }), 10, 5)).split('\n')[1].trim(), 'o    o');
 	assert.ok(!rigText(drawRig(rig({ mouth: 12, pitch: 1 }), 10, 5)).includes('OO'));
 });
 
