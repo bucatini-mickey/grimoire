@@ -16,6 +16,7 @@ import type { Announcement } from '../net/protocol.ts';
 import type { Button, Row, Tone } from './ascii.ts';
 import { ALL_CHARACTERS } from '../core/index.ts';
 import type { SeatId } from '../core/index.ts';
+import { bluffsOf } from '../net/views.ts';
 import type { Section, Wake } from '../net/views.ts';
 
 /** Cards are as wide as the page, so what a player is told is large and plain. */
@@ -38,6 +39,11 @@ export interface PageHandlers {
 	name(id: SeatId): string;
 	/** Already dead when the night began (marked on the pick list). */
 	deadAtDusk(id: SeatId): boolean;
+	/**
+	 * Set when the page is shown again ("Remind me"): the way on is back to the list of pages, and a choice
+	 * is only shown as it was made, not made again.
+	 */
+	recall?: () => void;
 }
 
 /** A line in the block. */
@@ -60,8 +66,6 @@ const sideOf = (role?: string): 'good' | 'evil' | 'other' => {
 };
 const TEAM_NAME: Record<string, string> = { townsfolk: 'Townsfolk', outsider: 'Outsider', minion: 'Minion', demon: 'Demon', traveller: 'Traveller', fabled: 'Fabled' };
 const teamName = (role: string): string => TEAM_NAME[ALL_CHARACTERS.find((c) => c.id === role)?.team ?? ''] ?? '';
-/** The Demon's bluffs, if this wake shows them: they have a page of their own. */
-const bluffsOf = (w: Wake): Section | undefined => w.sections.find((s) => s.title === 'Not in play' && s.lines.length > 0);
 /** Marks a page as illuminated (folio: the vine borders and the roundel). */
 const illumined = (role?: string): Row => ({ segs: [], cls: 'illum-' + sideOf(role) });
 
@@ -107,14 +111,53 @@ const mid = (t: string, tone?: Tone): Row => row(txt(center(t, CARD_COLS), tone)
  * Before a player's pages, on the Storyteller's own phone: whose turn it is, their name lettered as a
  * character's is, and the button they press once they hold the phone (so no one else reads on).
  */
-export function handOverRows(who: string, holding: () => void): Row[] {
+export function handOverRows(who: string, holding: () => void, opts: { line?: string; cancel?: () => void } = {}): Row[] {
 	return [
 		illumined(), blank(),
 		mid('The phone goes to', 'dim'),
 		namePlate(who) ?? mid(who, 'gold'),
-		blank(), mid('Everyone else, eyes closed.', 'dim'), blank(),
-		...cardButtons([btn('I am holding the phone', holding, { style: 'primary' })])
+		blank(), mid(opts.line ?? 'Everyone else, eyes closed.', 'dim'), blank(),
+		...cardButtons([btn('I am holding the phone', holding, { style: 'primary' }), ...(opts.cancel ? [btn('Not now', opts.cancel, { style: 'quiet' })] : [])])
 	];
+}
+
+/**
+ * "Remind me", first of all: the Storyteller is asked to be sure whom the phone goes to. It names the seat and
+ * shows nothing of it, so a wrong tap on a seat (or beside Skip) costs one "Not now", never a page put in
+ * front of the wrong person.
+ */
+export function handConfirmRows(who: string, yes: () => void, no: () => void): Row[] {
+	return [
+		illumined(), blank(),
+		mid('Remind me', 'rubric'), blank(),
+		namePlate(who) ?? mid(who, 'gold'),
+		blank(), mid(`Hand to ${who}?`),
+		mid('They will read again what they were shown.', 'dim'), blank(),
+		...cardButtons([btn(`Hand to ${who}`, yes, { style: 'primary' }), btn('Not now', no, { style: 'quiet' })])
+	];
+}
+
+/** One line of the index a player reads their pages from ("Remind me"). */
+export interface RecallLine { label: string; night: number | null; open(): void }
+
+/**
+ * "Remind me": the pages this player was shown, to read again. What is about them comes first, then each
+ * night in order, then the plain page that hands the phone back, so nothing is left on screen.
+ * A player shown nothing yet is told so.
+ */
+export function recallIndexRows(who: string, role: string | undefined, lines: RecallLine[], handBack: () => void): Row[] {
+	const rows: Row[] = [illumined(role), blank(), heading('Remind me'), ...para(`${who}, tap a page to read it again.`, 'dim'), blank()];
+	if (!lines.length) rows.push(...big('Nothing yet'), ...para('You have not been shown anything yet.', 'dim'), blank());
+	let group: number | null | undefined;
+	for (const l of lines) {
+		if (l.night !== group) {
+			group = l.night;
+			rows.push(heading(l.night === null ? 'About me' : `Night ${l.night}`));
+		}
+		rows.push(...cardButtons([btn(l.label, l.open)]));
+	}
+	rows.push(endPanel(), blank(), ...cardButtons([btn('Hand the phone back', handBack, { style: 'primary' })]));
+	return rows;
 }
 
 /** After them: the great star, "hand the phone back to the Storyteller", and the Storyteller's button. */
@@ -172,7 +215,7 @@ export function nextPage(w: Wake, from: Page): Page {
 
 export function wakeRows(w: Wake, page: Page, picks: SeatId[], h: PageHandlers): Row[] {
 	const rows: Row[] = [illumined(w.role)];
-	const next = (from: Page) => btn('Next', () => h.go(nextPage(w, from)), { style: 'primary' });
+	const next = (from: Page) => (h.recall ? btn('Back to my pages', h.recall, { style: 'primary' }) : btn('Next', () => h.go(nextPage(w, from)), { style: 'primary' }));
 	switch (page) {
 		case 'who':
 			rows.push(...sectionRows(w.sections.filter((s) => s !== bluffsOf(w)), w.role), endPanel(), ...cardButtons([next('who')]));
@@ -191,7 +234,7 @@ export function wakeRows(w: Wake, page: Page, picks: SeatId[], h: PageHandlers):
 				style: picks.includes(id) ? 'on' : undefined
 			}));
 			rows.push(...centredButtons(seats, CARD_COLS, 2));
-			rows.push(endPanel(), blank(), ...cardButtons([
+			rows.push(endPanel(), blank(), ...cardButtons(h.recall ? [btn('Back to my pages', h.recall, { style: 'primary' })] : [
 				btn('Back', () => h.go('who'), { style: 'quiet' }),
 				btn('Confirm', h.confirm, { style: 'primary', disabled: picks.length !== p.count })
 			]));
