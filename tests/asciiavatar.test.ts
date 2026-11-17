@@ -235,7 +235,7 @@ test('Letters: the drawn face goes over yours, mirrored, and an oval hides your 
 	// A face in the middle of a 640x480 picture: the middle of a 12 x 6 tile.
 	const mid = faceOver({ x: 0.4, y: 0.3, w: 0.2, h: 0.3 }, 640, 480, 12, 6, cells);
 	assert.ok(Math.abs(mid.cx - 6) < 1.5, JSON.stringify(mid));
-	assert.ok(mid.rx >= 2.5 && mid.ry >= 1.5);
+	assert.ok(mid.rx >= 1.9 && mid.rx < 2.5 && mid.ry >= 1.3 && mid.ry < 1.5, 'the blank hugs the small face');
 	assert.ok(mid.y >= 0 && mid.y + 2 <= 6, JSON.stringify(mid));
 	// The face on the picture's left is on the tile's right (the tile is a mirror).
 	const left = faceOver({ x: 0.15, y: 0.3, w: 0.2, h: 0.3 }, 640, 480, 12, 6, cells);

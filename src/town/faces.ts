@@ -52,11 +52,13 @@ export function faceOver<C>(box: { x: number; y: number; w: number; h: number },
 	const c = crop(vw, vh, tw / (th * 2));
 	const cx = (1 - ((box.x + box.w / 2) * vw - c.sx) / c.sw) * tw;
 	const top = ((box.y * vh - c.sy) / c.sh) * th, hc = (box.h * vh / c.sh) * th;
-	const rx = Math.max(2.5, (box.w * vw / c.sw) * tw * 0.55), ry = Math.max(1.5, hc * 0.55);
-	const cy = top + hc / 2;
 	// Eyes about 40% down the face (the box runs brow to chin), the mouth under them.
 	const ah = cells.length, aw = cells[0]?.length ?? 0;
-	return { cx, cy, rx, ry, cells, x: Math.round(cx - aw / 2), y: Math.round(top + hc * 0.4 - 0.5) - (ah > 2 ? 1 : 0) };
+	const x = Math.round(cx - aw / 2), y = Math.round(top + hc * 0.4 - 0.5) - (ah > 2 ? 1 : 0);
+	// The blank behind it hugs the drawn face (17 Nov: the oval over the whole face was too big): the 3 x 2
+	// small face's own cells, a little more only for a face that fills much of the tile.
+	const rx = Math.max(1.9, (box.w * vw / c.sw) * tw * 0.3), ry = Math.max(1.3, hc * 0.3);
+	return { cx: x + aw / 2, cy: y + ah / 2, rx, ry, cells, x, y };
 }
 
 /** Brightness samples (0..255) to a frame: stretched to the picture's own range, a little sharpened. */
