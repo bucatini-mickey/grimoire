@@ -6,7 +6,7 @@ test('each town its weather: storm and beam at Saltgrave, snow at Wolfsgrund, fo
 	assert.ok(weatherOf('victorian').rain && weatherOf('victorian').beam && weatherOf('victorian').storm);
 	assert.ok(weatherOf('grimm').snow && !weatherOf('grimm').rain);
 	assert.ok(weatherOf('whitechapel').fog > 1.5);
-	assert.ok(!weatherOf('castle').rain && !weatherOf('castle').snow);
+	assert.ok(!weatherOf('talmberg').rain && !weatherOf('talmberg').snow);
 });
 
 test('the beam lights a narrow cone that turns, fading with distance', () => {
@@ -38,11 +38,11 @@ test('rain and snow fall: a few cells at a time, moving with the clock, the same
 	let moved = 0;
 	for (let x = 0; x < 40; x++) if (!!fall(snow, x, 5, 0) !== !!fall(snow, x, 5, 2000)) moved++;
 	assert.ok(moved > 0, 'the snow moves');
-	assert.equal(fall(weatherOf('castle'), 3, 4, 1000), null);
+	assert.equal(fall(weatherOf('talmberg'), 3, 4, 1000), null);
 });
 
 test('sheep and cattle graze at Ashcombe: a few in a field, wandering slowly, never two in a square', () => {
-	assert.ok(weatherOf('hamlet').graze && !weatherOf('castle').graze);
+	assert.ok(weatherOf('hamlet').graze && !weatherOf('talmberg').graze);
 	const at = (ms: number) => { const out: string[] = []; for (let y = 0; y < 42; y++) for (let x = 0; x < 42; x++) if (grazer(x, y, ms)) out.push(`${x},${y}`); return out; };
 	const now = at(0);
 	assert.ok(now.length >= 12 && now.length <= 36, `${now.length} beasts`);

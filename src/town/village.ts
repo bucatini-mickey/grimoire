@@ -68,7 +68,6 @@ import type { Neutral, Tracker, TrackerName } from '../avatar/trackers.ts';
 /** The village's trackers: BlazeFace was tried and dropped (Lavender, 14 Nov: "terrible"). */
 const TRACKER_NAMES: TrackerName[] = ['landmarker', 'pixel'];
 import type { Voice, VoiceMode } from './voice.ts';
-import CASTLE from '../../town/castle.tbp';
 import TALMBERG from '../../town/talmberg.tbp';
 import SALTGRAVE from '../../town/victorian.tbp';
 import WOLFSGRUND from '../../town/grimm.tbp';
@@ -82,7 +81,7 @@ import { bookKey, THEMES, TOWN_LIST, themeOf } from '../ui/theme.ts';
 import type { Theme } from '../ui/theme.ts';
 
 /** Each town's blueprint, by its key in TOWN_LIST (src/ui/theme.ts). */
-const TOWN_TEXT: Record<string, string> = { talmberg: TALMBERG, castle: CASTLE, hamlet: ASHCOMBE, abbey: ABBEY, grimm: WOLFSGRUND, whitechapel: WHITECHAPEL, victorian: SALTGRAVE, liner: CARCOSA };
+const TOWN_TEXT: Record<string, string> = { talmberg: TALMBERG, hamlet: ASHCOMBE, abbey: ABBEY, grimm: WOLFSGRUND, whitechapel: WHITECHAPEL, victorian: SALTGRAVE, liner: CARCOSA };
 /** The town a theme is played in: the one the Storyteller picked for it, else its first. */
 const themeTown = (th: Theme) => {
 	const picked = store.get('grimoire.townOf.' + th);
@@ -2460,7 +2459,7 @@ function act(a: string, id = '') {
 		case 'phase-night': setPhase('night'); break;
 		case 'bot': addBot(); break;
 		case 'st-toggle': S.stOpen = !S.stOpen; S.sheet = null; drawChrome(); break;
-		case 'town-talmberg': case 'town-castle': case 'town-hamlet': case 'town-abbey': case 'town-grimm': case 'town-whitechapel': case 'town-victorian': case 'town-liner': {
+		case 'town-talmberg': case 'town-hamlet': case 'town-abbey': case 'town-grimm': case 'town-whitechapel': case 'town-victorian': case 'town-liner': {
 			const key = a.slice(5), info = TOWN_LIST.find((t) => t.key === key)!;
 			store.set('grimoire.townOf.' + info.theme, key);
 			changeTown(TOWN_TEXT[key]);

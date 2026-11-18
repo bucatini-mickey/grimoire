@@ -5,7 +5,6 @@
  *                            beam turning round over the town and the water
  *   Wolfsgrund (grimm)       snow falling, drifting with the wind
  *   Whitechapel              a yellow fog, thick: the gas lamps are islands in it
- *   Ravensburg (castle)      fair weather, the river mist
  *   Ashcombe (hamlet)        a morning mist; the sheep and cattle wander the pasture
  *   St. Cuthwin's (abbey)    a still mist in the cloister
  *   the Carcosa (liner)      rain and lightning on a black sea, sea fog
@@ -44,7 +43,6 @@ const BY_TOWN: Record<string, Weather> = {
 	victorian: { ...CALM, rain: true, storm: true, beam: true, fog: 1.15, fogTint: [150, 162, 168], clouds: 0, fireflies: false, sky: [0.7, 0.76, 0.82] },
 	grimm: { ...CALM, snow: true, fog: 1.1, fogTint: [200, 208, 220], clouds: 0, fireflies: false, sky: OVERCAST },
 	whitechapel: { ...CALM, fog: 1.7, fogTint: [176, 164, 112], clouds: 0, fireflies: false, sky: [0.86, 0.8, 0.62] },
-	castle: CALM,
 	keep: { ...CALM, fog: 0.4 },
 	hamlet: { ...CALM, graze: true, fog: 1.2, fogTint: [184, 190, 178] },
 	abbey: { ...CALM, fog: 1.25, fogTint: [186, 186, 178], clouds: 0.6 },
