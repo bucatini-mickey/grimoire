@@ -7,7 +7,7 @@ import {
 	bestPatch, blend, boxDown, cellGlyph, DEFAULTS, DENSE, embedHtml, exposure, fixedCrop, follow, hexFrame, isSkin, luma,
 	outside, playerHtml, quantize, RAMP, rowsFor, SKIN_START, squareAround, toFrame, toHtml, toLevels
 } from '../src/avatar/asciiavatar.ts';
-import { cellOf, faceCell, faceOver, hideFace, inOval, overAt, resample } from '../src/town/faces.ts';
+import { cellOf, faceCell, faceOver, hideFace, inOval, inFigure, overAt, quietCell, resample } from '../src/town/faces.ts';
 
 const root = new URL('..', import.meta.url);
 const read = (p: string) => readFileSync(new URL(p, root), 'utf8');
@@ -260,4 +260,14 @@ test('Letters sent to others: the face is blanked before it leaves, and lands wh
 	// The same size: the face goes exactly where it was.
 	const same = overAt([o.x, o.y], W, H, W, H, [[1, 2, 3, 4, 5], [1, 2, 3, 4, 5]]);
 	assert.deepEqual([same.x, same.y], [o.x, o.y]);
+});
+
+test('letters: the person round their face is picked out, the room behind them quietened', () => {
+	const o = { cx: 5, cy: 2, rx: 1.9, ry: 1.3 };
+	assert.ok(inFigure(o, 4, 1) && inFigure(o, 5, 2), 'the head');
+	assert.ok(inFigure(o, 2, 4) && inFigure(o, 7, 4), 'the shoulders, wider than the head');
+	assert.ok(!inFigure(o, 0, 0) && !inFigure(o, 9, 0), 'the corners above the shoulders are the room');
+	assert.ok(!inFigure(o, 1, 2), 'beside the head is the room');
+	assert.equal(quietCell(3), ' ');
+	for (let l = 0; l < 16; l++) assert.ok(' .:+'.includes(quietCell(l)), 'only faint marks behind them');
 });

@@ -1290,13 +1290,18 @@ function villageCells(g: Grid, ui?: Grid): boolean {
 	return true;
 }
 
+/** A colour as grey of the same lightness, a touch cool. */
+const grey = (c: Rgb): Rgb => { const y = 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2]; return [y * 0.97, y * 0.98, y * 1.04]; };
 const visMemo: { key: string; town: Town | null; vis: Set<number>; all: Set<number> | null; soft: Map<number, number> } = { key: '', town: null, vis: new Set(), all: null, soft: new Map() };
 /** How far sight fades past its edge: the cells one, two and three steps beyond what is seen, and how much shows. */
 const SOFT = [0.55, 0.3, 0.12];
 /** The cells just beyond what is seen, and how much of each still shows (sight fades out rather than stopping). */
 function softEdge(t: Town, vis: Set<number>): Map<number, number> {
 	const soft = new Map<number, number>();
-	let ring = [...vis];
+	// Only from open ground in sight: never from the face of a wall or a door, which would show what lies
+	// behind them (18 Nov: the cells either side of a dorter cell showed through its walls).
+	const stops = (j: number) => t.cells[j].tile === 'wall' || t.cells[j].things.includes('door') || t.locked.has(j);
+	let ring = [...vis].filter((i) => !stops(i));
 	for (const k of SOFT) {
 		const next: number[] = [];
 		for (const i of ring) {
@@ -1305,8 +1310,8 @@ function softEdge(t: Town, vis: Set<number>): Map<number, number> {
 				const nx = x + dx, ny = y + dy, j = nx + ny * t.w;
 				if (nx < 0 || ny < 0 || nx >= t.w || ny >= t.h || vis.has(j) || soft.has(j)) continue;
 				soft.set(j, k);
-				// A wall shows faintly, but sight does not fade on through it (into a room you cannot see).
-				if (t.cells[j].tile !== 'wall' && !t.locked.has(j)) next.push(j);
+				// A wall or a door shows faintly, but sight does not fade on through it (into a room you cannot see).
+				if (!stops(j)) next.push(j);
 			}
 		}
 		ring = next;
@@ -1536,6 +1541,8 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 				look = lookAt(t, x, y, now);
 				if (t.cells[i].mat !== 'water' && !t.cells[i].things.includes('waterfall')) memo[i] = look;
 			}
+			// Out of sight, a door is only a door: whether it is locked now is not known from afar.
+			if (!shown && t.locked.has(i)) look = { ...look, ch: '∩', wall: undefined, glass: false };
 			let fg: Rgb, bg: Rgb;
 			const f = Math.min(1, indoors ? 0.2 * (1 - edge)
 				: inCave && rock ? fogAt(t, x, y, cam, S.phase, fogMs) * 0.25 * (0.6 + 0.4 * edge) + 0.35 * (1 - edge)
@@ -1554,9 +1561,9 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 			if (!shown) {
 				// Seen before: as it is remembered, faded and cooled; the mist over it too. A locked door stays plain.
 				// The remembered ground lies low and dark, so the glyphs sketch the place and what is in sight stands out.
-				let mf = mul(memoryOf(look.fg, gr), [0.86, 0.86, 0.88]), mb = mul(memoryOf(look.bg, gr), [0.38, 0.38, 0.41]);
-				if (f > 0.01) { const m = memoryOf(mist, gr); mf = lerp(mf, m, Math.min(1, f * 0.5)); }
-				if (t.locked.has(i)) [mf, mb] = [look.fg, mul(look.bg, [0.6, 0.6, 0.6])];
+				// In grey (18 Nov): memory keeps the shape of a place, not its colours, so nothing there looks live.
+				let mf = grey(mul(memoryOf(look.fg, gr), [0.86, 0.86, 0.88])), mb = grey(mul(memoryOf(look.bg, gr), [0.38, 0.38, 0.41]));
+				if (f > 0.01) { const m = grey(memoryOf(mist, gr)); mf = lerp(mf, m, Math.min(1, f * 0.5)); }
 				const k = 0.75 + 0.25 * v;
 				[mf, mb] = [mul(mf, [k, k, k]), mul(mb, [k, k, k])];
 				[fg, bg] = edge ? [lerp(mf, fg, edge), lerp(mb, bg, edge)] : [mf, mb];

@@ -66,6 +66,23 @@ export const inOval = (o: { cx: number; cy: number; rx: number; ry: number }, x:
 	((x + 0.5 - o.cx) / o.rx) ** 2 + ((y + 0.5 - o.cy) / o.ry) ** 2 <= 1;
 
 /**
+ * Whether cell (x, y) of a letters tile belongs to the person in it, as far as their face tells: a head
+ * round the drawn face and shoulders widening below it (18 Nov: drawn in their colour, the rest of the
+ * picture quietened, so the person stands out from a busy room).
+ */
+export function inFigure(o: { cx: number; cy: number; rx: number; ry: number }, x: number, y: number): boolean {
+	const px = x + 0.5, py = y + 0.5;
+	if (((px - o.cx) / (o.rx * 1.25 + 0.4)) ** 2 + ((py - o.cy) / (o.ry * 1.5 + 0.3)) ** 2 <= 1) return true;
+	const neck = o.cy + o.ry * 0.9;
+	return py > neck && Math.abs(px - o.cx) <= o.rx * 1.1 + (py - neck) * 1.6;
+}
+
+/** A letters cell behind the person: only faint marks, so the room is there but does not crowd them. */
+export function quietCell(level: number): string {
+	return level < 6 ? ' ' : level < 10 ? '.' : level < 13 ? ':' : '+';
+}
+
+/**
  * A frame (w x h cells, two samples a cell) with the cells inside the oval blanked: what a Letters phone
  * sends, so your own face never leaves it (the drawn face goes there on every phone, from your numbers).
  */

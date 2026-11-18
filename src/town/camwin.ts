@@ -18,7 +18,7 @@
  */
 import { shade } from '../term/pterm.ts';
 import type { Grid, Rect, Term } from '../term/pterm.ts';
-import { cellOf, crop, inOval } from './faces.ts';
+import { cellOf, crop, inFigure, inOval, quietCell } from './faces.ts';
 import type { RigCell } from '../avatar/rig.ts';
 
 /**
@@ -263,15 +263,22 @@ export function drawCamWindow(g: Grid, L: CamLayout, d: CamWindowDraw) {
 			}
 		} else if (t.kind === 'letters' && t.frame) {
 			const o = t.over;
+			// The person in their own colour (brighter where the picture is), the room behind them quiet and dim;
+			// the drawn face over theirs in their colour at full strength.
+			const hue = t.ink[1] || t.ink[0];
+			const fd = (ink: number) => (t.fade === undefined ? ink : shade(ink, Math.min(t.fade, 2)));
 			for (let yy = 0; yy < r.h; yy++) for (let xx = 0; xx < r.w; xx++) {
 				// Inside the oval over your face: blank, so only your outline is yours.
 				if (o && inOval(o, xx, yy)) { g.set(r.x + xx, r.y + yy, ' ', 3, 0); continue; }
 				const c = cellOf(t.frame, xx, yy, r.w);
-				g.set(r.x + xx, r.y + yy, c.ch, levelInk(c.level), 0);
+				// No face found (yet): the picture as it is, nobody to pick out.
+				if (!o) g.set(r.x + xx, r.y + yy, c.ch, levelInk(c.level), 0);
+				else if (inFigure(o, xx, yy)) g.set(r.x + xx, r.y + yy, c.ch, fd(c.level < 6 ? shade(hue, 1) : c.level < 11 ? shade(hue, 2) : hue), 0);
+				else g.set(r.x + xx, r.y + yy, quietCell(c.level), shade(3, c.level < 11 ? 1 : 2), 0);
 			}
 			if (o) o.cells.forEach((row, yy) => row.forEach((c, xx) => {
 				const px = o.x + xx, py = o.y + yy;
-				if (c.ch !== ' ' && px >= 0 && py >= 0 && px < r.w && py < r.h) g.set(r.x + px, r.y + py, c.ch, 6, 0);
+				if (c.ch !== ' ' && px >= 0 && py >= 0 && px < r.w && py < r.h) g.set(r.x + px, r.y + py, c.ch, fd(hue), 0);
 			}));
 		} else {
 			// No picture: a faint ground, their letter in the middle on its plate, why under it.
