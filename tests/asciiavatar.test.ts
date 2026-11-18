@@ -7,7 +7,7 @@ import {
 	bestPatch, blend, boxDown, cellGlyph, DEFAULTS, DENSE, embedHtml, exposure, fixedCrop, follow, hexFrame, isSkin, luma,
 	outside, playerHtml, quantize, RAMP, rowsFor, SKIN_START, squareAround, toFrame, toHtml, toLevels
 } from '../src/avatar/asciiavatar.ts';
-import { cellOf, faceCell, faceOver, hideFace, inOval, inFigure, overAt, quietCell, resample } from '../src/town/faces.ts';
+import { calmGlyph, cellOf, faceCell, faceOver, hideFace, inFigure, inOval, nearFace, overAt, quietCell, resample } from '../src/town/faces.ts';
 
 const root = new URL('..', import.meta.url);
 const read = (p: string) => readFileSync(new URL(p, root), 'utf8');
@@ -270,4 +270,17 @@ test('letters: the person round their face is picked out, the room behind them q
 	assert.ok(!inFigure(o, 1, 2), 'beside the head is the room');
 	assert.equal(quietCell(3), ' ');
 	for (let l = 0; l < 16; l++) assert.ok(' .:+'.includes(quietCell(l)), 'only faint marks behind them');
+});
+
+test('letters: a quiet ring round the drawn face, and no dense glyph in the person', () => {
+	const o = { cx: 5, cy: 2, rx: 1.9, ry: 1.3 };
+	assert.ok(nearFace(o, 2, 2) && nearFace(o, 7, 2), 'either side of the face');
+	assert.ok(!nearFace(o, 5, 2), 'not the face itself (its blank)');
+	assert.ok(!nearFace(o, 0, 4), 'not far off');
+	for (const ch of ' .:-=+*#%@"\'`,o') {
+		assert.ok(" .:',".includes(calmGlyph(ch, true)), `${ch} by the face`);
+		assert.ok(!'@%#'.includes(calmGlyph(ch, false)), `${ch} in the person`);
+	}
+	assert.equal(calmGlyph('"', true), "'", 'high stays high');
+	assert.equal(calmGlyph('o', true), ',', 'low stays low');
 });

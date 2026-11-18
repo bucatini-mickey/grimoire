@@ -878,6 +878,34 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
       gazeY: (v("eyeLookUpLeft") + v("eyeLookUpRight") - v("eyeLookDownLeft") - v("eyeLookDownRight")) / 2
     };
   }
+  function rawFromMesh(lm) {
+    const d = (a, b) => Math.hypot(lm[a].x - lm[b].x, lm[a].y - lm[b].y);
+    const faceH = d(10, 152) || 1;
+    const eye = (up, low, a, b) => {
+      const r = d(up, low) / (d(a, b) || 1);
+      return clamp2((r - 0.09) / 0.17, 0, 1) + Math.max(0, r - 0.33) * 2;
+    };
+    const mouth = clamp2((d(13, 14) / faceH - 0.012) / 0.12, 0, 1);
+    const midY = (lm[13].y + lm[14].y) / 2, cornerY = (lm[61].y + lm[291].y) / 2;
+    const smile = (midY - cornerY) / faceH * 12 + d(61, 291) / (d(33, 263) || 1) * 2;
+    const brow = (b, e) => (lm[e].y - lm[b].y) / faceH / 0.03;
+    const iris = (c, a, b, up, low) => {
+      const x0 = Math.min(lm[a].x, lm[b].x), x1 = Math.max(lm[a].x, lm[b].x), w = x1 - x0 || 1;
+      return { x: ((lm[c].x - x0) / w - 0.5) * 2, y: (lm[c].y - (lm[up].y + lm[low].y) / 2) / w };
+    };
+    const hasIris = lm.length >= 478;
+    const ia = hasIris ? iris(468, 33, 133, 159, 145) : { x: 0, y: 0 }, ib = hasIris ? iris(473, 362, 263, 386, 374) : { x: 0, y: 0 };
+    return {
+      eyeL: eye(386, 374, 362, 263),
+      eyeR: eye(159, 145, 33, 133),
+      mouth,
+      smile,
+      browL: brow(334, 386),
+      browR: brow(105, 159),
+      gazeX: clamp2(-(ia.x + ib.x) / 2 * 1.8, -1, 1),
+      gazeY: clamp2(-(ia.y + ib.y) / 2 * 6, -1, 1)
+    };
+  }
   function darkness(lum) {
     const sorted = Float32Array.from(lum).sort();
     const med = Math.max(8, sorted[Math.floor(sorted.length * 0.6)]);
@@ -978,7 +1006,7 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
     blazeface: "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite"
   };
   var TRACKER_NAMES = ["landmarker", "blazeface", "pixel"];
-  var TRACKER_LABEL = { landmarker: "Face Landmarker", blazeface: "BlazeFace + pixels", pixel: "Pixels only" };
+  var TRACKER_LABEL = { landmarker: "Face Landmarker", blazeface: "BlazeFace + pixels", pixel: "Pixels only", mesh: "Face mesh (no WebGL)" };
   var load = (u) => import(
     /* @vite-ignore */
     u
@@ -997,7 +1025,10 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
   function webgl2() {
     const ok = (c) => {
       try {
-        return !!c()?.getContext("webgl2");
+        const gl = c()?.getContext("webgl2");
+        if (!gl) return false;
+        gl.getExtension("WEBGL_lose_context")?.loseContext();
+        return true;
       } catch {
         return false;
       }
@@ -1220,8 +1251,111 @@ textarea { width: 100%; min-height: 60px; font: inherit; background: var(--bg); 
     close() {
     }
   };
+  var TFJS = "4.21.0";
+  var FLD = "1.0.6";
+  var JSD = "https://cdn.jsdelivr.net/npm/";
+  var meshDetector = null;
+  function script(src) {
+    return new Promise((ok, no) => {
+      const s = document.createElement("script");
+      s.src = src;
+      s.crossOrigin = "anonymous";
+      s.onload = () => ok();
+      s.onerror = () => no(new Error("could not load " + src.split("/npm/")[1]));
+      document.head.appendChild(s);
+    });
+  }
+  function loadMesh() {
+    return meshDetector ?? (meshDetector = (async () => {
+      const w = window;
+      if (!w.tf?.wasm) {
+        await script(JSD + "@tensorflow/tfjs-core@" + TFJS + "/dist/tf-core.min.js");
+        await script(JSD + "@tensorflow/tfjs-converter@" + TFJS + "/dist/tf-converter.min.js");
+        await script(JSD + "@tensorflow/tfjs-backend-wasm@" + TFJS + "/dist/tf-backend-wasm.min.js");
+      }
+      const tf = w.tf;
+      tf.wasm.setWasmPaths(JSD + "@tensorflow/tfjs-backend-wasm@" + TFJS + "/dist/");
+      if (!await tf.setBackend("wasm")) throw new Error("WebAssembly is not available");
+      await tf.ready();
+      const mm = tf.getKernel("BatchMatMul", "wasm"), cast = tf.getKernel("Cast", "wasm");
+      if (mm && cast && !w.__grimoireMatMul) {
+        w.__grimoireMatMul = true;
+        tf.unregisterKernel("BatchMatMul", "wasm");
+        tf.registerKernel({ kernelName: "BatchMatMul", backendName: "wasm", setupFunc: mm.setupFunc, kernelFunc: (args) => {
+          const { a, b } = args.inputs, be = args.backend;
+          if (a.dtype === "float32" && b.dtype === "float32") return mm.kernelFunc(args);
+          const fa = cast.kernelFunc({ inputs: { x: a }, backend: be, attrs: { dtype: "float32" } });
+          const fb = cast.kernelFunc({ inputs: { x: b }, backend: be, attrs: { dtype: "float32" } });
+          try {
+            return mm.kernelFunc({ ...args, inputs: { a: fa, b: fb } });
+          } finally {
+            be.disposeData(fa.dataId);
+            be.disposeData(fb.dataId);
+          }
+        } });
+      }
+      if (!w.faceLandmarksDetection) await script(JSD + "@tensorflow-models/face-landmarks-detection@" + FLD + "/dist/face-landmarks-detection.min.js");
+      const fld = w.faceLandmarksDetection;
+      return fld.createDetector(fld.SupportedModels.MediaPipeFaceMesh, { runtime: "tfjs", refineLandmarks: true, maxFaces: 1 });
+    })().catch((e) => {
+      meshDetector = null;
+      throw e;
+    }));
+  }
+  var fromTfjs = (u) => u.includes("@tensorflow") || u.includes("tfhub.dev") || u.includes("kaggle");
+  var MeshTracker = class {
+    constructor() {
+      __publicField(this, "name", "mesh");
+      __publicField(this, "det", null);
+      /** Where the nose sits between the eyes and the mouth at rest, learnt over the first frames (for the tip). */
+      __publicField(this, "rest", 0);
+      __publicField(this, "restN", 0);
+      __publicField(this, "centre", new Recentre());
+    }
+    async load() {
+      const t0 = performance.now();
+      this.det = await loadMesh();
+      const files = downloaded(fromTfjs);
+      return { bytes: files.reduce((a, f) => a + f.bytes, 0), ms: performance.now() - t0, files, note: "no WebGL: face mesh on WebAssembly" };
+    }
+    track() {
+      throw new Error("the face mesh tracks in the background (trackAsync)");
+    }
+    async trackAsync(src, sw, sh) {
+      const t0 = performance.now();
+      const faces = this.det ? await this.det.estimateFaces(src) : [];
+      const ms = performance.now() - t0;
+      const kp = faces?.[0]?.keypoints;
+      if (!kp || kp.length < 468) return { raw: null, points: [], box: null, ms };
+      const n = (p) => ({ x: p.x / sw, y: p.y / sh });
+      const mid = (a, b) => n({ x: (kp[a].x + kp[b].x) / 2, y: (kp[a].y + kp[b].y) / 2 });
+      const at = { eyeA: mid(33, 133), eyeB: mid(362, 263), nose: n(kp[1]), mouth: mid(13, 14) };
+      const share = -poseFromPoints(at, sw / sh, 0).pitch / 160;
+      if (this.restN < 20) {
+        this.restN++;
+        this.rest += (share - this.rest) / this.restN;
+      }
+      const pose = poseFromPoints(at, sw / sh, this.rest);
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (const p of kp) {
+        x0 = Math.min(x0, p.x);
+        y0 = Math.min(y0, p.y);
+        x1 = Math.max(x1, p.x);
+        y1 = Math.max(y1, p.y);
+      }
+      const points = [33, 133, 362, 263, 1, 61, 291, 152, 10].map((i) => n(kp[i]));
+      return { raw: this.centre.push({ ...rawFromMesh(kp), ...pose }), points, box: { x: x0 / sw, y: y0 / sh, w: (x1 - x0) / sw, h: (y1 - y0) / sh }, ms };
+    }
+    relearn() {
+      this.centre.reset();
+      this.rest = 0;
+      this.restN = 0;
+    }
+    close() {
+    }
+  };
   function makeTracker(name) {
-    return name === "landmarker" ? new LandmarkerTracker() : name === "blazeface" ? new BlazeTracker() : new PixelTracker();
+    return name === "landmarker" ? new LandmarkerTracker() : name === "blazeface" ? new BlazeTracker() : name === "mesh" ? new MeshTracker() : new PixelTracker();
   }
 
   // src/avatar/testpage.ts

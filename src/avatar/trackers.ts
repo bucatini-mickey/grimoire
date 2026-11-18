@@ -213,6 +213,48 @@ export function rawFromBlendshapes(cats: Category[], matrix?: ArrayLike<number> 
 	};
 }
 
+// ---- the face mesh alone (the tracker that needs no WebGL) ------------------------------------------------
+
+/**
+ * Raw measures from the 478 face-mesh points alone, with no blendshapes: what the WebGL-free tracker gives
+ * (18 Nov). Points in pixels (x and y in the same units), unmirrored, in MediaPipe's numbering, which the
+ * TensorFlow.js face mesh shares. The player's left eye is on the picture's right (362, 263, 386, 374).
+ * Pose is left out (the caller has the picture's shape); brows and smile are raw levels, for Recentre.
+ */
+export function rawFromMesh(lm: Pt[]): Omit<Raw, 'yaw' | 'pitch' | 'roll'> {
+	const d = (a: number, b: number) => Math.hypot(lm[a].x - lm[b].x, lm[a].y - lm[b].y);
+	const faceH = d(10, 152) || 1;
+	// Eyes: the lids' gap against the eye's width; about 0.28 open, under 0.1 shut.
+	const eye = (up: number, low: number, a: number, b: number) => {
+		const r = d(up, low) / (d(a, b) || 1);
+		return clamp((r - 0.09) / 0.17, 0, 1) + Math.max(0, r - 0.33) * 2;
+	};
+	// The mouth: the gap between the lips, as a share of the face's height.
+	const mouth = clamp((d(13, 14) / faceH - 0.012) / 0.12, 0, 1);
+	// A smile lifts the mouth's corners above the lips' middle and widens it.
+	const midY = (lm[13].y + lm[14].y) / 2, cornerY = (lm[61].y + lm[291].y) / 2;
+	const smile = ((midY - cornerY) / faceH) * 12 + (d(61, 291) / (d(33, 263) || 1)) * 2;
+	// Brows: their height over the eye, as a share of the face's height.
+	const brow = (b: number, e: number) => ((lm[e].y - lm[b].y) / faceH) / 0.03;
+	// Gaze: the iris across and down its eye (picture's terms), turned to the drawing's (mirrored) terms.
+	const iris = (c: number, a: number, b: number, up: number, low: number) => {
+		const x0 = Math.min(lm[a].x, lm[b].x), x1 = Math.max(lm[a].x, lm[b].x), w = x1 - x0 || 1;
+		return { x: ((lm[c].x - x0) / w - 0.5) * 2, y: (lm[c].y - (lm[up].y + lm[low].y) / 2) / w };
+	};
+	const hasIris = lm.length >= 478;
+	const ia = hasIris ? iris(468, 33, 133, 159, 145) : { x: 0, y: 0 }, ib = hasIris ? iris(473, 362, 263, 386, 374) : { x: 0, y: 0 };
+	return {
+		eyeL: eye(386, 374, 362, 263),
+		eyeR: eye(159, 145, 33, 133),
+		mouth,
+		smile,
+		browL: brow(334, 386),
+		browR: brow(105, 159),
+		gazeX: clamp((-(ia.x + ib.x) / 2) * 1.8, -1, 1),
+		gazeY: clamp((-(ia.y + ib.y) / 2) * 6, -1, 1)
+	};
+}
+
 // ---- pixel heuristics (BlazeFace and pixel trackers) ------------------------------------------------------
 
 /**
@@ -333,9 +375,10 @@ export const MODEL_URL = {
 	blazeface: 'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite'
 };
 
-export type TrackerName = 'landmarker' | 'blazeface' | 'pixel';
+/** 'mesh' is the fallback where WebGL is off (not offered as a choice, so not in TRACKER_NAMES). */
+export type TrackerName = 'landmarker' | 'blazeface' | 'pixel' | 'mesh';
 export const TRACKER_NAMES: TrackerName[] = ['landmarker', 'blazeface', 'pixel'];
-export const TRACKER_LABEL: Record<TrackerName, string> = { landmarker: 'Face Landmarker', blazeface: 'BlazeFace + pixels', pixel: 'Pixels only' };
+export const TRACKER_LABEL: Record<TrackerName, string> = { landmarker: 'Face Landmarker', blazeface: 'BlazeFace + pixels', pixel: 'Pixels only', mesh: 'Face mesh (no WebGL)' };
 
 /** What one frame gave: the measures (null when no face was found) and, for showing, the points used. */
 export interface Track { raw: Raw | null; points: Pt[]; box: { x: number; y: number; w: number; h: number } | null; ms: number; note?: string; }
@@ -348,6 +391,8 @@ export interface Tracker {
 	load(): Promise<Loaded>;
 	/** One frame from a video or canvas (sw x sh), at time `t` (ms, increasing). */
 	track(src: HTMLVideoElement | HTMLCanvasElement, sw: number, sh: number, t: number): Track;
+	/** A tracker that works in the background (the mesh) tracks this way instead; track() then throws. */
+	trackAsync?(src: HTMLVideoElement | HTMLCanvasElement, sw: number, sh: number, t: number): Promise<Track>;
 	/** Forget the learnt ranges (a new face, new light). */
 	relearn(): void;
 	close(): void;
@@ -369,7 +414,16 @@ function visionRuntime() {
 
 /** Whether WebGL2 can be had on an OffscreenCanvas (MediaPipe's own choice) and on a page canvas. */
 export function webgl2(): { offscreen: boolean; page: boolean } {
-	const ok = (c: () => { getContext(k: string): unknown } | null) => { try { return !!c()?.getContext('webgl2'); } catch { return false; } };
+	// Each context made here is given back at once: contexts left about count toward the browser's limit,
+	// and a browser that runs out loses the oldest (MediaPipe's own).
+	const ok = (c: () => { getContext(k: string): unknown } | null) => {
+		try {
+			const gl = c()?.getContext('webgl2') as WebGL2RenderingContext | null | undefined;
+			if (!gl) return false;
+			gl.getExtension('WEBGL_lose_context')?.loseContext();
+			return true;
+		} catch { return false; }
+	};
 	return {
 		offscreen: ok(() => (typeof OffscreenCanvas === 'undefined' ? null : new OffscreenCanvas(1, 1))),
 		page: ok(() => (typeof document === 'undefined' ? null : document.createElement('canvas')))
@@ -591,6 +645,93 @@ export class PixelTracker implements Tracker {
 	close() {}
 }
 
+/**
+ * The face mesh on TensorFlow.js's WebAssembly backend: no WebGL at all (18 Nov). Chromium browsers no
+ * longer fall back to drawing WebGL in software, so once Edge has turned its GPU off (after a crash, until
+ * it restarts) there is no WebGL for MediaPipe, even on the CPU. This runs the same face mesh (478 points,
+ * the irises too) without it, about twice as slow, with no blendshapes: the measures come from the points.
+ */
+const TFJS = '4.21.0', FLD = '1.0.6', JSD = 'https://cdn.jsdelivr.net/npm/';
+let meshDetector: Promise<any> | null = null;
+function script(src: string): Promise<void> {
+	return new Promise((ok, no) => {
+		const s = document.createElement('script');
+		s.src = src; s.crossOrigin = 'anonymous';
+		s.onload = () => ok(); s.onerror = () => no(new Error('could not load ' + src.split('/npm/')[1]));
+		document.head.appendChild(s);
+	});
+}
+function loadMesh(): Promise<any> {
+	return (meshDetector ??= (async () => {
+		// The plain script builds, so all four share one TensorFlow (the module builds each brought their own).
+		const w = window as any;
+		if (!w.tf?.wasm) {
+			await script(JSD + '@tensorflow/tfjs-core@' + TFJS + '/dist/tf-core.min.js');
+			await script(JSD + '@tensorflow/tfjs-converter@' + TFJS + '/dist/tf-converter.min.js');
+			await script(JSD + '@tensorflow/tfjs-backend-wasm@' + TFJS + '/dist/tf-backend-wasm.min.js');
+		}
+		const tf = w.tf;
+		tf.wasm.setWasmPaths(JSD + '@tensorflow/tfjs-backend-wasm@' + TFJS + '/dist/');
+		if (!(await tf.setBackend('wasm'))) throw new Error('WebAssembly is not available');
+		await tf.ready();
+		// The WebAssembly backend multiplies only float matrices, and the mesh's set-up multiplies whole
+		// numbers once a frame: those are made floats first.
+		const mm = tf.getKernel('BatchMatMul', 'wasm'), cast = tf.getKernel('Cast', 'wasm');
+		if (mm && cast && !w.__grimoireMatMul) {
+			w.__grimoireMatMul = true;
+			tf.unregisterKernel('BatchMatMul', 'wasm');
+			tf.registerKernel({ kernelName: 'BatchMatMul', backendName: 'wasm', setupFunc: mm.setupFunc, kernelFunc: (args: any) => {
+				const { a, b } = args.inputs, be = args.backend;
+				if (a.dtype === 'float32' && b.dtype === 'float32') return mm.kernelFunc(args);
+				const fa = cast.kernelFunc({ inputs: { x: a }, backend: be, attrs: { dtype: 'float32' } });
+				const fb = cast.kernelFunc({ inputs: { x: b }, backend: be, attrs: { dtype: 'float32' } });
+				try { return mm.kernelFunc({ ...args, inputs: { a: fa, b: fb } }); } finally { be.disposeData(fa.dataId); be.disposeData(fb.dataId); }
+			} });
+		}
+		if (!w.faceLandmarksDetection) await script(JSD + '@tensorflow-models/face-landmarks-detection@' + FLD + '/dist/face-landmarks-detection.min.js');
+		const fld = w.faceLandmarksDetection;
+		return fld.createDetector(fld.SupportedModels.MediaPipeFaceMesh, { runtime: 'tfjs', refineLandmarks: true, maxFaces: 1 });
+	})().catch((e) => { meshDetector = null; throw e; }));
+}
+const fromTfjs = (u: string) => u.includes('@tensorflow') || u.includes('tfhub.dev') || u.includes('kaggle');
+
+export class MeshTracker implements Tracker {
+	readonly name = 'mesh' as const;
+	private det: any = null;
+	/** Where the nose sits between the eyes and the mouth at rest, learnt over the first frames (for the tip). */
+	private rest = 0;
+	private restN = 0;
+	centre = new Recentre();
+
+	async load(): Promise<Loaded> {
+		const t0 = performance.now();
+		this.det = await loadMesh();
+		const files = downloaded(fromTfjs);
+		return { bytes: files.reduce((a, f) => a + f.bytes, 0), ms: performance.now() - t0, files, note: 'no WebGL: face mesh on WebAssembly' };
+	}
+	track(): Track { throw new Error('the face mesh tracks in the background (trackAsync)'); }
+	async trackAsync(src: HTMLVideoElement | HTMLCanvasElement, sw: number, sh: number): Promise<Track> {
+		const t0 = performance.now();
+		const faces = this.det ? await this.det.estimateFaces(src) : [];
+		const ms = performance.now() - t0;
+		const kp: Pt[] | undefined = faces?.[0]?.keypoints;
+		if (!kp || kp.length < 468) return { raw: null, points: [], box: null, ms };
+		const n = (p: Pt) => ({ x: p.x / sw, y: p.y / sh });
+		const mid = (a: number, b: number) => n({ x: (kp[a].x + kp[b].x) / 2, y: (kp[a].y + kp[b].y) / 2 });
+		const at = { eyeA: mid(33, 133), eyeB: mid(362, 263), nose: n(kp[1]), mouth: mid(13, 14) };
+		// The tip against the face's own rest, learnt over its first twenty frames.
+		const share = -poseFromPoints(at, sw / sh, 0).pitch / 160;
+		if (this.restN < 20) { this.restN++; this.rest += (share - this.rest) / this.restN; }
+		const pose = poseFromPoints(at, sw / sh, this.rest);
+		let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+		for (const p of kp) { x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y); }
+		const points = [33, 133, 362, 263, 1, 61, 291, 152, 10].map((i) => n(kp[i]));
+		return { raw: this.centre.push({ ...rawFromMesh(kp), ...pose }), points, box: { x: x0 / sw, y: y0 / sh, w: (x1 - x0) / sw, h: (y1 - y0) / sh }, ms };
+	}
+	relearn() { this.centre.reset(); this.rest = 0; this.restN = 0; }
+	close() { /* the detector is kept for the page: loading it again costs seconds */ }
+}
+
 export function makeTracker(name: TrackerName): Tracker {
-	return name === 'landmarker' ? new LandmarkerTracker() : name === 'blazeface' ? new BlazeTracker() : new PixelTracker();
+	return name === 'landmarker' ? new LandmarkerTracker() : name === 'blazeface' ? new BlazeTracker() : name === 'mesh' ? new MeshTracker() : new PixelTracker();
 }

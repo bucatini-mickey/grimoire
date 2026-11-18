@@ -77,6 +77,23 @@ export function inFigure(o: { cx: number; cy: number; rx: number; ry: number }, 
 	return py > neck && Math.abs(px - o.cx) <= o.rx * 1.1 + (py - neck) * 1.6;
 }
 
+/**
+ * Whether cell (x, y) is in the ring just round the drawn face (outside its blank): there only small
+ * marks, so a dense glyph (an @ of hair) never sits against the face (18 Nov).
+ */
+export function nearFace(o: { cx: number; cy: number; rx: number; ry: number }, x: number, y: number): boolean {
+	return !inOval(o, x, y) && inOval({ cx: o.cx, cy: o.cy, rx: o.rx + 1.6, ry: o.ry + 0.9 }, x, y);
+}
+
+/**
+ * A letters glyph made quieter: in the person, the densest (@ % #) become lighter ones; in the ring round
+ * the face, only small marks that keep the shape (high in the cell or low in it).
+ */
+export function calmGlyph(ch: string, near: boolean): string {
+	if (near) return ch === ' ' ? ' ' : '"\'`'.includes(ch) ? "'" : 'o,'.includes(ch) ? ',' : '.:'.includes(ch) ? ch : '.';
+	return ch === '@' || ch === '%' ? '*' : ch === '#' ? '+' : ch;
+}
+
 /** A letters cell behind the person: only faint marks, so the room is there but does not crowd them. */
 export function quietCell(level: number): string {
 	return level < 6 ? ' ' : level < 10 ? '.' : level < 13 ? ':' : '+';

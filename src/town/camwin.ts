@@ -18,7 +18,7 @@
  */
 import { shade } from '../term/pterm.ts';
 import type { Grid, Rect, Term } from '../term/pterm.ts';
-import { cellOf, crop, inFigure, inOval, quietCell } from './faces.ts';
+import { calmGlyph, cellOf, crop, inFigure, inOval, nearFace, quietCell } from './faces.ts';
 import type { RigCell } from '../avatar/rig.ts';
 
 /**
@@ -273,7 +273,8 @@ export function drawCamWindow(g: Grid, L: CamLayout, d: CamWindowDraw) {
 				const c = cellOf(t.frame, xx, yy, r.w);
 				// No face found (yet): the picture as it is, nobody to pick out.
 				if (!o) g.set(r.x + xx, r.y + yy, c.ch, levelInk(c.level), 0);
-				else if (inFigure(o, xx, yy)) g.set(r.x + xx, r.y + yy, c.ch, fd(c.level < 6 ? shade(hue, 1) : c.level < 11 ? shade(hue, 2) : hue), 0);
+				else if (nearFace(o, xx, yy)) g.set(r.x + xx, r.y + yy, calmGlyph(c.ch, true), fd(shade(hue, 1)), 0);
+				else if (inFigure(o, xx, yy)) g.set(r.x + xx, r.y + yy, calmGlyph(c.ch, false), fd(c.level < 6 ? shade(hue, 1) : c.level < 11 ? shade(hue, 2) : hue), 0);
 				else g.set(r.x + xx, r.y + yy, quietCell(c.level), shade(3, c.level < 11 ? 1 : 2), 0);
 			}
 			if (o) o.cells.forEach((row, yy) => row.forEach((c, xx) => {

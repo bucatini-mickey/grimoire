@@ -63,8 +63,8 @@ import type { Corner, PictureTile, Place, TileView } from './camwin.ts';
  */
 import { decodeRig, decodeStyle, DETAIL_SIZE, detailThatFits, drawRig, encodeRig, FAR_GLYPHS, idleRig, NEUTRAL, planRigs, setFarAscii, withVoice } from '../avatar/rig.ts';
 import type { AvatarPlaces, Detail, RigFrom, RigSent } from '../avatar/rig.ts';
-import { GAINS, makeTracker, NO_FLIPS, NO_NEUTRAL, RigSmoother, rigOf, TRACKER_LABEL } from '../avatar/trackers.ts';
-import type { Neutral, Tracker, TrackerName } from '../avatar/trackers.ts';
+import { GAINS, makeTracker, NO_FLIPS, NO_NEUTRAL, RigSmoother, rigOf, TRACKER_LABEL, webgl2 } from '../avatar/trackers.ts';
+import type { Neutral, Track, Tracker, TrackerName } from '../avatar/trackers.ts';
 /** The village's trackers: BlazeFace was tried and dropped (Lavender, 14 Nov: "terrible"). */
 const TRACKER_NAMES: TrackerName[] = ['landmarker', 'pixel'];
 import type { Voice, VoiceMode } from './voice.ts';
@@ -1523,7 +1523,8 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 			if (!shown && !S.seen![i] && !edge) continue;
 			const r = t.room[i];
 			const indoors = r >= 0 ? r !== t.outdoors : inside && touchesRoom(t, x, y, mine);
-			if (inside && !shown && !edge && !t.locked.has(i) && !(r >= 0 ? mine.includes(r) : touchesRoom(t, x, y, mine))) continue;
+			// Indoors, the rest of the town is not hidden (18 Nov): it shows as remembered, grey and still, so
+			// you can find your way to the next room; nothing in it moves or changes there.
 			const rock = t.cells[i].mat === 'granite';
 			if (inCave && !shown && !rock) continue;
 			// A cell's look is fixed but for running water; the rest is kept until a door changes.
@@ -1538,7 +1539,8 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 			}
 			let look = memo[i];
 			if (!look) {
-				look = lookAt(t, x, y, now);
+				// Out of sight, running water is remembered still (looked at as at time 0).
+				look = lookAt(t, x, y, shown || edge ? now : 0);
 				if (t.cells[i].mat !== 'water' && !t.cells[i].things.includes('waterfall')) memo[i] = look;
 			}
 			// Out of sight, a door is only a door: whether it is locked now is not known from afar.
@@ -1563,7 +1565,8 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 				// The remembered ground lies low and dark, so the glyphs sketch the place and what is in sight stands out.
 				// In grey (18 Nov): memory keeps the shape of a place, not its colours, so nothing there looks live.
 				let mf = grey(mul(memoryOf(look.fg, gr), [0.86, 0.86, 0.88])), mb = grey(mul(memoryOf(look.bg, gr), [0.38, 0.38, 0.41]));
-				if (f > 0.01) { const m = grey(memoryOf(mist, gr)); mf = lerp(mf, m, Math.min(1, f * 0.5)); }
+				// The mist over it, but still: the rolling mist moves only over what is in sight.
+				if (f > 0.01 && edge) { const m = grey(memoryOf(mist, gr)); mf = lerp(mf, m, Math.min(1, f * 0.5)); }
 				const k = 0.75 + 0.25 * v;
 				[mf, mb] = [mul(mf, [k, k, k]), mul(mb, [k, k, k])];
 				[fg, bg] = edge ? [lerp(mf, fg, edge), lerp(mb, bg, edge)] : [mf, mb];
@@ -1627,7 +1630,7 @@ function mapCells(g: Grid, mapY: number, mapH: number, p: Person, t: Town, now: 
 	for (const l of t.labels) {
 		const i = l.x + l.y * t.w;
 		if (!S.seen![i] && !p.st) continue;
-		if ((inside || inCave) && !vis.has(i)) continue;
+		if (inCave && !vis.has(i)) continue;
 		const sx = scr(l.x), sy = l.y - y0 - 1;
 		if (sy < 0 || sy >= mapH) continue;
 		// The name whole, in faded ink on the ground beneath it (cells are two columns, so it seldom covers much).
@@ -1821,6 +1824,8 @@ const avatar = {
 	sent: '',
 	sentAt: 0,
 	timer: null as ReturnType<typeof setInterval> | null,
+	/** A background tracker (the mesh) is working on a frame: the next waits for it. */
+	busy: false,
 	/** My face at rest (Resync takes it), and a resync waiting for the next frame. */
 	neutral: { ...NO_NEUTRAL } as Neutral,
 	resync: false
@@ -1843,15 +1848,23 @@ async function avatarOn() {
 	avatar.onAt = performance.now();
 	avatar.timer = setInterval(avatarTick, 66);
 	if (avatar.tracker) return;
-	const name = S.cams.tracker;
+	// No WebGL here (18 Nov: Edge after a GPU crash, until it restarts): straight to the face mesh, which
+	// needs none. Otherwise the Landmarker, and the mesh if the Landmarker cannot start.
+	const gl = webgl2();
+	await startTracker(gl.offscreen || gl.page ? S.cams.tracker : 'mesh');
+}
+/** Load a tracker and run it; the Landmarker failing to load moves on to the mesh. */
+async function startTracker(name: TrackerName) {
 	avatar.note = 'loading ' + TRACKER_LABEL[name];
 	drawChrome();
 	const t = makeTracker(name);
-	try { await t.load(); avatar.tracker = t; avatar.note = ''; }
+	try { await t.load(); if (avatar.timer) avatar.tracker = t; avatar.note = ''; }
 	catch (e) {
+		const why = String((e as Error)?.message ?? e).slice(0, 60);
+		if (name !== 'mesh') { console.warn('Faces: ' + name + ' could not start (' + why + '); the face mesh instead'); await startTracker('mesh'); return; }
 		// No quiet fall to Pixels (a poor face, 17 Nov): said, and the tile stays your letter.
 		avatar.note = 'error';
-		toast(`Faces could not start here (${String((e as Error)?.message ?? e).slice(0, 60)}).`);
+		toast(`Faces could not start here (${why}).`);
 	}
 	avatar.smoother.reset();
 	S.dirty = true;
@@ -1862,9 +1875,11 @@ function trackerFailed(t: Tracker, why: string) {
 	if (avatar.tracker !== t) return;
 	t.close();
 	avatar.tracker = null;
+	S.dirty = true;
+	// The Landmarker broke (its WebGL lost, mid-run): the face mesh takes over, no restart needed.
+	if (t.name !== 'mesh') { console.warn('Faces: ' + t.name + ' failed (' + why + '); the face mesh instead'); void startTracker('mesh'); return; }
 	avatar.note = 'error';
 	toast(`Faces stopped (${why.slice(0, 80)}).`);
-	S.dirty = true;
 }
 /** My letters picture is no longer shown: say so, so no phone keeps the last one. */
 function stopLetters() {
@@ -1906,7 +1921,7 @@ function avatarOff() {
 }
 function avatarTick() {
 	const t = avatar.tracker;
-	if (!t || !tracked()) return;
+	if (!t || !tracked() || avatar.busy) return;
 	// Letters: the tracker reads a copy, and the letters are drawn from that same copy.
 	const v = S.cams.look === 'letters' ? myCam.snap() : myCam.picture;
 	if (!v) return;
@@ -1916,11 +1931,22 @@ function avatarTick() {
 	const t0 = performance.now();
 	if (t0 < avatar.nextAt) return;
 	let tr;
+	if (t.trackAsync) {
+		// The mesh works in the background: this frame (its copy kept till then) is finished when it answers.
+		avatar.busy = true;
+		t.trackAsync(v, vw, vh, t0).then((r) => { avatar.busy = false; if (avatar.tracker === t && avatar.timer) tracked1(t, v, r, t0); },
+			(e) => { avatar.busy = false; trackerFailed(t, (e as Error)?.message ?? String(e)); });
+		return;
+	}
 	try { tr = t.track(v, vw, vh, t0); } catch (e) {
-		// Said, not hidden (17 Nov: a broken GPU read as "no face" on Rosemary): pixels from here on.
+		// Said, not hidden (17 Nov: a broken GPU read as "no face" on Rosemary).
 		trackerFailed(t, (e as Error)?.message ?? String(e));
 		return;
 	}
+	tracked1(t, v, tr, t0);
+}
+/** What a tracked frame (found at t0) does: the face's place, my letters picture, my rig. */
+function tracked1(t: Tracker, v: HTMLVideoElement | HTMLCanvasElement, tr: Track, t0: number) {
 	const spent = performance.now() - t0;
 	avatar.cost = avatar.cost ? avatar.cost * 0.8 + spent * 0.2 : spent;
 	avatar.nextAt = t0 + Math.max(0, avatar.cost / 0.4 - 66);
@@ -1937,11 +1963,12 @@ function avatarTick() {
 		}
 		return;
 	}
-	avatar.box = { ...tr.box };
+	const box = { ...tr.box };
+	avatar.box = box;
 	avatar.seenAt = t0;
 	// Letters: my picture a few times a second, only ever with a face found (so it is always blanked).
 	if (S.cams.look === 'letters' && v instanceof HTMLCanvasElement && t0 - avatar.faceSentAt >= 300) {
-		const out = lettersOut(v, avatar.box);
+		const out = lettersOut(v, box);
 		if (out) { avatar.faceSentAt = t0; avatar.faceSent = true; up({ t: 'face', f: out.f, at: out.at }); }
 	}
 	if (avatar.resync) {
