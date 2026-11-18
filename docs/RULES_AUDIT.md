@@ -17,13 +17,13 @@ Ability wording is our own paraphrase and the Storyteller decides open choices, 
 
 | # | Severity | Finding |
 |---|---|---|
-| A1 | High | Innkeeper who picks themself as the drunk one still protects both (doc says neither); the test is vacuous [run] |
-| A2 | High | Exorcist on a Pukka or Shabaloth stops them waking, so the Pukka's old victim does not die and no regurgitation (doc says it still happens) [run] |
-| A3 | High | An Innkeeper-protected Imp who chooses themself still starpasses [run] |
-| A4 | High | A Drunk who believes they are the Juggler is never woken, which gives the Drunk away [run] |
-| A5 | High | The Goon is not triggered by abilities that choose players through "tell" steps (Fortune Teller, Chambermaid, Dreamer, Seamstress, Ravenkeeper) [read] |
-| A6 | Medium | Madness executions only by day; doc says "even at night" [run] |
-| A7 | Medium | Bone Collector does not restore used once-per-game abilities (doc says it does) [read] |
+| A1 | High | Innkeeper who picks themself as the drunk one still protects both (doc says neither); the test is vacuous [run] **Fixed, 70a52aa** |
+| A2 | High | Exorcist on a Pukka or Shabaloth stops them waking, so the Pukka's old victim does not die and no regurgitation (doc says it still happens) [run] **Fixed, 92af3f1** |
+| A3 | High | An Innkeeper-protected Imp who chooses themself still starpasses [run] **Fixed, 70a52aa, c55e3d4** |
+| A4 | High | A Drunk who believes they are the Juggler is never woken, which gives the Drunk away [run] **Fixed, 1f5c4b0** |
+| A5 | High | The Goon is not triggered by abilities that choose players through "tell" steps (Fortune Teller, Chambermaid, Dreamer, Seamstress, Ravenkeeper) [read] **Fixed, 1f5c4b0** |
+| A6 | Medium | Madness executions only by day; doc says "even at night" [run] **Fixed, 92af3f1, fa70f5c** |
+| A7 | Medium | Bone Collector does not restore used once-per-game abilities (doc says it does) [read] **Fixed, 92af3f1** |
 | B1 | Medium | Alignment checks ignore Spy/Recluse registration (Tea Lady, Pacifist, Moonchild, Klutz, Mastermind day, Gambler, Exorcist, Snake Charmer) [read, verify] |
 | B2 | Medium | Courtier and Philosopher take the first copy of a duplicated character instead of asking [read] |
 | B3 | Medium | A changed player is not told after night 1; no belief asked for a new Drunk/Lunatic/Marionette [read] |
@@ -38,50 +38,52 @@ Ability wording is our own paraphrase and the Storyteller decides open choices, 
 
 ## A. Engine contradicts INTERACTIONS.md
 
+All seven are fixed on `queue/grimoire` (checked 16 Nov: each fix read in the code, its test passing, and 5,000 simulator games over all scripts plus 5,000 over random custom scripts with no rule broken).
+
 **A1. BMR-INNKEEPER-SELF [run].** Doc: if the Innkeeper picks themself and is the drunk one, neither guest is protected.
 `engine.ts:602-609` adds `safe-tonight` for both guests, then adds the drunk effect, and `attemptDeath` (`engine.ts:905`)
 only checks that a `safe-tonight` effect exists, never whether the Innkeeper still works. Scenario (Shabaloth hits the
 Innkeeper and a guest, `drunk: Innkeeper`): both survive. The existing test (`tests/bmr.test.ts:107-113`) asserts
 `!alive(2) || !alive(3) || isDrunk(2)`, and `isDrunk(2)` is always true there, so it cannot fail. The same
 check would be needed if the Innkeeper became droisoned after choosing, but only the self case is reachable in the normal order.
-**Fixed (grim-034):** `innkeeperProtects` (rules.ts) also requires the Innkeeper to be sober and healthy now; `attemptDeath` and the grimoire reminder use it. Tests: bmr.test.ts, tests/regressions/innkeeper-self-1.json.
+**Fixed (grim-034, commit 70a52aa):** `innkeeperProtects` (rules.ts) also requires the Innkeeper to be sober and healthy now; `attemptDeath` and the grimoire reminder use it. Tests: bmr.test.ts, tests/regressions/innkeeper-self-1.json.
 
 **A2. BMR-EXORCIST [run].** Doc: a chosen Demon's other abilities still work (Zombuul survives, "Pukka's previous victim
 dies", "Shabaloth may regurgitate"). `night.ts:209-216` removes Pukka and Shabaloth from the night when `exorcised`, so
 nothing wakes: night 2 Pukka poisons seat 3, night 3 the Exorcist picks the Pukka, seat 3 stays alive and poisoned, and
 the Pukka's step never appears. The Zombuul part is fine. Either the doc or the engine is wrong; the engine has no way to
 run "the death/regurgitation half without the choosing half".
-**Fixed (grim-036), as the user ruled (11 Nov: apply abilities logically; where it is ambiguous, leave it to the Storyteller):** the official wording says the Demon "doesn't wake", so nothing is chosen, poisoned or killed by it. Whether the Pukka's "previously poisoned player dies" or the Shabaloth's "might be regurgitated" still happens without the Demon waking is genuinely open, so the engine asks. When the exorcised Demon is told who the Exorcist is (`exorcised:N`), the acknowledgement is refused with the decision `exorcised` until the Storyteller rules `idle` (nothing happens; the victim stays poisoned; no one comes back; the default button) or `acts` (the earlier victim dies and the poison ends; or the Shabaloth regurgitates, asking whom through the existing `regurgitate` question). A Demon with nothing pending (no earlier victim, nobody dead it chose last night), a drunk or poisoned one, the Imp and the Zombuul raise no question. A Shabaloth that did not choose tonight forgets last night's choices. Tests: audit-high.test.ts, tests/regressions/audit-exorcist-*.json.
+**Fixed (grim-036, commit 92af3f1), as the user ruled (11 Nov: apply abilities logically; where it is ambiguous, leave it to the Storyteller):** the official wording says the Demon "doesn't wake", so nothing is chosen, poisoned or killed by it. Whether the Pukka's "previously poisoned player dies" or the Shabaloth's "might be regurgitated" still happens without the Demon waking is genuinely open, so the engine asks. When the exorcised Demon is told who the Exorcist is (`exorcised:N`), the acknowledgement is refused with the decision `exorcised` until the Storyteller rules `idle` (nothing happens; the victim stays poisoned; no one comes back; the default button) or `acts` (the earlier victim dies and the poison ends; or the Shabaloth regurgitates, asking whom through the existing `regurgitate` question). A Demon with nothing pending (no earlier victim, nobody dead it chose last night), a drunk or poisoned one, the Imp and the Zombuul raise no question. A Shabaloth that did not choose tonight forgets last night's choices. Tests: audit-high.test.ts, tests/regressions/audit-exorcist-*.json.
 
 **A3. BMR-INNKEEPER-SAFE vs starpass [run].** Doc: the two guests cannot die tonight from anything except the Assassin.
 `engine.ts:771-775` handles only the Monk for an Imp choosing themself, then `starpass()` emits `died` directly
 (`engine.ts:1024`), bypassing `attemptDeath`. Scenario: Innkeeper protects the Imp, Imp chooses themself, Scarlet Woman
 catches; the Imp dies and she becomes the Imp. (The Fang Gu's jump has the same bypass; that one is a documented approximation, SNV-MODEL-FANG-GU.)
-**Fixed for the Imp (grim-034):** an Innkeeper-protected Imp who chooses themself is saved like a Monk-protected one (nothing happens, no new Imp). The Fang Gu jump is untouched, pending a ruling. Tests: bmr.test.ts, tests/regressions/innkeeper-starpass-1.json.
-**Revisited under the user’s rule (grim-040, 11 Nov: logical application; ambiguity goes to the Storyteller):** the user’s example (the Innkeeper protects the Imp and makes the Imp the drunk one) already gives the logical result: the drunk Imp wakes, picks themself, and nothing happens, with no starpass even for a Scarlet Woman (test in bmr.test.ts). A drunk Imp must fail: the wording leaves no choice for the Storyteller there. The Fang Gu jump now also respects protection (official: an Outsider who does not die does not become the Fang Gu), replacing the old approximation. A1, A2, A4 and A5 already end in a Storyteller choice or the logical reading (which guest is drunk; idle or acts for the exorcised Pukka or Shabaloth; the Drunk Juggler’s answer; the Goon); no further hard-coded outcome found.
+**Fixed for the Imp (grim-034, commit 70a52aa):** an Innkeeper-protected Imp who chooses themself is saved like a Monk-protected one (nothing happens, no new Imp). The Fang Gu jump is untouched, pending a ruling. Tests: bmr.test.ts, tests/regressions/innkeeper-starpass-1.json.
+**Revisited under the user’s rule (grim-040, commit c55e3d4; 11 Nov: logical application; ambiguity goes to the Storyteller):** the user’s example (the Innkeeper protects the Imp and makes the Imp the drunk one) already gives the logical result: the drunk Imp wakes, picks themself, and nothing happens, with no starpass even for a Scarlet Woman (test in bmr.test.ts). A drunk Imp must fail: the wording leaves no choice for the Storyteller there. The Fang Gu jump now also respects protection (official: an Outsider who does not die does not become the Fang Gu), replacing the old approximation. A1, A2, A4 and A5 already end in a Storyteller choice or the logical reading (which guest is drunk; idle or acts for the exorcised Pukka or Shabaloth; the Drunk Juggler’s answer; the Goon); no further hard-coded outcome found.
 
 **A4. TB-DRUNK-WAKES applied to the Juggler [run].** `juggle()` returns before recording guesses unless the seat's real
 character is the Juggler (`engine.ts:1300`), and the Juggler's night step requires recorded guesses (`night.ts:222`). Result:
 a Drunk who believes they are the Juggler is skipped on night 2 while a real Juggler wakes. The Storyteller cannot even
 give them the false answer, and the skipped wake is a tell. Every other Drunk-as-Townsfolk wakes.
-**Fixed (grim-035):** `juggle()` keeps the guesses for whoever believes they are the Juggler, so the Drunk wakes the night after like a real one and the Storyteller can give any answer. Tests: goon-juggler.test.ts, tests/regressions/drunk-juggler-1.json.
+**Fixed (grim-035, commit 1f5c4b0):** `juggle()` keeps the guesses for whoever believes they are the Juggler, so the Drunk wakes the night after like a real one and the Storyteller can give any answer. Tests: goon-juggler.test.ts, tests/regressions/drunk-juggler-1.json.
 
 **A5. BMR-GOON [read].** Doc: the first player each night to choose the Goon with their ability is drunk and the Goon takes
 their alignment. `goonCatches` is called from every `choose()` branch, but players whose choosing happens inside an
 information step (`tell`, `engine.ts:1075`) never reach it: Fortune Teller, Chambermaid, Dreamer, Seamstress,
 Ravenkeeper. Their picks are only checked for shape in `judgeInfo`.
-**Fixed (grim-035):** `tell()` reads whom these roles chose from the answer (`tellChoices`, rules.ts) and runs the same Goon catch (`goonCatchEvents`) before judging the answer, so a first chooser is drunk and an answer to them is judged as to a drunk player; a Goon already used tonight does not catch again. The grimoire (`afterGoon`, `infoCandidates`) shows the catch and offers false answers once the picks include the Goon. Tests: goon-juggler.test.ts, tests/regressions/goon-information-1.json; checker invariants and two planted-bug checks in tests/sim.
+**Fixed (grim-035, commit 1f5c4b0):** `tell()` reads whom these roles chose from the answer (`tellChoices`, rules.ts) and runs the same Goon catch (`goonCatchEvents`) before judging the answer, so a first chooser is drunk and an answer to them is judged as to a drunk player; a Goon already used tonight does not catch again. The grimoire (`afterGoon`, `infoCandidates`) shows the catch and offers false answers once the picks include the Goon. Tests: goon-juggler.test.ts, tests/regressions/goon-information-1.json; checker invariants and two planted-bug checks in tests/sim.
 
 **A6. SNV-MUTANT / SNV-CERENOVUS [run].** Doc: madness execution "even at night; counts as the day's execution". The
 `madness` command calls `requireDay` (`engine.ts:256-263`), so at night it is refused ("It is not day."), and it also
 refuses once anyone was executed today or while a nomination is open.
-**Fixed (grim-036):** `madness` also works at night (from night 2; there is no day before night 1). It is the execution of the day just ended: refused if that day already had one (`night.dayExecuted`, set at dusk and by this command), `lastExecution` records that day (the Undertaker still sees it), the room is not told until dawn, and by day every old guard stays. Around it: the Undertaker wakes straight away if their place has passed; the Mastermind's extra day and the Minstrel's drunkenness count from the day just ended; the Innkeeper's guests survive it ("cannot die tonight"); a working Mayor at night asks "Does someone else die instead?" (grim-044, your ruling of 15 Nov): the Mayor stays the day's execution but lives, and the chosen player dies (their protections still apply); "The Mayor dies" executes them as usual. The Storyteller's screen offers the Madness buttons at night too. Tests: audit-high.test.ts, tests/regressions/audit-madness-night-1.json; the simulator now proposes it and checks it.
+**Fixed (grim-036, commit 92af3f1; the Mayor bounce at night, grim-044, fa70f5c):** `madness` also works at night (from night 2; there is no day before night 1). It is the execution of the day just ended: refused if that day already had one (`night.dayExecuted`, set at dusk and by this command), `lastExecution` records that day (the Undertaker still sees it), the room is not told until dawn, and by day every old guard stays. Around it: the Undertaker wakes straight away if their place has passed; the Mastermind's extra day and the Minstrel's drunkenness count from the day just ended; the Innkeeper's guests survive it ("cannot die tonight"); a working Mayor at night asks "Does someone else die instead?" (grim-044, your ruling of 15 Nov): the Mayor stays the day's execution but lives, and the chosen player dies (their protections still apply); "The Mayor dies" executes them as usual. The Storyteller's screen offers the Madness buttons at night too. Tests: audit-high.test.ts, tests/regressions/audit-madness-night-1.json; the simulator now proposes it and checks it.
 
 **A7. TRAV-BONE-COLLECTOR [read].** Doc: the chosen dead player regains their ability, "used once-per-game abilities
 included". `engine.ts:712` only adds a `keeps-ability` effect; `spent` is not cleared (compare `revived` in `state.ts:232`), and
 `night.ts:221` still filters Professor, Courtier, Assassin, Seamstress and Philosopher on `spent`. A used one stays used.
 No test covers it.
-**Fixed (grim-036):** the Bone Collector's working choice emits `abilities-restored`, which clears the target's `spent` entries as `revived` does; a drunk or poisoned Bone Collector restores nothing. Tests: audit-high.test.ts, tests/regressions/audit-bone-collector-1.json.
+**Fixed (grim-036, commit 92af3f1):** the Bone Collector's working choice emits `abilities-restored`, which clears the target's `spent` entries as `revived` does; a drunk or poisoned Bone Collector restores nothing. Tests: audit-high.test.ts, tests/regressions/audit-bone-collector-1.json.
 
 ## B. Gaps where the engine guesses, ignores, or cannot express a rule
 

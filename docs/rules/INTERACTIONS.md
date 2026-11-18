@@ -97,9 +97,9 @@ see D3). Entries marked *(sim)* were found by the simulator.
 - BMR-CHAMBERMAID-ABILITY-WAKES: counts only wakes to use one's own ability tonight (not Minion/Demon info, not woken by another's ability, not the Exorcist-woken Demon); drunk or poisoned wakers still count; a Gossip's kill is not a wake.
 - BMR-CHAMBERMAID-ALIVE: chooses two alive players, not themself; not woken if fewer than two can be chosen.
 - BMR-INNKEEPER-SAFE: the two chosen cannot die tonight from anything (Demon, Minion, Townsfolk, Outsider, Traveller), except the Assassin; one of the two (Storyteller's choice) is drunk until dusk. A drunk Innkeeper protects no one, even after sobering.
-- BMR-INNKEEPER-SELF: if the Innkeeper picks themself and is the drunk one, neither is protected.
+- BMR-INNKEEPER-SELF: if the Innkeeper picks themself and is the drunk one, neither is protected. **tested** (bmr.test, innkeeper-self-1)
 - BMR-GAMBLER: guess a player's character; wrong means the Gambler dies (not told why); may choose anyone, even themself.
-- BMR-EXORCIST: a chosen Demon learns who the Exorcist is and does not wake to use their ability tonight; the Zombuul's survival still works; the Pukka's earlier victim dying and the Shabaloth's regurgitation do not need the Demon to choose, but the wording does not say whether they still happen, so the Storyteller rules (the app asks; the engine never guesses); not the same player two nights running.
+- BMR-EXORCIST: a chosen Demon learns who the Exorcist is and does not wake to use their ability tonight; the Zombuul's survival still works; the Pukka's earlier victim dying and the Shabaloth's regurgitation do not need the Demon to choose, but the wording does not say whether they still happen, so the Storyteller rules (the app asks; the engine never guesses); not the same player two nights running. **tested** (audit-high.test A2: Pukka, Shabaloth, Zombuul, Imp; audit-exorcist-* games)
 - BMR-GOSSIP: a definite, true, public statement means the Storyteller kills a player that night; what counts is the Gossip's state at night (drunk by day, sober at night: still kills); a Gossip who dies first kills no one.
 - BMR-COURTIER: once per game, choose a character: if in play, that player is drunk for 3 nights and 3 days from now; only while the Courtier stays sober and healthy (suspended, then resumes); a drunk Courtier wastes it; one copy only if duplicated.
 - BMR-PROFESSOR: once per game, a dead Townsfolk is resurrected (regains abilities, even once-per-game; first-night ones act at once); a non-Townsfolk choice wastes it; must choose a dead player.
@@ -107,7 +107,7 @@ see D3). Entries marked *(sim)* were found by the simulator.
 - BMR-TEA-LADY: if both alive neighbours are good, they cannot die (any cause, execution included) except the Assassin; updated continuously (an alignment change or a death changes who is protected).
 - BMR-FOOL: the first time the Fool would die, they don't (not told); protection from something else does not use it up; a drunk or poisoned Fool dies.
 - BMR-PACIFIST: an executed good player might survive (Storyteller's choice); still counts as the day's execution; does not apply to exile.
-- BMR-GOON: the first player each night to choose the Goon with their ability is drunk until dusk (ability fails tonight and tomorrow), and the Goon takes their alignment, even if the chooser was already drunk or poisoned; the Storyteller choosing the Goon does not count; Assassin choosing the Goon: the Goon still dies, and turns evil.
+- BMR-GOON: the first player each night to choose the Goon with their ability is drunk until dusk (ability fails tonight and tomorrow), and the Goon takes their alignment, even if the chooser was already drunk or poisoned; the Storyteller choosing the Goon does not count; Assassin choosing the Goon: the Goon still dies, and turns evil. **tested** (goon-juggler.test A5, including the information steps; goon-information-1)
 - BMR-LUNATIC: thinks they are the Demon; wakes as that Demon (any number of "Minions" and three bluffs, possibly wrong); their choices do nothing; the real Demon learns who the Lunatic is and whom they chose.
 - BMR-TINKER: the Storyteller may kill the Tinker at any time, unless they are protected from death.
 - BMR-MOONCHILD: when they learn they died (execution or at dawn) they publicly choose an alive player: if good, that player dies tonight; their state at night decides; a Goon counts by the alignment it had when chosen; surviving an execution is not dying.
@@ -192,7 +192,7 @@ Status: **tested** (tests/travellers.test.ts, and in random games by the simulat
 - TRAV-APPRENTICE: on their first night gains a Townsfolk (good) or Minion (evil) ability from the script; acts with it that night if it would; first-night-only abilities work on the Apprentice's first night.
 - TRAV-BARISTA: each night the Storyteller picks a player and either makes them sober and healthy with true information until dusk (even under the Vortox) or makes their ability act twice.
 - TRAV-HARLOT: chooses a living player each night; if they agree to show their character, both might die.
-- TRAV-BONE-COLLECTOR: once per game, a dead player regains their ability until dusk (used once-per-game abilities included, which are unused again); ends if the Bone Collector dies.
+- TRAV-BONE-COLLECTOR: once per game, a dead player regains their ability until dusk (used once-per-game abilities included, which are unused again); ends if the Bone Collector dies. **tested** (audit-high.test A7; audit-bone-collector-1)
 - TRAV-DEVIANT: if they were funny today (the Storyteller judges), they cannot die by exile.
 
 ## Fabled

@@ -89,6 +89,9 @@ export interface CharacterCard {
 	team: 'good' | 'evil';
 }
 
+/** The Demon's bluffs, if this wake shows them: they have a page of their own. */
+export const bluffsOf = (w: Wake): Section | undefined => w.sections.find((s) => s.title === 'Not in play' && s.lines.length > 0);
+
 // ---- helpers ----------------------------------------------------------------------------
 
 const script = (s: GameState) => G.getScript(s.scriptId || 'trouble-brewing');

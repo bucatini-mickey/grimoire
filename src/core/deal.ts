@@ -52,8 +52,16 @@ export function randomDeal(script: Script, players: number, seed: number): Extra
 	const ids = (team: Team) => shuffle(charactersOfTeam(script, team).map((c) => c.id), rand);
 	const comp = baseComposition(players);
 
-	const demon = ids('demon').slice(0, comp.demon);
-	const minions = ids('minion').slice(0, comp.minion);
+	// Those whose setup wants more Outsiders than the script has (the Baron on a small script) go
+	// last, so they are dealt only when nothing else will do. (On the editions every one fits, so
+	// the deal is the same as it always was for a seed.)
+	const room = charactersOfTeam(script, 'outsider').length;
+	const fitsFirst = (pool: CharacterId[]) => {
+		const fits = (c: CharacterId) => comp.outsider + (charDef(script, c).setup?.outsider ?? 0) <= room;
+		return [...pool.filter(fits), ...pool.filter((c) => !fits(c))];
+	};
+	const demon = fitsFirst(ids('demon')).slice(0, comp.demon);
+	const minions = fitsFirst(ids('minion')).slice(0, comp.minion);
 	for (const m of [...minions, ...demon]) {
 		const def = charDef(script, m);
 		// A fixed change (the Baron), or one of the Storyteller's options (the Godfather), at random.

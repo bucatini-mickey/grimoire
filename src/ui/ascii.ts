@@ -106,23 +106,33 @@ export function nameLines(name: string): string[] {
 	return best;
 }
 
+/** The slots of the standard taskbar, in the order they are always drawn, left to right. */
+export const TASKBAR_SLOTS = ['menu', 'voice', 'action', 'people', 'more'] as const;
+export type TaskbarSlot = (typeof TASKBAR_SLOTS)[number];
+export type TaskbarSlots = Partial<Record<Exclude<TaskbarSlot, 'more'>, Button>>;
+
 /**
- * The village's bottom bar: one row of the buttons that fit `cols`, in order, the rest behind `more`.
- * A pinned button (the way out: the menu) is always on the bar, however narrow the phone; the others give way to it.
+ * The standard taskbar (the village's bottom row), the same on every screen: Menu first and always on the bar,
+ * then voice, the one action of the moment, People, and More. A slot with nothing to offer is left out; the others
+ * keep their order. If the row is too narrow, People, then the action, then voice give way to More (Menu and More never do).
+ * `rest` is whatever else could be offered; it waits behind More, which is drawn only when it has something to hold.
  */
-export function pickBar(all: Button[], cols: number, pinned: (b: Button) => boolean, more: Button): { bar: Button[]; more: Button[] } {
+export function taskbar(slots: TaskbarSlots, rest: Button[], cols: number, more: Button): { bar: Button[]; more: Button[] } {
 	const width = (bs: Button[]) => bs.reduce((k, b) => k + segWidth(b), 0);
-	if (width(all) <= cols) return { bar: all, more: [] };
-	const keep = new Set(all.filter(pinned));
-	let room = cols - segWidth(more) - width([...keep]);
-	const bar = new Set(keep);
-	for (const b of all) {
-		if (keep.has(b)) continue;
-		const w = segWidth(b);
-		if (w > room) break;
-		room -= w; bar.add(b);
+	const order = ['menu', 'voice', 'action', 'people'] as const;
+	const menu = slots.menu ? { ...slots.menu, style: slots.menu.style === 'on' ? ('on' as const) : ('primary' as const) } : undefined;
+	const dropped = new Set<string>();
+	const spill = () => order.filter((k) => dropped.has(k)).map((k) => slots[k]!);
+	const full = () => [...spill(), ...rest];
+	const build = () => {
+		const bar = order.filter((k) => !dropped.has(k)).map((k) => (k === 'menu' ? menu : slots[k])).filter((b): b is Button => !!b);
+		return full().length ? [...bar, more] : bar;
+	};
+	for (const k of ['people', 'action', 'voice'] as const) {
+		if (width(build()) <= cols) break;
+		if (slots[k]) dropped.add(k);
 	}
-	return { bar: [...all.filter((b) => bar.has(b)), more], more: all.filter((b) => !bar.has(b)) };
+	return { bar: build(), more: full() };
 }
 
 export function center(text: string, width = COLS): string {
@@ -466,6 +476,18 @@ function bookPalette(key: string): Palette {
 	}
 	return withArt.get(key)!;
 }
+/**
+ * The town's own colours (src/town/grade.ts fits them to the town and the hour): after the look's 16 inks
+ * and their shades (which the labels, bars and people keep), at palette index MAP_AT on. Up to MAP_ROOM.
+ */
+export const MAP_AT = INKS, MAP_ROOM = 256 - INKS - 4;
+let mapColours: string[] = [];
+let mapCached: { key: string; cols: string[]; pal: Palette } | null = null;
+export const setMapColours = (cols: string[]) => { mapColours = cols.slice(0, MAP_ROOM); };
+function mapPalette(key: string): Palette {
+	if (!mapCached || mapCached.key !== key || mapCached.cols !== mapColours) mapCached = { key, cols: mapColours, pal: [...expand(PALETTES[key]), ...mapColours] };
+	return mapCached.pal;
+}
 /** The palette entry of a picture's colour on a book's page (its own, else the nearest ink). */
 const artInk = (hex: string) => ART_AT.get(hex.toLowerCase()) ?? quant([1, 3, 5].map((k) => parseInt(hex.slice(k, k + 2), 16)));
 
@@ -487,6 +509,8 @@ export function quant(c: number[]): number {
 }
 export { shade };
 export const theTerm = () => term;
+/** The finer grid laid over the town on a phone held upright (null until first wanted). */
+export const theOverlay = () => overlay;
 
 const lineH = (r: Row) => (r.cls === 'leaf-break' ? 0 : r.block ? r.block.h : r.segs.some(isButton) ? Math.max(...r.segs.filter(isButton).map(buttonH)) : 1);
 
@@ -1247,8 +1271,12 @@ function scriptTitle(g: Grid, x0: number, w: number, y: number) {
 }
 
 
-/** A text field: tap it to type; the hidden input echoes into these cells. */
-export function field(id: string, label: string, value: string, set: (v: string) => void, max = 14, placeholder = ''): Row {
+/**
+ * A text field: tap it to type; the hidden input echoes into these cells. With `live`, every
+ * keystroke is handed on as it is typed (a search that narrows as you go), not only the last.
+ */
+export function field(id: string, label: string, value: string, set: (v: string) => void, max = 14, placeholder = '', live?: (v: string) => void): Row {
+	if (live) liveFields.set(id, live); else liveFields.delete(id);
 	return blockRow(3, (c) => {
 		const active = term?.editing && fieldId === id;
 		const shown = active ? term!.entry : value;
@@ -1266,6 +1294,11 @@ export function field(id: string, label: string, value: string, set: (v: string)
 	});
 }
 let fieldId = '';
+/** Fields that hear each keystroke. The grid's hidden input is its own; its input events bubble up to here. */
+const liveFields = new Map<string, (v: string) => void>();
+if (typeof document !== 'undefined') document.addEventListener('input', () => {
+	if (term?.editing) liveFields.get(fieldId)?.(term.entry);
+});
 
 /**
  * The corners of a panel: small gilt bosses, as on the corners of a bound book,
@@ -2066,7 +2099,7 @@ export function townScale(w: number, h: number, ratio: number, wide: boolean): {
 function frame(g: Grid) {
 	// The town is lit for the dark: over it, the pages take their night inks.
 	const key = extra && extraShown() ? (paletteKey().startsWith('folio') ? 'map-' + themeOfKey(paletteKey()) : paletteKey().replace('-day', '-night')) : paletteKey();
-	term!.palette = key.startsWith('folio') ? bookPalette(key) : PALETTES[key] ?? PALETTES['manuscript-night'];
+	term!.palette = key.startsWith('folio') ? bookPalette(key) : key.startsWith('map-') && mapColours.length ? mapPalette(key) : PALETTES[key] ?? PALETTES['manuscript-night'];
 	// The cover wants a margin of leather round its page: a few more columns (a touch smaller type).
 	// The cover is a picture, drawn fine: many more columns (small cells, two pixels each).
 	// A book on a wide screen lies open: room for two leaves.

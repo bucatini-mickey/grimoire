@@ -8,6 +8,7 @@ import { sectsAndViolets } from './scripts/sects-and-violets.ts';
 import { TRAVELLERS } from './scripts/travellers.ts';
 import { EXPERIMENTAL } from './scripts/experimental.ts';
 import { firstNightOrder, otherNightOrder } from './scripts/night-order.ts';
+import { LIBRARY, type LibraryEntry } from './scripts/library.ts';
 
 /**
  * A script's wake order comes from the official night sheet. A character's
@@ -57,21 +58,48 @@ SCRIPTS['laissez-un-faire'] = officialOrder({
 /** A character modelled by the engine (the three scripts and their Travellers), or only known (resolved by hand). */
 export const isModelled = (id: CharacterId) => [troubleBrewing, badMoonRising, sectsAndViolets].some((sc) => sc.characters.some((c) => c.id === id)) || Object.values(TRAVELLERS).flat().some((c) => c.id === id);
 
-/** A custom script's id: its characters, in order. */
-export const customScriptId = (ids: CharacterId[]) => `custom:${ids.join(',')}`;
+/**
+ * A custom script's id: its characters, in order, and its name if it has one
+ * (`custom:chef,imp|My%20script`). Ids without a name read as before.
+ */
+export const customScriptId = (ids: CharacterId[], name = '') => `custom:${ids.join(',')}${name.trim() ? '|' + encodeURIComponent(name.trim()) : ''}`;
+
+/** The characters and name a custom script's id holds. */
+export function parseCustomId(id: string): { ids: CharacterId[]; name: string } {
+	const [list, name] = id.slice('custom:'.length).split('|');
+	return { ids: list.split(',').filter(Boolean), name: name ? decodeURIComponent(name) : '' };
+}
 
 const customCache = new Map<string, Script>();
 function customScript(id: string): Script {
-	const ids = id.slice('custom:'.length).split(',').filter(Boolean);
+	const { ids, name } = parseCustomId(id);
 	const characters = ids.map((c) => CATALOG.find((x) => x.id === c) ?? (() => { throw new Error(`Unknown character "${c}"`); })());
 	if (new Set(ids).size !== ids.length) throw new Error('A character is on the custom script twice.');
-	return officialOrder({ id, name: 'Custom script', characters, travellers: ALL_TRAVELLERS });
+	return officialOrder({ id, name: name || 'Custom script', characters, travellers: ALL_TRAVELLERS });
+}
+
+export { LIBRARY };
+export type { LibraryEntry };
+
+/** A library entry's characters (not its Travellers or Fabled), as ids. */
+export const libraryChars = (e: LibraryEntry): CharacterId[] => e.chars.split(' ').filter(Boolean);
+
+/** The library's entry for a script id, if it is one of them (the editions are). */
+export const libraryEntry = (id: string): LibraryEntry | undefined => LIBRARY.find((e) => e.id === id);
+
+/** A script from the library, played like a custom one: its own Travellers, or any if it names none. */
+function libraryScript(id: string): Script {
+	const e = libraryEntry(id);
+	if (!e) throw new Error(`Unknown script "${id}"`);
+	const find = (pool: CharacterDef[], c: string) => pool.find((x) => x.id === c) ?? (() => { throw new Error(`${e.name}: unknown character "${c}"`); })();
+	const travellers = e.travellers ? e.travellers.split(' ').map((c) => find(ALL_TRAVELLERS, c)) : ALL_TRAVELLERS;
+	return officialOrder({ id, name: e.name, characters: libraryChars(e).map((c) => find(CATALOG, c)), travellers });
 }
 
 export function getScript(id: string): Script {
-	if (id.startsWith('custom:')) {
+	if (id.startsWith('custom:') || id.startsWith('lib:')) {
 		let c = customCache.get(id);
-		if (!c) { c = customScript(id); customCache.set(id, c); }
+		if (!c) { c = id.startsWith('lib:') ? libraryScript(id) : customScript(id); customCache.set(id, c); }
 		return c;
 	}
 	const s = SCRIPTS[id];

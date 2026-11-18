@@ -2,6 +2,10 @@
 
 Asked for by the user, not yet built. Newest first; tick off (move to "Done") as they land.
 
+## 2026-11-16 (colour)
+
+- **The palette consistent and realistic everywhere, then more character in the atmosphere.** **Done (the town maps; the book's pages untouched):** the map was worked out in true colour and then snapped to the look's 80 fixed inks, which turned earth orange, rooms black and the night solid black. Now (src/town/grade.ts) light is worked in linear light, each light has a colour temperature (candle 1850 K, torch 2000 K, gas lamp, moon, noon), bright light rolls off softly, the dark drains to a moonlit blue grey, and each town, level and phase gets its own 172 colours fitted to what it can show (a 256-colour terminal in all; the other phases fitted while idle). Atmosphere: mist lit by what it hangs over (halos round lamps, the beam through the rain), cloud shadows drifting on fair days, the eye adjusting stepping indoors, a slight vignette, sparks rising from fires after the day, fireflies over the grass at dusk and night, glints on water, ice and snow. Timber is brown, London brick sootier, snow lies smooth. Tachyon's torchlight no longer matches Grimoire's (it would need grade.ts too). Timing: tools/dev/grade-timing.ts.
+
 ## 2026-11-01 (playtest of a Trouble Brewing game with friends)
 
 **Maps: small enough to find people**

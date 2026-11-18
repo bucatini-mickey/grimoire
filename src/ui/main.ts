@@ -28,17 +28,21 @@ import { COLS, INNER, Canvas, letteredRow, shade, titleRow, blank, blockRow, box
 import type { Button, Row, Seg, Tone } from './ascii.ts';
 import * as T from './timer.ts';
 import * as V from '../net/views.ts';
+import * as H from '../net/history.ts';
 import * as NB from '../net/notebook.ts';
 import { announce } from '../net/announce.ts';
 import { hostRoom, newRoomCode } from '../net/link.ts';
 import type { HostLink, LinkStatus } from '../net/link.ts';
 import type { Announcement, ClockView, HostMsg, PlayerMsg, VoteView } from '../net/protocol.ts';
 import { startPlayer } from './player.ts';
+import { demoGame, isDemo } from './demo.ts';
 
 import { INKS, startVillage, villageForGame } from '../town/village.ts';
 import { AMNESIAC_IDEAS, savantPair, savantStatements } from './helpers.ts';
 import type { Extra, StActions, VillageHost } from '../town/village.ts';
 import { CARD_COLS, CARD_INNER, big, cardButtons, handBackRows, handOverRows, nextPage, note, revealRows, wakeRows } from './wakepages.ts';
+import { recallRows, startRecall } from './recallflow.ts';
+import type { Recall } from './recallflow.ts';
 import type { Page } from './wakepages.ts';
 
 // ---- saved data -------------------------------------------------------------
@@ -103,6 +107,8 @@ interface Saved {
 	net?: { room: string; claims: Record<string, SeatId>; village?: boolean; lobby?: { client: string; name: string }[] };
 	/** What each player's phone has been shown at night (views.ts logEntry), by seat. */
 	log?: Record<number, V.LogEntry[]>;
+	/** What each seat was shown on this phone at night, page by page, to show again (net/history.ts). Storyteller-side only; never sent to a phone. */
+	history?: H.History;
 	/** What each player has written in their notebook and asked of the Storyteller, by seat (notebook.ts). The Storyteller's eyes only. */
 	notebooks?: Record<number, NB.StoredNotebook>;
 }
@@ -118,7 +124,7 @@ function load(): Saved {
 			const s = JSON.parse(raw) as Saved;
 			G.replay(s.events); // throws if the log is unreadable
 			const settings = { ...DEFAULT_SETTINGS, ...s.settings };
-			return { events: s.events, marks: s.marks ?? [], settings, flow: { ...freshFlow(settings), ...s.flow }, net: s.net, log: s.log, notebooks: s.notebooks };
+			return { events: s.events, marks: s.marks ?? [], settings, flow: { ...freshFlow(settings), ...s.flow }, net: s.net, log: s.log, history: H.reviveHistory(s.history), notebooks: s.notebooks };
 		}
 	} catch {
 		/* fall through to a fresh game */
@@ -126,7 +132,11 @@ function load(): Saved {
 	return { events: [], marks: [], settings: { ...DEFAULT_SETTINGS }, flow: freshFlow(DEFAULT_SETTINGS) };
 }
 
+/** A demo game (#demo=..., demo.ts) is never written to the device. */
+let demoOnly = false;
+
 function save() {
+	if (demoOnly) return;
 	try {
 		localStorage.setItem(KEY, JSON.stringify(saved));
 	} catch {
@@ -170,6 +180,8 @@ const ui = {
 	question: '',
 	/** The phone in a player's hands, page by page. */
 	show: null as Show | null,
+	/** "Remind me": the phone in a player's hands to read the pages they were shown again (recallRows). */
+	recall: null as Recall | null,
 	/** What the Storyteller wrote for a character the app does not model (what they learn), for that step. */
 	wakeNote: { step: '', text: '' },
 	/** Something the whole room should hear, shown large until dismissed. */
@@ -238,6 +250,25 @@ const ui = {
 	customTeam: 'townsfolk' as G.Team,
 	/** The custom script's own page is open (from the script page, or the lobby). */
 	customOpen: false,
+	/** The custom script's name (kept with it in My scripts). */
+	customName: '',
+	/** The script page's section, and what it is searching for. */
+	scriptTab: 'official' as 'official' | 'popular' | 'mine' | 'random',
+	scriptQuery: '',
+	scriptSize: 'any' as 'any' | 'full' | 'teensy',
+	scriptLevel: 'any' as 'any' | G.LibraryEntry['level'],
+	scriptFrom: 'all' as 'all' | 'official' | 'popular' | 'mine',
+	/** How many of a long list of scripts are shown (more on a tap). */
+	scriptShown: 12,
+	/** A second tap deletes one of My scripts. */
+	confirmDelete: '',
+	/** The custom page's searches: a script to start from, and characters. */
+	templateQuery: '',
+	charQuery: '',
+	/** The custom script was just saved to My scripts. */
+	customSaved: false,
+	/** The lobby's script page is open. */
+	scriptsOpen: false,
 	nonstandard: false
 };
 
@@ -301,11 +332,14 @@ function undo() {
 	if (mark === undefined) return;
 	saved.events = saved.events.slice(0, mark);
 	state = G.replay(saved.events);
+	// (what was shown on a night that is now undone, or before a deal that may be redone, is not kept)
+	H.forgetAfter((saved.history ??= {}), state.phase.kind === 'over' ? Infinity : state.phase.kind === 'setup' ? 0 : state.phase.n);
 	ui.message = 'Undone.';
 	ui.pending = null;
 	ui.decision = null;
 	ui.question = '';
 	ui.show = null;
+	ui.recall = null;
 	clearPicks();
 	syncFlow();
 	save();
@@ -318,6 +352,7 @@ function newGame() {
 	chatAsks = [];
 	save();
 	ui.confirmNew = false;
+	ui.recall = null; // (no game's pages are carried into the next)
 	ui.message = '';
 	ui.tab = 'grimoire';
 	if (saved.net?.village) ui.mode = 'village';
@@ -622,7 +657,9 @@ function chatRows(): Row[] {
 // ---- setup ----------------------------------------------------------------------------
 
 function emptyDraft(): Draft {
-	return { selected: [], placed: state.seats.map(() => null), drunkBelieves: null, redHerring: null, bluffs: [] };
+	// A script that comes with Fabled (the Sentinel, the Djinn...) has them ready, to take off if not wanted.
+	const fabled = (G.libraryEntry(state.scriptId)?.fabled ?? '').split(' ').filter((id) => G.FABLED.some((f) => f.id === id)).map((id) => ({ id }));
+	return { selected: [], placed: state.seats.map(() => null), drunkBelieves: null, redHerring: null, bluffs: [], ...(fabled.length ? { fabled } : {}) };
 }
 
 /** Option tags: a row of choices, the chosen one lit. */
@@ -667,6 +704,7 @@ function endSaved(keepLine = false) {
 	saved = { events: [], marks: [], settings: saved.settings, flow: freshFlow(saved.settings) };
 	state = G.replay([]);
 	save();
+	ui.recall = null;
 	ui.confirm = '';
 	render();
 }
@@ -924,7 +962,7 @@ function copyInvite() {
 /** Deal from the lobby: everyone in it gets the seat in its order. */
 function dealFromLobby() {
 	const names = lobby().map((e) => e.name);
-	const made = act({ type: 'create', names, scriptId: ui.scriptId === 'custom' ? G.customScriptId(ui.customIds) : ui.scriptId });
+	const made = act({ type: 'create', names, scriptId: chosenId() });
 	if (!made || !saved.net) return;
 	saved.net.claims = {};
 	lobby().forEach((e, i) => { if (!e.client.startsWith('local:')) saved.net!.claims[e.client] = state.order[i]; });
@@ -936,6 +974,7 @@ function dealFromLobby() {
 /** The host's lobby, a page of its own: the code, who has joined, the script, then deal. */
 function hostLobbyPage(): Row[] {
 	if (ui.customOpen) return customPage();
+	if (ui.scriptsOpen) return [...pageHead('The script', ['Lobby', () => { ui.scriptsOpen = false; render(); }]), ...scriptPage(() => { ui.scriptsOpen = false; render(); }, 'Back to the lobby')];
 	const net = saved.net!;
 	const list = lobby();
 	const online = new Set([...phones.entries()].filter(([peer]) => link?.peers.get(peer)?.open).map(([, c]) => c));
@@ -956,27 +995,249 @@ function hostLobbyPage(): Row[] {
 		...rows,
 		...messageRows(),
 		rubric('The Script'),
-		tagsRow('tags', [
-			...Object.values(G.SCRIPTS).map((sc) => ({ label: sc.name, on: ui.scriptId === sc.id, act: () => { ui.scriptId = sc.id; render(); } })),
-			{ label: 'Custom', on: ui.scriptId === 'custom', act: startCustom }
-		]),
-		...customPicker(),
+		...chosenSummary(),
+		buttonBlock([btn('Choose the script', () => { ui.scriptsOpen = true; render(); }, { width: INNER })]),
 		endPanel(),
 		buttonBlock([btn(ok ? 'Choose the characters - ' + n + ' players' : n < 5 ? 'Need ' + (5 - n) + ' more player' + (5 - n === 1 ? '' : 's') : 'Too many players (15 at most)', dealFromLobby, { style: 'primary', disabled: !ok, width: INNER })])
 	];
 }
 
-/** The first page of setting the table: which script. */
-function scriptPage(): Row[] {
+/** The script id a new game would be played on: the chosen one, or the custom one as it stands. */
+function chosenId(): string {
+	return ui.scriptId === 'custom' ? G.customScriptId(ui.customIds, ui.customName) : ui.scriptId;
+}
+
+/** The chosen script, if it can be played (a custom one may still be empty). */
+function chosenScript(): Script | null {
+	try { return G.getScript(chosenId()); } catch { return null; }
+}
+
+// ---- the script page: the library, My scripts, search and a random draw ----------------
+
+/** One of My scripts: a custom script kept in this browser under its name. */
+interface MyScript { name: string; ids: CharacterId[] }
+const MINE_KEY = 'grimoire.myScripts';
+function myScripts(): MyScript[] {
+	try {
+		const v = JSON.parse(localStorage.getItem(MINE_KEY) ?? '[]');
+		if (!Array.isArray(v)) return [];
+		return v.filter((x) => x && typeof x.name === 'string' && Array.isArray(x.ids))
+			.map((x) => ({ name: x.name, ids: x.ids.filter((id: string) => G.CATALOG.some((c) => c.id === id)) }));
+	} catch { return []; }
+}
+function setMyScripts(v: MyScript[]) {
+	try { localStorage.setItem(MINE_KEY, JSON.stringify(v)); } catch { /* private mode: kept for this visit only */ }
+}
+
+/** The choice of script survives a reload. */
+const CHOICE_KEY = 'grimoire.scriptChoice';
+try {
+	const c = JSON.parse(localStorage.getItem(CHOICE_KEY) ?? 'null');
+	if (c && typeof c.scriptId === 'string' && (c.scriptId === 'custom' || G.SCRIPTS[c.scriptId] || G.libraryEntry(c.scriptId))) {
+		ui.scriptId = c.scriptId;
+		if (Array.isArray(c.customIds)) ui.customIds = c.customIds.filter((id: string) => G.CATALOG.some((x) => x.id === id));
+		if (typeof c.customName === 'string') ui.customName = c.customName;
+	}
+} catch { /* none kept */ }
+function keepChoice() {
+	try { localStorage.setItem(CHOICE_KEY, JSON.stringify({ scriptId: ui.scriptId, customIds: ui.customIds, customName: ui.customName })); } catch { /* private mode */ }
+}
+
+/** A script as the page lists it: from the library, or one of My scripts. */
+interface Listed { id: string; name: string; author: string; size: 'full' | 'teensy'; level?: G.LibraryEntry['level']; about: string; ids: CharacterId[]; kind: G.LibraryEntry['kind'] | 'mine'; entry?: G.LibraryEntry; mine?: MyScript }
+const LEVEL: Record<string, string> = { beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced' };
+
+/** How many of each team: "13 Townsfolk, 4 Outsiders, 4 Minions, 1 Demon". */
+function teamCounts(ids: CharacterId[]): string {
+	const of = (t: G.Team) => ids.filter((id) => G.CATALOG.find((c) => c.id === id)?.team === t).length;
+	const say = (n: number, one: string) => `${n} ${one}${n === 1 || one === 'Townsfolk' ? '' : 's'}`;
+	return [say(of('townsfolk'), 'Townsfolk'), say(of('outsider'), 'Outsider'), say(of('minion'), 'Minion'), say(of('demon'), 'Demon')].join(', ');
+}
+
+function listedOf(e: G.LibraryEntry): Listed {
+	// An edition (and Laissez un Faire) plays its own definition; the rest their lists.
+	const ids = G.SCRIPTS[e.id] ? G.SCRIPTS[e.id].characters.map((c) => c.id) : G.libraryChars(e);
+	return { id: e.id, name: e.name, author: e.author, size: e.size, level: e.level, about: e.about, ids, kind: e.kind, entry: e };
+}
+function listedMine(m: MyScript): Listed {
+	const small = m.ids.length <= 13;
+	return { id: G.customScriptId(m.ids, m.name), name: m.name, author: 'you', size: small ? 'teensy' : 'full', about: `Your own script of ${m.ids.length} characters: ${teamCounts(m.ids)}.`, ids: m.ids, kind: 'mine', mine: m };
+}
+// The editions in the order they are learnt; the rest most favourited first.
+const EDITION_ORDER = ['trouble-brewing', 'bad-moon-rising', 'sects-and-violets'];
+const LISTED = G.LIBRARY.map(listedOf).sort((a, b) => (EDITION_ORDER.indexOf(a.id) + 1 || 99) - (EDITION_ORDER.indexOf(b.id) + 1 || 99));
+const allListed = (): Listed[] => [...LISTED, ...myScripts().map(listedMine)];
+
+/** Every word of the search must be in the script's name, maker, words about it, or one of its characters. */
+const searchText = new Map<string, string>();
+function matches(l: Listed, q: string): boolean {
+	const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+	if (!words.length) return true;
+	let t = searchText.get(l.id);
+	if (!t) {
+		const names = [...l.ids, ...(l.entry?.travellers ?? '').split(' '), ...(l.entry?.fabled ?? '').split(' ')]
+			.map((id) => G.CATALOG.find((c) => c.id === id)?.name ?? G.FABLED.find((f) => f.id === id)?.name ?? id.replace(/-/g, ' '));
+		t = [l.name, l.author, l.about, LEVEL[l.level ?? ''] ?? '', l.size === 'teensy' ? 'teensyville teensy small' : 'full', ...names].join(' ').toLowerCase().replace(/[’']/g, '');
+		searchText.set(l.id, t);
+	}
+	return words.every((w) => t!.includes(w.replace(/[’']/g, '')));
+}
+
+const isChosen = (l: Listed) => (l.mine ? ui.scriptId === 'custom' && ui.customName === l.mine.name && ui.customIds.join() === l.mine.ids.join() : ui.scriptId === l.id);
+
+function choose(l: Listed) {
+	if (l.mine) { ui.scriptId = 'custom'; ui.customIds = [...l.mine.ids]; ui.customName = l.mine.name; }
+	else ui.scriptId = l.id;
+	ui.confirmDelete = '';
+	keepChoice();
+	render();
+}
+
+/** A script in a list: its name to tap (lit when chosen), who made it and how big, and what it is like. */
+function scriptEntry(l: Listed, extra: Button[] = []): Row[] {
+	const on = isChosen(l);
+	const meta = [l.author && l.author !== 'you' ? 'by ' + l.author : '', l.size === 'teensy' ? 'Teensyville' : 'Full', LEVEL[l.level ?? ''], `${l.ids.length} characters`].filter(Boolean).join(' · ');
+	return [...tickGrid([{ label: l.name, on, tone: on ? 'rubric' : 'gold', act: () => choose(l) }], 1),
+		...prose(meta, 'dim'), ...prose(l.about),
+		...(extra.length ? [buttonBlock(extra)] : []), blank()];
+}
+
+/** A long list, a dozen at a time. */
+function scriptList(list: Listed[], extra?: (l: Listed) => Button[]): Row[] {
 	const rows: Row[] = [];
-	rows.push(...prose('Choose the edition to play. Custom lets you make your own from any of them.', 'dim'));
-	rows.push(tagsRow('tags', [
-		...Object.values(G.SCRIPTS).map((sc) => ({ label: sc.name, on: ui.scriptId === sc.id, act: () => { ui.scriptId = sc.id; render(); } })),
-		{ label: 'Custom', on: ui.scriptId === 'custom', act: startCustom }
-	]));
-	rows.push(...customPicker(), blank());
-	rows.push(onward('Next: the players', () => { ui.setup = 'players'; render(); }));
+	for (const l of list.slice(0, ui.scriptShown)) rows.push(...scriptEntry(l, extra?.(l)));
+	if (list.length > ui.scriptShown) rows.push(buttonBlock([btn(`Show more (${list.length - ui.scriptShown} more)`, () => { ui.scriptShown += 12; render(); }, { width: INNER, style: 'quiet' })]));
 	return rows;
+}
+
+/** The chosen script, in short (the lobby shows this). */
+function chosenSummary(): Row[] {
+	const sc = chosenScript();
+	const e = G.libraryEntry(ui.scriptId);
+	if (!sc) return prose('A custom script with no characters yet.', 'dim');
+	return [row(txt(sc.name, 'rubric')), ...prose(e ? e.about : `Your own script of ${sc.characters.length} characters: ${teamCounts(sc.characters.map((c) => c.id))}.`, 'dim')];
+}
+
+/** What the chosen script is, at the top of the script page: its words, its Fabled and house rules, and the way to its characters. */
+function chosenPanel(): Row[] {
+	const sc = chosenScript();
+	const e = G.libraryEntry(ui.scriptId);
+	const rows: Row[] = [rubric('Chosen')];
+	if (!sc) {
+		rows.push(...prose('A custom script with no characters yet.', 'dim'), buttonBlock([btn('Edit the custom script', () => { ui.customOpen = true; render(); })]), endPanel());
+		return rows;
+	}
+	const ids = sc.characters.map((c) => c.id);
+	rows.push(row(txt(sc.name, 'rubric')));
+	const meta = [e?.author ? 'by ' + e.author : ui.scriptId === 'custom' ? 'your own' : '', e ? (e.size === 'teensy' ? 'Teensyville (5-6 players)' : 'Full') : '', LEVEL[e?.level ?? ''], ].filter(Boolean).join(' · ');
+	rows.push(...prose(meta, 'dim'), ...prose(`${ids.length} characters: ${teamCounts(ids)}.`, 'dim'));
+	if (e) rows.push(...prose(e.about));
+	const named = (list: string | undefined, of: { id: string; name: string }[]) => (list ?? '').split(' ').filter(Boolean).map((id) => of.find((x) => x.id === id)?.name ?? id).join(', ');
+	if (e?.fabled) rows.push(...prose('Fabled: ' + named(e.fabled, G.FABLED) + ' (ready on the Fabled page).', 'dim'));
+	if (e?.loric) rows.push(...prose('Loric: ' + named(e.loric, G.LORIC) + '.', 'dim'));
+	for (const r of e?.rules ?? []) rows.push(...prose('House rule: ' + r, 'dim'));
+	if (e && !G.SCRIPTS[e.id] && ids.some((id) => !G.isModelled(id))) rows.push(...prose('Some of its characters are not built into this book yet: you resolve those by hand.', 'dim'));
+	rows.push(buttonBlock([
+		btn('What they do', () => { ui.reading = true; render(); }, { style: 'quiet' }),
+		btn(ui.scriptId === 'custom' ? 'Edit it' : 'Make a copy to edit', () => {
+			if (ui.scriptId !== 'custom') { ui.customIds = ids; ui.customName = sc.name + ' (mine)'; }
+			ui.scriptId = 'custom'; ui.customOpen = true; keepChoice(); render();
+		}, { style: 'quiet' })
+	]), endPanel());
+	return rows;
+}
+
+/** A row of choices to narrow a list (size, level, where from). */
+function filterRow<T extends string>(label: string, now: T, opts: [T, string][], set: (v: T) => void): Row[] {
+	return [row(txt(label, 'dim')), tagsRow('tags', opts.map(([v, l]) => ({ label: l, on: now === v, act: () => { set(v); ui.scriptShown = 12; render(); } })))];
+}
+const sizeOk = (l: Listed) => ui.scriptSize === 'any' || l.size === ui.scriptSize;
+const levelOk = (l: Listed) => ui.scriptLevel === 'any' || l.level === ui.scriptLevel;
+
+/**
+ * Choosing the script: what is chosen and why it exists, a search over every script the book
+ * knows, then a section at a time: the official ones, the community's favourites, My scripts,
+ * and a random draw.
+ */
+function scriptPage(next: () => void = () => { ui.setup = 'players'; render(); }, nextLabel = 'Next: the players'): Row[] {
+	const rows: Row[] = [...chosenPanel()];
+	rows.push(field('script-search', 'Search every script', ui.scriptQuery, (v) => { ui.scriptQuery = v.trim(); ui.scriptShown = 12; render(); }, 40, 'a name, a maker or a character',
+		(v) => { ui.scriptQuery = v.trim(); ui.scriptShown = 12; render(); }));
+	if (ui.scriptQuery) {
+		const found = allListed().filter((l) => matches(l, ui.scriptQuery));
+		rows.push(...prose(found.length ? `${found.length} script${found.length === 1 ? '' : 's'} match.` : 'No script matches. Try a character’s name, or fewer words.', 'dim'),
+			buttonBlock([btn('Clear the search', () => { ui.scriptQuery = ''; render(); }, { style: 'quiet' })]), blank(), ...scriptList(found));
+		rows.push(onward(nextLabel, next, !chosenScript()));
+		return rows;
+	}
+	const mine = myScripts();
+	rows.push(tabStrip([
+		{ label: 'Official', on: ui.scriptTab === 'official', act: () => { ui.scriptTab = 'official'; render(); } },
+		{ label: 'Popular', on: ui.scriptTab === 'popular', act: () => { ui.scriptTab = 'popular'; ui.scriptShown = 12; render(); } },
+		{ label: `Mine ${mine.length}`, on: ui.scriptTab === 'mine', act: () => { ui.scriptTab = 'mine'; render(); } },
+		{ label: 'Random', on: ui.scriptTab === 'random', act: () => { ui.scriptTab = 'random'; render(); } }
+	]));
+	if (ui.scriptTab === 'official') {
+		const of = (kind: string, size?: string) => LISTED.filter((l) => l.kind === kind && (!size || l.size === size));
+		rows.push(blank(), rubric('The three editions'), ...prose('The game as it comes in the box: start with Trouble Brewing.', 'dim'), blank());
+		for (const l of of('edition')) rows.push(...scriptEntry(l));
+		rows.push(endPanel(), rubric('Teensyville'), ...prose('Small scripts from the Pandemonium Institute, made for five or six players.', 'dim'), blank());
+		for (const l of of('official', 'teensy')) rows.push(...scriptEntry(l));
+		rows.push(endPanel(), rubric('Carousel and featured'), ...prose('Full scripts the Pandemonium Institute collects to show off the newer characters.', 'dim'), blank());
+		for (const l of of('official', 'full')) rows.push(...scriptEntry(l));
+		rows.push(endPanel());
+	} else if (ui.scriptTab === 'popular') {
+		rows.push(...prose('The community’s most favourited scripts on botcscripts.com, most loved first.', 'dim'));
+		rows.push(...filterRow('Size', ui.scriptSize, [['any', 'Any'], ['full', 'Full'], ['teensy', 'Teensy']], (v) => { ui.scriptSize = v; }));
+		rows.push(...filterRow('For', ui.scriptLevel, [['any', 'Anyone'], ['beginner', 'New'], ['intermediate', 'Some'], ['advanced', 'Expert']], (v) => { ui.scriptLevel = v; }), blank());
+		const list = LISTED.filter((l) => l.kind === 'popular' && sizeOk(l) && levelOk(l));
+		rows.push(...(list.length ? scriptList(list) : prose('None of that kind.', 'dim')));
+	} else if (ui.scriptTab === 'mine') {
+		rows.push(...prose('Scripts you have made, kept in this browser. Make one from nothing, or copy any script and change it.', 'dim'));
+		rows.push(buttonBlock([
+			btn('Make a new script', () => { ui.scriptId = 'custom'; ui.customIds = []; ui.customName = ''; ui.customOpen = true; keepChoice(); render(); }),
+			btn('Make a random one', () => randomCustom(false), { style: 'quiet' })
+		]), blank());
+		if (!mine.length) rows.push(...prose('None yet. On the custom script page, Save keeps it here.', 'dim'));
+		for (const m of mine) rows.push(...scriptEntry(listedMine(m), [
+			btn('Edit', () => { choose(listedMine(m)); ui.customOpen = true; render(); }, { style: 'quiet' }),
+			btn(ui.confirmDelete === m.name ? 'Sure? Delete' : 'Delete', () => {
+				if (ui.confirmDelete !== m.name) { ui.confirmDelete = m.name; render(); return; }
+				setMyScripts(myScripts().filter((x) => x.name !== m.name)); ui.confirmDelete = ''; render();
+			}, { style: ui.confirmDelete === m.name ? 'danger' : 'quiet' })
+		]));
+	} else {
+		rows.push(...prose('Let the book choose. Narrow it down, then draw: the script drawn is chosen, and shows at the top.', 'dim'));
+		rows.push(...filterRow('From', ui.scriptFrom, [['all', 'All'], ['official', 'Official'], ['popular', 'Popular'], ['mine', 'Mine']], (v) => { ui.scriptFrom = v; }));
+		rows.push(...filterRow('Size', ui.scriptSize, [['any', 'Any'], ['full', 'Full'], ['teensy', 'Teensy']], (v) => { ui.scriptSize = v; }));
+		rows.push(...filterRow('For', ui.scriptLevel, [['any', 'Anyone'], ['beginner', 'New'], ['intermediate', 'Some'], ['advanced', 'Expert']], (v) => { ui.scriptLevel = v; }));
+		const pool = allListed().filter((l) => (ui.scriptFrom === 'all' || (ui.scriptFrom === 'official' ? l.kind === 'official' || l.kind === 'edition' : l.kind === ui.scriptFrom)) && sizeOk(l) && (l.kind === 'mine' || levelOk(l)));
+		rows.push(blank(), buttonBlock([btn(pool.length ? `Draw a script (from ${pool.length})` : 'No script fits', () => {
+			const others = pool.filter((l) => !isChosen(l));
+			const from = others.length ? others : pool;
+			choose(from[Math.floor(Math.random() * from.length)]);
+		}, { style: 'primary', width: INNER, disabled: !pool.length })]));
+		rows.push(blank(), rubric('Or new characters'), ...prose('A script dealt at random from every character the book knows: a team of each kind, Demons and all. It may be wild; edit it after.', 'dim'),
+			buttonBlock([btn('Random full script', () => randomCustom(false)), btn('Random Teensyville', () => randomCustom(true))]), endPanel());
+	}
+	rows.push(blank(), onward(nextLabel, next, !chosenScript()));
+	return rows;
+}
+
+/** A custom script of characters drawn at random: 13/4/4/4 (or 6/2/2/1 for five or six), then opened to edit. */
+function randomCustom(teensy: boolean) {
+	const counts: [G.Team, number][] = teensy ? [['townsfolk', 6], ['outsider', 2], ['minion', 2], ['demon', 1]] : [['townsfolk', 13], ['outsider', 4], ['minion', 4], ['demon', 4]];
+	const ids: CharacterId[] = [];
+	for (const [team, n] of counts) {
+		const pool = G.CATALOG.filter((c) => c.team === team).map((c) => c.id);
+		for (let k = 0; k < n && pool.length; k++) ids.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+	}
+	ui.scriptId = 'custom';
+	ui.customIds = ids;
+	ui.customName = teensy ? 'Random Teensyville' : 'Random script';
+	ui.customOpen = true;
+	keepChoice();
+	render();
 }
 
 /** The second page: the players' names, round the table from the Storyteller's left. */
@@ -992,49 +1253,76 @@ function playersPage(): Row[] {
 	rows.push(...messageRows());
 	const n = names.length;
 	rows.push(onward(n < 5 ? `Need ${5 - n} more` : n > 15 ? 'Too many (15 at most)' : 'Next: the characters', () => {
-		if (act({ type: 'create', names, scriptId: ui.scriptId === 'custom' ? G.customScriptId(ui.customIds) : ui.scriptId })) { ui.setup = 'characters'; render(); }
+		if (act({ type: 'create', names, scriptId: chosenId() })) { ui.setup = 'characters'; render(); }
 	}, n < 5 || n > 15));
 	return rows;
 }
 
-/** Custom: it starts as a copy of the script that was chosen, to change from there. */
-function startCustom() {
-	const from = G.SCRIPTS[ui.scriptId];
-	if (!ui.customIds.length && from) ui.customIds = from.characters.map((c) => c.id);
-	ui.scriptId = 'custom';
-	ui.customOpen = true;
-	render();
-}
-
-/** Under the script, when it is a custom one: what is on it, and the way to its own page. */
-function customPicker(): Row[] {
-	if (ui.scriptId !== 'custom') return [];
-	const teams: [string, G.Team][] = [['Townsfolk', 'townsfolk'], ['Outsiders', 'outsider'], ['Minions', 'minion'], ['Demons', 'demon']];
-	const count = (t: G.Team) => ui.customIds.filter((id) => G.CATALOG.find((c) => c.id === id)?.team === t).length;
-	return [...prose(`${ui.customIds.length} characters: ${teams.map(([l, t]) => `${count(t)} ${l}`).join(', ')}.`, 'dim'),
-		buttonBlock([btn('Edit the custom script', () => { ui.customOpen = true; render(); })])];
-}
-
 /**
- * Building a custom script, on a page of its own: start from one of the standard scripts (or
- * nothing), then tick characters on and off, a team at a time, a line each in two columns. Gold
- * ones the app runs; the rest you resolve by hand.
+ * Building a custom script, on a page of its own: its name; a script to start from (any of the
+ * library, found by search); then its characters, ticked on and off a team at a time or found
+ * by a search over every character. Gold ones the app runs; the rest you resolve by hand. Save
+ * keeps it in My scripts.
  */
 function customPage(): Row[] {
-	const done = () => { ui.customOpen = false; render(); };
+	const done = () => { ui.customOpen = false; ui.customSaved = false; if (ui.customIds.length) ui.scriptId = 'custom'; keepChoice(); render(); };
 	const teams: [string, G.Team][] = [['Townsfolk', 'townsfolk'], ['Outsiders', 'outsider'], ['Minions', 'minion'], ['Demons', 'demon']];
 	const on = new Set(ui.customIds);
-	const toggle = (id: CharacterId) => { ui.customIds = on.has(id) ? ui.customIds.filter((x) => x !== id) : [...ui.customIds, id]; render(); };
+	const changed = () => { ui.customSaved = false; keepChoice(); render(); };
+	const toggle = (id: CharacterId) => { ui.customIds = on.has(id) ? ui.customIds.filter((x) => x !== id) : [...ui.customIds, id]; changed(); };
 	const rows: Row[] = [...pageHead('Custom script', ['Done', done])];
-	rows.push(row(txt('Start from: ', 'dim')), ...buttonRows([...Object.values(G.SCRIPTS).map((sc) => btn(sc.name, () => { ui.customIds = sc.characters.map((c) => c.id); render(); }, { style: 'quiet' })),
-		btn('Empty', () => { ui.customIds = []; render(); }, { style: 'quiet' })]));
-	const count = (t: G.Team) => ui.customIds.filter((id) => G.CATALOG.find((c) => c.id === id)?.team === t).length;
-	rows.push(...prose(`${ui.customIds.length} on the script. Tick a name to put it on or take it off; gold ones have their rules built in.`, 'dim'));
-	// One team at a time, a line a character in two columns: those on the script first.
-	const team = ui.customTeam;
-	rows.push(tabStrip(teams.map(([l, t]) => ({ label: `${l.slice(0, 5)} ${count(t)}`, on: team === t, act: () => { ui.customTeam = t; render(); } }))));
-	const of = G.CATALOG.filter((c) => c.team === team).sort((a, b) => Number(on.has(b.id)) - Number(on.has(a.id)) || a.name.localeCompare(b.name));
-	rows.push(...tickGrid(of.map((c) => ({ label: c.name, on: on.has(c.id), tone: G.isModelled(c.id) ? 'gold' : undefined, act: () => toggle(c.id) }))));
+	rows.push(field('custom-name', 'Its name', ui.customName, (v) => { ui.customName = v.trim(); changed(); }, 40, 'tap to name it'));
+
+	// A script to start from: the editions and a few favourites at hand, any other by searching.
+	rows.push(rubric('Start from a script'));
+	rows.push(field('template-search', 'Search scripts to copy', ui.templateQuery, (v) => { ui.templateQuery = v.trim(); render(); }, 40, 'a name, a maker or a character',
+		(v) => { ui.templateQuery = v.trim(); render(); }));
+	const load = (l: Listed) => { ui.customIds = [...l.ids]; if (!ui.customName) ui.customName = l.name + ' (mine)'; ui.templateQuery = ''; changed(); };
+	if (ui.templateQuery) {
+		const found = allListed().filter((l) => matches(l, ui.templateQuery));
+		if (!found.length) rows.push(...prose('No script matches.', 'dim'));
+		// Each with its first sentence only: the page is for building, the script page for reading.
+		for (const l of found.slice(0, 6)) rows.push(...tickGrid([{ label: l.name, on: false, tone: 'gold', act: () => load(l) }], 1),
+			...prose([l.kind === 'mine' ? 'yours' : l.author ? 'by ' + l.author : '', `${l.ids.length} characters`, l.about.split(/(?<=.) /)[0]].filter(Boolean).join(' · '), 'dim'));
+		if (found.length > 6) rows.push(...prose(`and ${found.length - 6} more: add a word to narrow it.`, 'dim'));
+	} else {
+		const handy = [...LISTED.filter((l) => l.kind === 'edition'), ...LISTED.filter((l) => l.kind === 'popular').slice(0, 3)];
+		rows.push(...prose('Tap one to copy its characters here, then change them.', 'dim'),
+			...buttonRows([...handy.map((l) => btn(l.name, () => load(l), { style: 'quiet' })), btn('Empty', () => { ui.customIds = []; changed(); }, { style: 'quiet' })]));
+	}
+	rows.push(endPanel());
+
+	rows.push(rubric('Characters'));
+	rows.push(...prose(`${ui.customIds.length} on the script: ${teamCounts(ui.customIds)}. Tick a name to put it on or take it off; gold ones have their rules built in.`, 'dim'));
+	rows.push(field('char-search', 'Search characters', ui.charQuery, (v) => { ui.charQuery = v.trim(); render(); }, 30, 'a name, a team or a word of an ability',
+		(v) => { ui.charQuery = v.trim(); render(); }));
+	const TEAM_WORD: Record<string, string> = { townsfolk: 'townsfolk', outsider: 'outsider outsiders', minion: 'minion minions evil', demon: 'demon demons evil' };
+	if (ui.charQuery) {
+		const words = ui.charQuery.toLowerCase().split(/\s+/).filter(Boolean);
+		const found = G.CATALOG.filter((c) => { const t = `${c.name} ${TEAM_WORD[c.team] ?? c.team} ${c.ability}`.toLowerCase(); return words.every((w) => t.includes(w)); })
+			.sort((a, b) => Number(on.has(b.id)) - Number(on.has(a.id)) || a.name.localeCompare(b.name));
+		const team = (c: G.CharacterDef) => ({ townsfolk: 'Townsfolk', outsider: 'Outsider', minion: 'Minion', demon: 'Demon' } as Record<string, string>)[c.team] ?? c.team;
+		if (!found.length) rows.push(...prose('No character matches.', 'dim'));
+		// A few: each with what it does. Many: names only, to tick.
+		else if (found.length <= 8) for (const c of found) rows.push(...tickGrid([{ label: `${c.name} (${team(c)})`, on: on.has(c.id), tone: G.isModelled(c.id) ? 'gold' : undefined, act: () => toggle(c.id) }], 1), ...prose(c.ability, 'dim'));
+		else rows.push(...prose(`${found.length} match.`, 'dim'), ...tickGrid(found.map((c) => ({ label: c.name, on: on.has(c.id), tone: G.isModelled(c.id) ? 'gold' : undefined, act: () => toggle(c.id) }))));
+		rows.push(buttonBlock([btn('Clear the search', () => { ui.charQuery = ''; render(); }, { style: 'quiet' })]));
+	} else {
+		// One team at a time, a line a character in two columns: those on the script first.
+		const count = (t: G.Team) => ui.customIds.filter((id) => G.CATALOG.find((c) => c.id === id)?.team === t).length;
+		const team = ui.customTeam;
+		rows.push(tabStrip(teams.map(([l, t]) => ({ label: `${l.slice(0, 5)} ${count(t)}`, on: team === t, act: () => { ui.customTeam = t; render(); } }))));
+		const of = G.CATALOG.filter((c) => c.team === team).sort((a, b) => Number(on.has(b.id)) - Number(on.has(a.id)) || a.name.localeCompare(b.name));
+		rows.push(...tickGrid(of.map((c) => ({ label: c.name, on: on.has(c.id), tone: G.isModelled(c.id) ? 'gold' : undefined, act: () => toggle(c.id) }))));
+	}
+	rows.push(endPanel());
+
+	// Keep it: in My scripts, under its name (a script of the same name is replaced).
+	const name = ui.customName || 'Untitled script';
+	rows.push(buttonBlock([btn(ui.customSaved ? 'Saved in My scripts' : 'Save to My scripts', () => {
+		setMyScripts([...myScripts().filter((m) => m.name !== name), { name, ids: [...ui.customIds] }]);
+		ui.customName = name; ui.customSaved = true; keepChoice(); render();
+	}, { width: INNER, disabled: !ui.customIds.length, style: ui.customSaved ? 'on' : undefined })]));
 	rows.push(blank(), onward('Done', done));
 	return rows;
 }
@@ -1319,8 +1607,9 @@ function fabledPage(): Row[] {
 /** The book of characters: every character of the script (and the Fabled), and what each does. */
 function readingPage(): Row[] {
 	const sc = script();
-	const scName = state.seats.length ? sc.name : G.SCRIPTS[ui.scriptId]?.name ?? 'Custom';
-	const chars = state.seats.length ? sc.characters : (G.SCRIPTS[ui.scriptId]?.characters ?? G.CATALOG.filter((c) => ui.customIds.includes(c.id)));
+	const chosen = state.seats.length ? sc : chosenScript();
+	const scName = chosen?.name ?? 'Custom';
+	const chars = chosen?.characters ?? G.CATALOG.filter((c) => ui.customIds.includes(c.id));
 	const rows: Row[] = [...pageHead('The characters', ['Back', () => { ui.reading = false; render(); }])];
 	rows.push(...prose(scName + '. What each character does.', 'dim'));
 	const teams: [string, G.Team][] = [['Townsfolk', 'townsfolk'], ['Outsiders', 'outsider'], ['Minions', 'minion'], ['Demons', 'demon'], ['Travellers', 'traveller']];
@@ -1339,7 +1628,7 @@ function readingPage(): Row[] {
 function shareSource(): { sc: Script; players: number | null } {
 	if (state.seats.length) return { sc: script(), players: state.seats.filter((x) => !x.traveller).length };
 	let sc: Script | undefined;
-	try { sc = ui.scriptId === 'custom' ? G.getScript(G.customScriptId(ui.customIds)) : G.SCRIPTS[ui.scriptId]; } catch { sc = undefined; }
+	sc = chosenScript() ?? undefined;
 	const n = ui.names.split('\n').filter((l) => l.trim()).length;
 	return { sc: sc ?? G.getScript('trouble-brewing'), players: n || null };
 }
@@ -1513,6 +1802,7 @@ rows.push(...prose(who ? `${who.name}, the ${charName(stepRole(kind, who.id))}${
 	}
 	const later = steps.filter((s) => !s.done && s.id !== step.id).map((s) => (s.seat === null ? groupLabel(s.kind).split(':')[0] : `${name(s.seat)} (${charName(stepRole(s.kind, s.seat))})`));
 	const quiet: Button[] = [btn('Skip', () => act({ type: 'skip', reason: 'Storyteller skipped' }), { style: 'quiet' })];
+	if (who && !phone) quiet.push(btn(`Remind ${who.name}`, () => openRecall(who.id), { style: 'quiet' }));
 	if (later.length) quiet.push(btn(ui.showLater ? 'Hide the rest' : `Later tonight (${later.length})`, () => { ui.showLater = !ui.showLater; render(); }, { style: ui.showLater ? 'on' : 'quiet' }));
 	rows.push(blank(), ...buttonRows(quiet));
 	if (later.length && ui.showLater) rows.push(...prose(`Then: ${later.join(', ')}.`, 'dim'));
@@ -1799,21 +2089,32 @@ function showRows(): Row[] {
 	if (!step || step.id !== sh.step) { ui.show = null; return []; }
 	const w = withNote(V.wakeFor(state, step, ui.draftInfo), step);
 	// First, whose turn it is; last, the phone back to the Storyteller.
-	if (sh.turn === 0) return handOverRows(step.seat === null ? groupLabel(step.kind).split(':')[0] : name(step.seat), () => { sh.turn = 1; render(); });
+	if (sh.turn === 0) return handOverRows(step.seat === null ? groupLabel(step.kind).split(':')[0] : name(step.seat), () => { sh.turn = 1; noteShown(w, sh.page); render(); });
 	if (sh.page === 'done') return handBackRows(finishShow);
 	return wakeRows(w, sh.page, sh.picks, {
-		go: (page) => { sh.page = page; render(); },
+		go: (page) => { sh.page = page; noteShown(w, page); render(); },
 		toggle: (id) => {
 			if (sh.picks.includes(id)) sh.picks = sh.picks.filter((p) => p !== id);
 			else { sh.picks.push(id); if (sh.picks.length > (w.pick?.count ?? 1)) sh.picks.shift(); }
 			render();
 		},
-		confirm: () => { sh.page = nextPage(w, 'pick'); render(); },
+		confirm: () => { if (w.seat !== null) H.recordChoice((saved.history ??= {}), w.seat, w.id, sh.picks); sh.page = nextPage(w, 'pick'); noteShown(w, sh.page); render(); },
 		finish: finishShow,
 		ending: 'hand-back',
 		name,
 		deadAtDusk: (id) => V.deadAtDusk(state, id)
 	});
+}
+
+/**
+ * A page has just been put in front of the player on this phone: keep it in their history, as drawn
+ * (the Drunk's or a poisoned player's false answer is what is in w, so that is what is kept).
+ */
+function noteShown(w: V.Wake, page: Page) {
+	if (w.seat === null || state.phase.kind !== 'night') return;
+	const e = H.shownPage(w, page, state.phase.n, { name, dead: (id) => V.deadAtDusk(state, id) });
+	if (e) H.record((saved.history ??= {}), w.seat, e);
+	save();
 }
 
 /** The phone is back with the Storyteller: record what happened. */
@@ -1834,6 +2135,25 @@ function finishShow() {
 	ui.picks = [...sh.picks];
 	ui.draftInfo = null;
 	render();
+}
+
+// ---- Remind me ------------------------------------------------------------------------------
+//
+// A player asks again for what they were shown. The phone goes to them, they read an index of their pages
+// (who they are, their Demon or Minions, the Demon's bluffs, then each night) and open any one: the page as
+// it was shown, from what was kept, never looked up afresh. Then the plain page that hands the phone back.
+
+/** The Storyteller asks to hand the phone to this seat to read their pages again (first it asks "Hand to <name>?"). */
+function openRecall(seat: SeatId) {
+	// (not over a player's pages, or an announcement, being read)
+	if (ui.show || ui.banner) return;
+	ui.inspect = null;
+	ui.recall = startRecall(seat);
+	render();
+}
+
+function recallScreen(): Row[] {
+	return recallRows(ui.recall!, { history: saved.history ?? {}, name, render, close: () => { ui.recall = null; render(); } });
 }
 
 // ---- day ------------------------------------------------------------------------------------
@@ -2348,6 +2668,8 @@ function inspectRows(): Row[] {
 				...[...G.charactersOfTeam(script(), 'townsfolk'), ...G.charactersOfTeam(script(), 'outsider')].map((c) => btn(c.name, () => edit({ type: 'cannibal-tell', seat: id, character: c.id }), { style: told === c.id ? 'on' : undefined }))
 			]));
 		}
+		// (a player with their own phone keeps their pages there; this is for the one phone handed round)
+		if (!peerOfSeat(id)) rows.push(...buttonRows([btn('Remind me', () => openRecall(id), { style: 'primary' })]));
 		rows.push(blank(), ...prose('By hand (logged):', 'dim'));
 		rows.push(...buttonRows([
 			btn(s.alive ? 'Kill' : 'Revive', () => edit({ type: 'adjust', seat: id, alive: !s.alive }), { style: s.alive ? 'danger' : undefined }),
@@ -3230,7 +3552,7 @@ function render() {
 	// In the town the page layer is empty until the drawer is pulled out.
 	paint(root, vg && !ui.drawer ? [] : paneled(vg ? drawerScreen() : screen()));
 	const voting = state.phase.kind === 'day' && !!flow().vote && !!openNomination() && (villageGame() ? ui.voteBig : !ui.voteSmall);
-	const pages = ui.banner ? bannerRows() : voting ? voteStage() : ui.show ? showRows() : [];
+	const pages = ui.banner ? bannerRows() : voting ? voteStage() : ui.show ? showRows() : ui.recall ? recallScreen() : [];
 	paint(cardRoot, pages.length ? paneled(pages, CARD_COLS) : [], CARD_COLS);
 	updatePhones();
 	syncVillage();
@@ -3269,12 +3591,25 @@ setInterval(tick, 250);
 
 // A player's phone (#join=CODE, or "Join a game") runs the player app instead.
 const joining = location.hash.match(/^#join(?:=([A-Za-z]{4}))?/);
+// #demo=bluffs or #demo=scarlet-woman opens a fixed demo game on the screen of that name (demo.ts).
+const demoName = location.hash.match(/^#demo=([\w-]+)/)?.[1] ?? '';
+const demo = isDemo(demoName) ? demoName : null;
 // Dev mode: #village:talmberg (or :talmberg:player) walks that town straight away.
 const villageDemo = location.hash.match(/^#village(?:=([A-Za-z]{4}))?(?::(\w+))?(?::(st|player))?/);
 if (villageDemo) {
 	startVillage(root, (villageDemo[1] ?? '').toUpperCase(), villageDemo[2], villageDemo[3]);
 } else if (joining) {
 	startPlayer(root, cardRoot, (joining[1] ?? '').toUpperCase());
+} else if (demo) {
+	// A demo screen (demo.ts): a fixed game, shown on the step it is about, and never saved.
+	demoOnly = true;
+	const d = demoGame(demo);
+	saved = { events: d.events, marks: [], settings: { ...DEFAULT_SETTINGS }, flow: freshFlow(DEFAULT_SETTINGS), history: d.history };
+	state = d.state;
+	if (d.recall) ui.recall = { ...startRecall(d.recall.seat), turn: d.recall.turn, open: d.recall.open };
+	else ui.show = { step: d.step, page: d.page, picks: [], turn: 1 };
+	syncFlow();
+	render();
 } else if ((location.hash === '#host' && saved.net?.village) || location.hash === '#grimoire') {
 	syncFlow();
 	render();

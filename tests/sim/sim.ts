@@ -933,6 +933,8 @@ export class Checker {
 			if (x.type !== 'chose' || x.role !== 'fang-gu' || !x.effective || this.fangJumped && !events.some((y) => y.type === 'became-demon' && y.via === 'fang-gu')) continue;
 			const t = x.targets[0];
 			if (t === undefined || t === x.by || !prev.seats[t].alive || teamIn(prev, prev.seats[t].character) !== 'outsider' || goonCaught(x.by) || result.phase.kind === 'over') continue;
+			// An Outsider who does not die (the Monk, the Innkeeper, the Tea Lady...) does not become the Fang Gu (grim-040): it shows as kill-prevented.
+			if (events.some((y) => y.type === 'kill-prevented' && y.target === t)) continue;
 			if (!events.some((y) => y.type === 'became-demon' && y.via === 'fang-gu' && y.seat === t)) this.fail('fang-gu', `the Fang Gu chose ${prev.seats[t].name}, an Outsider, and did not jump`);
 		}
 		// An exile that passes kills the Traveller: no ability stops it (but a funny Deviant's own).
