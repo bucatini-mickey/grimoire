@@ -1,0 +1,183 @@
+tachyon-blueprint 1
+# St. Cuthwin's Abbey after Sázava, an alternative not yet in the game.
+# Made by town/make-abbey-sazava.mjs; edit that and run it again. `label x y Name` names a place.
+name abbey
+size 72 58 2
+key , floor grass
+key : floor gravel
+key L wall limestone
+key l floor limestone
+key + floor wood
+key ~ floor water
+key T wall leaves
+key . wall stone block
+key ; floor stone block
+key _ stair-up stone block
+key = floor limestone | candle
+key # floor grass | coffin
+key % floor grass | statue
+key & floor stone block | door
+key * floor grass | chair
+key - floor limestone | pew
+key ^ floor limestone | altar
+key " floor grass | torch
+key ' floor limestone | door
+key ` floor limestone | torch
+key ! floor limestone | chair
+key ? floor limestone | table
+key $ floor wood | door
+key @ floor grass | flowers
+key A floor wood | candle
+key B stair-up wood
+key C floor grass | well
+key D floor wood | table
+key E floor wood | bed
+key F floor wood | chest
+key G floor limestone | brazier
+key H floor wood | bookshelf
+key I floor limestone | oven
+key J floor wood | brazier
+key K floor limestone | barrel
+key M wall wood
+key N floor tilled | crops
+key O floor tilled
+key P floor grass | reeds
+key Q floor water | wheel
+key R stair-down stone block
+key S floor stone block | bell
+key U stair-down wood
+level 0
+TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+TT,,,,T,,,,,,,,TTTT,,,T,,,,,,,,,TTTT,T.......T,,T,,T,TTTT,,,,,,,T,TT,TTT
+TT,,TT,,,,,T,,T,,,,TT,,TT,,,,,T,,TTTT,.;;;;;.T,TTTT,TT,,,T,,,,TT,T,,,TTT
+TT,,,,,,,,.,.,..,.,..,.,..,.,..,.,..,..;_;;;LLLLLLLLLLLLLLLLL,,,,,,,TTTT
+TT,,,,,,,,.,,,,,,,,,,,,,,,,,,,,,,,,,,,.;;;;;L=llllllllllllllL,#%%%#,TTTT
+TT,,,,,,,,.,,,.,,,.,,,.,,,.,,,.,,,.,,,&;;;;;Lllllllllllll=llL,,,,,,,,,TT
+TTTT,,,,,,.,,,,,,,,,,,,,*,,,,,,,,,,,,,.;;;;;Llll-------lllllL,,,,,,,T,TT
+TT,T,,,,,,,,,,,,,,,*,*,,,,,*,*,,,,,,,,.;;;;;LlllllllllllllllL,%%%#%,T,TT
+TT,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,......Lll-l-l-l-llllllL,,,,,,,T,TT
+TTTT,,,,,,,,,,,,,*,,,,,,%,,,,,,*,,,,,,,,,,,,Lll-l-l-l-llll^lL,,,,,,,T,TT
+TT,T,,,,,,,,,,,,,*,,,,,,,,,,,,,*,,,,,,,,,,,,Lll-l-l-l-llll^lL,,,,,,,T,TT
+TTTT,,,,,,,,,,,,,,*,,,,,,,,,,,*,,,,,,,,,,,,"'ll-l-l-l-llllllL,,,,,,,,,TT
+TT,T,,,,,,.,,,,,,,,,*,,,,,,,*,,,,,,,,,,,,,,,'lllllllllllllllL",,,,,,,,TT
+TT,T,,,,,,.,,,,,,,,,,,,*,*,,,,,,,,,,,,,,,,,,Llll-------ll=llL,,,,,,,T,TT
+TTTT,,,,,,.,,,.,,,.,,,.,,,.,,,.,,,.,,,,,,,,,L=llllllllllllllL,,,,,,,TTTT
+TTT,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,LLLL'LLLLLLLLLLLLLLLLLLLLTTT
+TTT,,,,,,,..,.,..,.,..,,,,,,,,,.,.,..,.,,,,,L`lllllllllllll`L=lllll=LTTT
+TT,,,,,,,,,,,,,,,,,,,,,,",,,,,,,,,,,",,,,,,,llllllllllllllllLll!!!llL,TT
+TTT,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,lllLllLllLllLlllLl!???!lLTTT
+TTTT,,,,,,,,,,,,,,.;;.,,,,,,LLLLLLL$LLLLLLL,Llll,,@,,,,,llllLl!???!lLTTT
+TTTT,LLLLLLL,,,,,,;;;;,,,,,,LA++++++B+++++L,Llll,@,,,,,,llll'l!???!lL,TT
+TT,,,L++++AL,,,,,,;;;;,,,,,,L+++++++++++++L,LllL,,,,,,,,LlllLl!???!lL,TT
+TT,,,L+++++L,,,,,,;;;;,,,,,,L+++++++++++++L,Llll,,,C,,@,llllLl!???!lLTTT
+TT,T,L++D++$,,.;;;;;;;;;;.,,L+++++++++++++L,Llll,,,,@@,,llllL=l!!!l=LTTT
+TT,,,L+++++L,,;;;;;;;;;;;;,,L++++++D++++++L,LllL,,,,,,,,LlllLLLLLLLLL,TT
+TT,T,LE+++FL,,;;;;;;;;;;;;,,L+++++++++++++L,Llll,,,,,,@,llllLlllllllL,TT
+TT,,,LLLLLLL,,.;;;;;;;;;;.,,L+++++++++++++L,Llll@,,,,@,,llllLlllllGlL,TT
+TTTT,L++++AL,,,,,,;;;;,,,,,,L+++++++++++++L,LllLllLllLllLlll'lllllllLTTT
+TT,,,L+++++L,,,,,,;;;;,,,,,,LHHH+++++++++EL,LlllllllllllllllLlllllllL,TT
+TTT,,L++D++$",,,,,;;;;,,,,,,LLLLLLLLLLLLLLL,LlllllllllllllllLlllBlllLTTT
+TT,T,L+++++L,,,,,,.;;.,,,,,,,,,,,,,,,,,,,,,,L`lllllllllllll`LlllllllL,TT
+TT,T,LE+++FL,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,LLLLLL'LLLLLLLLLLLLLLLLLL,TT
+TT,,,LLLLLLL,,,,,,,,,,,,,,,",,,,,,,,,,,,,,,,L=lllllllll=LIlllllllllILTTT
+TTTT,L++++AL,,,LLLLL$LLLLLL,,,,,,,,,,,,,,,,,LlllllllllllLlllllllllllLTTT
+TTT,,L+++++L,,,LJ+++++++++L,,,,,,,,,,,,,,,,,Lll-------llLlllllllllllL,TT
+TTT,,L++D++$,,,L++++++++++L,,,,,,,,,,,,,,,,,Lll???????ll'lllll?lllllL,TT
+TTT,,L+++++L,,,L++++D+++++L,,,,,,,,,,,,,,,,,Lll-------llLlllllllllllLTTT
+TT,,,LE+++FL,,,L++++++++++L,,,,,,,,,,,,,,,,,LlllllllllllLlllllllllllL,TT
+TTTT,LLLLLLL,,,L++++++++++L,,,,,,,,,,,,,,,,,LlllllllllllLlllllllllKKL,TT
+TT,T,,,,,,,,,,,LFE++E++++EL,,,,,,,,,,,,,,,,,LLLLLL'LLLLLLLLLLL'LLLLLL,TT
+TTT,,,,,,,,,,,,LLLLLLLLLLLL,,,,,,,,,,,,,,,",,,,,,,,,,,,,,,,,,,,,,,,,,,TT
+TTT,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,@@,@@,@@,@@,@@,@@,@@,@@,@@,@,TTT
+TTT,,,,,,,,,,,,,,,,,,,,,,,,,,,MMM$MMMM,,::::::::::::::::::::::::::::TTTT
+TT,,,,,,,,,,,,,,,,,,,,,,,,,,,,MA+++++M,,NNNNNNNNNNNNNNNNNNNNNNNNNNNN,TTT
+TTTT,,,,,,,,,,,,,,,,,,,,,,,,,,M+++F++M,,OOOOOOOOOOOOOOOOOOOOOOOOOOOOT,TT
+TTTT,,,,,,,,,,,,,,,,,,,,,,,,,,M++++++M,,::::::::::::::::::::::::::::T,TT
+TTTT,,,,,,,,,,,,,,,,,,,,,,,,,,MMMMMMMM,,P,,P,,P,,P,,P,,,,,,,,,,,,,,,T,TT
+TT,T,,,,,,,,,,,,,,,,,,,,,P,,P,,P,QQ~~~~~~~~~~~~~~~~~~~,P,,P,,P,,,,,,,,TT
+~~~~P,,P,,P,,P,,P,,P,,P,,~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~,,P,,P,TTT
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~TTTTTTTTTTTTTTTTTTTTT~~~~~~~~~~~~~~~~~~
+TTTT~~~~~~~~~~~~~~~~~~~~~TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT~~~~~~~~~~
+TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+level 1
+                                                                        
+                                                                        
+                                      .......                           
+                                      .;;;;;.                           
+                                      .;R;;;.                           
+                                      .;;;;;.                           
+                                      .;;;S;.                           
+                                      .;;;;;.                           
+                                      .;;;;;.                           
+                                      .......                           
+                                                                        
+                                                                        
+                                                                        
+                                                                        
+                                                                        
+                                                                        
+                                                            LLLLLLLLL   
+                                                            LE+$A$+EL   
+                                                            L++L+L++L   
+                                                            LLLL+LLLL   
+                            LLLLLLLLLLLLLLL                 LE+$+$+EL   
+                            L+++++++U+++++L                 L++L+L++L   
+                            L+++++++++++++L                 LLLL+LLLL   
+                            L+++++++++++++L                 LE+$A$+EL   
+                            L+++++++++++++L                 L++L+L++L   
+                            L+++++++++++++L                 LLLL+LLLL   
+                            L+++++++++++++L                 LE+$+$+EL   
+                            L+++++++++++++L                 L++L+L++L   
+                            L+++++++++++++L                 LLLL+LLLL   
+                            L++++++++++++EL                 LE+$A$+EL   
+                            LLLLLLLLLLLLLLL                 L++LUL++L   
+                                                            LLLLLLLLL   
+                                                                        
+                                                                        
+                                                                        
+                                                                        
+                                                                        
+                                                                        
+                                                                        
+                                                                        
+                                                                        
+                                                                        
+                                                                        
+                                                                        
+                                                                        
+                                                                        
+                                                                        
+                                                                        
+                                                                        
+                                                                        
+                                                                        
+                                                                        
+                                                                        
+                                                                        
+                                                                        
+                                                                        
+                                                                        
+                                                                        
+label 30 52 the Sázava
+label 11 3 the Unfinished Nave
+label 38 1 Tower
+label 46 3 St Procopius
+label 47 18 Cloister
+label 61 15 Chapter Hall
+label 61 33 Dorter (above)
+label 45 41 Refectory
+label 58 41 Kitchen
+label 29 31 Prelature
+label 14 19 Holy Cross
+label 4 20 Guests
+label 15 42 Infirmary
+label 29 42 Mill
+label 40 47 Terraces
+label 61 3 Graves
+end
