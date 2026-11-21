@@ -1,158 +1,251 @@
 /**
  * make-whitechapel.mjs - draws town/whitechapel.tbp: Whitechapel in the fog, for Sects & Violets,
- * clockwork London (gaslight, soot and brass; clockwork, not steampunk).
+ * clockwork London (gaslight, soot and brass). A square is a metre (21 Nov: the grid of 104 x 88 m was
+ * redrawn as the Rookery, 72 x 69 m, with a straight river through it).
  *
- * Cobbled streets on a grid, gas lamps at the corners, terraces of sooty brick back to back with a
- * yard or an alley between. Commercial Square in the middle: the public clock (speak there and the
- * whole parish hears you; fifteen benches round it). North of the square, the Ten Bells, whose long
- * tables the parish sits at for its reckonings. Christ Church and its yard; Abel Quill's, the
- * clockmaker's, every wall of it clocks; the doss-house; the workhouse; the market's barrows. To the
- * south the river: wharves, warehouses, stairs down to the water.
+ * The railway crosses the north on its brick viaduct; the arches are let as a smithy, a stable, a cooper's,
+ * a rag shop and lodgings, and the station stair climbs to the line. Commercial Square in the middle: the
+ * public clock (speak there and the whole parish hears you; fifteen benches round it), Christ Church and its
+ * yard on the west, the Ten Bells on the north-east corner (its long table seats the parish's reckonings,
+ * sixteen), Abel Quill's, the clockmaker's, facing it. The doss-house; Petticoat Lane's barrows down
+ * Wentworth Street; Flower and Dean Street and Wentworth Court with its pump. Then the Cut, a straight
+ * river of black water between stone wharves, cranes and barges, crossed by Commercial Street's stone
+ * bridge and an iron footbridge; south of it the back-to-backs on Thrawl Street and the Back Alley, a
+ * tunnel through.
  *
- * Two levels: the terraces' back bedrooms, the Ten Bells' rooms, the warehouse lofts, the clock loft.
+ * Two levels: the line on the viaduct, the Ten Bells' rooms, the back bedrooms, Quill's rooms, the tower.
  *
  *   node town/make-whitechapel.mjs
  */
 import { plan } from './gen.mjs';
 
-const P = plan(104, 88, 'floor cobble', 1888);
-const { W, H, put, get, fill, thing, room, house, stair, upRoom, up, label, rnd } = P;
+// ---- the pieces ----
 
-// ---- the river along the south, its wharves and the stairs down ----
-const riverTop = 77;
-for (let y = riverTop; y < H; y++) for (let x = 0; x < W; x++) put(x, y, 'floor water');
-fill(0, riverTop - 3, W - 1, riverTop - 1, 'floor stone block');
-for (const x of [18, 52, 86]) for (let y = riverTop; y <= riverTop + 4; y++) { put(x, y, 'floor water | plank bridge'); put(x + 1, y, 'floor water | plank bridge'); }
-label(4, riverTop + 2, 'The River');
-
-// ---- the streets: two lanes wide, cobbled; between them, blocks ----
-const COLS = [2, 26, 50, 76, 100], ROWS = [2, 20, 38, 56, 73];
-for (const x of COLS) fill(x, 0, x + 1, riverTop - 1, 'floor cobble');
-for (const y of ROWS) fill(0, y, W - 1, y + 1, 'floor cobble');
-const names = ['Fournier Street', 'Hanbury Street', 'Dorset Street', 'Thrawl Street'];
-ROWS.slice(1).forEach((y, k) => label(4, y - 1, names[k]));
-label(COLS[1] + 3, 1, 'Commercial Street');
-
-/** A block between streets: terraces back to back, a yard or alley between their backs. */
-const terrace = (x0, y0, x1, y1) => {
-	const mid = (y0 + y1) >> 1;
-	fill(x0, y0, x1, y1, 'floor mud');
-	// Houses of five to seven yards' frontage; now and then a court round a pump instead, or an alley cut through.
-	for (let x = x0, wd = 6; x1 - x >= 4; x += wd, wd = 5 + Math.floor(rnd() * 3)) {
-		// The last house takes what is left of the row.
-		if (x1 - x <= 9 || x + wd > x1) wd = x1 - x;
-		const r = rnd();
-		if (r < 0.12 && x > x0) { fill(x + 1, y0, x + wd - 1, y1, 'floor gravel'); thing(x + (wd >> 1), mid, 'well', 'floor gravel'); continue; }
-		if (r < 0.2 && x > x0) { fill(x + 2, y0, x + 3, y1, 'floor gravel'); }
-		const loft = rnd() < 0.5;
-		if (!(r < 0.2 && x > x0)) house(x, y0, x + wd, mid - 1, { wall: 'brick', floor: 'wood', door: 'n', loft, light: 'candle' });
-		if (!(r < 0.2 && x > x0)) house(x, mid + 1, x + wd, y1, { wall: 'brick', floor: 'wood', door: 's', loft: !loft, light: 'candle' });
+/** The public clock and fifteen benches round it, on cobbles (rx, ry: the ring's half-widths). */
+export function clockSquare(P, cx, cy, rx, ry, ground = 'floor cobble') {
+	P.thing(cx, cy, 'clock', 'floor stone block');
+	const seen = new Set();
+	for (let k = 0; k < 15; k++) {
+		const a = (k / 15) * Math.PI * 2 - Math.PI / 2;
+		const x = Math.round(cx + Math.cos(a) * rx), y = Math.round(cy + Math.sin(a) * ry);
+		if (seen.has(x + ',' + y)) throw new Error(`two benches at ${x},${y}`);
+		seen.add(x + ',' + y);
+		P.thing(x, y, 'chair', ground);
 	}
-	// The alley between the backs, a lamp at its mouth.
-	fill(x0, mid, x1, mid, 'floor gravel');
-	thing(x0, mid, 'gas lamp', 'floor gravel');
-};
-
-const blockOf = (c, r) => ({ x0: COLS[c] + 2, x1: COLS[c + 1] - 1, y0: ROWS[r] + 2, y1: ROWS[r + 1] - 1 });
-for (let r = 0; r < ROWS.length - 1; r++) for (let c = 0; c < COLS.length - 1; c++) {
-	const b = blockOf(c, r);
-	// The square and the buildings round it are drawn after.
-	if ((r === 1 || r === 2) && (c === 1 || c === 2)) continue;
-	if (r === 0 && c === 1) continue; // Christ Church
-	if (r === 3 && c === 3) continue; // the warehouses
-	terrace(b.x0, b.y0, b.x1, b.y1);
 }
 
-// ---- Commercial Square: the public clock, fifteen benches round it ----
-const sq = { x0: COLS[1] + 2, x1: COLS[3] - 1, y0: ROWS[2] + 2, y1: ROWS[3] - 1 };
-const qx = (sq.x0 + sq.x1) >> 1, qy = (sq.y0 + sq.y1) >> 1;
-fill(sq.x0, sq.y0, sq.x1, sq.y1, 'floor cobble');
-thing(qx, qy, 'clock', 'floor stone block');
-for (let k = 0; k < 15; k++) {
-	const a = (k / 15) * Math.PI * 2;
-	thing(Math.round(qx + Math.cos(a) * 9), Math.round(qy + Math.sin(a) * 5), 'chair', 'floor cobble');
+/**
+ * A row of terraced houses sharing their party walls, from x0 eastward until x1, fronts on `front` (the y of
+ * the front wall), `depth` deep, doors on that side ('n': the front is the top wall, 's': the bottom).
+ * Widths cycle through `widths`; every other house has a back bedroom up a stair. Returns the count.
+ */
+function terraceRow(P, x0, x1, front, depth, side, widths = [5, 4, 6, 5, 4], opts = {}) {
+	let x = x0, k = 0;
+	const skip = opts.skip ?? [];
+	while (x + 4 <= x1) {
+		const w = widths[k % widths.length];
+		if (x + w > x1) break;
+		if (skip.some(([a, b]) => x + w > a && x < b)) { x = skip.find(([a, b]) => x + w > a && x < b)[1]; continue; }
+		const [y0, y1] = side === 'n' ? [front, front + depth] : [front - depth, front];
+		P.house(x, y0, x + w, y1, { door: side, wall: 'brick', floor: 'wood', light: opts.light ?? 'brazier', loft: (opts.lofts ?? true) && k % 2 === 0 });
+		x += w; k++;
+	}
+	return k;
 }
-for (const [x, y] of [[sq.x0, sq.y0], [sq.x1, sq.y0], [sq.x0, sq.y1], [sq.x1, sq.y1]]) thing(x, y, 'gas lamp', 'floor cobble');
-// Barrows of the market along the square's edge.
-for (let x = sq.x0 + 3; x < sq.x1 - 2; x += 6) thing(x, sq.y1 - 1, 'cart', 'floor cobble');
-label(qx - 8, sq.y0 - 1, 'Commercial Square');
-
-// ---- the Ten Bells, north of the square: long tables, rooms above ----
-const tb = { x0: COLS[1] + 4, x1: COLS[2] + 12, y0: ROWS[1] + 2, y1: ROWS[2] - 1 };
-fill(COLS[1] + 2, ROWS[1] + 2, COLS[3] - 1, ROWS[2] - 1, 'floor cobble');
-room(tb.x0, tb.y0, tb.x1, tb.y1, 'brick', 'wood');
-const tbx = (tb.x0 + tb.x1) >> 1;
-for (const x of [tbx - 1, tbx]) thing(x, tb.y1, 'door', 'floor wood');
-for (const ty of [tb.y0 + 11]) {
-	for (let x = tb.x0 + 6; x <= tb.x1 - 6; x++) thing(x, ty, 'table', 'floor wood');
-	for (let x = tb.x0 + 6; x <= tb.x1 - 6; x += 2) { thing(x, ty - 1, 'chair', 'floor wood'); thing(x, ty + 1, 'chair', 'floor wood'); }
+/** The same, along a north-south street: fronts on `front` (an x), doors on 'w' or 'e'. */
+function terraceCol(P, y0, y1, front, depth, side, widths = [5, 4, 6, 5, 4], opts = {}) {
+	let y = y0, k = 0;
+	while (y + 4 <= y1) {
+		const w = widths[k % widths.length];
+		if (y + w > y1) break;
+		const [x0, x1] = side === 'w' ? [front, front + depth] : [front - depth, front];
+		P.house(x0, y, x1, y + w, { door: side, wall: 'brick', floor: 'wood', light: opts.light ?? 'brazier', loft: (opts.lofts ?? true) && k % 2 === 0 });
+		y += w; k++;
+	}
+	return k;
 }
-for (let x = tb.x0 + 2; x <= tb.x0 + 4; x++) thing(x, tb.y0 + 1, 'barrel', 'floor wood');
-for (const [x, y] of [[tb.x0 + 1, tb.y1 - 1], [tb.x1 - 1, tb.y1 - 1], [tb.x1 - 1, tb.y0 + 1]]) thing(x, y, 'gas lamp', 'floor wood');
-upRoom(tb.x0, tb.y0, tb.x1, tb.y1, 'brick', 'wood');
-for (let x = tb.x0 + 6; x < tb.x1; x += 6) { for (let y = tb.y0; y <= tb.y0 + 6; y++) up(x, y, 'wall brick'); up(x - 3, tb.y0 + 2, 'floor wood | bed'); }
-for (let x = tb.x0 + 6; x < tb.x1; x += 6) up(x, tb.y0 + 6, 'floor wood | door');
-for (let x = tb.x0 + 1; x < tb.x1; x++) up(x, tb.y0 + 7, 'floor wood');
-stair(tb.x0 + 1, tb.y0 + 8, 'wood');
-label(tb.x0, tb.y0 - 1, 'The Ten Bells');
 
-// ---- Abel Quill's, the clockmaker's, east of the Ten Bells: clocks on every wall ----
-const cm = { x0: tb.x1 + 3, x1: COLS[3] - 2, y0: ROWS[1] + 3, y1: ROWS[2] - 2 };
-house(cm.x0, cm.y0, cm.x1, cm.y1, { wall: 'brick', floor: 'wood', door: 's', loft: true, light: 'gas lamp', extra: [] });
-for (let x = cm.x0 + 1; x < cm.x1; x += 2) thing(x, cm.y0 + 1, 'clock', 'floor wood');
-thing(cm.x0 + 2, cm.y1 - 2, 'anvil', 'floor wood');
-label(cm.x0, cm.y0 - 1, "Abel Quill's");
+/**
+ * The Ten Bells: a public house, the bar along one wall, one long table where sixteen sit (the parish's
+ * reckonings), a fire; rooms upstairs off a passage. Door(s) on `side`.
+ */
+function tenBells(P, x0, y0, x1, y1, side) {
+	P.room(x0, y0, x1, y1, 'brick', 'wood');
+	const mx = (x0 + x1) >> 1, my = (y0 + y1) >> 1;
+	const d = side === 's' ? [mx, y1] : side === 'n' ? [mx, y0] : side === 'e' ? [x1, my] : [x0, my];
+	P.thing(d[0], d[1], 'door', 'floor wood');
+	// The long table: eight long, a chair each side of each place.
+	const tx = mx - 4;
+	for (let x = tx; x < tx + 8; x++) { P.thing(x, my, 'table', 'floor wood'); P.thing(x, my - 1, 'chair', 'floor wood'); P.thing(x, my + 1, 'chair', 'floor wood'); }
+	// The bar: barrels along the far wall.
+	const by = side === 'n' ? y1 - 1 : y0 + 1;
+	for (let x = x0 + 2; x <= x1 - 2; x += 2) P.thing(x, by, 'barrel', 'floor wood');
+	P.thing(side === 'w' ? x1 - 1 : x0 + 1, my, 'brazier', 'floor wood');
+	P.thing(x1 - 1, by === y0 + 1 ? y1 - 1 : y0 + 1, 'gas lamp', 'floor wood');
+	// Upstairs: rooms along the far side, a passage on the near side, the stair in it.
+	P.upRoom(x0, y0, x1, y1, 'brick', 'wood');
+	const far = side === 'n' ? [my + 1, y1 - 1] : [y0 + 1, my - 1], wallY = side === 'n' ? my : my;
+	for (let x = x0 + 1; x < x1; x++) P.up(x, wallY, 'wall brick');
+	let n = 0;
+	for (let x = x0 + 4; x < x1 - 1; x += 4) for (let y = far[0]; y <= far[1]; y++) P.up(x, y, 'wall brick');
+	for (let x = x0 + 2; x < x1 - 1; x += 4) { P.up(x, wallY, 'floor wood | door'); P.up(x, far[0] === y0 + 1 ? y0 + 1 : y1 - 1, 'floor wood | bed'); n++; }
+	const sy = side === 'n' ? y0 + 1 : y1 - 1;
+	P.stair(x1 - 2, sy, 'wood');
+	return n;
+}
 
-// ---- the doss-house and the workhouse, the far sides of the square ----
-const dh = { x0: COLS[1] + 2, x1: COLS[1] + 12, y0: ROWS[3] + 2, y1: ROWS[4] - 1 };
-fill(dh.x0, dh.y0, COLS[3] - 1, dh.y1, 'floor cobble');
-room(dh.x0, dh.y0, dh.x1, dh.y1, 'brick', 'wood');
-thing((dh.x0 + dh.x1) >> 1, dh.y0, 'door', 'floor wood');
-for (let y = dh.y0 + 2; y < dh.y1; y += 2) { thing(dh.x0 + 1, y, 'bed', 'floor wood'); thing(dh.x1 - 1, y, 'bed', 'floor wood'); }
-thing(dh.x0 + 5, dh.y1 - 1, 'brazier', 'floor wood');
-label(dh.x0, dh.y0 - 1, 'Doss-house');
-const wh = { x0: dh.x1 + 3, x1: COLS[3] - 2, y0: ROWS[3] + 2, y1: ROWS[4] - 1 };
-room(wh.x0, wh.y0, wh.x1, wh.y1, 'stone block', 'stone block');
-thing((wh.x0 + wh.x1) >> 1, wh.y0, 'door', 'floor stone block');
-for (let x = wh.x0 + 2; x < wh.x1 - 1; x += 3) { thing(x, wh.y0 + 3, 'loom', 'floor stone block'); thing(x, wh.y0 + 7, 'loom', 'floor stone block'); }
-thing(wh.x1 - 1, wh.y1 - 1, 'oven', 'floor stone block');
-label(wh.x0, wh.y0 - 1, 'The Workhouse');
+/** A church: nave with pews, an altar at the east, a tower at the west with the bell up its stair. Door on `side`. */
+function church(P, x0, y0, x1, y1, side) {
+	P.room(x0, y0, x1, y1, 'stone block', 'stone block');
+	const my = (y0 + y1) >> 1;
+	P.thing(x1 - 1, my, 'altar', 'floor stone block');
+	for (let x = x0 + 5; x <= x1 - 4; x += 2) for (let y = y0 + 1; y < y1; y++) if (Math.abs(y - my) > 0 && y !== y0 + 1 && y !== y1 - 1) P.thing(x, y, 'pew', 'floor stone block');
+	P.thing(x1 - 1, y0 + 1, 'candle', 'floor stone block'); P.thing(x1 - 1, y1 - 1, 'candle', 'floor stone block');
+	// The west tower: a room of its own, the bell above.
+	for (let y = y0; y <= y1; y++) P.put(x0 + 4, y, y === my ? 'floor stone block | door' : 'wall stone block');
+	P.upRoom(x0, y0, x0 + 4, y1, 'stone block', 'stone block');
+	P.stair(x0 + 1, y0 + 1, 'stone block');
+	P.up(x0 + 2, my, 'floor stone block | bell');
+	for (let x = x0 + 6; x < x1 - 1; x += 3) { P.put(x, y0, 'wall glass'); P.put(x, y1, 'wall glass'); }
+	const d = side === 's' ? [x0 + 7, y1] : side === 'n' ? [x0 + 7, y0] : side === 'w' ? [x0, my] : [x1, my - 1];
+	P.thing(d[0], d[1], 'door', 'floor stone block');
+}
 
-// ---- Christ Church and its yard ----
-const cc = blockOf(1, 0);
-fill(cc.x0, cc.y0, cc.x1, cc.y1, 'floor grass');
-room(cc.x0 + 3, cc.y0 + 2, cc.x1 - 3, cc.y1 - 2, 'stone block', 'stone block');
-const ccx = (cc.x0 + cc.x1) >> 1;
-thing(ccx, cc.y1 - 2, 'door', 'floor stone block');
-thing(ccx, cc.y0 + 3, 'altar', 'floor stone block');
-for (let y = cc.y0 + 5; y < cc.y1 - 3; y++) for (const x of [ccx - 4, ccx - 3, ccx - 2, ccx + 2, ccx + 3, ccx + 4]) thing(x, y, 'pew', 'floor stone block');
-for (const x of [ccx - 6, ccx + 6]) thing(x, cc.y0 + 3, 'candle', 'floor stone block');
-upRoom(cc.x0 + 3, cc.y0 + 2, cc.x0 + 9, cc.y0 + 8, 'stone block', 'stone block');
-stair(cc.x0 + 4, cc.y0 + 3, 'stone block');
-up(cc.x0 + 7, cc.y0 + 5, 'floor stone block | bell');
-for (let k = 0; k < 8; k++) thing(cc.x0 + 1 + (k % 4) * 6, k < 4 ? cc.y0 : cc.y1, 'statue', 'floor grass');
-label(cc.x0 + 3, cc.y0 + 1, 'Christ Church');
+/** Abel Quill's: the clockmaker's, clocks on every wall, a bench, the anvil; Abel's rooms over it. */
+function clockmaker(P, x0, y0, x1, y1, side) {
+	P.room(x0, y0, x1, y1, 'brick', 'wood');
+	const mx = (x0 + x1) >> 1, my = (y0 + y1) >> 1;
+	const d = side === 's' ? [mx, y1] : side === 'n' ? [mx, y0] : side === 'e' ? [x1, my] : [x0, my];
+	P.thing(d[0], d[1], 'door', 'floor wood');
+	for (let x = x0 + 1; x < x1; x += 2) for (const y of [y0 + 1, y1 - 1]) if (Math.abs(x - d[0]) + Math.abs(y - d[1]) > 1) P.thing(x, y, 'clock', 'floor wood');
+	P.thing(mx - 1, my, 'table', 'floor wood'); P.thing(mx, my, 'table', 'floor wood'); P.thing(mx - 1, my + 1, 'chair', 'floor wood');
+	P.thing(x0 + 1, side === 'w' ? my - 2 : my, 'anvil', 'floor wood'); P.thing(x1 - 1, my, 'candle', 'floor wood');
+	P.upRoom(x0, y0, x1, y1, 'brick', 'wood');
+	P.stair(x1 - 1, my + 1, 'wood');
+	P.up(x0 + 1, y0 + 1, 'floor wood | bed'); P.up(x0 + 2, y0 + 1, 'floor wood | clock'); P.up(mx, my, 'floor wood | wheel'); P.up(x1 - 1, y0 + 1, 'floor wood | candle');
+}
 
-// ---- the warehouses on the wharf, east ----
-const wa = blockOf(3, 3);
-fill(wa.x0, wa.y0, wa.x1, wa.y1, 'floor stone block');
-room(wa.x0, wa.y0, wa.x1, wa.y1, 'brick', 'wood');
-thing((wa.x0 + wa.x1) >> 1, wa.y1, 'door', 'floor wood');
-for (let x = wa.x0 + 2; x < wa.x1 - 1; x += 3) for (let y = wa.y0 + 2; y < wa.y1 - 2; y += 3) thing(x, y, rnd() < 0.5 ? 'barrel' : 'chest', 'floor wood');
-upRoom(wa.x0, wa.y0, wa.x1, wa.y1, 'brick', 'wood');
-stair(wa.x0 + 1, wa.y1 - 1, 'wood');
-label(wa.x0, wa.y0 - 1, 'Bonded Warehouses');
+/** Gas lamps on the given cells where they are street. */
+function lamps(P, cells) {
+	let n = 0;
+	for (const [x, y] of cells) { const c = P.get(x, y); if (c === 'floor cobble' || c === 'floor mud' || c === 'floor stone block' || c === 'floor gravel') { P.thing(x, y, 'gas lamp', c); n++; } }
+	return n;
+}
 
-// ---- gas lamps at the street corners; the river's edge ----
-for (const x of COLS) for (const y of ROWS) if (get(x, y) === 'floor cobble') thing(x, y, 'gas lamp', 'floor cobble');
-for (let x = 4; x < W; x += 12) thing(x, riverTop - 2, 'gas lamp', 'floor stone block');
-// The map's edge: the river, or a brick wall where the streets run off.
-for (let x = 0; x < W; x++) if (get(x, 0) !== 'floor water') put(x, 0, 'wall brick');
-for (let y = 0; y < riverTop; y++) for (const x of [0, W - 1]) put(x, y, 'wall brick');
-for (let x = 0; x < W; x++) put(x, H - 1, 'floor water');
-P.connect(qx + 9, qy, { track: 'floor gravel', tree: () => false });
+// ---- the parish ----
+
+const P = plan(72, 69, 'floor mud', 1888);
+const { W, H, put, get, fill, thing, room, house, stair, up, label, rnd } = P;
+const C = 'floor cobble';
+
+// ---- the streets ----
+fill(1, 7, 70, 8, C); label(2, 9, 'Arches Lane');
+fill(30, 7, 32, 67, C); label(33, 10, 'Commercial St');
+fill(52, 7, 54, 42, C); label(55, 9, 'Flower & Dean St');
+fill(1, 53, 70, 55, C); label(2, 56, 'Thrawl Street');
+fill(1, 65, 70, 67, C); label(2, 67, 'Back Alley');
+fill(1, 7, 2, 42, C); fill(69, 7, 70, 42, C); fill(1, 53, 2, 67, C); fill(69, 53, 70, 67, C);
+
+// ---- Commercial Square, the clock in the middle ----
+fill(22, 19, 44, 33, C);
+clockSquare(P, 33, 26, 6, 3.6);
+label(23, 18, 'Commercial Square');
+// Wentworth Street east from the square, Petticoat Lane's barrows along it.
+fill(44, 25, 68, 27, C);
+for (let x = 46; x <= 66; x += 3) thing(x, 24 + (x % 2 ? 0 : 4), 'cart', get(x, 24 + (x % 2 ? 0 : 4)) === C ? C : 'floor mud');
+label(45, 28, 'Petticoat Lane');
+
+// ---- the viaduct across the north: arches below, the line above ----
+// Arches of 6 m, open to Arches Lane: a smithy, a stable, lodgings, a cooper's, a rag shop.
+const arches = [];
+for (let x = 1; x + 6 <= 70; x += 6) { room(x, 0, x + 6, 6, 'brick', 'soil'); arches.push(x); }
+fill(67, 0, 70, 6, 'wall brick');
+arches.forEach((x, k) => {
+	thing(x + 3, 6, 'door', 'floor soil');
+	const kind = k % 5;
+	if (kind === 0) { thing(x + 2, 2, 'anvil', 'floor soil'); thing(x + 4, 2, 'oven', 'floor soil'); thing(x + 1, 4, 'barrel', 'floor soil'); }
+	if (kind === 1) { thing(x + 2, 2, 'cart', 'floor soil'); thing(x + 4, 2, 'hay bale', 'floor soil'); thing(x + 4, 3, 'hay bale', 'floor soil'); }
+	if (kind === 2) { thing(x + 1, 1, 'bed', 'floor soil'); thing(x + 5, 1, 'brazier', 'floor soil'); thing(x + 1, 4, 'chest', 'floor soil'); }
+	if (kind === 3) { for (const dx of [1, 2, 4, 5]) thing(x + dx, 1, 'barrel', 'floor soil'); thing(x + 3, 3, 'anvil', 'floor soil'); }
+	if (kind === 4) { thing(x + 1, 1, 'chest', 'floor soil'); thing(x + 5, 1, 'chest', 'floor soil'); thing(x + 2, 3, 'loom', 'floor soil'); thing(x + 5, 4, 'bed', 'floor soil'); }
+});
+label(2, 0, 'The Viaduct');
+// The line on top: two tracks, a signal lamp, the station stair in the middle arch.
+for (let y = 0; y <= 6; y++) for (let x = 0; x < W; x++) up(x, y, y === 0 || y === 6 || x === 0 || x === W - 1 ? 'wall iron' : 'floor stone block');
+for (let x = 1; x < W - 1; x++) { up(x, 2, 'floor stone block | rail'); up(x, 4, 'floor stone block | rail'); }
+const sx = arches[Math.floor(arches.length / 2)];
+for (let y = 1; y <= 5; y++) for (let x = sx + 1; x <= sx + 5; x++) put(x, y, 'floor stone block');
+stair(sx + 3, 1, 'stone block');
+up(sx + 2, 5, 'floor stone block | gas lamp'); up(sx + 4, 1, 'floor stone block | clock');
+label(sx, 0, 'Station');
+
+// ---- Christ Church, west of the square, and its yard ----
+fill(3, 10, 21, 10, 'floor grass');
+church(P, 4, 11, 21, 21, 'e');
+fill(22, 15, 22, 21, C);
+fill(3, 22, 21, 24, 'floor grass');
+for (let k = 0; k < 6; k++) thing(5 + k * 3, 23, 'statue', 'floor grass');
+label(4, 25, 'Christ Church yard');
+
+// ---- the Ten Bells on the square's north-east corner; Abel Quill's on its south side ----
+tenBells(P, 34, 9, 50, 18, 's');
+fill(34, 19, 50, 19, C);
+label(35, 19, 'The Ten Bells');
+clockmaker(P, 36, 34, 44, 40, 'n');
+label(36, 41, "Abel Quill's");
+
+// ---- the doss-house, south-west of the square ----
+room(4, 27, 21, 41, 'brick', 'wood');
+thing(21, 30, 'door', 'floor wood'); fill(22, 30, 29, 31, C);
+for (let y = 29; y <= 39; y += 2) for (let x = 6; x <= 18; x += 3) thing(x, y, 'bed', 'floor wood');
+thing(5, 40, 'brazier', 'floor wood'); thing(20, 40, 'chest', 'floor wood');
+label(4, 26, 'Doss-house');
+
+// ---- Flower and Dean Street: houses facing the street, Wentworth Court and its pump behind ----
+terraceCol(P, 10, 24, 55, 6, 'w', [5, 4, 5]);
+terraceCol(P, 28, 42, 55, 6, 'w', [5, 4, 5]);
+fill(62, 10, 68, 42, 'floor mud');
+thing(65, 33, 'well', 'floor stone block');
+terraceCol(P, 29, 42, 68, 5, 'e', [5, 4, 4]);
+for (let y = 10; y < 24; y += 4) thing(64, y + 1, 'barrel', 'floor mud');
+label(60, 29, 'Wentworth Court');
+// South of the square: a row facing it, and one on Wentworth Street.
+terraceRow(P, 23, 30, 34, 6, 'n', [7]);
+terraceRow(P, 45, 51, 29, 6, 'n', [6]);
+
+// ---- the Cut: a straight river of black water between stone wharves, cranes, barges, two bridges ----
+for (let y = 45; y <= 50; y++) for (let x = 1; x <= 70; x++) put(x, y, 'floor water');
+fill(1, 43, 70, 44, 'floor stone block'); fill(1, 51, 70, 52, 'floor stone block');
+label(3, 47, 'The Cut');
+// Commercial Street crosses on a stone bridge, parapets each side; an iron footbridge downstream.
+for (let y = 45; y <= 50; y++) { put(29, y, 'wall stone block'); put(33, y, 'wall stone block'); for (let x = 30; x <= 32; x++) put(x, y, 'floor stone block'); }
+for (let y = 45; y <= 50; y++) { put(60, y, 'wall iron'); put(63, y, 'wall iron'); put(61, y, 'floor iron'); put(62, y, 'floor iron'); }
+label(64, 47, 'Iron Bridge');
+// The wharves: cranes, crates and casks, a cart; barges moored along the north side.
+for (const [x, y] of [[8, 43], [24, 43], [44, 43], [56, 52], [14, 52]]) thing(x, y, 'wheel', 'floor stone block');
+for (const [x, y] of [[9, 43], [10, 43], [25, 43], [45, 44], [46, 43], [57, 52], [15, 51], [40, 52], [41, 52]]) thing(x, y, 'barrel', 'floor stone block');
+for (const [x, y] of [[11, 44], [26, 44], [47, 44], [58, 51]]) thing(x, y, 'chest', 'floor stone block');
+thing(20, 52, 'cart', 'floor stone block'); thing(50, 43, 'cart', 'floor stone block');
+for (const [x0, len, y] of [[5, 6, 46], [36, 7, 46], [48, 6, 49], [16, 5, 49]]) for (let x = x0; x < x0 + len; x++) put(x, y, 'floor water | plank bridge');
+label(36, 44, 'Wapping Wharf');
+
+// ---- back-to-backs on Thrawl Street, the Back Alley behind ----
+terraceRow(P, 3, 69, 56, 4, 'n', [5, 4, 6, 4, 5], { skip: [[30, 33]] });
+terraceRow(P, 3, 69, 64, 4, 's', [4, 6, 5, 4, 5], { skip: [[30, 33]], lofts: false });
+// A tunnel from Thrawl Street to the Back Alley under the terrace.
+fill(30, 56, 32, 64, C);
+
+// ---- gas lamps at the corners, along the wharves, a few between ----
+lamps(P, [[3, 8], [29, 8], [33, 8], [51, 8], [55, 8], [68, 8], [3, 42], [29, 42], [34, 42], [51, 42], [55, 42], [68, 42], [22, 19], [44, 19], [22, 33], [44, 33], [56, 27], [66, 25], [65, 30],
+	[18, 44], [58, 43], [28, 51], [66, 51], [3, 54], [29, 54], [34, 54], [68, 54], [3, 66], [29, 66], [34, 66], [68, 66]]);
+
+// The parish wall round it all.
+for (let x = 0; x < W; x++) { if (!get(x, 0).startsWith('wall')) put(x, 0, 'wall brick'); put(x, H - 1, 'wall brick'); }
+for (let y = 0; y < H; y++) { put(0, y, 'wall brick'); put(W - 1, y, 'wall brick'); }
+P.clearDoorsteps((c) => c.includes('| cart') || c.includes('| statue') || c.includes('| gas lamp') || c.includes('| barrel') || c.includes('| chest') || c.includes('| wheel'), 'floor mud');
+P.connect(33, 22);
 
 P.write(new URL('./whitechapel.tbp', import.meta.url), 'whitechapel', [
-	'Whitechapel in the fog, for Grimoire\'s Sects & Violets games.',
+	'Whitechapel, the Rookery: the parish round Commercial Square, the Cut through it, for the clockwork games.',
 	'Made by town/make-whitechapel.mjs; edit that and run it again. `label x y Name` names a place.'
-], { 'floor cobble': '.', 'wall brick': '#', 'floor wood': '+', 'floor water': '~', 'floor mud': ',', 'floor gravel': ':', 'wall stone block': 'S', 'floor stone block': 's', 'floor grass': '"', 'stair-up wood': '<', 'stair-down wood': '>' });
+], { 'floor cobble': ',', 'floor mud': '~', 'wall brick': 'B', 'floor wood': '+', 'floor stone block': 's', 'wall stone block': 'S', 'wall iron': 'I', 'floor iron': 'i', 'floor water': 'w', 'wall glass': 'g', 'floor soil': '.', 'floor grass': '"' });
